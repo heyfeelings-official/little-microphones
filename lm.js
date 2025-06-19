@@ -1,6 +1,10 @@
 // Wait for the HTML document to be ready.
-    document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", function () {
   
+  // --- TEST LOG ---
+  // This message should always appear in the console if the script is loaded.
+  console.log("✅ lm.js script loaded and executed successfully.");
+
   // A shorter, clean reference to the Memberstack DOM object.
   const memberstack = window.$memberstackDom;
 
