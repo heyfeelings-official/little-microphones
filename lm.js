@@ -64,10 +64,12 @@ document.addEventListener("DOMContentLoaded", () => {
         // Add a single, delegated event listener for all delete buttons.
         document.body.addEventListener("click", async (event) => {
           if (event.target && event.target.id === "lm-delete") {
-            const lmidToDelete = event.target.closest(".lmid-item")?.querySelector(".lmid-number-display")?.textContent;
+            // Find the parent item and the number display using the specified classes
+            const itemToDelete = event.target.closest(".faq1_accordion.lm");
+            const lmidToDelete = itemToDelete?.querySelector(".text-size-small.lm-number-display")?.textContent;
             
-            if (!lmidToDelete) {
-              console.error("Could not determine which LMID to delete.");
+            if (!lmidToDelete || !itemToDelete) {
+              console.error("Could not determine which LMID to delete. Make sure '.faq1_accordion.lm' and '.text-size-small.lm-number-display' classes are set correctly.");
               return;
             }
 
@@ -91,7 +93,7 @@ document.addEventListener("DOMContentLoaded", () => {
               });
 
               // Step 3: Remove the element from the DOM
-              event.target.closest(".lmid-item").remove();
+              itemToDelete.remove();
               
               console.log(`Successfully deleted LMID: ${lmidToDelete}`);
 
