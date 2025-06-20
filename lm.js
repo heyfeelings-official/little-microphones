@@ -171,7 +171,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const memberEmail = memberData.auth.email;
 
         // IMPORTANT: Create a new webhook in Make.com and paste the URL here.
-        const addWebhookUrl = "YOUR_NEW_MAKE.COM_WEBHOOK_URL_HERE"; 
+        const addWebhookUrl = "https://hook.us1.make.com/pk3iwfxub54js8ixniupijotc3cd3m2k"; 
 
         const response = await fetch(addWebhookUrl, {
           method: "POST",
