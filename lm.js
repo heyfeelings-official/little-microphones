@@ -19,8 +19,8 @@ document.addEventListener("DOMContentLoaded", () => {
       // Store the member's ID for later use in the delete webhook call.
       const memberId = memberData.id;
 
-      // Securely access the LMID from metaData.
-      const lmidFromMeta = memberData.metaData.LMID;
+      // Securely access the LMID from metaData, now using the "lmids" key for consistency.
+      const lmidFromMeta = memberData.metaData.lmids;
       let lmidArray = [];
 
       // NEW: Robustly handle LMID whether it's a number, a string, or a comma-separated string.
