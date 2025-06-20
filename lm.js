@@ -86,6 +86,10 @@ document.addEventListener("DOMContentLoaded", () => {
       console.error("An error occurred while fetching Member Data:", error);
     });
 
+  // NEW: A single webhook URL for all actions (add, delete, etc.)
+  // Please create a NEW webhook in Make.com for this combined scenario and paste its URL here.
+  const unifiedWebhookUrl = "https://hook.us1.make.com/aqxns3r1ysrpfqtdk4vi2t4yx04uhycv"; // <-- PASTE NEW WEBHOOK URL HERE
+
   // --- Secure Deletion Flow ---
   // We keep this event listener on the body so it's always active.
   document.body.addEventListener("click", async (event) => {
@@ -120,17 +124,25 @@ document.addEventListener("DOMContentLoaded", () => {
           throw new Error("You are no longer logged in.");
         }
         const memberId = memberData.id;
+        const currentLmids = memberData.metaData.lmids;
 
-        // Use the new webhook URL you provided.
-        const webhookUrl = "https://hook.us1.make.com/icz4rxn2pb7dln1xo6s2pm76vc3nr8xr";
-        
-        const response = await fetch(webhookUrl, {
+        // New logic: Prepare the final string in JavaScript instead of Make.com
+        let lmidArray = [];
+        if (currentLmids && typeof currentLmids === 'string') {
+          lmidArray = currentLmids.split(',').map(id => id.trim());
+        }
+        const filteredArray = lmidArray.filter(id => id !== lmidToDelete);
+        const newLmidString = filteredArray.length > 0 ? filteredArray.join(',') : null;
+
+        const response = await fetch(unifiedWebhookUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          // NEW: Send both lmid and the securely obtained memberId
+          // Send the 'delete' action along with all necessary data.
           body: JSON.stringify({
-            lmid: lmidToDelete,
+            action: 'delete',
             memberId: memberId,
+            lmidToDelete: lmidToDelete,
+            newLmidString: newLmidString,
           }),
         });
 
@@ -170,13 +182,11 @@ document.addEventListener("DOMContentLoaded", () => {
         const memberId = memberData.id;
         const memberEmail = memberData.auth.email;
 
-        // IMPORTANT: Create a new webhook in Make.com and paste the URL here.
-        const addWebhookUrl = "https://hook.us1.make.com/pk3iwfxub54js8ixniupijotc3cd3m2k"; 
-
-        const response = await fetch(addWebhookUrl, {
+        const response = await fetch(unifiedWebhookUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            action: 'add',
             memberId: memberId,
             memberEmail: memberEmail,
           }),
@@ -228,5 +238,7 @@ document.addEventListener("DOMContentLoaded", () => {
         addButton.textContent = "Create a new Program"; // Reset button text on error
       }
     });
+  } else {
+    console.error("Error: Could not find the 'Add LMID' button. Make sure the button on your page has the ID 'add-lmid'.");
   }
 });
