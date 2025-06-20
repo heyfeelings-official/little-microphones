@@ -3,7 +3,7 @@ document.addEventListener("DOMContentLoaded", function () {
   
   // --- TEST LOG ---
   // This message should always appear in the console if the script is loaded.
-  console.log("✅ Vercel Test: Skrypt załadowany poprawnie.");
+  console.log("✅ Vercel Test: Script loaded successfully.");
 
   // A shorter, clean reference to the Memberstack DOM object.
   const memberstack = window.$memberstackDom;
