@@ -136,6 +136,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const result = await response.json();
 
+        // New: Log the entire result for debugging
+        console.log("Response from Make.com:", result);
+
         if (!response.ok || result.status !== "success") {
           throw new Error(result.message || "The server returned an error during the deletion process.");
         }
