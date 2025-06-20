@@ -19,11 +19,17 @@ document.addEventListener("DOMContentLoaded", () => {
       // Securely access the LMID from metaData.
       // Our backend assigns a single LMID string to metaData.lmid.
       // We'll wrap it in an array to make our display logic reusable.
-      const lmidFromMeta = memberData.metaData.lmid;
-      const lmidArray = lmidFromMeta ? [lmidFromMeta] : [];
+      const lmidFromMeta = memberData.metaData.LMID;
+      let lmidArray = [];
+
+      // Check if lmidFromMeta is a non-empty string, then split it into an array.
+      // This handles "444, 555" as well as a single "444".
+      if (typeof lmidFromMeta === 'string' && lmidFromMeta.length > 0) {
+        lmidArray = lmidFromMeta.split(',').map(item => item.trim());
+      }
 
       if (lmidArray.length > 0) {
-        console.log("SUCCESS! LMID is accessible from metaData.", lmidArray[0]);
+        console.log("SUCCESS! LMID is accessible from metaData.", lmidArray);
 
         const template = document.getElementById("lm-slot");
         if (!template) {
