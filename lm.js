@@ -60,6 +60,15 @@ document.addEventListener("DOMContentLoaded", () => {
           
           container.appendChild(clone);
         });
+        
+        // --- Reinitialize Webflow interactions ---
+        // After adding all new elements, we need to tell Webflow to
+        // re-scan the page and apply its interactions to the new clones.
+        if (window.Webflow) {
+          window.Webflow.destroy();
+          window.Webflow.ready();
+          window.Webflow.require("ix2").init();
+        }
 
       } else {
         console.log("Member is logged in, but no valid LMID data was found.", memberJson);
