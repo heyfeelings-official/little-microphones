@@ -60,10 +60,51 @@ document.addEventListener("DOMContentLoaded", () => {
           
           container.appendChild(clone);
         });
+
+        // Add a single, delegated event listener for all delete buttons.
+        document.body.addEventListener("click", async (event) => {
+          if (event.target && event.target.id === "lm-delete") {
+            const lmidToDelete = event.target.closest(".lmid-item")?.querySelector(".lmid-number-display")?.textContent;
+            
+            if (!lmidToDelete) {
+              console.error("Could not determine which LMID to delete.");
+              return;
+            }
+
+            // Disable the button to prevent multiple clicks
+            event.target.disabled = true;
+            event.target.textContent = "Deleting...";
+
+            try {
+              // Step 1: Update Memberstack JSON
+              const { data: memberJson } = await memberstack.getMemberJSON();
+              const currentLmidArray = memberJson.LMID || [];
+              const updatedLmidArray = currentLmidArray.filter(id => id !== lmidToDelete);
+
+              await memberstack.updateMemberJSON({ json: { LMID: updatedLmidArray } });
+
+              // Step 2: Call the Make.com webhook
+              await fetch("https://hook.us1.make.com/dmfo4kfvl3umi6ta6sfizjqnofrbxf8o", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ lmid: lmidToDelete }),
+              });
+
+              // Step 3: Remove the element from the DOM
+              event.target.closest(".lmid-item").remove();
+              
+              console.log(`Successfully deleted LMID: ${lmidToDelete}`);
+
+            } catch (error) {
+              console.error("Failed to delete LMID:", error);
+              // Re-enable the button on failure
+              event.target.disabled = false;
+              event.target.textContent = "Delete";
+            }
+          }
+        });
         
-        // --- Reinitialize Webflow interactions ---
-        // After adding all new elements, we need to tell Webflow to
-        // re-scan the page and apply its interactions to the new clones.
+        // Reinitialize Webflow interactions
         if (window.Webflow) {
           window.Webflow.destroy();
           window.Webflow.ready();
