@@ -23,37 +23,42 @@ document.addEventListener("DOMContentLoaded", () => {
       if (Array.isArray(lmidArray) && lmidArray.length > 0) {
         console.log("SUCCESS! LMIDs are accessible.", lmidArray);
 
-        const slotContainer = document.getElementById("lm-slot");
-        if (!slotContainer) {
-          console.error("Error: The container with ID 'lm-slot' was not found.");
+        // The template IS the element with ID "lm-slot".
+        const template = document.getElementById("lm-slot");
+        if (!template) {
+          console.error("Error: The template element with ID 'lm-slot' was not found.");
+          return;
+        }
+        
+        // We will append the clones to the template's parent container.
+        const container = template.parentNode;
+        if (!container) {
+          console.error("Error: Could not find a parent container for the 'lm-slot' template.");
           return;
         }
 
-        // Find the template inside the container. It should be hidden.
-        const template = document.getElementById("lmid-template");
-        if (!template) {
-          console.error("Error: The template with ID 'lmid-template' was not found inside the slot.");
-          return;
-        }
+        // Hide the original template so it's not displayed.
+        template.style.display = "none";
 
         // For each LMID, clone the template, populate it, and append it.
         lmidArray.forEach(lmid => {
           const clone = template.cloneNode(true);
 
-          // Remove the ID from the cloned template to avoid duplicates.
+          // Make the cloned element visible again.
+          clone.style.display = ""; // Or "block", "flex", etc.
+          // Remove the ID from the clone to avoid duplicates.
           clone.removeAttribute("id");
-
-          // Make the cloned element visible.
-          clone.style.display = ""; // Or "block", "flex", etc., depending on your layout.
 
           const numberElement = clone.querySelector("#lmid-number");
           if (numberElement) {
             numberElement.textContent = lmid;
+            // Also remove the ID from the inner element to avoid duplicates.
+            numberElement.removeAttribute("id");
           } else {
-            console.warn("Element for LMID number not found in the template clone.");
+            console.warn("Could not find '#lmid-number' in the template clone.");
           }
           
-          slotContainer.appendChild(clone);
+          container.appendChild(clone);
         });
 
       } else {
