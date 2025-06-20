@@ -3,7 +3,7 @@ document.addEventListener("DOMContentLoaded", function () {
   
   // --- TEST LOG ---
   // This message should always appear in the console if the script is loaded.
-  console.log("✅ Skrypt lm.js załadowany i wykonany poprawnie.");
+  console.log("✅ El script lm.js se ha cargado y ejecutado correctamente.");
 
   // A shorter, clean reference to the Memberstack DOM object.
   const memberstack = window.$memberstackDom;
