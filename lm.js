@@ -9,7 +9,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Use getMemberData() to securely access member info, including metaData
-  memberstack.getMemberData()
+  memberstack.getCurrentMember()
     .then(({ data: memberData }) => {
       if (!memberData) {
         console.log("Member is not logged in.");
