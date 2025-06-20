@@ -23,10 +23,15 @@ document.addEventListener("DOMContentLoaded", () => {
       const lmidFromMeta = memberData.metaData.LMID;
       let lmidArray = [];
 
-      // Check if lmidFromMeta is a non-empty string, then split it into an array.
-      // This handles "444, 555" as well as a single "444".
-      if (typeof lmidFromMeta === 'string' && lmidFromMeta.length > 0) {
-        lmidArray = lmidFromMeta.split(',').map(item => item.trim());
+      // NEW: Robustly handle LMID whether it's a number, a string, or a comma-separated string.
+      if (lmidFromMeta) {
+        if (typeof lmidFromMeta === 'string' && lmidFromMeta.trim().length > 0) {
+          // Handles "3, 4, 5" or "3"
+          lmidArray = lmidFromMeta.split(',').map(item => item.trim());
+        } else if (typeof lmidFromMeta === 'number') {
+          // Handles 2
+          lmidArray = [String(lmidFromMeta)];
+        }
       }
 
       if (lmidArray.length > 0) {
