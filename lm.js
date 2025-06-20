@@ -20,49 +20,44 @@ document.addEventListener("DOMContentLoaded", () => {
       // Safely access the LMID array.
       const lmidArray = memberJson.LMID;
 
-      if (Array.isArray(lmidArray)) {
+      if (Array.isArray(lmidArray) && lmidArray.length > 0) {
         console.log("SUCCESS! LMIDs are accessible.", lmidArray);
-        
-        // --- DOM Manipulation ---
+
         const slotContainer = document.getElementById("lm-slot");
-
         if (!slotContainer) {
-          console.error("The 'lm-slot' container was not found on the page.");
+          console.error("Error: The container with ID 'lm-slot' was not found.");
           return;
         }
 
-        const templateElement = slotContainer.firstElementChild;
-
-        if (!templateElement) {
-          console.error("No template element found inside 'lm-slot' to use as a template.");
+        // Find the template inside the container. It should be hidden.
+        const template = document.getElementById("lmid-template");
+        if (!template) {
+          console.error("Error: The template with ID 'lmid-template' was not found inside the slot.");
           return;
         }
 
-        // Detach the template from the DOM to use it for cloning
-        templateElement.remove();
-
-        // Clear any other content in the slot (like whitespace nodes)
-        slotContainer.innerHTML = "";
-
-        // For each LMID, clone the template, populate it, and append it
+        // For each LMID, clone the template, populate it, and append it.
         lmidArray.forEach(lmid => {
-          const newElement = templateElement.cloneNode(true);
-          const numberElement = newElement.querySelector("#lmid-number");
+          const clone = template.cloneNode(true);
 
+          // Remove the ID from the cloned template to avoid duplicates.
+          clone.removeAttribute("id");
+
+          // Make the cloned element visible.
+          clone.style.display = ""; // Or "block", "flex", etc., depending on your layout.
+
+          const numberElement = clone.querySelector("#lmid-number");
           if (numberElement) {
             numberElement.textContent = lmid;
-            // Important: Remove the ID to prevent duplicates in the DOM
-            numberElement.removeAttribute("id");
           } else {
-            console.warn("Element with ID 'lmid-number' not found in the template. Displaying LMID in the main cloned element as a fallback.");
-            newElement.textContent = lmid;
+            console.warn("Element for LMID number not found in the template clone.");
           }
-
-          slotContainer.appendChild(newElement);
+          
+          slotContainer.appendChild(clone);
         });
 
       } else {
-        console.log("Member is logged in, but LMID data is not a valid array.", memberJson);
+        console.log("Member is logged in, but no valid LMID data was found.", memberJson);
       }
     })
     .catch(error => {
