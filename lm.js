@@ -8,7 +8,7 @@ document.addEventListener("DOMContentLoaded", () => {
     return;
   }
 
-  // Use getMemberData() to securely access member info, including metaData
+  // Use getCurrentMember() to securely access member info, including metaData
   memberstack.getCurrentMember()
     .then(({ data: memberData }) => {
       if (!memberData) {
@@ -16,9 +16,10 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
+      // Store the member's ID for later use in the delete webhook call.
+      const memberId = memberData.id;
+
       // Securely access the LMID from metaData.
-      // Our backend assigns a single LMID string to metaData.lmid.
-      // We'll wrap it in an array to make our display logic reusable.
       const lmidFromMeta = memberData.metaData.LMID;
       let lmidArray = [];
 
@@ -81,14 +82,12 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
   // --- Secure Deletion Flow ---
-  // Add a single, delegated event listener to the body to handle clicks on buttons
-  // that are added dynamically to the page.
+  // We keep this event listener on the body so it's always active.
   document.body.addEventListener("click", async (event) => {
     // Check if the clicked element is the delete button
     if (event.target && event.target.id === "lm-delete") {
       
       const deleteButton = event.target;
-      // Find the closest parent item that has the lmid stored in a data-attribute.
       const itemToDelete = deleteButton.closest("[data-lmid]");
       
       if (!itemToDelete) {
@@ -102,42 +101,46 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
       
-      // Ask for confirmation before proceeding.
       if (!confirm(`Are you sure you want to delete LMID: ${lmidToDelete}? This action cannot be undone.`)) {
         return;
       }
 
-      // Disable the button to prevent multiple clicks during the process.
       deleteButton.disabled = true;
       deleteButton.textContent = "Deleting...";
 
       try {
-        // IMPORTANT: This is a placeholder URL. We will create this webhook in Make.com in the next step.
-        const webhookUrl = "https://hook.us1.make.com/CHANGE_THIS_TO_YOUR_NEW_WEBHOOK_URL";
+        // Get the most current member data right before sending the request
+        const { data: memberData } = await memberstack.getCurrentMember();
+        if (!memberData) {
+          throw new Error("You are no longer logged in.");
+        }
+        const memberId = memberData.id;
+
+        // Use the new webhook URL you provided.
+        const webhookUrl = "https://hook.us1.make.com/icz4rxn2pb7dln1xo6s2pm76vc3nr8xr";
         
         const response = await fetch(webhookUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          // We only need to send the LMID we want to delete.
-          // The backend (Make.com) will get the member's identity securely from the webhook's session.
-          body: JSON.stringify({ lmid: lmidToDelete }),
+          // NEW: Send both lmid and the securely obtained memberId
+          body: JSON.stringify({
+            lmid: lmidToDelete,
+            memberId: memberId,
+          }),
         });
 
         const result = await response.json();
 
         if (!response.ok || result.status !== "success") {
-          // If the server-side operation fails, throw an error to be caught below.
           throw new Error(result.message || "The server returned an error during the deletion process.");
         }
 
-        // On successful response from the backend, remove the element from the DOM.
         itemToDelete.remove();
         console.log(`Successfully deleted LMID: ${lmidToDelete}`);
 
       } catch (error) {
         console.error("Failed to delete LMID:", error);
         alert(`An error occurred while trying to delete the LMID: ${error.message}`);
-        // Re-enable the button on failure to allow the user to try again.
         deleteButton.disabled = false;
         deleteButton.textContent = "Delete";
       }
