@@ -154,4 +154,79 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
   });
+
+  // --- Add New LMID Flow ---
+  const addButton = document.getElementById("add-lmid");
+  if (addButton) {
+    addButton.addEventListener("click", async () => {
+      addButton.disabled = true;
+      addButton.textContent = "Adding...";
+
+      try {
+        const { data: memberData } = await memberstack.getCurrentMember();
+        if (!memberData) {
+          throw new Error("You are not logged in.");
+        }
+        const memberId = memberData.id;
+        const memberEmail = memberData.auth.email;
+
+        // IMPORTANT: Create a new webhook in Make.com and paste the URL here.
+        const addWebhookUrl = "YOUR_NEW_MAKE.COM_WEBHOOK_URL_HERE"; 
+
+        const response = await fetch(addWebhookUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            memberId: memberId,
+            memberEmail: memberEmail,
+          }),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || result.status !== "success") {
+          throw new Error(result.message || "Could not add a new LMID at this time.");
+        }
+
+        const newLmid = result.lmid;
+
+        // Dynamically create and add the new element to the page.
+        const template = document.getElementById("lm-slot");
+        const container = template.parentNode;
+        if (!template || !container) {
+          console.error("Could not find the template or container for new LMIDs.");
+          return;
+        }
+
+        const clone = template.cloneNode(true);
+        clone.style.display = "";
+        clone.removeAttribute("id");
+        clone.setAttribute("data-lmid", newLmid);
+
+        const numberElement = clone.querySelector("#lmid-number");
+        if (numberElement) {
+          numberElement.textContent = newLmid;
+          numberElement.removeAttribute("id");
+        }
+
+        container.appendChild(clone);
+
+        if (window.Webflow) {
+          window.Webflow.destroy();
+          window.Webflow.ready();
+          window.Webflow.require("ix2").init();
+        }
+
+        addButton.disabled = false;
+        addButton.textContent = "Create a new Program"; // Reset button text
+        console.log(`Successfully added new LMID: ${newLmid}`);
+
+      } catch (error) {
+        console.error("Failed to add new LMID:", error);
+        alert(`An error occurred while trying to add a new LMID: ${error.message}`);
+        addButton.disabled = false;
+        addButton.textContent = "Create a new Program"; // Reset button text on error
+      }
+    });
+  }
 });
