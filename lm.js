@@ -34,14 +34,17 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
 
+      const template = document.getElementById("lm-slot");
+      if (!template) {
+        console.error("Error: The template element with ID 'lm-slot' was not found.");
+        return;
+      }
+
+      // Always hide the original template if a member is logged in.
+      template.style.display = "none";
+
       if (lmidArray.length > 0) {
         console.log("SUCCESS! LMID is accessible from metaData.", lmidArray);
-
-        const template = document.getElementById("lm-slot");
-        if (!template) {
-          console.error("Error: The template element with ID 'lm-slot' was not found.");
-          return;
-        }
         
         const container = template.parentNode;
         if (!container) {
