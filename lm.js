@@ -1,4 +1,4 @@
-// Wait for the HTML document to be ready.
+// lm.js - Secure version using Memberstack Metadata
 document.addEventListener("DOMContentLoaded", () => {
   const memberstack = window.$memberstackDom;
 
@@ -8,52 +8,50 @@ document.addEventListener("DOMContentLoaded", () => {
     return;
   }
 
-  // Directly get the Member's JSON data.
-  // This returns null if the member is not logged in.
-  memberstack.getMemberJSON()
-    .then(({ data: memberJson }) => {
-      if (!memberJson) {
+  // Use getMemberData() to securely access member info, including metaData
+  memberstack.getMemberData()
+    .then(({ data: memberData }) => {
+      if (!memberData) {
         console.log("Member is not logged in.");
         return;
       }
 
-      // Safely access the LMID array.
-      const lmidArray = memberJson.LMID;
+      // Securely access the LMID from metaData.
+      // Our backend assigns a single LMID string to metaData.lmid.
+      // We'll wrap it in an array to make our display logic reusable.
+      const lmidFromMeta = memberData.metaData.lmid;
+      const lmidArray = lmidFromMeta ? [lmidFromMeta] : [];
 
-      if (Array.isArray(lmidArray) && lmidArray.length > 0) {
-        console.log("SUCCESS! LMIDs are accessible.", lmidArray);
+      if (lmidArray.length > 0) {
+        console.log("SUCCESS! LMID is accessible from metaData.", lmidArray[0]);
 
-        // The template IS the element with ID "lm-slot".
         const template = document.getElementById("lm-slot");
         if (!template) {
           console.error("Error: The template element with ID 'lm-slot' was not found.");
           return;
         }
         
-        // We will append the clones to the template's parent container.
         const container = template.parentNode;
         if (!container) {
           console.error("Error: Could not find a parent container for the 'lm-slot' template.");
           return;
         }
 
-        // Hide the original template so it's not displayed.
+        // Hide the original template.
         template.style.display = "none";
 
         // For each LMID, clone the template, populate it, and append it.
         lmidArray.forEach(lmid => {
           const clone = template.cloneNode(true);
 
-          // Make the cloned element visible again.
-          clone.style.display = ""; // Or "block", "flex", etc.
-          // Remove the ID from the clone to avoid duplicates.
-          clone.removeAttribute("id");
+          clone.style.display = ""; // Make the clone visible
+          clone.removeAttribute("id"); // Avoid duplicate IDs
+          clone.setAttribute("data-lmid", lmid); // Store LMID in a data attribute for easy access
 
           const numberElement = clone.querySelector("#lmid-number");
           if (numberElement) {
             numberElement.textContent = lmid;
-            // Also remove the ID from the inner element to avoid duplicates.
-            numberElement.removeAttribute("id");
+            numberElement.removeAttribute("id"); // Avoid duplicate IDs in child elements
           } else {
             console.warn("Could not find '#lmid-number' in the template clone.");
           }
@@ -61,52 +59,7 @@ document.addEventListener("DOMContentLoaded", () => {
           container.appendChild(clone);
         });
 
-        // Add a single, delegated event listener for all delete buttons.
-        document.body.addEventListener("click", async (event) => {
-          if (event.target && event.target.id === "lm-delete") {
-            // Find the parent item and the number display using the specified classes
-            const itemToDelete = event.target.closest(".faq1_accordion.lm");
-            const lmidToDelete = itemToDelete?.querySelector(".text-size-small.lm-number-display")?.textContent;
-            
-            if (!lmidToDelete || !itemToDelete) {
-              console.error("Could not determine which LMID to delete. Make sure '.faq1_accordion.lm' and '.text-size-small.lm-number-display' classes are set correctly.");
-              return;
-            }
-
-            // Disable the button to prevent multiple clicks
-            event.target.disabled = true;
-            event.target.textContent = "Deleting...";
-
-            try {
-              // Step 1: Update Memberstack JSON
-              const { data: memberJson } = await memberstack.getMemberJSON();
-              const currentLmidArray = memberJson.LMID || [];
-              const updatedLmidArray = currentLmidArray.filter(id => id !== lmidToDelete);
-
-              await memberstack.updateMemberJSON({ json: { LMID: updatedLmidArray } });
-
-              // Step 2: Call the Make.com webhook
-              await fetch("https://hook.us1.make.com/dmfo4kfvl3umi6ta6sfizjqnofrbxf8o", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ lmid: lmidToDelete }),
-              });
-
-              // Step 3: Remove the element from the DOM
-              itemToDelete.remove();
-              
-              console.log(`Successfully deleted LMID: ${lmidToDelete}`);
-
-            } catch (error) {
-              console.error("Failed to delete LMID:", error);
-              // Re-enable the button on failure
-              event.target.disabled = false;
-              event.target.textContent = "Delete";
-            }
-          }
-        });
-        
-        // Reinitialize Webflow interactions
+        // Reinitialize Webflow interactions after adding new elements
         if (window.Webflow) {
           window.Webflow.destroy();
           window.Webflow.ready();
@@ -114,11 +67,74 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
       } else {
-        console.log("Member is logged in, but no valid LMID data was found.", memberJson);
+        console.log("Member is logged in, but no LMID was found in metaData.", memberData);
       }
     })
     .catch(error => {
-      // Catches network errors or other issues with the API call.
-      console.error("An error occurred while fetching Member JSON:", error);
+      console.error("An error occurred while fetching Member Data:", error);
     });
+
+  // --- Secure Deletion Flow ---
+  // Add a single, delegated event listener to the body to handle clicks on buttons
+  // that are added dynamically to the page.
+  document.body.addEventListener("click", async (event) => {
+    // Check if the clicked element is the delete button
+    if (event.target && event.target.id === "lm-delete") {
+      
+      const deleteButton = event.target;
+      // Find the closest parent item that has the lmid stored in a data-attribute.
+      const itemToDelete = deleteButton.closest("[data-lmid]");
+      
+      if (!itemToDelete) {
+        console.error("Could not find the parent element with a 'data-lmid' attribute.");
+        return;
+      }
+
+      const lmidToDelete = itemToDelete.getAttribute("data-lmid");
+      if (!lmidToDelete) {
+        console.error("Could not find LMID to delete from the 'data-lmid' attribute.");
+        return;
+      }
+      
+      // Ask for confirmation before proceeding.
+      if (!confirm(`Are you sure you want to delete LMID: ${lmidToDelete}? This action cannot be undone.`)) {
+        return;
+      }
+
+      // Disable the button to prevent multiple clicks during the process.
+      deleteButton.disabled = true;
+      deleteButton.textContent = "Deleting...";
+
+      try {
+        // IMPORTANT: This is a placeholder URL. We will create this webhook in Make.com in the next step.
+        const webhookUrl = "https://hook.us1.make.com/CHANGE_THIS_TO_YOUR_NEW_WEBHOOK_URL";
+        
+        const response = await fetch(webhookUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          // We only need to send the LMID we want to delete.
+          // The backend (Make.com) will get the member's identity securely from the webhook's session.
+          body: JSON.stringify({ lmid: lmidToDelete }),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || result.status !== "success") {
+          // If the server-side operation fails, throw an error to be caught below.
+          throw new Error(result.message || "The server returned an error during the deletion process.");
+        }
+
+        // On successful response from the backend, remove the element from the DOM.
+        itemToDelete.remove();
+        console.log(`Successfully deleted LMID: ${lmidToDelete}`);
+
+      } catch (error) {
+        console.error("Failed to delete LMID:", error);
+        alert(`An error occurred while trying to delete the LMID: ${error.message}`);
+        // Re-enable the button on failure to allow the user to try again.
+        deleteButton.disabled = false;
+        deleteButton.textContent = "Delete";
+      }
+    }
+  });
 });
