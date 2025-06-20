@@ -49,9 +49,6 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
-        // Hide the original template.
-        template.style.display = "none";
-
         // For each LMID, clone the template, populate it, and append it.
         lmidArray.forEach(lmid => {
           const clone = template.cloneNode(true);
