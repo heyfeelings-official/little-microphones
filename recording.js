@@ -240,10 +240,10 @@ function initializeAudioRecorder() {
 
         analyser.getByteTimeDomainData(dataArray); // Fill dataArray with waveform data
 
-        canvasCtx.fillStyle = '#2c3e50'; // Background color of canvas
+        canvasCtx.fillStyle = '#FFFFFF'; // Background color of canvas
         canvasCtx.fillRect(0, 0, liveWaveformCanvas.width, liveWaveformCanvas.height);
         canvasCtx.lineWidth = 2;
-        canvasCtx.strokeStyle = 'rgb(52, 152, 219)'; // Color of the wave
+        canvasCtx.strokeStyle = '#2c3e50'; // Color of the wave
         canvasCtx.beginPath();
 
         const sliceWidth = liveWaveformCanvas.width * 1.0 / dataArray.length;
@@ -290,6 +290,7 @@ function initializeAudioRecorder() {
         recordings.forEach(rec => {
             const li = document.createElement('li');
             li.dataset.id = rec.id;
+            li.style.cssText = 'display: flex; flex-direction: column; align-items: center; margin-bottom: 24px;';
 
             const audioPlayer = document.createElement('audio');
             audioPlayer.controls = true;
@@ -323,7 +324,7 @@ function initializeAudioRecorder() {
 
             const deleteButton = document.createElement('button');
             deleteButton.textContent = 'Delete';
-            deleteButton.classList.add('delete');
+            deleteButton.style.cssText = 'background: none; border: none; color: #f25444; cursor: pointer; padding: 5px; font-size: 0.9em;';
             deleteButton.onclick = function() {
                 if (confirm(`Are you sure you want to delete this recording?`)) {
                     deleteRecording(rec.id);
