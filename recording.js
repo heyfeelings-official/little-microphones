@@ -356,5 +356,5 @@ function withStore(type, callback) {
 document.addEventListener('DOMContentLoaded', () => {
     console.log("DOM loaded. Initializing recorders.");
     injectGlobalStyles();
-    document.querySelectorAll('.recorder-component').forEach(initializeAudioRecorder);
+    document.querySelectorAll('.faq1_accordion').forEach(initializeAudioRecorder);
 }); 
