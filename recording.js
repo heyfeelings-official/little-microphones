@@ -86,6 +86,9 @@ function initializeAudioRecorder() {
     loadRecordings(); // Load existing recordings from IndexedDB
     if (recordButton) {
         recordButton.addEventListener('click', handleRecordButtonClick);
+        if (!recordButton.parentElement.classList.contains('recorder-wrapper')) {
+            console.warn('Warning: The record button and canvas element should be wrapped in a <div> with the class "recorder-wrapper" for the waveform to display correctly.');
+        }
     } else {
         console.error("Record button not found!");
     }
@@ -277,7 +280,7 @@ function initializeAudioRecorder() {
         let x_left = center_x - (gap / 2);
         for (let i = 0; i < bufferLength / 2; i++) {
             if (x_left - barWidth < 0) break; // Don't draw off-canvas
-            const barHeight = Math.pow(dataArray[i] / 255, 2) * canvasHeight;
+            const barHeight = (dataArray[i] / 255) * canvasHeight * 0.7; // Removed Math.pow for more visibility
             
             canvasCtx.fillStyle = '#D9D9D9';
             canvasCtx.fillRect(x_left - barWidth, (canvasHeight - barHeight) / 2, barWidth, barHeight);
@@ -288,7 +291,7 @@ function initializeAudioRecorder() {
         let x_right = center_x + (gap / 2);
         for (let i = 0; i < bufferLength / 2; i++) {
             if (x_right + barWidth > canvasWidth) break; // Don't draw off-canvas
-            const barHeight = Math.pow(dataArray[i] / 255, 2) * canvasHeight; // Use the same data for symmetry
+            const barHeight = (dataArray[i] / 255) * canvasHeight * 0.7; // Use the same data for symmetry
             
             canvasCtx.fillStyle = '#D9D9D9';
             canvasCtx.fillRect(x_right, (canvasHeight - barHeight) / 2, barWidth, barHeight);
