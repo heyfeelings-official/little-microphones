@@ -1,8 +1,17 @@
-// recording.js - Manages audio recording, visualization, and local storage.
+// recording.js - Manages multiple, independent audio recorder instances on a page.
 
-function initializeAudioRecorder() {
-    // Inject CSS for the recording animation
+/**
+ * Injects the necessary CSS for animations into the document's head.
+ * This function is called only once.
+ */
+function injectGlobalStyles() {
+    // Check if styles already injected
+    if (document.getElementById('recorder-styles')) {
+        return;
+    }
+
     const style = document.createElement('style');
+    style.id = 'recorder-styles';
     style.textContent = `
         @keyframes pulse-red {
           0% {
@@ -14,84 +23,76 @@ function initializeAudioRecorder() {
             opacity: 0;
           }
         }
-        
-        #recordButton {
+
+        .record-button {
             position: relative;
-            /* Ensure the button's content (icon, text) is above the pseudo-element */
             z-index: 1; 
         }
 
-        #recordButton.recording::before {
+        .record-button.recording::before {
           content: '';
           position: absolute;
-          /* Center the pseudo-element on the button */
           top: 0;
           left: 0;
           width: 100%;
           height: 100%;
-          border-radius: 50%; /* Assuming the button is a circle */
+          border-radius: 50%;
           background-color: red;
-          /* Place it behind the button's content */
           z-index: -1;
-          /* Start the animation */
           animation: pulse-red 1.2s infinite ease-out;
         }
     `;
     document.head.appendChild(style);
+}
 
-    const recordButton = document.getElementById('recordButton');
-    const statusDisplay = document.getElementById('status');
-    const timerDisplay = document.getElementById('timer');
-    const recordingsListUI = document.getElementById('recordingsList');
-    const liveWaveformCanvas = document.getElementById('liveWaveformCanvas');
+/**
+ * Initializes a single audio recorder instance.
+ * @param {HTMLElement} recorderWrapper - The main container element for this recorder.
+ */
+function initializeAudioRecorder(recorderWrapper) {
+    const questionId = recorderWrapper.dataset.questionId;
+    if (!questionId) {
+        console.error("Recorder component is missing 'data-question-id'. Skipping.", recorderWrapper);
+        return;
+    }
+
+    // Select elements using classes within the scope of the current recorder
+    const recordButton = recorderWrapper.querySelector('.record-button');
+    const statusDisplay = recorderWrapper.querySelector('.status-display');
+    const timerDisplay = recorderWrapper.querySelector('.timer-display');
+    const recordingsListUI = recorderWrapper.querySelector('.recordings-list');
+    const liveWaveformCanvas = recorderWrapper.querySelector('.live-waveform-canvas');
+
+    if (!recordButton || !statusDisplay || !timerDisplay || !recordingsListUI || !liveWaveformCanvas) {
+        console.error(`Recorder for Q-ID "${questionId}" is missing required elements (.record-button, .status-display, etc.). Skipping.`);
+        return;
+    }
+    
+    console.log(`Initializing recorder for question ID: ${questionId}`);
     const canvasCtx = liveWaveformCanvas.getContext('2d');
 
     let mediaRecorder;
     let audioChunks = [];
-    let recordings = [];
+    let recordings = []; // Holds recordings for this instance ONLY
     let timerInterval;
     let seconds = 0;
     
-    // For live canvas visualization
     let audioContext;
     let analyser;
-    let sourceNode; // To connect microphone stream to analyser
-    let dataArray;    // To store waveform data
-    let animationFrameId; // To control the drawing loop
+    let sourceNode;
+    let dataArray;
+    let animationFrameId;
 
-    // Check for MediaRecorder support (essential)
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) {
-        statusDisplay.textContent = "MediaRecorder API not supported. This browser cannot record audio.";
-        if(recordButton) recordButton.disabled = true;
+        statusDisplay.textContent = "MediaRecorder API not supported.";
+        recordButton.disabled = true;
         return;
     }
 
-    loadRecordings(); // Load existing recordings from IndexedDB
-    if (recordButton) {
-        recordButton.addEventListener('click', handleRecordButtonClick);
-    } else {
-        console.error("Record button not found!");
-    }
-
-    function setButtonText(button, text) {
-        if (!button) return;
-        // Iterate backwards through child nodes to find the last non-empty text node.
-        // This is more robust and likely to be the label text.
-        for (let i = button.childNodes.length - 1; i >= 0; i--) {
-            const node = button.childNodes[i];
-            // Node.TEXT_NODE === 3
-            if (node.nodeType === 3 && node.textContent.trim().length > 0) {
-                node.textContent = ` ${text} `; // Add spacing for layout
-                return;
-            }
-        }
-        // Fallback for structure like <button><i>...</i><div>TEXT</div></button>
-        if (button.lastElementChild) {
-            button.lastElementChild.textContent = text;
-        } else {
-            console.warn("Could not find a suitable text node or element to update in the button.");
-        }
-    }
+    // Setup DB and Load recordings for this specific instance
+    setupDatabase().then(() => loadRecordingsForInstance());
+    
+    recordButton.addEventListener('click', handleRecordButtonClick);
 
     function handleRecordButtonClick() {
         if (mediaRecorder && mediaRecorder.state === "recording") {
@@ -102,238 +103,144 @@ function initializeAudioRecorder() {
     }
 
     async function startActualRecording() {
-        console.log(`Starting new recording.`);
-
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            console.log("Microphone stream obtained.");
-
-            // --- Setup for Live Canvas Visualization ---
+            
             if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
             analyser = audioContext.createAnalyser();
-            analyser.fftSize = 256; // Lower for fewer, wider bars
-            const bufferLength = analyser.frequencyBinCount; // Usually half of fftSize
+            analyser.fftSize = 256;
+            const bufferLength = analyser.frequencyBinCount;
             dataArray = new Uint8Array(bufferLength);
             
-            sourceNode = audioContext.createMediaStreamSource(stream); // Create source from mic stream
-            sourceNode.connect(analyser); // Connect to analyser
-            drawLiveWaveform(); // Start the animation loop
+            sourceNode = audioContext.createMediaStreamSource(stream);
+            sourceNode.connect(analyser);
+            drawLiveWaveform();
 
-            // --- Setup MediaRecorder ---
             setButtonText(recordButton, 'Stop');
             recordButton.classList.add('recording');
             statusDisplay.textContent = "Status: Recording...";
-            audioChunks = []; // Reset for new recording
-            const options = getSupportedMimeType(); // Get preferred MIME type
+            audioChunks = [];
             
-            mediaRecorder = new MediaRecorder(stream, options);
+            mediaRecorder = new MediaRecorder(stream, getSupportedMimeType());
 
             mediaRecorder.ondataavailable = (event) => {
-                if (event.data.size > 0) {
-                    audioChunks.push(event.data);
-                }
+                if (event.data.size > 0) audioChunks.push(event.data);
             };
 
             mediaRecorder.onerror = (event) => {
                 console.error("MediaRecorder error:", event.error);
-                statusDisplay.textContent = `Recording error: ${event.error.name || 'Unknown error'}`;
-                cleanupAfterRecording(stream); // Pass stream to ensure its tracks are stopped
+                cleanupAfterRecording(stream);
             };
 
             mediaRecorder.onstop = () => {
-                console.log("MediaRecorder stopped. Chunks collected:", audioChunks.length);
-
                 if (audioChunks.length === 0) {
-                    console.warn("No audio data collected.");
-                    statusDisplay.textContent = "No audio data recorded. Try again.";
                     cleanupAfterRecording(stream);
                     return;
                 }
                 const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
-                console.log("Audio blob created, size:", audioBlob.size, "type:", audioBlob.type);
-                
-                if (audioBlob.size === 0) {
-                    console.warn("Created audio blob is empty.");
-                    statusDisplay.textContent = "Failed to create valid audio. Try again.";
-                    cleanupAfterRecording(stream);
-                    return;
-                }
-
                 const audioUrl = URL.createObjectURL(audioBlob);
                 const timestamp = Date.now();
-
-                const recordingId = `rec-${timestamp}`;
-                recordings.push({ id: recordingId, blob: audioBlob, url: audioUrl, timestamp: timestamp });
+                const recordingId = `${questionId}-rec-${timestamp}`;
                 
-                saveRecordings();
+                const newRecording = { id: recordingId, blob: audioBlob, timestamp: timestamp };
+                
+                // Add to local array and save to DB
+                recordings.push({ ...newRecording, url: audioUrl });
+                saveRecordingToDB(newRecording);
+                
                 renderRecordingsList();
-                cleanupAfterRecording(stream); // Call cleanup after processing
+                cleanupAfterRecording(stream);
             };
 
             mediaRecorder.start();
-            console.log("MediaRecorder.start() called.");
             startTimer();
 
         } catch (err) {
             console.error("Error starting recording:", err);
             statusDisplay.textContent = `Start Error: ${err.message}`;
-            cleanupAfterRecording(null); // No stream if error happened before getting it
         }
     }
 
     function stopActualRecording() {
-        if (mediaRecorder && mediaRecorder.state === "recording") {
-            console.log("Stopping MediaRecorder manually.");
-            mediaRecorder.stop(); // This will trigger the onstop event
-            stopTimer();
-        } else {
-            console.warn("stopActualRecording called but MediaRecorder not recording.");
-            cleanupAfterRecording(null); // Reset UI if MR wasn't active
-        }
+        if (mediaRecorder) mediaRecorder.stop();
+        stopTimer();
     }
     
     function cleanupAfterRecording(streamToStop) {
-        if (animationFrameId) {
-            cancelAnimationFrame(animationFrameId); // Stop the drawing loop
-            animationFrameId = null;
-        }
-        if (canvasCtx) { // Clear the canvas
-            canvasCtx.clearRect(0, 0, liveWaveformCanvas.width, liveWaveformCanvas.height);
-        }
-
-        if (sourceNode) {
-            sourceNode.disconnect(); // Disconnect analyser from stream source
-            sourceNode = null;
-        }
-        // Analyser and audioContext can be reused, or closed if no more audio activity is planned soon
-        // For simplicity here, we'll leave audioContext open for potential reuse.
-        // analyser = null; 
-        // dataArray = null;
-
-        if (streamToStop && typeof streamToStop.getTracks === 'function') { // Stop microphone tracks
-            streamToStop.getTracks().forEach(track => track.stop());
-            console.log("Microphone stream tracks stopped.");
-        }
+        if (animationFrameId) cancelAnimationFrame(animationFrameId);
+        if (sourceNode) sourceNode.disconnect();
+        if (streamToStop) streamToStop.getTracks().forEach(track => track.stop());
         
-        if (mediaRecorder && mediaRecorder.stream && mediaRecorder.stream !== streamToStop) {
-            // If MediaRecorder had its own stream reference different from the one passed
-            // (shouldn't happen in this setup but good for robustness)
-            mediaRecorder.stream.getTracks().forEach(track => track.stop());
-        }
-        mediaRecorder = null; // Clear MediaRecorder instance
-        resetRecordingState(); // Reset UI elements (button text, status)
+        mediaRecorder = null;
+        animationFrameId = null;
+        resetRecordingState();
     }
 
     function resetRecordingState() {
-        if (recordButton) {
-            setButtonText(recordButton, 'Start');
-            recordButton.classList.remove('recording');
-        }
-        if (statusDisplay && !statusDisplay.textContent.toLowerCase().includes("error")) {
-             statusDisplay.textContent = "Status: Idle";
-        }
+        setButtonText(recordButton, 'Start');
+        recordButton.classList.remove('recording');
+        statusDisplay.textContent = "Status: Idle";
     }
-
+    
     function drawLiveWaveform() {
         animationFrameId = requestAnimationFrame(drawLiveWaveform);
-        if (!analyser || !dataArray || !canvasCtx) return;
+        if (!analyser) return;
 
-        analyser.getByteFrequencyData(dataArray); // Get frequency data
+        analyser.getByteFrequencyData(dataArray);
 
         const canvasWidth = liveWaveformCanvas.width;
         const canvasHeight = liveWaveformCanvas.height;
 
-        canvasCtx.fillStyle = '#FFFFFF'; // White background
+        canvasCtx.fillStyle = '#FFFFFF';
         canvasCtx.fillRect(0, 0, canvasWidth, canvasHeight);
 
         const bufferLength = analyser.frequencyBinCount;
         const barWidth = 3;
         const barSpacing = 2;
         const totalBarAreaWidth = bufferLength * (barWidth + barSpacing);
-        let x = (canvasWidth - totalBarAreaWidth) / 2; // Center the bars horizontally
+        let x = (canvasWidth - totalBarAreaWidth) / 2;
 
         for (let i = 0; i < bufferLength; i++) {
             const barHeight = (dataArray[i] / 255) * canvasHeight;
-
             canvasCtx.fillStyle = '#D9D9D9';
+            // Correctly calculate 'y' to draw from the center
             canvasCtx.fillRect(x, (canvasHeight - barHeight) / 2, barWidth, barHeight);
-
             x += barWidth + barSpacing;
         }
-    }
-
-
-    function getSupportedMimeType() {
-        const mimeTypes = [
-            'audio/webm;codecs=opus', 
-            'audio/ogg;codecs=opus',
-            'audio/webm', 
-            'audio/ogg'
-            // 'audio/mp4', // Can be problematic for audio-only recording
-            // 'audio/wav' // Uncompressed, large, but widely supported
-        ];
-        for (const mimeType of mimeTypes) {
-            if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(mimeType)) {
-                console.log("Using supported MIME type:", mimeType);
-                return { mimeType: mimeType };
-            }
-        }
-        console.warn("No preferred MIME types supported by MediaRecorder. Will try browser default.");
-        return undefined; // Let browser choose default if options is undefined for MediaRecorder
     }
 
     function renderRecordingsList() {
         recordingsListUI.innerHTML = '';
         recordings.sort((a, b) => b.timestamp - a.timestamp); // Newest first
+        
         recordings.forEach(rec => {
             const li = document.createElement('li');
-            li.dataset.id = rec.id;
             li.style.cssText = 'display: flex; flex-direction: column; align-items: center; margin-bottom: 24px;';
-
+            
             const audioPlayer = document.createElement('audio');
             audioPlayer.controls = true;
-            // audioPlayer.preload = 'metadata'; // Optional: hint to browser
-            
-            audioPlayer.onloadedmetadata = function() { // Add event listener
-                console.log(`Metadata loaded for ${rec.id}: Duration ${this.duration.toFixed(1)}s`);
-                // The browser's default controls will update the duration display automatically.
-            };
-            
-            audioPlayer.src = rec.url; // Set src AFTER listeners if needed
-            audioPlayer.onerror = (e) => { console.error("Audio playback error for", rec.id, rec.url, e.target.error); };
+            audioPlayer.src = rec.url;
             
             const infoControlsDiv = document.createElement('div');
-            infoControlsDiv.className = 'info-controls';
             infoControlsDiv.style.textAlign = 'center';
 
             const timestampDisplay = document.createElement('span');
             const date = new Date(rec.timestamp);
-            const day = String(date.getDate()).padStart(2, '0');
             const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-            const month = monthNames[date.getMonth()];
-            const year = date.getFullYear();
-            const hours = String(date.getHours()).padStart(2, '0');
-            const minutes = String(date.getMinutes()).padStart(2, '0');
-            const formattedDate = `${day} ${month} ${year}, ${hours}:${minutes}`;
-            timestampDisplay.textContent = `Recorded: ${formattedDate}`;
+            timestampDisplay.textContent = `Recorded: ${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()}, ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
             timestampDisplay.style.cssText = 'font-size:0.9em; color:#777;';
-
-            const actionsDiv = document.createElement('div');
-            actionsDiv.className = 'actions';
 
             const deleteButton = document.createElement('button');
             deleteButton.textContent = 'Delete';
             deleteButton.style.cssText = 'background: none; border: none; color: #f25444; cursor: pointer; padding: 5px; font-size: 0.9em;';
-            deleteButton.onclick = function() {
+            deleteButton.onclick = () => {
                 if (confirm(`Are you sure you want to delete this recording?`)) {
                     deleteRecording(rec.id);
                 }
             };
-
-            actionsDiv.appendChild(deleteButton);
-
+            
             infoControlsDiv.appendChild(timestampDisplay);
-            infoControlsDiv.appendChild(actionsDiv);
+            infoControlsDiv.appendChild(deleteButton);
 
             li.appendChild(audioPlayer);
             li.appendChild(infoControlsDiv);
@@ -342,122 +249,60 @@ function initializeAudioRecorder() {
     }
 
     function deleteRecording(recordingId) {
-        const recordingIndex = recordings.findIndex(r => r.id === recordingId);
-        if (recordingIndex > -1) {
-            console.log("Deleting recording from array:", recordingId);
-            URL.revokeObjectURL(recordings[recordingIndex].url); // Important memory management
-            recordings.splice(recordingIndex, 1);
-            saveRecordings(); // Update IndexedDB
-            renderRecordingsList(); // Update UI
-        } else {
-            console.warn("Attempted to delete recording ID not found in array:", recordingId);
+        // Remove from local array
+        const index = recordings.findIndex(r => r.id === recordingId);
+        if (index > -1) {
+            URL.revokeObjectURL(recordings[index].url);
+            recordings.splice(index, 1);
         }
+        // Remove from DB
+        deleteRecordingFromDB(recordingId);
+        // Update UI
+        renderRecordingsList();
+    }
+    
+    // --- DB Functions ---
+
+    function saveRecordingToDB(recording) {
+        withStore('readwrite', store => {
+            store.put(recording);
+        });
     }
 
-    function saveRecordings() {
-        console.log("Attempting to save recordings to IndexedDB. Count:", recordings.length);
-        const dbRequest = indexedDB.open("kidsAudioDB", 1); 
-
-        dbRequest.onupgradeneeded = function(event) {
-            const db = event.target.result;
-            if (!db.objectStoreNames.contains("audioRecordings")) {
-                db.createObjectStore("audioRecordings", { keyPath: "id" });
-                console.log("IndexedDB: audioRecordings store created.");
-            }
-        };
-
-        dbRequest.onsuccess = function(event) {
-            const db = event.target.result;
-            console.log("IndexedDB: connection successful for saving.");
-            const transaction = db.transaction(["audioRecordings"], "readwrite");
-            const store = transaction.objectStore("audioRecordings");
-            
-            const clearRequest = store.clear(); 
-            clearRequest.onsuccess = () => {
-                console.log("IndexedDB: store cleared successfully.");
-                if (recordings.length === 0) {
-                    console.log("IndexedDB: No recordings to save after clear.");
-                    return; 
-                }
-                let itemsAdded = 0;
-                recordings.forEach(rec => {
-                    const storableRec = { id: rec.id, blob: rec.blob, timestamp: rec.timestamp };
-                    const putRequest = store.put(storableRec);
-                    putRequest.onsuccess = () => {
-                        itemsAdded++;
-                        if (itemsAdded === recordings.length) {
-                            console.log(`IndexedDB: All ${itemsAdded} recordings processed for saving.`);
-                        }
-                    };
-                    putRequest.onerror = (e) => {
-                        console.error("IndexedDB: Error putting item", rec.id, e.target.error);
-                    };
-                });
-            };
-            clearRequest.onerror = (e) => {
-                console.error("IndexedDB: Error clearing store.", e.target.error);
-            };
-
-            transaction.oncomplete = function() {
-                console.log("IndexedDB: Save transaction completed.");
-            };
-            transaction.onerror = function(event) {
-                console.error("IndexedDB: Save Transaction Error:", event.target.error?.message || event.target.error);
-            };
-        };
-        dbRequest.onerror = function(event) {
-            console.error("IndexedDB: Open DB Error (for saving):", event.target.error?.message || event.target.error);
-        };
+    function deleteRecordingFromDB(recordingId) {
+        withStore('readwrite', store => {
+            store.delete(recordingId);
+        });
     }
 
-    function loadRecordings() {
-        console.log("Attempting to load recordings from IndexedDB.");
-        const dbRequest = indexedDB.open("kidsAudioDB", 1);
-
-        dbRequest.onupgradeneeded = function(event) { 
-            const db = event.target.result;
-            if (!db.objectStoreNames.contains("audioRecordings")) {
-                db.createObjectStore("audioRecordings", { keyPath: "id" });
-                console.log("IndexedDB: audioRecordings store created during load.");
-            }
-        };
-
-        dbRequest.onsuccess = function(event) {
-            const db = event.target.result;
-            console.log("IndexedDB: connection successful for loading.");
-            if (!db.objectStoreNames.contains("audioRecordings")) {
-                console.warn("IndexedDB: audioRecordings store not found on load.");
-                recordings = []; renderRecordingsList(); return;
-            }
-
-            const transaction = db.transaction(["audioRecordings"], "readonly");
-            const store = transaction.objectStore("audioRecordings");
-            const getAllRequest = store.getAll();
-
-            getAllRequest.onsuccess = function() {
-                const loadedRecs = getAllRequest.result;
-                console.log(`IndexedDB: Loaded ${loadedRecs.length} recordings.`);
-                if (loadedRecs && loadedRecs.length > 0) {
-                    recordings = loadedRecs.map(rec => {
-                        if (!rec.blob) { 
-                            console.warn("IndexedDB: Loaded rec missing blob:", rec.id); return null; 
-                        }
-                        return { ...rec, url: URL.createObjectURL(rec.blob) };
-                    }).filter(rec => rec !== null);
-                } else { recordings = []; }
+    function loadRecordingsForInstance() {
+        withStore('readonly', store => {
+            const request = store.getAll();
+            request.onsuccess = () => {
+                const allRecs = request.result;
+                recordings = allRecs
+                    .filter(rec => rec.id.startsWith(`${questionId}-`))
+                    .map(rec => ({ ...rec, url: URL.createObjectURL(rec.blob) }));
                 renderRecordingsList();
             };
-            getAllRequest.onerror = function(event) {
-                console.error("IndexedDB: LoadAll Request Error:", event.target.error?.message || event.target.error);
-                recordings = []; renderRecordingsList(); 
-            };
-            transaction.oncomplete = function() { console.log("IndexedDB: Load transaction completed."); };
-            transaction.onerror = function(event) { console.error("IndexedDB: Load Transaction Error:", event.target.error?.message || event.target.error); };
-        };
-        dbRequest.onerror = function(event) {
-            console.error("IndexedDB: Open DB Error (for loading):", event.target.error?.message || event.target.error);
-            recordings = []; renderRecordingsList();
-        };
+        });
+    }
+
+    // --- Utility Functions ---
+
+    function getSupportedMimeType() {
+        const type = ['audio/webm;codecs=opus', 'audio/webm'].find(MediaRecorder.isTypeSupported);
+        return type ? { mimeType: type } : undefined;
+    }
+    
+    function setButtonText(button, text) {
+        for (let i = button.childNodes.length - 1; i >= 0; i--) {
+            const node = button.childNodes[i];
+            if (node.nodeType === 3 && node.textContent.trim().length > 0) {
+                node.textContent = ` ${text} `; return;
+            }
+        }
+        if (button.lastElementChild) button.lastElementChild.textContent = text;
     }
 
     function startTimer() {
@@ -473,24 +318,43 @@ function initializeAudioRecorder() {
         clearInterval(timerInterval);
     }
 
-    function formatTime(totalSeconds) {
-        const minutes = Math.floor(totalSeconds / 60);
-        const remainingSeconds = totalSeconds % 60;
-        return `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
+    function formatTime(s) {
+        const m = Math.floor(s / 60);
+        const rs = s % 60;
+        return `${String(m).padStart(2, '0')}:${String(rs).padStart(2, '0')}`;
     }
-
-    // Initial canvas sizing (important for crisp drawing)
+    
+    // Set initial canvas size
     const dpr = window.devicePixelRatio || 1;
     const rect = liveWaveformCanvas.getBoundingClientRect();
     liveWaveformCanvas.width = rect.width * dpr;
     liveWaveformCanvas.height = rect.height * dpr;
-    canvasCtx.scale(dpr, dpr); // Scale context for HiDPI displays
+    canvasCtx.scale(dpr, dpr);
 
-    resetRecordingState(); // Initialize button states and UI
+    resetRecordingState();
 }
 
-// --- Script Loading and Initialization Trigger ---
+// --- Global DB Setup & Initialization ---
+
+let db;
+function setupDatabase() {
+    return new Promise((resolve, reject) => {
+        if (db) return resolve(db);
+        const request = indexedDB.open("kidsAudioDB", 1);
+        request.onupgradeneeded = e => e.target.result.createObjectStore("audioRecordings", { keyPath: "id" });
+        request.onsuccess = e => { db = e.target.result; resolve(db); };
+        request.onerror = e => reject(e.target.error);
+    });
+}
+
+function withStore(type, callback) {
+    if (!db) { console.error("Database is not initialized."); return; }
+    const transaction = db.transaction("audioRecordings", type);
+    callback(transaction.objectStore("audioRecordings"));
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("DOM fully loaded. Initializing manual recorder with canvas visualization.");
-    initializeAudioRecorder();
+    console.log("DOM loaded. Initializing recorders.");
+    injectGlobalStyles();
+    document.querySelectorAll('.recorder-component').forEach(initializeAudioRecorder);
 }); 
