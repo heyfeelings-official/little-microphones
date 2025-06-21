@@ -35,30 +35,16 @@ function initializeAudioRecorder() {
         console.error("Record button not found!");
     }
 
-    // Store context for the current recording operation (kidName, idToReplace)
-    let currentRecordingContext = { kidName: null, idToReplace: null };
-
     function handleRecordButtonClick() {
         if (mediaRecorder && mediaRecorder.state === "recording") {
             stopActualRecording();
         } else {
-            const kidNameFromPrompt = prompt("Please enter the kid's name for a new recording:");
-            if (kidNameFromPrompt && kidNameFromPrompt.trim() !== "") {
-                startActualRecording(kidNameFromPrompt.trim(), null); // null indicates no ID to replace
-            } else if (kidNameFromPrompt !== null) { // User pressed OK with empty input
-                alert("Kid's name cannot be empty for a new recording.");
-            }
+            startActualRecording();
         }
     }
 
-    async function startActualRecording(kidName, idToReplace) {
-        if (!kidName) {
-            console.error("startActualRecording called without kid's name.");
-            statusDisplay.textContent = "Error: Kid's name required.";
-            return;
-        }
-        console.log(`Starting recording. Kid: ${kidName}, Replace ID: ${idToReplace || 'N/A'}`);
-        currentRecordingContext = { kidName, idToReplace };
+    async function startActualRecording() {
+        console.log(`Starting new recording.`);
 
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -78,7 +64,7 @@ function initializeAudioRecorder() {
             // --- Setup MediaRecorder ---
             recordButton.textContent = 'Stop Recording';
             recordButton.classList.add('recording');
-            statusDisplay.textContent = "Status: Recording for " + kidName + "...";
+            statusDisplay.textContent = "Status: Recording...";
             audioChunks = []; // Reset for new recording
             const options = getSupportedMimeType(); // Get preferred MIME type
             
@@ -98,12 +84,11 @@ function initializeAudioRecorder() {
 
             mediaRecorder.onstop = () => {
                 console.log("MediaRecorder stopped. Chunks collected:", audioChunks.length);
-                const { kidName: nameForThisRecording, idToReplace: idForThisReplacement } = currentRecordingContext;
 
                 if (audioChunks.length === 0) {
                     console.warn("No audio data collected.");
                     statusDisplay.textContent = "No audio data recorded. Try again.";
-                    cleanupAfterRecording(stream); // Important to call cleanup
+                    cleanupAfterRecording(stream);
                     return;
                 }
                 const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
@@ -119,23 +104,9 @@ function initializeAudioRecorder() {
                 const audioUrl = URL.createObjectURL(audioBlob);
                 const timestamp = Date.now();
 
-                if (idForThisReplacement) {
-                    const existingRecordingIndex = recordings.findIndex(r => r.id === idForThisReplacement);
-                    if (existingRecordingIndex > -1) {
-                        URL.revokeObjectURL(recordings[existingRecordingIndex].url);
-                        recordings[existingRecordingIndex].blob = audioBlob;
-                        recordings[existingRecordingIndex].url = audioUrl;
-                        recordings[existingRecordingIndex].timestamp = timestamp;
-                        recordings[existingRecordingIndex].kidName = nameForThisRecording; // Update name just in case
-                    } else { // Fallback if ID not found
-                         console.warn("Tried to replace ID but not found:", idForThisReplacement, "Saving as new.");
-                        const recordingId = `rec-${timestamp}`;
-                        recordings.push({ id: recordingId, kidName: nameForThisRecording, blob: audioBlob, url: audioUrl, timestamp: timestamp });
-                    }
-                } else { // New recording
-                    const recordingId = `rec-${timestamp}`;
-                    recordings.push({ id: recordingId, kidName: nameForThisRecording, blob: audioBlob, url: audioUrl, timestamp: timestamp });
-                }
+                const recordingId = `rec-${timestamp}`;
+                recordings.push({ id: recordingId, blob: audioBlob, url: audioUrl, timestamp: timestamp });
+                
                 saveRecordings();
                 renderRecordingsList();
                 cleanupAfterRecording(stream); // Call cleanup after processing
@@ -200,8 +171,7 @@ function initializeAudioRecorder() {
             recordButton.textContent = 'Start Recording';
             recordButton.classList.remove('recording');
         }
-        if (statusDisplay && !statusDisplay.textContent.toLowerCase().includes("error") && 
-            !statusDisplay.textContent.toLowerCase().includes("ready to re-record")) {
+        if (statusDisplay && !statusDisplay.textContent.toLowerCase().includes("error")) {
              statusDisplay.textContent = "Status: Idle";
         }
     }
@@ -263,20 +233,17 @@ function initializeAudioRecorder() {
             const li = document.createElement('li');
             li.dataset.id = rec.id;
 
-            const kidNameDisplay = document.createElement('strong');
-            kidNameDisplay.textContent = `Kid: ${rec.kidName}`;
-
             const audioPlayer = document.createElement('audio');
             audioPlayer.controls = true;
             // audioPlayer.preload = 'metadata'; // Optional: hint to browser
             
             audioPlayer.onloadedmetadata = function() { // Add event listener
-                console.log(`Metadata loaded for ${rec.kidName}: Duration ${this.duration.toFixed(1)}s`);
+                console.log(`Metadata loaded for ${rec.id}: Duration ${this.duration.toFixed(1)}s`);
                 // The browser's default controls will update the duration display automatically.
             };
             
             audioPlayer.src = rec.url; // Set src AFTER listeners if needed
-            audioPlayer.onerror = (e) => { console.error("Audio playback error for", rec.kidName, rec.url, e.target.error); };
+            audioPlayer.onerror = (e) => { console.error("Audio playback error for", rec.id, rec.url, e.target.error); };
             
             const infoControlsDiv = document.createElement('div');
             infoControlsDiv.className = 'info-controls';
@@ -292,29 +259,16 @@ function initializeAudioRecorder() {
             deleteButton.textContent = 'Delete';
             deleteButton.classList.add('delete');
             deleteButton.onclick = function() {
-                if (confirm(`Are you sure you want to delete the recording for ${rec.kidName}?`)) {
+                if (confirm(`Are you sure you want to delete this recording?`)) {
                     deleteRecording(rec.id);
                 }
             };
 
-            const recordAgainButton = document.createElement('button');
-            recordAgainButton.textContent = 'Record Again';
-            recordAgainButton.classList.add('record-again');
-            recordAgainButton.onclick = () => {
-                if (mediaRecorder && mediaRecorder.state === "recording") {
-                    alert("Please stop the current recording first."); return;
-                }
-                statusDisplay.textContent = `Ready to re-record for ${rec.kidName}. Preparing...`;
-                startActualRecording(rec.kidName, rec.id); // Directly start
-            };
-            
-            actionsDiv.appendChild(recordAgainButton);
             actionsDiv.appendChild(deleteButton);
 
             infoControlsDiv.appendChild(timestampDisplay);
             infoControlsDiv.appendChild(actionsDiv);
 
-            li.appendChild(kidNameDisplay);
             li.appendChild(audioPlayer);
             li.appendChild(infoControlsDiv);
             recordingsListUI.appendChild(li);
@@ -324,7 +278,7 @@ function initializeAudioRecorder() {
     function deleteRecording(recordingId) {
         const recordingIndex = recordings.findIndex(r => r.id === recordingId);
         if (recordingIndex > -1) {
-            console.log("Deleting recording from array:", recordingId, "Kid:", recordings[recordingIndex].kidName);
+            console.log("Deleting recording from array:", recordingId);
             URL.revokeObjectURL(recordings[recordingIndex].url); // Important memory management
             recordings.splice(recordingIndex, 1);
             saveRecordings(); // Update IndexedDB
@@ -361,7 +315,7 @@ function initializeAudioRecorder() {
                 }
                 let itemsAdded = 0;
                 recordings.forEach(rec => {
-                    const storableRec = { id: rec.id, kidName: rec.kidName, blob: rec.blob, timestamp: rec.timestamp };
+                    const storableRec = { id: rec.id, blob: rec.blob, timestamp: rec.timestamp };
                     const putRequest = store.put(storableRec);
                     putRequest.onsuccess = () => {
                         itemsAdded++;
