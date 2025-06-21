@@ -251,11 +251,12 @@ function initializeAudioRecorder() {
             const timestampDisplay = document.createElement('span');
             const date = new Date(rec.timestamp);
             const day = String(date.getDate()).padStart(2, '0');
-            const month = String(date.getMonth() + 1).padStart(2, '0'); // Month is 0-indexed
+            const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+            const month = monthNames[date.getMonth()];
             const year = date.getFullYear();
             const hours = String(date.getHours()).padStart(2, '0');
             const minutes = String(date.getMinutes()).padStart(2, '0');
-            const formattedDate = `${day}/${month}/${year}, ${hours}:${minutes}`;
+            const formattedDate = `${day} ${month} ${year}, ${hours}:${minutes}`;
             timestampDisplay.textContent = `Recorded: ${formattedDate}`;
             timestampDisplay.style.cssText = 'font-size:0.9em; color:#777;';
 
