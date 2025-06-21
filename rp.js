@@ -12,6 +12,16 @@ document.addEventListener("DOMContentLoaded", () => {
   const lmidFromUrl = urlParams.get("lmid");
   const worldFromUrl = urlParams.get("world");
 
+  // Update the world name element on the page
+  if (worldFromUrl) {
+    const worldNameElement = document.getElementById("wrold-name");
+    if (worldNameElement) {
+      // Format the world name for display (e.g., "spookyland" -> "Spookyland", "big-city" -> "Big city")
+      const formattedWorldName = worldFromUrl.charAt(0).toUpperCase() + worldFromUrl.slice(1).replace(/-/g, ' ');
+      worldNameElement.textContent = formattedWorldName;
+    }
+  }
+
   if (!lmidFromUrl || !worldFromUrl) {
     console.error("Authorization failed: Missing 'lmid' or 'world' in the URL.");
     // Optional: You could hide the recording interface here
