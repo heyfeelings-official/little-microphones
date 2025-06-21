@@ -372,10 +372,40 @@ function withStore(type, callback) {
     callback(transaction.objectStore("audioRecordings"));
 }
 
-// Defer initialization until after Webflow has finished its setup.
+// --- Initialization Logic ---
+
 window.Webflow = window.Webflow || [];
 window.Webflow.push(function() {
-    console.log("Webflow ready. Initializing recorders.");
+    console.log("Webflow ready. Setting up recorders...");
     injectGlobalStyles();
-    document.querySelectorAll('.faq1_accordion.lm').forEach(initializeAudioRecorder);
-}); 
+    document.querySelectorAll('.faq1_accordion.lm').forEach(recorderWrapper => {
+        setupRecorderWithRetry(recorderWrapper);
+    });
+});
+
+/**
+ * Tries to initialize a recorder for a given wrapper. If critical elements
+ * aren't found, it waits and retries for a few seconds before giving up.
+ * @param {HTMLElement} recorderWrapper - The container for the recorder.
+ * @param {number} retries - The number of remaining retries.
+ */
+function setupRecorderWithRetry(recorderWrapper, retries = 20) {
+    const questionId = recorderWrapper.dataset.questionId || 'N/A';
+
+    // Check for the most critical elements needed for initialization.
+    const recordButton = recorderWrapper.querySelector('.record-button');
+    const liveWaveformCanvas = recorderWrapper.querySelector('.live-waveform-canvas');
+
+    if (recordButton && liveWaveformCanvas) {
+        // If elements are found, proceed with the full initialization.
+        console.log(`[Q-ID ${questionId}] Critical elements found. Initializing recorder.`);
+        initializeAudioRecorder(recorderWrapper);
+    } else if (retries > 0) {
+        // If not found, wait and try again.
+        console.log(`[Q-ID ${questionId}] Critical elements not yet available. Retrying... (${retries} retries left)`);
+        setTimeout(() => setupRecorderWithRetry(recorderWrapper, retries - 1), 100);
+    } else {
+        // If all retries fail, log a final error.
+        console.error(`[Q-ID ${questionId}] Failed to find critical elements after all retries. Initialization aborted. Button found: ${!!recordButton}, Canvas found: ${!!liveWaveformCanvas}`);
+    }
+} 
