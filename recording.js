@@ -377,5 +377,5 @@ window.Webflow = window.Webflow || [];
 window.Webflow.push(function() {
     console.log("Webflow ready. Initializing recorders.");
     injectGlobalStyles();
-    document.querySelectorAll('.faq1_accordion').forEach(initializeAudioRecorder);
+    document.querySelectorAll('.faq1_accordion.lm').forEach(initializeAudioRecorder);
 }); 
