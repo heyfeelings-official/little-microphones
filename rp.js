@@ -24,7 +24,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (!lmidFromUrl || !worldFromUrl) {
     console.error("Authorization failed: Missing 'lmid' or 'world' in the URL.");
-    // Optional: You could hide the recording interface here
+    alert("This page is missing required information. You will be returned to the previous page.");
+    window.history.back();
     return;
   }
 
@@ -32,7 +33,8 @@ document.addEventListener("DOMContentLoaded", () => {
     .then(({ data: memberData }) => {
       if (!memberData) {
         console.error("Authorization failed: Member is not logged in.");
-        // Optional: Redirect to login page
+        alert("You must be logged in to access this page. You will be returned to the previous page.");
+        window.history.back();
         return;
       }
 
@@ -54,7 +56,8 @@ document.addEventListener("DOMContentLoaded", () => {
         // You can now enable your recording functionality
       } else {
         console.error(`Authorization failed: Member does not have permission for LMID ${lmidFromUrl}.`);
-        // Optional: Hide recording interface or show an error message
+        alert("You are not authorized to access this program. You will be returned to the previous page.");
+        window.history.back();
       }
     })
     .catch(error => {
