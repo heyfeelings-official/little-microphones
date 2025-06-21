@@ -70,6 +70,7 @@ function initializeAudioRecorder(recorderWrapper) {
     
     console.log(`Initializing recorder for question ID: ${questionId}`);
     const canvasCtx = liveWaveformCanvas.getContext('2d');
+    let canvasSized = false; // Flag to check if canvas has been sized
 
     let mediaRecorder;
     let audioChunks = [];
@@ -102,8 +103,30 @@ function initializeAudioRecorder(recorderWrapper) {
         }
     }
 
+    // --- New function to handle canvas sizing ---
+    function sizeCanvas() {
+        if (canvasSized) return;
+        
+        const dpr = window.devicePixelRatio || 1;
+        const rect = liveWaveformCanvas.getBoundingClientRect();
+
+        // Don't size if it's not visible
+        if (rect.width === 0 || rect.height === 0) {
+            console.warn(`Canvas for Q-ID "${questionId}" is not visible. Sizing deferred.`);
+            return;
+        }
+
+        liveWaveformCanvas.width = rect.width * dpr;
+        liveWaveformCanvas.height = rect.height * dpr;
+        
+        canvasCtx.scale(dpr, dpr);
+        canvasSized = true;
+        console.log(`Canvas for Q-ID "${questionId}" sized to:`, rect.width, 'x', rect.height);
+    }
+
     async function startActualRecording() {
         try {
+            sizeCanvas(); // Attempt to size canvas before starting
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             
             if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -190,6 +213,9 @@ function initializeAudioRecorder(recorderWrapper) {
 
         const canvasWidth = liveWaveformCanvas.width;
         const canvasHeight = liveWaveformCanvas.height;
+
+        // This can happen if the canvas is not visible/sized yet.
+        if (canvasWidth === 0 || canvasHeight === 0) return;
 
         canvasCtx.fillStyle = '#FFFFFF';
         canvasCtx.fillRect(0, 0, canvasWidth, canvasHeight);
@@ -324,13 +350,6 @@ function initializeAudioRecorder(recorderWrapper) {
         return `${String(m).padStart(2, '0')}:${String(rs).padStart(2, '0')}`;
     }
     
-    // Set initial canvas size
-    const dpr = window.devicePixelRatio || 1;
-    const rect = liveWaveformCanvas.getBoundingClientRect();
-    liveWaveformCanvas.width = rect.width * dpr;
-    liveWaveformCanvas.height = rect.height * dpr;
-    canvasCtx.scale(dpr, dpr);
-
     resetRecordingState();
 }
 
@@ -353,8 +372,10 @@ function withStore(type, callback) {
     callback(transaction.objectStore("audioRecordings"));
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    console.log("DOM loaded. Initializing recorders.");
+// Defer initialization until after Webflow has finished its setup.
+window.Webflow = window.Webflow || [];
+window.Webflow.push(function() {
+    console.log("Webflow ready. Initializing recorders.");
     injectGlobalStyles();
     document.querySelectorAll('.faq1_accordion').forEach(initializeAudioRecorder);
 }); 
