@@ -35,6 +35,20 @@ function initializeAudioRecorder() {
         console.error("Record button not found!");
     }
 
+    function setButtonText(button, text) {
+        if (!button) return;
+        // Find the first text node in the button and change its value.
+        // This preserves other elements like icons.
+        for (const node of button.childNodes) {
+            if (node.nodeType === Node.TEXT_NODE) {
+                node.nodeValue = text;
+                return;
+            }
+        }
+        // Fallback if no text node is found (e.g., button is empty)
+        button.textContent = text;
+    }
+
     function handleRecordButtonClick() {
         if (mediaRecorder && mediaRecorder.state === "recording") {
             stopActualRecording();
@@ -62,7 +76,7 @@ function initializeAudioRecorder() {
             drawLiveWaveform(); // Start the animation loop
 
             // --- Setup MediaRecorder ---
-            recordButton.textContent = 'Stop';
+            setButtonText(recordButton, 'Stop');
             recordButton.classList.add('recording');
             statusDisplay.textContent = "Status: Recording...";
             audioChunks = []; // Reset for new recording
@@ -168,7 +182,7 @@ function initializeAudioRecorder() {
 
     function resetRecordingState() {
         if (recordButton) {
-            recordButton.textContent = 'Start';
+            setButtonText(recordButton, 'Start');
             recordButton.classList.remove('recording');
         }
         if (statusDisplay && !statusDisplay.textContent.toLowerCase().includes("error")) {
