@@ -306,6 +306,7 @@ function initializeAudioRecorder() {
             
             const infoControlsDiv = document.createElement('div');
             infoControlsDiv.className = 'info-controls';
+            infoControlsDiv.style.textAlign = 'center';
 
             const timestampDisplay = document.createElement('span');
             const date = new Date(rec.timestamp);
