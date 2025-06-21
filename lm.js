@@ -93,8 +93,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // --- Secure Deletion Flow ---
   // We keep this event listener on the body so it's always active.
   document.body.addEventListener("click", async (event) => {
-    // Check if the clicked element is a delete button by looking for both classes
-    if (event.target && event.target.classList.contains("button") && event.target.classList.contains("lm-delete")) {
+    // Check if the clicked element is the delete button by its ID
+    if (event.target && event.target.id === "lm-delete") {
       
       const deleteButton = event.target;
       const itemToDelete = deleteButton.closest("[data-lmid]");
