@@ -185,8 +185,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const lmid = programWrapper.getAttribute("data-lmid");
       
+      // Get the base URL from the link itself (set in Webflow)
+      const baseUrl = worldButton.getAttribute("href") || "/rp";
+
       // Construct the new URL and redirect the user
-      const newUrl = `/rp?world=${world}&lmid=${lmid}`;
+      const newUrl = `${baseUrl}?world=${world}&lmid=${lmid}`;
       window.location.href = newUrl;
     }
   });
