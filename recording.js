@@ -53,21 +53,19 @@ function initializeAudioRecorder(recorderWrapper) {
     const questionId = recorderWrapper.dataset.questionId;
     if (!questionId) return;
 
+    // Only find the button initially. The rest will be found on-demand.
     const recordButton = recorderWrapper.querySelector('.record-button');
-    const statusDisplay = recorderWrapper.querySelector('.status-display');
-    const timerDisplay = recorderWrapper.querySelector('.timer-display');
-    const recordingsListUI = recorderWrapper.querySelector('.recording-list');
-    const liveWaveformCanvas = recorderWrapper.querySelector('.live-waveform-canvas');
+    let statusDisplay, timerDisplay, recordingsListUI, liveWaveformCanvas, canvasCtx;
 
-    if (!recordButton || !liveWaveformCanvas) {
-         console.error(`Recorder for Q-ID "${questionId}" is missing critical elements (.record-button or .live-waveform-canvas). Skipping.`);
+    // The only critical element at the start is the button.
+    if (!recordButton) {
+         console.error(`[Q-ID ${questionId}] CRITICAL: Could not find .record-button. Skipping.`);
          return;
     }
     
-    console.log(`Initializing recorder for question ID: ${questionId}`);
-    const canvasCtx = liveWaveformCanvas.getContext('2d');
+    console.log(`[Q-ID ${questionId}] Recorder initialized and waiting for click.`);
+    
     let canvasSized = false;
-
     let mediaRecorder;
     let audioChunks = [];
     let recordings = []; // Holds recordings for this instance ONLY
@@ -87,7 +85,11 @@ function initializeAudioRecorder(recorderWrapper) {
     }
 
     // Setup DB and Load recordings for this specific instance
-    setupDatabase().then(() => loadRecordingsForInstance());
+    setupDatabase().then(() => {
+        // Find the list UI now to display previously saved recordings
+        recordingsListUI = recorderWrapper.querySelector('.recording-list.w-list-unstyled');
+        loadRecordingsForInstance()
+    });
     
     recordButton.addEventListener('click', handleRecordButtonClick);
 
@@ -101,7 +103,7 @@ function initializeAudioRecorder(recorderWrapper) {
 
     // --- New function to handle canvas sizing ---
     function sizeCanvas() {
-        if (canvasSized) return;
+        if (canvasSized || !liveWaveformCanvas) return;
         
         const dpr = window.devicePixelRatio || 1;
         const rect = liveWaveformCanvas.getBoundingClientRect();
@@ -117,10 +119,19 @@ function initializeAudioRecorder(recorderWrapper) {
         
         canvasCtx.scale(dpr, dpr);
         canvasSized = true;
-        console.log(`Canvas for Q-ID "${questionId}" sized to:`, rect.width, 'x', rect.height);
+        console.log(`[Q-ID "${questionId}"] Canvas sized to:`, rect.width, 'x', rect.height);
     }
 
     async function startActualRecording() {
+        // --- Find elements on-demand, right before they are needed ---
+        statusDisplay = recorderWrapper.querySelector('.status-display');
+        timerDisplay = recorderWrapper.querySelector('.text-size-small.timer-display');
+        liveWaveformCanvas = recorderWrapper.querySelector('.live-waveform-canvas');
+        if (liveWaveformCanvas && !canvasCtx) {
+            canvasCtx = liveWaveformCanvas.getContext('2d');
+        }
+        // --- End of on-demand search ---
+
         try {
             sizeCanvas(); // Attempt to size canvas before starting
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -206,6 +217,8 @@ function initializeAudioRecorder(recorderWrapper) {
         if (!analyser) return;
 
         analyser.getByteFrequencyData(dataArray);
+
+        if (!canvasCtx) return; // Guard against missing canvas
 
         const canvasWidth = liveWaveformCanvas.width;
         const canvasHeight = liveWaveformCanvas.height;
@@ -309,7 +322,7 @@ function initializeAudioRecorder(recorderWrapper) {
                 recordings = allRecs
                     .filter(rec => rec.id.startsWith(`${questionId}-`))
                     .map(rec => ({ ...rec, url: URL.createObjectURL(rec.blob) }));
-                renderRecordingsList();
+                renderRecordingsList(); // This will now safely check if recordingsListUI exists
             };
         });
     }
@@ -350,6 +363,7 @@ function initializeAudioRecorder(recorderWrapper) {
         return `${String(m).padStart(2, '0')}:${String(rs).padStart(2, '0')}`;
     }
     
+    // No initial sizing, it will be done on-demand by sizeCanvas()
     resetRecordingState();
 }
 
