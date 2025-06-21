@@ -62,7 +62,7 @@ function initializeAudioRecorder() {
             drawLiveWaveform(); // Start the animation loop
 
             // --- Setup MediaRecorder ---
-            recordButton.textContent = 'Stop Recording';
+            recordButton.textContent = 'Stop';
             recordButton.classList.add('recording');
             statusDisplay.textContent = "Status: Recording...";
             audioChunks = []; // Reset for new recording
@@ -168,7 +168,7 @@ function initializeAudioRecorder() {
 
     function resetRecordingState() {
         if (recordButton) {
-            recordButton.textContent = 'Start Recording';
+            recordButton.textContent = 'Start';
             recordButton.classList.remove('recording');
         }
         if (statusDisplay && !statusDisplay.textContent.toLowerCase().includes("error")) {
