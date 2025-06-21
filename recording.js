@@ -253,7 +253,7 @@ function initializeAudioRecorder() {
         let x = (canvasWidth - totalBarAreaWidth) / 2; // Center the bars horizontally
 
         for (let i = 0; i < bufferLength; i++) {
-            const barHeight = (dataArray[i] / 255) * canvasHeight * 0.7;
+            const barHeight = (dataArray[i] / 255) * canvasHeight;
 
             canvasCtx.fillStyle = '#D9D9D9';
             canvasCtx.fillRect(x, (canvasHeight - barHeight) / 2, barWidth, barHeight);
