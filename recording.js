@@ -55,8 +55,8 @@ function initializeAudioRecorder(recorderWrapper) {
 
     const recordButton = recorderWrapper.querySelector('.record-button');
     const statusDisplay = recorderWrapper.querySelector('.status-display');
-    const timerDisplay = recorderWrapper.querySelector('.timer-display');
-    const recordingsListUI = recorderWrapper.querySelector('.recording-list');
+    const timerDisplay = recorderWrapper.querySelector('.text-size-small.timer-display');
+    const recordingsListUI = recorderWrapper.querySelector('.recording-list.w-list-unstyled');
     const liveWaveformCanvas = recorderWrapper.querySelector('.live-waveform-canvas');
 
     if (!recordButton || !liveWaveformCanvas) {
@@ -232,6 +232,10 @@ function initializeAudioRecorder(recorderWrapper) {
     }
 
     function renderRecordingsList() {
+        if (!recordingsListUI) {
+            console.error(`[Q-ID ${questionId}] Cannot render list: '.recording-list' element not found.`);
+            return;
+        }
         recordingsListUI.innerHTML = '';
         recordings.sort((a, b) => b.timestamp - a.timestamp); // Newest first
         
@@ -329,10 +333,10 @@ function initializeAudioRecorder(recorderWrapper) {
 
     function startTimer() {
         seconds = 0;
-        timerDisplay.textContent = formatTime(seconds);
+        if (timerDisplay) timerDisplay.textContent = formatTime(seconds);
         timerInterval = setInterval(() => {
             seconds++;
-            timerDisplay.textContent = formatTime(seconds);
+            if (timerDisplay) timerDisplay.textContent = formatTime(seconds);
         }, 1000);
     }
 
