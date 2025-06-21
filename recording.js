@@ -55,8 +55,8 @@ function initializeAudioRecorder(recorderWrapper) {
 
     const recordButton = recorderWrapper.querySelector('.record-button');
     const statusDisplay = recorderWrapper.querySelector('.status-display');
-    const timerDisplay = recorderWrapper.querySelector('.text-size-small.timer-display');
-    const recordingsListUI = recorderWrapper.querySelector('.recording-list.w-list-unstyled');
+    const timerDisplay = recorderWrapper.querySelector('.timer-display');
+    const recordingsListUI = recorderWrapper.querySelector('.recording-list');
     const liveWaveformCanvas = recorderWrapper.querySelector('.live-waveform-canvas');
 
     if (!recordButton || !liveWaveformCanvas) {
