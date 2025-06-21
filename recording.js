@@ -111,7 +111,7 @@ function initializeAudioRecorder() {
             // --- Setup for Live Canvas Visualization ---
             if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
             analyser = audioContext.createAnalyser();
-            analyser.fftSize = 2048; // Determines data points for visualization
+            analyser.fftSize = 256; // Lower for fewer, wider bars
             const bufferLength = analyser.frequencyBinCount; // Usually half of fftSize
             dataArray = new Uint8Array(bufferLength);
             
@@ -235,33 +235,31 @@ function initializeAudioRecorder() {
     }
 
     function drawLiveWaveform() {
-        animationFrameId = requestAnimationFrame(drawLiveWaveform); // Loop
-        if (!analyser || !dataArray || !canvasCtx) return; // Exit if not ready
+        animationFrameId = requestAnimationFrame(drawLiveWaveform);
+        if (!analyser || !dataArray || !canvasCtx) return;
 
-        analyser.getByteTimeDomainData(dataArray); // Fill dataArray with waveform data
+        analyser.getByteFrequencyData(dataArray); // Get frequency data
 
-        canvasCtx.fillStyle = '#FFFFFF'; // Background color of canvas
-        canvasCtx.fillRect(0, 0, liveWaveformCanvas.width, liveWaveformCanvas.height);
-        canvasCtx.lineWidth = 2;
-        canvasCtx.strokeStyle = '#2c3e50'; // Color of the wave
-        canvasCtx.beginPath();
+        const canvasWidth = liveWaveformCanvas.width;
+        const canvasHeight = liveWaveformCanvas.height;
 
-        const sliceWidth = liveWaveformCanvas.width * 1.0 / dataArray.length;
-        let x = 0;
+        canvasCtx.fillStyle = '#FFFFFF'; // White background
+        canvasCtx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-        for (let i = 0; i < dataArray.length; i++) {
-            const v = dataArray[i] / 128.0; // Normalize byte data to 0-2 range
-            const y = v * liveWaveformCanvas.height / 2; // Scale to canvas height
+        const bufferLength = analyser.frequencyBinCount;
+        const barWidth = 3;
+        const barSpacing = 2;
+        const totalBarAreaWidth = bufferLength * (barWidth + barSpacing);
+        let x = (canvasWidth - totalBarAreaWidth) / 2; // Center the bars horizontally
 
-            if (i === 0) {
-                canvasCtx.moveTo(x, y);
-            } else {
-                canvasCtx.lineTo(x, y);
-            }
-            x += sliceWidth;
+        for (let i = 0; i < bufferLength; i++) {
+            const barHeight = (dataArray[i] / 255) * canvasHeight * 0.9;
+
+            canvasCtx.fillStyle = '#8a88f7'; // Softer purple/blue color
+            canvasCtx.fillRect(x, (canvasHeight - barHeight) / 2, barWidth, barHeight);
+
+            x += barWidth + barSpacing;
         }
-        canvasCtx.lineTo(liveWaveformCanvas.width, liveWaveformCanvas.height / 2); // Draw line to end
-        canvasCtx.stroke(); // Render the path
     }
 
 
