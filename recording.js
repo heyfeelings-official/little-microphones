@@ -249,7 +249,14 @@ function initializeAudioRecorder() {
             infoControlsDiv.className = 'info-controls';
 
             const timestampDisplay = document.createElement('span');
-            timestampDisplay.textContent = `Recorded: ${new Date(rec.timestamp).toLocaleString()}`;
+            const date = new Date(rec.timestamp);
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0'); // Month is 0-indexed
+            const year = date.getFullYear();
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const formattedDate = `${day}/${month}/${year}, ${hours}:${minutes}`;
+            timestampDisplay.textContent = `Recorded: ${formattedDate}`;
             timestampDisplay.style.cssText = 'font-size:0.9em; color:#777;';
 
             const actionsDiv = document.createElement('div');
