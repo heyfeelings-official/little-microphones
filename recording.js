@@ -1,6 +1,44 @@
 // recording.js - Manages audio recording, visualization, and local storage.
 
 function initializeAudioRecorder() {
+    // Inject CSS for the recording animation
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes pulse-red {
+          0% {
+            transform: scale(1);
+            opacity: 0.5;
+          }
+          100% {
+            transform: scale(1.15);
+            opacity: 0;
+          }
+        }
+        
+        #recordButton {
+            position: relative;
+            /* Ensure the button's content (icon, text) is above the pseudo-element */
+            z-index: 1; 
+        }
+
+        #recordButton.recording::before {
+          content: '';
+          position: absolute;
+          /* Center the pseudo-element on the button */
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          border-radius: 50%; /* Assuming the button is a circle */
+          background-color: red;
+          /* Place it behind the button's content */
+          z-index: -1;
+          /* Start the animation */
+          animation: pulse-red 1.2s infinite ease-out;
+        }
+    `;
+    document.head.appendChild(style);
+
     const recordButton = document.getElementById('recordButton');
     const statusDisplay = document.getElementById('status');
     const timerDisplay = document.getElementById('timer');
@@ -37,16 +75,22 @@ function initializeAudioRecorder() {
 
     function setButtonText(button, text) {
         if (!button) return;
-        // Find the first text node in the button and change its value.
-        // This preserves other elements like icons.
-        for (const node of button.childNodes) {
-            if (node.nodeType === Node.TEXT_NODE) {
-                node.nodeValue = text;
+        // Iterate backwards through child nodes to find the last non-empty text node.
+        // This is more robust and likely to be the label text.
+        for (let i = button.childNodes.length - 1; i >= 0; i--) {
+            const node = button.childNodes[i];
+            // Node.TEXT_NODE === 3
+            if (node.nodeType === 3 && node.textContent.trim().length > 0) {
+                node.textContent = ` ${text} `; // Add spacing for layout
                 return;
             }
         }
-        // Fallback if no text node is found (e.g., button is empty)
-        button.textContent = text;
+        // Fallback for structure like <button><i>...</i><div>TEXT</div></button>
+        if (button.lastElementChild) {
+            button.lastElementChild.textContent = text;
+        } else {
+            console.warn("Could not find a suitable text node or element to update in the button.");
+        }
     }
 
     function handleRecordButtonClick() {
