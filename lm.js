@@ -167,6 +167,30 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // --- World Link Redirection Flow ---
+  document.body.addEventListener("click", (event) => {
+    const worldButton = event.target.closest("[data-world]");
+
+    if (worldButton) {
+      event.preventDefault(); // Stop the link from navigating immediately
+
+      const world = worldButton.getAttribute("data-world");
+      const programWrapper = worldButton.closest("[data-lmid]");
+
+      if (!programWrapper) {
+        console.error("Could not find the parent program for this world link.");
+        // You might want to show an error to the user here.
+        return;
+      }
+
+      const lmid = programWrapper.getAttribute("data-lmid");
+      
+      // Construct the new URL and redirect the user
+      const newUrl = `/rp?world=${world}&lmid=${lmid}`;
+      window.location.href = newUrl;
+    }
+  });
+
   // --- Add New LMID Flow ---
   const addButton = document.getElementById("add-lmid");
   if (addButton) {
