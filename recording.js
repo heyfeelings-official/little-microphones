@@ -50,39 +50,23 @@ function injectGlobalStyles() {
  * @param {HTMLElement} recorderWrapper - The main container element for this recorder.
  */
 function initializeAudioRecorder(recorderWrapper) {
-    console.log("Attempting to initialize recorder for wrapper:", recorderWrapper);
-
     const questionId = recorderWrapper.dataset.questionId;
-    if (!questionId) {
-        console.error("Recorder component is missing 'data-question-id'. Skipping.", recorderWrapper);
-        return;
-    }
+    if (!questionId) return;
 
-    console.log(`Found Q-ID: "${questionId}". Searching for child elements...`);
-
-    // Select elements using classes within the scope of the current recorder
     const recordButton = recorderWrapper.querySelector('.record-button');
     const statusDisplay = recorderWrapper.querySelector('.status-display');
     const timerDisplay = recorderWrapper.querySelector('.timer-display');
-    const recordingsListUI = recorderWrapper.querySelector('.recordings-list');
+    const recordingsListUI = recorderWrapper.querySelector('.recording-list');
     const liveWaveformCanvas = recorderWrapper.querySelector('.live-waveform-canvas');
 
-    // --- Detailed logging ---
-    console.log(`[Q-ID ${questionId}] Record Button Found:`, recordButton);
-    console.log(`[Q-ID ${questionId}] Status Display Found:`, statusDisplay);
-    console.log(`[Q-ID ${questionId}] Timer Display Found:`, timerDisplay);
-    console.log(`[Q-ID ${questionId}] Recordings List Found:`, recordingsListUI);
-    console.log(`[Q-ID ${questionId}] Waveform Canvas Found:`, liveWaveformCanvas);
-    // --- End of detailed logging ---
-
-    if (!recordButton || !statusDisplay || !timerDisplay || !recordingsListUI || !liveWaveformCanvas) {
-        console.error(`Recorder for Q-ID "${questionId}" is missing required elements. Check the logged elements above. Skipping.`);
-        return;
+    if (!recordButton || !liveWaveformCanvas) {
+         console.error(`Recorder for Q-ID "${questionId}" is missing critical elements (.record-button or .live-waveform-canvas). Skipping.`);
+         return;
     }
     
-    console.log(`SUCCESS: All required elements found for Q-ID "${questionId}". Initializing...`);
+    console.log(`Initializing recorder for question ID: ${questionId}`);
     const canvasCtx = liveWaveformCanvas.getContext('2d');
-    let canvasSized = false; // Flag to check if canvas has been sized
+    let canvasSized = false;
 
     let mediaRecorder;
     let audioChunks = [];
