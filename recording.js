@@ -36,6 +36,23 @@ function initializeAudioRecorder() {
           /* Start the animation */
           animation: pulse-red 1.2s infinite ease-out;
         }
+
+        /* You must wrap your canvas and button in a div with this class */
+        .recorder-wrapper {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #liveWaveformCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1; /* Place it behind the button */
+        }
     `;
     document.head.appendChild(style);
 
@@ -236,29 +253,46 @@ function initializeAudioRecorder() {
 
     function drawLiveWaveform() {
         animationFrameId = requestAnimationFrame(drawLiveWaveform);
-        if (!analyser || !dataArray || !canvasCtx) return;
+        if (!analyser || !dataArray || !canvasCtx || !recordButton) return;
 
         analyser.getByteFrequencyData(dataArray); // Get frequency data
 
         const canvasWidth = liveWaveformCanvas.width;
         const canvasHeight = liveWaveformCanvas.height;
 
-        canvasCtx.fillStyle = '#FFFFFF'; // White background
-        canvasCtx.fillRect(0, 0, canvasWidth, canvasHeight);
+        // Get button width dynamically to create a gap
+        const buttonWidth = recordButton.offsetWidth;
+        const gap = buttonWidth + 40; // Space for the button + 20px padding on each side
 
+        // Clear canvas with a transparent background
+        canvasCtx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+        const center_x = canvasWidth / 2;
         const bufferLength = analyser.frequencyBinCount;
         const barWidth = 3;
         const barSpacing = 2;
-        const totalBarAreaWidth = bufferLength * (barWidth + barSpacing);
-        let x = (canvasWidth - totalBarAreaWidth) / 2; // Center the bars horizontally
+        const barPlusSpace = barWidth + barSpacing;
 
-        for (let i = 0; i < bufferLength; i++) {
-            const barHeight = (dataArray[i] / 255) * canvasHeight * 0.9;
+        // Draw left side (mirrored)
+        let x_left = center_x - (gap / 2);
+        for (let i = 0; i < bufferLength / 2; i++) {
+            if (x_left - barWidth < 0) break; // Don't draw off-canvas
+            const barHeight = Math.pow(dataArray[i] / 255, 2) * canvasHeight;
+            
+            canvasCtx.fillStyle = '#D9D9D9';
+            canvasCtx.fillRect(x_left - barWidth, (canvasHeight - barHeight) / 2, barWidth, barHeight);
+            x_left -= barPlusSpace;
+        }
 
-            canvasCtx.fillStyle = '#8a88f7'; // Softer purple/blue color
-            canvasCtx.fillRect(x, (canvasHeight - barHeight) / 2, barWidth, barHeight);
-
-            x += barWidth + barSpacing;
+        // Draw right side
+        let x_right = center_x + (gap / 2);
+        for (let i = 0; i < bufferLength / 2; i++) {
+            if (x_right + barWidth > canvasWidth) break; // Don't draw off-canvas
+            const barHeight = Math.pow(dataArray[i] / 255, 2) * canvasHeight; // Use the same data for symmetry
+            
+            canvasCtx.fillStyle = '#D9D9D9';
+            canvasCtx.fillRect(x_right, (canvasHeight - barHeight) / 2, barWidth, barHeight);
+            x_right += barPlusSpace;
         }
     }
 
