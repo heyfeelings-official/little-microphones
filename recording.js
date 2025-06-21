@@ -50,11 +50,15 @@ function injectGlobalStyles() {
  * @param {HTMLElement} recorderWrapper - The main container element for this recorder.
  */
 function initializeAudioRecorder(recorderWrapper) {
+    console.log("Attempting to initialize recorder for wrapper:", recorderWrapper);
+
     const questionId = recorderWrapper.dataset.questionId;
     if (!questionId) {
         console.error("Recorder component is missing 'data-question-id'. Skipping.", recorderWrapper);
         return;
     }
+
+    console.log(`Found Q-ID: "${questionId}". Searching for child elements...`);
 
     // Select elements using classes within the scope of the current recorder
     const recordButton = recorderWrapper.querySelector('.record-button');
@@ -63,12 +67,20 @@ function initializeAudioRecorder(recorderWrapper) {
     const recordingsListUI = recorderWrapper.querySelector('.recordings-list');
     const liveWaveformCanvas = recorderWrapper.querySelector('.live-waveform-canvas');
 
+    // --- Detailed logging ---
+    console.log(`[Q-ID ${questionId}] Record Button Found:`, recordButton);
+    console.log(`[Q-ID ${questionId}] Status Display Found:`, statusDisplay);
+    console.log(`[Q-ID ${questionId}] Timer Display Found:`, timerDisplay);
+    console.log(`[Q-ID ${questionId}] Recordings List Found:`, recordingsListUI);
+    console.log(`[Q-ID ${questionId}] Waveform Canvas Found:`, liveWaveformCanvas);
+    // --- End of detailed logging ---
+
     if (!recordButton || !statusDisplay || !timerDisplay || !recordingsListUI || !liveWaveformCanvas) {
-        console.error(`Recorder for Q-ID "${questionId}" is missing required elements (.record-button, .status-display, etc.). Skipping.`);
+        console.error(`Recorder for Q-ID "${questionId}" is missing required elements. Check the logged elements above. Skipping.`);
         return;
     }
     
-    console.log(`Initializing recorder for question ID: ${questionId}`);
+    console.log(`SUCCESS: All required elements found for Q-ID "${questionId}". Initializing...`);
     const canvasCtx = liveWaveformCanvas.getContext('2d');
     let canvasSized = false; // Flag to check if canvas has been sized
 
