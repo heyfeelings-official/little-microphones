@@ -202,6 +202,45 @@ function updateUploadStatusUI(statusElement, recordingData) {
 }
 
 /**
+ * Delete recording from Bunny.net cloud storage
+ */
+async function deleteFromBunny(recordingData, world, lmid, questionId) {
+    if (!recordingData.cloudUrl) {
+        console.log(`[Q-ID ${questionId}] No cloud URL, skipping cloud deletion`);
+        return true;
+    }
+
+    try {
+        const filename = `${recordingData.id}.webm`;
+        console.log(`[Q-ID ${questionId}] Deleting from Bunny.net: ${filename}`);
+
+        const response = await fetch('https://little-microphones.vercel.app/api/delete-audio', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                filename: filename,
+                world: world,
+                lmid: lmid,
+                questionId: questionId
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            console.log(`[Q-ID ${questionId}] Successfully deleted from cloud: ${filename}`);
+            return true;
+        } else {
+            throw new Error(result.error || 'Delete failed');
+        }
+
+    } catch (error) {
+        console.error(`[Q-ID ${questionId}] Cloud deletion failed:`, error);
+        return false; // Don't block local deletion if cloud deletion fails
+    }
+}
+
+/**
  * Deletes a recording from the database and removes its element from the UI.
  * @param {string} recordingId - The ID of the recording to delete.
  * @param {string} questionId - The ID of the associated question.
@@ -223,7 +262,7 @@ async function deleteRecording(recordingId, questionId, elementToRemove) {
             // Delete from cloud storage if it exists
             if (recordingData.cloudUrl) {
                 console.log(`Deleting from cloud: ${recordingData.cloudUrl}`);
-                await deleteFromBunny(recordingData, world, lmid);
+                await deleteFromBunny(recordingData, world, lmid, questionId);
             }
         }
         
@@ -622,45 +661,6 @@ function initializeAudioRecorder(recorderWrapper) {
 
         await updateRecordingInDB(recordingData);
         updateRecordingUI(recordingData);
-    }
-
-    /**
-     * Delete recording from Bunny.net cloud storage
-     */
-    async function deleteFromBunny(recordingData, world, lmid) {
-        if (!recordingData.cloudUrl) {
-            console.log(`[Q-ID ${questionId}] No cloud URL, skipping cloud deletion`);
-            return true;
-        }
-
-        try {
-            const filename = `${recordingData.id}.webm`;
-            console.log(`[Q-ID ${questionId}] Deleting from Bunny.net: ${filename}`);
-
-            const response = await fetch('https://little-microphones.vercel.app/api/delete-audio', {
-                method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    filename: filename,
-                    world: world,
-                    lmid: lmid,
-                    questionId: questionId
-                })
-            });
-
-            const result = await response.json();
-
-            if (result.success) {
-                console.log(`[Q-ID ${questionId}] Successfully deleted from cloud: ${filename}`);
-                return true;
-            } else {
-                throw new Error(result.error || 'Delete failed');
-            }
-
-        } catch (error) {
-            console.error(`[Q-ID ${questionId}] Cloud deletion failed:`, error);
-            return false; // Don't block local deletion if cloud deletion fails
-        }
     }
 
     /**
