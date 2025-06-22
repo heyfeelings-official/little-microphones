@@ -151,6 +151,13 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
+      // Add red border to parent div to highlight what's being deleted
+      itemToDelete.style.border = '3px solid #ff4444';
+      itemToDelete.style.borderRadius = '8px';
+      itemToDelete.style.transition = 'all 0.3s ease';
+      itemToDelete.style.boxShadow = '0 0 10px rgba(255, 68, 68, 0.3)';
+      itemToDelete.style.backgroundColor = 'rgba(255, 68, 68, 0.05)';
+      
       // Handle both button and div elements
       if (deleteButton.tagName.toLowerCase() === 'button') {
         deleteButton.disabled = true;
@@ -233,6 +240,13 @@ document.addEventListener("DOMContentLoaded", () => {
       } catch (error) {
         console.error("Failed to delete LMID:", error);
         alert(`An error occurred while trying to delete the LMID: ${error.message}`);
+        
+        // Remove red border and highlighting from parent div
+        itemToDelete.style.border = '';
+        itemToDelete.style.borderRadius = '';
+        itemToDelete.style.transition = '';
+        itemToDelete.style.boxShadow = '';
+        itemToDelete.style.backgroundColor = '';
         
         // Reset button state for both button and div elements
         if (deleteButton.tagName.toLowerCase() === 'button') {
