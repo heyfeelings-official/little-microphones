@@ -110,10 +110,10 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
       
-      // Enhanced confirmation - require user to type "delete"
-      const confirmationText = prompt(`⚠️ WARNING: This will permanently delete LMID ${lmidToDelete} and ALL associated recordings!\n\nThis action cannot be undone.\n\nTo confirm, please type "delete" below:`);
+      // Enhanced confirmation with custom modal and validation
+      const confirmed = await showDeleteConfirmationModal(lmidToDelete);
       
-      if (!confirmationText || confirmationText.toLowerCase() !== 'delete') {
+      if (!confirmed) {
         console.log(`Deletion cancelled for LMID: ${lmidToDelete}`);
         return;
       }
@@ -320,5 +320,133 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   } else {
     console.error("Error: Could not find the 'Add LMID' button. Make sure the button on your page has the ID 'add-lmid'.");
+  }
+
+  /**
+   * Show custom delete confirmation modal with validation
+   * @param {string} lmidToDelete - The LMID to delete
+   * @returns {Promise<boolean>} - True if confirmed, false if cancelled
+   */
+  function showDeleteConfirmationModal(lmidToDelete) {
+    return new Promise((resolve) => {
+      // Save current scroll position
+      const currentScrollY = window.scrollY;
+      
+      // Create modal overlay
+      const overlay = document.createElement('div');
+      overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 10000;
+        font-family: Arial, sans-serif;
+      `;
+      
+      // Create modal content
+      const modal = document.createElement('div');
+      modal.style.cssText = `
+        background: white;
+        padding: 30px;
+        border-radius: 12px;
+        max-width: 500px;
+        width: 90%;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        text-align: center;
+      `;
+      
+      modal.innerHTML = `
+        <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
+        <h2 style="color: #d32f2f; margin: 0 0 20px 0; font-size: 24px;">WARNING</h2>
+        <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.5;">
+          This will permanently delete <strong>LMID ${lmidToDelete}</strong> and <strong>ALL associated recordings</strong>!
+        </p>
+        <p style="margin: 0 0 30px 0; font-size: 16px; color: #666;">
+          This action cannot be undone.
+        </p>
+        <p style="margin: 0 0 15px 0; font-size: 16px; font-weight: bold;">
+          To confirm, please type "delete" below:
+        </p>
+        <input type="text" id="deleteConfirmInput" placeholder="Type 'delete' to confirm" 
+               style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 6px; font-size: 16px; margin-bottom: 20px; box-sizing: border-box;">
+        <div style="display: flex; gap: 15px; justify-content: center;">
+          <button id="cancelBtn" style="padding: 12px 24px; border: 2px solid #666; background: white; color: #666; border-radius: 6px; cursor: pointer; font-size: 16px;">
+            Cancel
+          </button>
+          <button id="confirmBtn" style="padding: 12px 24px; border: none; background: #ccc; color: white; border-radius: 6px; cursor: not-allowed; font-size: 16px;" disabled>
+            Delete Forever
+          </button>
+        </div>
+      `;
+      
+      overlay.appendChild(modal);
+      document.body.appendChild(overlay);
+      
+      // Get elements
+      const input = modal.querySelector('#deleteConfirmInput');
+      const confirmBtn = modal.querySelector('#confirmBtn');
+      const cancelBtn = modal.querySelector('#cancelBtn');
+      
+      // Focus on input
+      setTimeout(() => input.focus(), 100);
+      
+      // Validate input in real-time
+      input.addEventListener('input', () => {
+        const value = input.value.toLowerCase();
+        if (value === 'delete') {
+          confirmBtn.disabled = false;
+          confirmBtn.style.cssText = 'padding: 12px 24px; border: none; background: #d32f2f; color: white; border-radius: 6px; cursor: pointer; font-size: 16px;';
+          input.style.borderColor = '#4caf50';
+        } else {
+          confirmBtn.disabled = true;
+          confirmBtn.style.cssText = 'padding: 12px 24px; border: none; background: #ccc; color: white; border-radius: 6px; cursor: not-allowed; font-size: 16px;';
+          input.style.borderColor = value.length > 0 ? '#f44336' : '#ddd';
+        }
+      });
+      
+      // Handle Enter key
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !confirmBtn.disabled) {
+          cleanup();
+          resolve(true);
+        } else if (e.key === 'Escape') {
+          cleanup();
+          resolve(false);
+        }
+      });
+      
+      // Handle buttons
+      confirmBtn.addEventListener('click', () => {
+        if (!confirmBtn.disabled) {
+          cleanup();
+          resolve(true);
+        }
+      });
+      
+      cancelBtn.addEventListener('click', () => {
+        cleanup();
+        resolve(false);
+      });
+      
+      // Handle overlay click
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+          cleanup();
+          resolve(false);
+        }
+      });
+      
+      // Cleanup function
+      function cleanup() {
+        document.body.removeChild(overlay);
+        // Restore scroll position
+        window.scrollTo(0, currentScrollY);
+      }
+    });
   }
 });
