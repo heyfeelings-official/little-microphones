@@ -1,4 +1,40 @@
 // rp.js - Handles authorization on the recording page
+
+/**
+ * Shows only the collection for the specified world and hides all others
+ * @param {string} world - The world slug (e.g., 'spookyland', 'shopping-spree')
+ */
+function showWorldCollection(world) {
+  // Define all possible world collections
+  const allCollections = [
+    'collection-spookyland',
+    'collection-shopping-spree', 
+    'collection-amusement-park',
+    'collection-neighborhood',
+    'collection-big-city',
+    'collection-waterpark'
+  ];
+
+  // Hide all collections first
+  allCollections.forEach(collectionId => {
+    const collection = document.getElementById(collectionId);
+    if (collection) {
+      collection.style.display = 'none';
+    }
+  });
+
+  // Show only the collection for the current world
+  const targetCollectionId = `collection-${world}`;
+  const targetCollection = document.getElementById(targetCollectionId);
+  
+  if (targetCollection) {
+    targetCollection.style.display = 'block';
+    console.log(`Showing collection: ${targetCollectionId}`);
+  } else {
+    console.warn(`Collection element not found: ${targetCollectionId}`);
+  }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   const memberstack = window.$memberstackDom;
 
@@ -22,7 +58,7 @@ document.addEventListener("DOMContentLoaded", () => {
     'nieghborhood': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/683859c64fa8c3f50ead799a_worlds-boredom.avif'
   }; */
 
-  // Update the world name element on the page
+  // Update the world name element and show appropriate collection
   if (worldFromUrl) {
     // Set background
     /* const worldBgElement = document.getElementById("world-bg");
@@ -38,6 +74,9 @@ document.addEventListener("DOMContentLoaded", () => {
       const formattedWorldName = worldFromUrl.charAt(0).toUpperCase() + worldFromUrl.slice(1).replace(/-/g, ' ');
       worldNameElement.textContent = formattedWorldName;
     }
+
+    // Show only the collection for the current world
+    showWorldCollection(worldFromUrl);
   }
 
   if (!lmidFromUrl || !worldFromUrl) {
