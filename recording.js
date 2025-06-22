@@ -212,39 +212,36 @@ function initializeAudioRecorder(recorderWrapper) {
     recordButton.disabled = true;
     setButtonText(recordButton, 'Ładowanie...');
 
-    // --- Initial DB load to show previous recordings ---
-    recordingsListUI = recorderWrapper.querySelector('.recording-list.w-list-unstyled');
-    if (recordingsListUI) {
-        loadRecordingsFromDB(questionId).then(recordings => {
+    // --- Initial DB load to correctly initialize the counter for this questionId ---
+    loadRecordingsFromDB(questionId).then(recordings => {
+        let maxIndex = 0;
+        recordings.forEach(rec => {
+            const match = rec.id.match(/_audio_(\d+)$/);
+            if (match && match[1]) {
+                const index = parseInt(match[1], 10);
+                if (index > maxIndex) {
+                    maxIndex = index;
+                }
+            }
+        });
+        
+        // Initialize or update the global counter safely
+        recordingCounters[questionId] = Math.max(recordingCounters[questionId] || 0, maxIndex);
+
+        // If a list UI exists for this instance, populate it
+        if (recordingsListUI) {
             recordingsListUI.innerHTML = ''; // Clear previous
             recordings.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-            
-            let maxIndex = 0;
             recordings.forEach(rec => {
                 const recElement = createRecordingElement(rec, questionId);
                 recordingsListUI.appendChild(recElement);
-
-                const match = rec.id.match(/_audio_(\d+)$/);
-                if (match && match[1]) {
-                    const index = parseInt(match[1], 10);
-                    if (index > maxIndex) {
-                        maxIndex = index;
-                    }
-                }
             });
-            // Initialize or update the global counter for this questionId
-            recordingCounters[questionId] = Math.max(recordingCounters[questionId] || 0, maxIndex);
+        }
 
-            // --- Re-enable button after initialization ---
-            recordButton.disabled = false;
-            resetRecordingState();
-        });
-    } else {
-        // If there's no list UI, we assume no recordings and initialize counter to 0
-        recordingCounters[questionId] = recordingCounters[questionId] || 0;
+        // --- Re-enable button after initialization is fully complete ---
         recordButton.disabled = false;
         resetRecordingState();
-    }
+    });
     
     recordButton.addEventListener('click', handleRecordButtonClick);
 
