@@ -106,7 +106,8 @@ function createRecordingElement(recordingData, questionId) {
     const li = document.createElement('li');
     li.dataset.recordingId = recordingData.id;
 
-    const audioURL = URL.createObjectURL(recordingData.audio);
+    // Use smart audio source (cloud URL if available, otherwise local blob)
+    const audioURL = getAudioSource(recordingData);
     const audio = new Audio(audioURL);
     audio.controls = true;
     audio.style.width = '100%';
@@ -133,6 +134,13 @@ function createRecordingElement(recordingData, questionId) {
     timestampEl.style.color = '#888';
     timestampEl.style.whiteSpace = 'nowrap';
 
+    // Add upload status indicator
+    const uploadStatus = document.createElement('div');
+    uploadStatus.className = 'upload-status';
+    uploadStatus.style.fontSize = '12px';
+    uploadStatus.style.whiteSpace = 'nowrap';
+    updateUploadStatusUI(uploadStatus, recordingData);
+
     const deleteButton = document.createElement('button');
     deleteButton.textContent = 'Delete';
     deleteButton.style.background = 'none';
@@ -150,12 +158,47 @@ function createRecordingElement(recordingData, questionId) {
     };
 
     infoContainer.appendChild(timestampEl);
+    infoContainer.appendChild(uploadStatus);
     infoContainer.appendChild(deleteButton);
 
     li.appendChild(audio);
     li.appendChild(infoContainer);
 
     return li;
+}
+
+/**
+ * Get the best audio source (cloud URL if available, otherwise local blob)
+ */
+function getAudioSource(recordingData) {
+    if (recordingData.uploadStatus === 'uploaded' && recordingData.cloudUrl) {
+        return recordingData.cloudUrl;
+    }
+    return URL.createObjectURL(recordingData.audio);
+}
+
+/**
+ * Update upload status UI element
+ */
+function updateUploadStatusUI(statusElement, recordingData) {
+    switch(recordingData.uploadStatus) {
+        case 'pending':
+            statusElement.innerHTML = '⏳ Queued for backup';
+            statusElement.style.color = '#888';
+            break;
+        case 'uploading':
+            statusElement.innerHTML = `⬆️ Backing up... ${recordingData.uploadProgress}%`;
+            statusElement.style.color = '#007bff';
+            break;
+        case 'uploaded':
+            statusElement.innerHTML = '☁️ Backed up';
+            statusElement.style.color = '#28a745';
+            break;
+        case 'failed':
+            statusElement.innerHTML = '⚠️ Backup failed';
+            statusElement.style.color = '#dc3545';
+            break;
+    }
 }
 
 /**
@@ -166,22 +209,48 @@ function createRecordingElement(recordingData, questionId) {
  */
 async function deleteRecording(recordingId, questionId, elementToRemove) {
     console.log(`Deleting recording ${recordingId} for question ${questionId}`);
-    await withDB(db => {
-        return new Promise((resolve, reject) => {
-            const transaction = db.transaction("audioRecordings", "readwrite");
-            const store = transaction.objectStore("audioRecordings");
-            const request = store.delete(recordingId);
-            transaction.oncomplete = () => {
-                console.log(`Recording ${recordingId} deleted from DB.`);
-                resolve();
-            };
-            transaction.onerror = (event) => {
-                console.error(`Error deleting recording ${recordingId} from DB:`, event.target.error);
-                reject(event.target.error);
-            };
+    
+    try {
+        // First, get the recording data to check if it has a cloud URL
+        const recordingData = await getRecordingFromDB(recordingId);
+        
+        if (recordingData) {
+            // Get world and lmid for cloud deletion
+            const urlParams = new URLSearchParams(window.location.search);
+            const world = window.currentRecordingParams?.world || urlParams.get('world') || 'unknown-world';
+            const lmid = window.currentRecordingParams?.lmid || urlParams.get('lmid') || 'unknown-lmid';
+            
+            // Delete from cloud storage if it exists
+            if (recordingData.cloudUrl) {
+                console.log(`Deleting from cloud: ${recordingData.cloudUrl}`);
+                await deleteFromBunny(recordingData, world, lmid);
+            }
+        }
+        
+        // Delete from local database
+        await withDB(db => {
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction("audioRecordings", "readwrite");
+                const store = transaction.objectStore("audioRecordings");
+                const request = store.delete(recordingId);
+                transaction.oncomplete = () => {
+                    console.log(`Recording ${recordingId} deleted from DB.`);
+                    resolve();
+                };
+                transaction.onerror = (event) => {
+                    console.error(`Error deleting recording ${recordingId} from DB:`, event.target.error);
+                    reject(event.target.error);
+                };
+            });
         });
-    });
-    elementToRemove.remove();
+        
+        elementToRemove.remove();
+        
+    } catch (error) {
+        console.error(`Error deleting recording ${recordingId}:`, error);
+        // Still remove from UI even if deletion partially failed
+        elementToRemove.remove();
+    }
 }
 
 /**
@@ -342,10 +411,17 @@ function initializeAudioRecorder(recorderWrapper) {
                         id: newId,
                         questionId: questionId, // Keep for filtering
                         audio: audioBlob,
-                        timestamp: new Date().toISOString()
+                        cloudUrl: null,          // Will be set after upload
+                        uploadStatus: 'pending', // pending, uploading, uploaded, failed
+                        uploadProgress: 0,       // 0-100 percentage
+                        timestamp: new Date().toISOString(),
+                        fileSize: audioBlob.size
                     };
 
                     await saveRecordingToDB(recordingData);
+                    
+                    // Start background upload to Bunny.net
+                    uploadToBunny(recordingData, world, lmid);
 
                     // Create the final UI element
                     const newRecordingElement = createRecordingElement(recordingData, questionId);
@@ -471,6 +547,129 @@ function initializeAudioRecorder(recorderWrapper) {
         });
     }
 
+    // --- Bunny.net Cloud Storage Functions ---
+
+    /**
+     * Convert blob to base64 for API upload
+     */
+    function blobToBase64(blob) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    }
+
+    /**
+     * Upload recording to Bunny.net cloud storage
+     */
+    async function uploadToBunny(recordingData, world, lmid) {
+        try {
+            console.log(`[Q-ID ${questionId}] Starting upload to Bunny.net: ${recordingData.id}`);
+            
+            // Update status to uploading
+            recordingData.uploadStatus = 'uploading';
+            recordingData.uploadProgress = 10;
+            await updateRecordingInDB(recordingData);
+            updateRecordingUI(recordingData);
+
+            // Convert blob to base64
+            const base64Audio = await blobToBase64(recordingData.audio);
+            recordingData.uploadProgress = 30;
+            await updateRecordingInDB(recordingData);
+            updateRecordingUI(recordingData);
+
+            // Upload via API route
+            const response = await fetch('/api/upload-audio', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    audioData: base64Audio,
+                    filename: `${recordingData.id}.webm`,
+                    world: world,
+                    lmid: lmid,
+                    questionId: questionId
+                })
+            });
+
+            recordingData.uploadProgress = 80;
+            await updateRecordingInDB(recordingData);
+            updateRecordingUI(recordingData);
+
+            const result = await response.json();
+
+            if (result.success) {
+                recordingData.cloudUrl = result.url;
+                recordingData.uploadStatus = 'uploaded';
+                recordingData.uploadProgress = 100;
+                console.log(`[Q-ID ${questionId}] Successfully uploaded: ${result.url}`);
+            } else {
+                throw new Error(result.error || 'Upload failed');
+            }
+
+        } catch (error) {
+            recordingData.uploadStatus = 'failed';
+            recordingData.uploadProgress = 0;
+            console.error(`[Q-ID ${questionId}] Upload failed:`, error);
+        }
+
+        await updateRecordingInDB(recordingData);
+        updateRecordingUI(recordingData);
+    }
+
+    /**
+     * Delete recording from Bunny.net cloud storage
+     */
+    async function deleteFromBunny(recordingData, world, lmid) {
+        if (!recordingData.cloudUrl) {
+            console.log(`[Q-ID ${questionId}] No cloud URL, skipping cloud deletion`);
+            return true;
+        }
+
+        try {
+            const filename = `${recordingData.id}.webm`;
+            console.log(`[Q-ID ${questionId}] Deleting from Bunny.net: ${filename}`);
+
+            const response = await fetch('/api/delete-audio', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    filename: filename,
+                    world: world,
+                    lmid: lmid,
+                    questionId: questionId
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                console.log(`[Q-ID ${questionId}] Successfully deleted from cloud: ${filename}`);
+                return true;
+            } else {
+                throw new Error(result.error || 'Delete failed');
+            }
+
+        } catch (error) {
+            console.error(`[Q-ID ${questionId}] Cloud deletion failed:`, error);
+            return false; // Don't block local deletion if cloud deletion fails
+        }
+    }
+
+    /**
+     * Update recording UI elements with current status
+     */
+    function updateRecordingUI(recordingData) {
+        const recordingElement = document.querySelector(`[data-recording-id="${recordingData.id}"]`);
+        if (recordingElement) {
+            const uploadStatus = recordingElement.querySelector('.upload-status');
+            if (uploadStatus) {
+                updateUploadStatusUI(uploadStatus, recordingData);
+            }
+        }
+    }
+
     // --- DB Functions ---
 
     function saveRecordingToDB(recordingData) {
@@ -492,9 +691,44 @@ function initializeAudioRecorder(recorderWrapper) {
         });
     }
 
+    function updateRecordingInDB(recordingData) {
+        return new Promise((resolve, reject) => {
+            withDB(db => {
+                const transaction = db.transaction("audioRecordings", "readwrite");
+                const store = transaction.objectStore("audioRecordings");
+                const request = store.put(recordingData); // Use put for updates
+                transaction.oncomplete = () => {
+                    resolve();
+                };
+                transaction.onerror = (event) => {
+                    console.error(`Error updating recording ${recordingData.id} in DB:`, event.target.error);
+                    reject(event.target.error);
+                };
+            });
+        });
+    }
+
     function deleteRecordingFromDB(recordingId) {
         withStore('readwrite', store => {
             store.delete(recordingId);
+        });
+    }
+
+    function getRecordingFromDB(recordingId) {
+        return new Promise((resolve, reject) => {
+            withDB(db => {
+                const transaction = db.transaction("audioRecordings", "readonly");
+                const store = transaction.objectStore("audioRecordings");
+                const request = store.get(recordingId);
+                
+                request.onsuccess = () => {
+                    resolve(request.result);
+                };
+                request.onerror = (event) => {
+                    console.error(`Error getting recording ${recordingId} from DB:`, event.target.error);
+                    reject(event.target.error);
+                };
+            });
         });
     }
 
