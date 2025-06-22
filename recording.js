@@ -91,23 +91,24 @@ function injectGlobalStyles() {
             animation: fadeOut 0.3s ease-out forwards;
         }
 
-        @keyframes fadeOutAndShrink {
+        @keyframes shrink-and-fade-out {
             from {
                 opacity: 1;
-                transform: scaleY(1);
+                max-height: var(--initial-height);
             }
             to {
                 opacity: 0;
-                transform: scaleY(0);
                 max-height: 0;
-                margin: 0;
-                padding: 0;
-                border: 0;
+                padding-top: 0;
+                padding-bottom: 0;
+                margin-top: 0;
+                margin-bottom: 0;
             }
         }
 
         .element-fade-out {
-            animation: fadeOutAndShrink 0.4s ease-out forwards;
+            animation: shrink-and-fade-out 0.4s ease-out forwards;
+            overflow: hidden;
         }
     `;
     document.head.appendChild(style);
@@ -162,7 +163,10 @@ function createRecordingElement(recordingData, questionId) {
 
     deleteButton.onclick = () => {
         if (confirm("Are you sure you want to delete this recording?")) {
-            deleteRecording(recordingData.id, questionId, li);
+            // Defer to next tick to let the browser handle the popup dismissal gracefully
+            setTimeout(() => {
+                deleteRecording(recordingData.id, questionId, li);
+            }, 0);
         }
     };
 
@@ -184,16 +188,19 @@ function createRecordingElement(recordingData, questionId) {
 async function deleteRecording(recordingId, questionId, elementToRemove) {
     console.log(`Deleting recording ${recordingId} for question ${questionId}`);
 
-    elementToRemove.style.maxHeight = `${elementToRemove.offsetHeight}px`;
-    elementToRemove.style.overflow = 'hidden';
-    elementToRemove.style.transformOrigin = 'top';
+    // Set a CSS variable for the animation to use the element's current height
+    elementToRemove.style.setProperty('--initial-height', `${elementToRemove.offsetHeight}px`);
     elementToRemove.classList.add('element-fade-out');
 
+    // Wait for the animation to finish before removing the element and DB entry
     elementToRemove.addEventListener('animationend', () => {
         elementToRemove.remove();
         withDB(db => {
             const transaction = db.transaction("audioRecordings", "readwrite");
-            transaction.objectStore("audioRecordings").delete(recordingId);
+            const store = transaction.objectStore("audioRecordings");
+            const request = store.delete(recordingId);
+            request.onsuccess = () => console.log(`Recording ${recordingId} deleted from DB.`);
+            request.onerror = (e) => console.error("Error deleting from DB after animation:", e.target.error);
         });
     }, { once: true });
 }
@@ -315,11 +322,23 @@ function initializeAudioRecorder(recorderWrapper) {
                 const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
                 audioChunks = [];
 
-                // --- New Naming Convention with Timestamp for uniqueness ---
                 const world = window.currentRecordingParams?.world || 'unknown-world';
                 const lmid = window.currentRecordingParams?.lmid || 'unknown-lmid';
-                const timestampId = Date.now();
-                const newId = `kids-world_${world}-lmid_${lmid}-question_${questionId}-audio_${timestampId}`;
+
+                // --- Correctly calculate the next index to avoid duplicates ---
+                const existingRecordings = await loadRecordingsFromDB(questionId);
+                let maxIndex = 0;
+                existingRecordings.forEach(rec => {
+                    const match = rec.id.match(/_audio_(\d+)$/);
+                    if (match && match[1]) {
+                        const index = parseInt(match[1], 10);
+                        if (index > maxIndex) {
+                            maxIndex = index;
+                        }
+                    }
+                });
+                const newIndex = maxIndex + 1;
+                const newId = `kids-world_${world}-lmid_${lmid}-question_${questionId}-audio_${newIndex}`;
 
                 const recordingData = {
                     id: newId,
