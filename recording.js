@@ -41,6 +41,34 @@ function injectGlobalStyles() {
           z-index: -1;
           animation: pulse-red 1.2s infinite ease-out;
         }
+
+        /* --- Animation for new recording placeholder and item --- */
+        .recording-placeholder {
+            opacity: 0.7;
+            background-color: #f0f0f0;
+            border: 1px dashed #ccc;
+            animation: pulse-bg 2s infinite;
+            color: #555;
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            list-style: none;
+        }
+
+        @keyframes pulse-bg {
+            0% { background-color: #f9f9f9; }
+            50% { background-color: #e9e9e9; }
+            100% { background-color: #f9f9f9; }
+        }
+
+        .new-recording-fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     `;
     document.head.appendChild(style);
 }
@@ -95,6 +123,14 @@ function initializeAudioRecorder(recorderWrapper) {
 
     async function startActualRecording() {
         try {
+            // --- Create a placeholder in the UI ---
+            if (recordingsListUI) {
+                const placeholder = document.createElement('li');
+                placeholder.className = 'recording-placeholder';
+                placeholder.textContent = 'Nagrywanie w toku...';
+                recordingsListUI.prepend(placeholder);
+            }
+
             // --- Waveform visualization is now optional and properly checked ---
             if (liveWaveformCanvas && typeof liveWaveformCanvas.getContext === 'function') {
                 if (!canvasCtx) {
@@ -134,23 +170,37 @@ function initializeAudioRecorder(recorderWrapper) {
                 cleanupAfterRecording(stream);
             };
 
-            mediaRecorder.onstop = () => {
-                if (audioChunks.length === 0) {
-                    cleanupAfterRecording(stream);
-                    return;
+            mediaRecorder.onstop = async () => {
+                if(statusDisplay) statusDisplay.textContent = "Status: Processing...";
+                
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                audioChunks = [];
+
+                const recordingData = {
+                    id: `rec_${Date.now()}`,
+                    questionId: questionId,
+                    audio: audioBlob,
+                    timestamp: new Date().toISOString()
+                };
+
+                await saveRecording(recordingData);
+
+                // Create the final UI element
+                const newRecordingElement = createRecordingElement(recordingData, questionId);
+                newRecordingElement.classList.add('new-recording-fade-in');
+
+                // Find and replace the placeholder
+                const placeholder = recorderWrapper.querySelector('.recording-placeholder');
+                if (recordingsListUI) {
+                    if (placeholder) {
+                        placeholder.replaceWith(newRecordingElement);
+                    } else {
+                        // Fallback in case placeholder wasn't created
+                        recordingsListUI.prepend(newRecordingElement);
+                    }
                 }
-                const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
-                const audioUrl = URL.createObjectURL(audioBlob);
-                const timestamp = Date.now();
-                const recordingId = `${questionId}-rec-${timestamp}`;
                 
-                const newRecording = { id: recordingId, blob: audioBlob, timestamp: timestamp };
-                
-                recordings.push({ ...newRecording, url: audioUrl });
-                saveRecordingToDB(newRecording);
-                
-                renderRecordingsList();
-                cleanupAfterRecording(stream);
+                if(statusDisplay) statusDisplay.textContent = "";
             };
 
             mediaRecorder.start();
