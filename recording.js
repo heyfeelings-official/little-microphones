@@ -74,6 +74,78 @@ function injectGlobalStyles() {
 }
 
 /**
+ * Creates the HTML element for a single audio recording.
+ * @param {object} recordingData - The recording data object from the database.
+ * @param {string} questionId - The ID of the question this recording belongs to.
+ * @returns {HTMLLIElement} The created list item element.
+ */
+function createRecordingElement(recordingData, questionId) {
+    const li = document.createElement('li');
+    li.dataset.recordingId = recordingData.id;
+
+    const audioURL = URL.createObjectURL(recordingData.audio);
+    const audio = new Audio(audioURL);
+    audio.controls = true;
+    audio.style.width = '100%';
+
+    const timestamp = new Date(recordingData.timestamp);
+    const dateString = timestamp.toLocaleDateString('pl-PL', { day: '2-digit', month: 'long', year: 'numeric' });
+    const timeString = timestamp.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit', hour12: false });
+    const formattedDate = `${dateString}, ${timeString}`;
+
+    const timestampEl = document.createElement('div');
+    timestampEl.textContent = formattedDate;
+    timestampEl.style.fontSize = '12px';
+    timestampEl.style.color = '#888';
+    timestampEl.style.marginBottom = '4px';
+
+    const deleteButton = document.createElement('button');
+    deleteButton.textContent = 'Usuń';
+    deleteButton.style.background = 'none';
+    deleteButton.style.border = 'none';
+    deleteButton.style.color = '#ff4d4d';
+    deleteButton.style.cursor = 'pointer';
+    deleteButton.style.padding = '4px';
+    deleteButton.style.marginLeft = 'auto';
+    deleteButton.style.display = 'block';
+
+    deleteButton.onclick = () => {
+        deleteRecording(recordingData.id, questionId, li);
+    };
+
+    li.appendChild(timestampEl);
+    li.appendChild(audio);
+    li.appendChild(deleteButton);
+    return li;
+}
+
+/**
+ * Deletes a recording from the database and removes its element from the UI.
+ * @param {string} recordingId - The ID of the recording to delete.
+ * @param {string} questionId - The ID of the associated question.
+ * @param {HTMLLIElement} elementToRemove - The element to remove from the DOM.
+ */
+async function deleteRecording(recordingId, questionId, elementToRemove) {
+    console.log(`Deleting recording ${recordingId} for question ${questionId}`);
+    await withDB(db => {
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction("audioRecordings", "readwrite");
+            const store = transaction.objectStore("audioRecordings");
+            const request = store.delete(recordingId);
+            transaction.oncomplete = () => {
+                console.log(`Recording ${recordingId} deleted from DB.`);
+                resolve();
+            };
+            transaction.onerror = (event) => {
+                console.error(`Error deleting recording ${recordingId} from DB:`, event.target.error);
+                reject(event.target.error);
+            };
+        });
+    });
+    elementToRemove.remove();
+}
+
+/**
  * Initializes a single audio recorder instance.
  * @param {HTMLElement} recorderWrapper - The main container element for this recorder.
  */
@@ -97,12 +169,16 @@ function initializeAudioRecorder(recorderWrapper) {
     let canvasSized = false;
 
     // --- Initial DB load to show previous recordings ---
-    setupDatabase().then(() => {
-        recordingsListUI = recorderWrapper.querySelector('.recording-list.w-list-unstyled');
-        if (recordingsListUI) {
-            loadRecordingsForInstance();
-        }
-    });
+    if (recordingsListUI) {
+        loadRecordingsFromDB(questionId).then(recordings => {
+            recordingsListUI.innerHTML = ''; // Clear previous
+            recordings.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)); // Newest first
+            recordings.forEach(rec => {
+                const recElement = createRecordingElement(rec, questionId);
+                recordingsListUI.appendChild(recElement);
+            });
+        });
+    }
     
     recordButton.addEventListener('click', handleRecordButtonClick);
 
@@ -288,7 +364,7 @@ function initializeAudioRecorder(recorderWrapper) {
             deleteButton.style.cssText = 'background: none; border: none; color: #f25444; cursor: pointer; padding: 5px; font-size: 0.9em;';
             deleteButton.onclick = () => {
                 if (confirm(`Are you sure you want to delete this recording?`)) {
-                    deleteRecording(rec.id);
+                    deleteRecording(rec.id, questionId, li);
                 }
             };
             
@@ -301,14 +377,24 @@ function initializeAudioRecorder(recorderWrapper) {
         });
     }
 
-    function deleteRecording(recordingId) {
-        const index = recordings.findIndex(r => r.id === recordingId);
-        if (index > -1) {
-            URL.revokeObjectURL(recordings[index].url);
-            recordings.splice(index, 1);
-        }
-        deleteRecordingFromDB(recordingId);
-        renderRecordingsList();
+    function deleteRecording(recordingId, questionId, elementToRemove) {
+        console.log(`Deleting recording ${recordingId} for question ${questionId}`);
+        withDB(db => {
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction("audioRecordings", "readwrite");
+                const store = transaction.objectStore("audioRecordings");
+                const request = store.delete(recordingId);
+                transaction.oncomplete = () => {
+                    console.log(`Recording ${recordingId} deleted from DB.`);
+                    resolve();
+                };
+                transaction.onerror = (event) => {
+                    console.error(`Error deleting recording ${recordingId} from DB:`, event.target.error);
+                    reject(event.target.error);
+                };
+            });
+        });
+        elementToRemove.remove();
     }
     
     // --- DB Functions ---
@@ -325,16 +411,24 @@ function initializeAudioRecorder(recorderWrapper) {
         });
     }
 
-    function loadRecordingsForInstance() {
-        withStore('readonly', store => {
-            const request = store.getAll();
-            request.onsuccess = () => {
-                const allRecs = request.result;
-                recordings = allRecs
-                    .filter(rec => rec.id.startsWith(`${questionId}-`))
-                    .map(rec => ({ ...rec, url: URL.createObjectURL(rec.blob) }));
-                renderRecordingsList();
-            };
+    function loadRecordingsFromDB(questionId) {
+        return new Promise((resolve) => {
+            withDB(db => {
+                const transaction = db.transaction("audioRecordings", "readonly");
+                const store = transaction.objectStore("audioRecordings");
+                const index = store.index("questionId_idx");
+                const request = index.getAll(questionId);
+
+                request.onsuccess = () => {
+                    const recordings = request.result;
+                    console.log(`[Q-ID ${questionId}] Loaded ${recordings.length} recordings from DB.`);
+                    resolve(recordings);
+                };
+                request.onerror = () => {
+                    console.error(`[Q-ID ${questionId}] Error loading recordings.`);
+                    resolve([]); // Return empty array on error
+                };
+            });
         });
     }
 
