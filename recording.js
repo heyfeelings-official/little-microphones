@@ -419,7 +419,8 @@ function setupRecorderWithRetry(recorderWrapper, retries = 20) {
         console.log(`[Q-ID ${questionId}] Critical elements not yet available. Retrying... (${retries} retries left)`);
         setTimeout(() => setupRecorderWithRetry(recorderWrapper, retries - 1), 100);
     } else {
-        // If all retries fail, log a final error.
-        console.error(`[Q-ID ${questionId}] Failed to find critical elements after all retries. Initialization aborted. Button found: ${!!recordButton}, Canvas found: ${!!liveWaveformCanvas}`);
+        // If all retries fail, log a final error and the component's inner HTML.
+        console.error(`[Q-ID ${questionId}] Failed to find critical elements after all retries. Button found: ${!!recordButton}, Canvas found: ${!!liveWaveformCanvas}`);
+        console.log(`[Q-ID ${questionId}] Dumping inner HTML of the wrapper for debugging:`, recorderWrapper.innerHTML);
     }
 } 
