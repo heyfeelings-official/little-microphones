@@ -90,26 +90,6 @@ function injectGlobalStyles() {
         .fade-out {
             animation: fadeOut 0.3s ease-out forwards;
         }
-
-        @keyframes shrink-and-fade-out {
-            from {
-                opacity: 1;
-                max-height: var(--initial-height);
-            }
-            to {
-                opacity: 0;
-                max-height: 0;
-                padding-top: 0;
-                padding-bottom: 0;
-                margin-top: 0;
-                margin-bottom: 0;
-            }
-        }
-
-        .element-fade-out {
-            animation: shrink-and-fade-out 0.4s ease-out forwards;
-            overflow: hidden;
-        }
     `;
     document.head.appendChild(style);
 }
@@ -163,10 +143,7 @@ function createRecordingElement(recordingData, questionId) {
 
     deleteButton.onclick = () => {
         if (confirm("Are you sure you want to delete this recording?")) {
-            // Defer to next tick to let the browser handle the popup dismissal gracefully
-            setTimeout(() => {
-                deleteRecording(recordingData.id, questionId, li);
-            }, 0);
+            deleteRecording(recordingData.id, questionId, li);
         }
     };
 
@@ -187,22 +164,22 @@ function createRecordingElement(recordingData, questionId) {
  */
 async function deleteRecording(recordingId, questionId, elementToRemove) {
     console.log(`Deleting recording ${recordingId} for question ${questionId}`);
-
-    // Set a CSS variable for the animation to use the element's current height
-    elementToRemove.style.setProperty('--initial-height', `${elementToRemove.offsetHeight}px`);
-    elementToRemove.classList.add('element-fade-out');
-
-    // Wait for the animation to finish before removing the element and DB entry
-    elementToRemove.addEventListener('animationend', () => {
-        elementToRemove.remove();
-        withDB(db => {
+    await withDB(db => {
+        return new Promise((resolve, reject) => {
             const transaction = db.transaction("audioRecordings", "readwrite");
             const store = transaction.objectStore("audioRecordings");
             const request = store.delete(recordingId);
-            request.onsuccess = () => console.log(`Recording ${recordingId} deleted from DB.`);
-            request.onerror = (e) => console.error("Error deleting from DB after animation:", e.target.error);
+            transaction.oncomplete = () => {
+                console.log(`Recording ${recordingId} deleted from DB.`);
+                resolve();
+            };
+            transaction.onerror = (event) => {
+                console.error(`Error deleting recording ${recordingId} from DB:`, event.target.error);
+                reject(event.target.error);
+            };
         });
-    }, { once: true });
+    });
+    elementToRemove.remove();
 }
 
 /**
@@ -466,26 +443,6 @@ function initializeAudioRecorder(recorderWrapper) {
         });
     }
 
-    function deleteRecording(recordingId, questionId, elementToRemove) {
-        console.log(`Deleting recording ${recordingId} for question ${questionId}`);
-        withDB(db => {
-            return new Promise((resolve, reject) => {
-                const transaction = db.transaction("audioRecordings", "readwrite");
-                const store = transaction.objectStore("audioRecordings");
-                const request = store.delete(recordingId);
-                transaction.oncomplete = () => {
-                    console.log(`Recording ${recordingId} deleted from DB.`);
-                    resolve();
-                };
-                transaction.onerror = (event) => {
-                    console.error(`Error deleting recording ${recordingId} from DB:`, event.target.error);
-                    reject(event.target.error);
-                };
-            });
-        });
-        elementToRemove.remove();
-    }
-    
     // --- DB Functions ---
 
     function saveRecordingToDB(recordingData) {
