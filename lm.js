@@ -222,7 +222,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // SECURITY: Enforce 5 LMID limit
         if (currentLmidCount >= 5) {
-          alert("Maksimum 5 programów na użytkownika. Usuń istniejący program, aby utworzyć nowy.");
+          alert("Maximum 5 programs per user. Delete an existing program to create a new one.");
           console.log("LMID limit reached (5/5)");
           return;
         }

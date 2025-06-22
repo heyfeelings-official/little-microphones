@@ -467,7 +467,7 @@ function initializeAudioRecorder(recorderWrapper) {
     function showRecordingLimitMessage() {
         // Create temporary message element
         const limitMessage = document.createElement('div');
-        limitMessage.textContent = 'Maksimum 3 nagrania na pytanie. Usuń stare nagranie, aby nagrać nowe.';
+        limitMessage.textContent = 'Maximum 3 recordings per question. Delete an old recording to record a new one.';
         limitMessage.style.cssText = `
             position: fixed;
             top: 50%;
@@ -510,7 +510,7 @@ function initializeAudioRecorder(recorderWrapper) {
 
                 statusDisplay = document.createElement('span');
                 statusDisplay.className = 'placeholder-status';
-                statusDisplay.textContent = 'Nagrywanie...';
+                statusDisplay.textContent = 'Recording...';
 
                 timerDisplay = document.createElement('span');
                 timerDisplay.className = 'placeholder-timer';
@@ -566,7 +566,7 @@ function initializeAudioRecorder(recorderWrapper) {
                 savingLocks.add(questionId);
 
                 try {
-                    if(statusDisplay) statusDisplay.textContent = "Przetwarzanie...";
+                    if(statusDisplay) statusDisplay.textContent = "Processing...";
                     
                     const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
                     audioChunks = [];
@@ -629,7 +629,7 @@ function initializeAudioRecorder(recorderWrapper) {
             setTimeout(() => {
                 if (mediaRecorder && mediaRecorder.state === "recording") {
                     console.log(`[Q-ID ${questionId}] Auto-stopping recording after 15 seconds`);
-                    if (statusDisplay) statusDisplay.textContent = "Maksymalny czas nagrania osiągnięty...";
+                    if (statusDisplay) statusDisplay.textContent = "Maximum recording time reached...";
                     mediaRecorder.stop();
                 }
             }, 15000); // 15 seconds limit
