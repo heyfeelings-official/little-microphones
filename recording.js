@@ -442,7 +442,7 @@ function initializeAudioRecorder(recorderWrapper) {
     }
 
     /**
-     * Check if user can record more (max 3 per question)
+     * Check if user can record more (max 30 per question)
      */
     async function checkRecordingLimit() {
         try {
@@ -453,8 +453,8 @@ function initializeAudioRecorder(recorderWrapper) {
             const recordings = await loadRecordingsFromDB(questionId, world, lmid);
             const currentCount = recordings.length;
             
-            console.log(`[Q-ID ${questionId}] Current recordings: ${currentCount}/3`);
-            return currentCount < 3;
+            console.log(`[Q-ID ${questionId}] Current recordings: ${currentCount}/30`);
+            return currentCount < 30;
         } catch (error) {
             console.error(`[Q-ID ${questionId}] Error checking recording limit:`, error);
             return true; // Allow recording if check fails
@@ -466,8 +466,8 @@ function initializeAudioRecorder(recorderWrapper) {
      */
     function showRecordingLimitMessage() {
         // Use native browser alert for better accessibility and simplicity
-        alert('Maximum 3 recordings per question. Delete an old recording to record a new one.');
-        console.log(`[Q-ID ${questionId}] Recording limit reached (3/3)`);
+        alert('Maximum 30 recordings per question. Delete an old recording to record a new one.');
+        console.log(`[Q-ID ${questionId}] Recording limit reached (30/30)`);
     }
 
     async function startActualRecording() {
@@ -594,14 +594,14 @@ function initializeAudioRecorder(recorderWrapper) {
             mediaRecorder.start();
             startTimer();
 
-            // SECURITY: Auto-stop recording after 15 seconds
+            // SECURITY: Auto-stop recording after 10 minutes
             setTimeout(() => {
                 if (mediaRecorder && mediaRecorder.state === "recording") {
-                    console.log(`[Q-ID ${questionId}] Auto-stopping recording after 15 seconds`);
+                    console.log(`[Q-ID ${questionId}] Auto-stopping recording after 10 minutes`);
                     if (statusDisplay) statusDisplay.textContent = "Maximum recording time reached...";
                     mediaRecorder.stop();
                 }
-            }, 15000); // 15 seconds limit
+            }, 600000); // 10 minutes limit
 
         } catch (err) {
             console.error("Error starting recording:", err);
