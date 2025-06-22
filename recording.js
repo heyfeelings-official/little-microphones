@@ -644,23 +644,48 @@ function withDB(callback) {
 
 // --- Initialization Logic ---
 
-window.Webflow = window.Webflow || [];
-window.Webflow.push(function() {
-    console.log("Webflow ready. Setting up recorders...");
+/**
+ * Initialize recorders for a specific world only
+ * @param {string} world - The world slug (e.g., 'spookyland')
+ */
+function initializeRecordersForWorld(world) {
+    if (!world) {
+        console.warn('No world specified, skipping recorder initialization');
+        return;
+    }
+    
+    console.log(`Initializing recorders for world: ${world}`);
     injectGlobalStyles();
     
-    const recorderWrappers = document.querySelectorAll('.faq1_accordion.lm');
-    console.log(`Found ${recorderWrappers.length} recorder wrappers to initialize`);
+    // Target only the collection for the current world
+    const targetCollectionId = `collection-${world}`;
+    const targetCollection = document.getElementById(targetCollectionId);
     
-    // Debug: Log each wrapper's details
+    if (!targetCollection) {
+        console.warn(`Collection not found: ${targetCollectionId}`);
+        return;
+    }
+    
+    // Find recorders only within the target collection
+    const recorderWrappers = targetCollection.querySelectorAll('.faq1_accordion.lm');
+    console.log(`Found ${recorderWrappers.length} recorder wrappers in ${targetCollectionId}`);
+    
+    // Initialize each recorder
     recorderWrappers.forEach((wrapper, index) => {
         const questionId = wrapper.dataset.questionId;
-        const classes = wrapper.className;
-        console.log(`Wrapper ${index + 1}: questionId="${questionId}", classes="${classes}"`);
+        console.log(`Initializing wrapper ${index + 1}: questionId="${questionId}"`);
+        initializeAudioRecorder(wrapper);
     });
     
-    recorderWrappers.forEach(initializeAudioRecorder);
+    console.log(`Recorder initialization complete for world: ${world}`);
+}
+
+window.Webflow = window.Webflow || [];
+window.Webflow.push(function() {
+    console.log("Webflow ready. Waiting for world information...");
+    // Don't initialize anything yet - wait for world info from rp.js
 });
 
-// Export function globally for re-initialization
-window.initializeAudioRecorder = initializeAudioRecorder; 
+// Export functions globally
+window.initializeAudioRecorder = initializeAudioRecorder;
+window.initializeRecordersForWorld = initializeRecordersForWorld; 

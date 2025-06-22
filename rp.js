@@ -5,34 +5,18 @@
  * @param {string} world - The world slug (e.g., 'spookyland', 'shopping-spree')
  */
 /**
- * Re-initializes recording functionality for newly visible elements
+ * Initialize recording functionality for the current world
+ * @param {string} world - The world slug
  */
-function reinitializeRecording() {
+function initializeRecordingForWorld(world) {
   // Check if recording.js functions are available
-  if (typeof initializeAudioRecorder === 'function') {
-    const recorderWrappers = document.querySelectorAll('.faq1_accordion.lm');
-    console.log(`Re-initializing ${recorderWrappers.length} recorder wrappers`);
-    
-    // Debug: Log each wrapper's details during re-initialization
-    recorderWrappers.forEach((wrapper, index) => {
-        const questionId = wrapper.dataset.questionId;
-        const isInitialized = wrapper.dataset.recordingInitialized;
-        const isVisible = wrapper.offsetParent !== null;
-        console.log(`Re-init Wrapper ${index + 1}: questionId="${questionId}", initialized="${isInitialized}", visible=${isVisible}`);
-    });
-    
-    let newlyInitialized = 0;
-    recorderWrappers.forEach(wrapper => {
-      // Only initialize if not already initialized and has questionId
-      if (!wrapper.dataset.recordingInitialized && wrapper.dataset.questionId) {
-        initializeAudioRecorder(wrapper);
-        newlyInitialized++;
-      }
-    });
-    
-    console.log(`Re-initialization complete: ${newlyInitialized} new recorders initialized`);
+  if (typeof initializeRecordersForWorld === 'function') {
+    console.log(`Initializing recording functionality for world: ${world}`);
+    initializeRecordersForWorld(world);
   } else {
-    console.warn('initializeAudioRecorder function not available yet');
+    console.warn('initializeRecordersForWorld function not available yet');
+    // Retry after a short delay
+    setTimeout(() => initializeRecordingForWorld(world), 100);
   }
 }
 
@@ -63,9 +47,9 @@ function showWorldCollection(world) {
     targetCollection.style.display = 'block';
     console.log(`Showing collection for world: ${world}`);
     
-    // Re-initialize recording functionality for newly shown elements
+    // Initialize recording functionality for this world only
     setTimeout(() => {
-      reinitializeRecording();
+      initializeRecordingForWorld(world);
     }, 100);
   } else {
     console.warn(`Collection element not found: ${targetCollectionId}`);
