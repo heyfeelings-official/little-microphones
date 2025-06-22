@@ -194,6 +194,16 @@ function initializeAudioRecorder(recorderWrapper) {
         console.warn('No questionId found for recorder wrapper, skipping initialization');
         return;
     }
+    
+    // Prevent double initialization
+    if (recorderWrapper.dataset.recordingInitialized === 'true') {
+        console.log(`[Q-ID ${questionId}] Already initialized, skipping.`);
+        return;
+    }
+    
+    // Mark as initialized
+    recorderWrapper.dataset.recordingInitialized = 'true';
+    console.log(`[Q-ID ${questionId}] Initializing audio recorder...`);
 
     // --- Step 1: Find ONLY the button initially ---
     const recordButton = recorderWrapper.querySelector('.record-button');
@@ -638,7 +648,10 @@ window.Webflow = window.Webflow || [];
 window.Webflow.push(function() {
     console.log("Webflow ready. Setting up recorders...");
     injectGlobalStyles();
-    document.querySelectorAll('.faq1_accordion.lm').forEach(initializeAudioRecorder);
+    
+    const recorderWrappers = document.querySelectorAll('.faq1_accordion.lm');
+    console.log(`Found ${recorderWrappers.length} recorder wrappers to initialize`);
+    recorderWrappers.forEach(initializeAudioRecorder);
 });
 
 // Export function globally for re-initialization
