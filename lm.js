@@ -126,6 +126,30 @@ document.addEventListener("DOMContentLoaded", () => {
         const memberId = memberData.id;
         const currentLmids = memberData.metaData.lmids;
 
+        // Delete all associated files from Bunny.net storage before removing LMID
+        console.log(`Deleting all Bunny.net files for LMID: ${lmidToDelete}`);
+        try {
+          const deleteFilesResponse = await fetch('https://little-microphones.vercel.app/api/delete-audio', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              deleteLmidFolder: true,
+              lmid: lmidToDelete
+            })
+          });
+
+          const deleteResult = await deleteFilesResponse.json();
+          if (deleteResult.success) {
+            console.log(`Successfully deleted all files for LMID ${lmidToDelete} from Bunny.net`);
+          } else {
+            console.warn(`Failed to delete some files for LMID ${lmidToDelete}:`, deleteResult.error);
+            // Continue with LMID deletion even if file deletion partially fails
+          }
+        } catch (fileDeleteError) {
+          console.error(`Error deleting files for LMID ${lmidToDelete}:`, fileDeleteError);
+          // Continue with LMID deletion even if file deletion fails
+        }
+
         // New logic: Prepare the final string in JavaScript instead of Make.com
         let lmidArray = [];
         if (currentLmids && typeof currentLmids === 'string') {

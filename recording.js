@@ -465,39 +465,8 @@ function initializeAudioRecorder(recorderWrapper) {
      * Show recording limit message
      */
     function showRecordingLimitMessage() {
-        // Create temporary message element
-        const limitMessage = document.createElement('div');
-        limitMessage.textContent = 'Maximum 3 recordings per question. Delete an old recording to record a new one.';
-        limitMessage.style.cssText = `
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: #ff4444;
-            color: white;
-            padding: 16px 24px;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 500;
-            z-index: 10000;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            text-align: center;
-            max-width: 300px;
-            animation: fadeIn 0.3s ease-in-out;
-        `;
-        
-        document.body.appendChild(limitMessage);
-        
-        // Auto-remove after 4 seconds
-        setTimeout(() => {
-            limitMessage.style.animation = 'fadeOut 0.3s ease-in-out forwards';
-            setTimeout(() => {
-                if (limitMessage.parentNode) {
-                    limitMessage.parentNode.removeChild(limitMessage);
-                }
-            }, 300);
-        }, 4000);
-        
+        // Use native browser alert for better accessibility and simplicity
+        alert('Maximum 3 recordings per question. Delete an old recording to record a new one.');
         console.log(`[Q-ID ${questionId}] Recording limit reached (3/3)`);
     }
 

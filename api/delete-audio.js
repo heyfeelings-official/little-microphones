@@ -16,9 +16,28 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { filename, world, lmid, questionId } = req.body;
+        const { filename, world, lmid, questionId, deleteLmidFolder } = req.body;
 
-        // Validation
+        // Check environment variables
+        if (!process.env.BUNNY_API_KEY || !process.env.BUNNY_STORAGE_ZONE) {
+            console.error('Missing Bunny.net configuration');
+            return res.status(500).json({ error: 'Server configuration error' });
+        }
+
+        // Handle LMID folder deletion (delete entire LMID and all its contents)
+        if (deleteLmidFolder && lmid) {
+            console.log(`Deleting entire LMID folder: ${lmid}/`);
+            await deleteLmidFolderRecursively(lmid);
+            
+            res.json({ 
+                success: true, 
+                message: `Successfully deleted LMID folder: ${lmid}/`,
+                lmid: lmid
+            });
+            return;
+        }
+
+        // Handle single file deletion (existing functionality)
         if (!filename) {
             return res.status(400).json({ error: 'Missing required field: filename' });
         }
@@ -30,12 +49,6 @@ export default async function handler(req, res) {
         // Validate filename format for security
         if (!filename.includes(`kids-world_${world}-lmid_${lmid}-question_${questionId}`)) {
             return res.status(400).json({ error: 'Invalid filename format' });
-        }
-
-        // Check environment variables
-        if (!process.env.BUNNY_API_KEY || !process.env.BUNNY_STORAGE_ZONE) {
-            console.error('Missing Bunny.net configuration');
-            return res.status(500).json({ error: 'Server configuration error' });
         }
 
         // Delete from Bunny.net with folder structure: lmid/world/filename
@@ -79,6 +92,153 @@ export default async function handler(req, res) {
             error: 'Delete failed', 
             details: error.message 
         });
+    }
+}
+
+/**
+ * Delete entire LMID folder and all its contents recursively
+ * @param {string} lmid - The LMID folder to delete
+ */
+async function deleteLmidFolderRecursively(lmid) {
+    try {
+        const baseUrl = `https://storage.bunnycdn.com/${process.env.BUNNY_STORAGE_ZONE}`;
+        const headers = { 'AccessKey': process.env.BUNNY_API_KEY };
+        const lmidFolderUrl = `${baseUrl}/${lmid}/`;
+
+        console.log(`Starting recursive deletion of LMID folder: ${lmid}/`);
+
+        // Step 1: List all contents in the LMID folder
+        const listResponse = await fetch(lmidFolderUrl, {
+            method: 'GET',
+            headers: headers
+        });
+
+        if (listResponse.ok) {
+            const contents = await listResponse.json();
+            
+            if (Array.isArray(contents)) {
+                console.log(`Found ${contents.length} items in LMID folder ${lmid}/`);
+                
+                // Step 2: Delete all world subfolders and their contents
+                for (const item of contents) {
+                    if (item.IsDirectory) {
+                        const worldFolder = item.ObjectName;
+                        console.log(`Deleting world folder: ${lmid}/${worldFolder}/`);
+                        await deleteWorldFolderRecursively(lmid, worldFolder);
+                    } else {
+                        // Delete any files directly in the LMID folder
+                        const fileName = item.ObjectName;
+                        console.log(`Deleting file: ${lmid}/${fileName}`);
+                        await deleteFile(`${lmid}/${fileName}`);
+                    }
+                }
+            }
+        } else if (listResponse.status === 404) {
+            console.log(`LMID folder ${lmid}/ not found (already deleted)`);
+            return;
+        } else {
+            console.warn(`Failed to list LMID folder contents: ${listResponse.status}`);
+        }
+
+        // Step 3: Delete the LMID folder itself
+        console.log(`Deleting LMID folder: ${lmid}/`);
+        const deleteFolderResponse = await fetch(lmidFolderUrl, {
+            method: 'DELETE',
+            headers: headers
+        });
+
+        if (deleteFolderResponse.ok) {
+            console.log(`Successfully deleted LMID folder: ${lmid}/`);
+        } else if (deleteFolderResponse.status === 404) {
+            console.log(`LMID folder ${lmid}/ not found (already deleted)`);
+        } else {
+            console.warn(`Failed to delete LMID folder ${lmid}/: ${deleteFolderResponse.status}`);
+        }
+
+    } catch (error) {
+        console.error(`Error during recursive LMID deletion for ${lmid}:`, error);
+        throw error;
+    }
+}
+
+/**
+ * Delete a world folder and all its contents
+ * @param {string} lmid - The LMID folder
+ * @param {string} world - The world folder to delete
+ */
+async function deleteWorldFolderRecursively(lmid, world) {
+    try {
+        const baseUrl = `https://storage.bunnycdn.com/${process.env.BUNNY_STORAGE_ZONE}`;
+        const headers = { 'AccessKey': process.env.BUNNY_API_KEY };
+        const worldFolderUrl = `${baseUrl}/${lmid}/${world}/`;
+
+        // List all files in the world folder
+        const listResponse = await fetch(worldFolderUrl, {
+            method: 'GET',
+            headers: headers
+        });
+
+        if (listResponse.ok) {
+            const files = await listResponse.json();
+            
+            if (Array.isArray(files)) {
+                // Delete all files in the world folder
+                for (const file of files) {
+                    if (!file.IsDirectory) {
+                        const fileName = file.ObjectName;
+                        console.log(`Deleting file: ${lmid}/${world}/${fileName}`);
+                        await deleteFile(`${lmid}/${world}/${fileName}`);
+                    }
+                }
+            }
+        }
+
+        // Delete the world folder itself
+        const deleteFolderResponse = await fetch(worldFolderUrl, {
+            method: 'DELETE',
+            headers: headers
+        });
+
+        if (deleteFolderResponse.ok) {
+            console.log(`Successfully deleted world folder: ${lmid}/${world}/`);
+        } else if (deleteFolderResponse.status === 404) {
+            console.log(`World folder ${lmid}/${world}/ not found (already deleted)`);
+        } else {
+            console.warn(`Failed to delete world folder ${lmid}/${world}/: ${deleteFolderResponse.status}`);
+        }
+
+    } catch (error) {
+        console.error(`Error deleting world folder ${lmid}/${world}:`, error);
+        // Don't throw - continue with other deletions
+    }
+}
+
+/**
+ * Delete a single file
+ * @param {string} filePath - The path to the file to delete
+ */
+async function deleteFile(filePath) {
+    try {
+        const baseUrl = `https://storage.bunnycdn.com/${process.env.BUNNY_STORAGE_ZONE}`;
+        const headers = { 'AccessKey': process.env.BUNNY_API_KEY };
+        const deleteUrl = `${baseUrl}/${filePath}`;
+
+        const response = await fetch(deleteUrl, {
+            method: 'DELETE',
+            headers: headers
+        });
+
+        if (response.ok) {
+            console.log(`Successfully deleted file: ${filePath}`);
+        } else if (response.status === 404) {
+            console.log(`File not found (already deleted): ${filePath}`);
+        } else {
+            console.warn(`Failed to delete file ${filePath}: ${response.status}`);
+        }
+
+    } catch (error) {
+        console.error(`Error deleting file ${filePath}:`, error);
+        // Don't throw - continue with other deletions
     }
 }
 
