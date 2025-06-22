@@ -88,33 +88,35 @@ function initializeAudioRecorder(recorderWrapper) {
             recordingsListUI = recorderWrapper.querySelector('.recording-list.w-list-unstyled');
             liveWaveformCanvas = recorderWrapper.querySelector('.live-waveform-canvas');
 
-            if (!liveWaveformCanvas) {
-                console.error(`[Q-ID ${questionId}] Canvas element (.live-waveform-canvas) not found on click. Aborting recording.`);
-                if (statusDisplay) statusDisplay.textContent = "Error: Recording component is missing its canvas.";
-                return;
-            }
-            
+            // No longer aborts if canvas is missing.
             startActualRecording();
         }
     }
 
     async function startActualRecording() {
         try {
-            if (liveWaveformCanvas && !canvasCtx) {
-                canvasCtx = liveWaveformCanvas.getContext('2d');
+            // --- Waveform visualization is now optional ---
+            if (liveWaveformCanvas) {
+                if (!canvasCtx) {
+                    canvasCtx = liveWaveformCanvas.getContext('2d');
+                }
+                sizeCanvas(); 
             }
-            sizeCanvas(); 
+            
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             
-            if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            analyser = audioContext.createAnalyser();
-            analyser.fftSize = 256;
-            const bufferLength = analyser.frequencyBinCount;
-            dataArray = new Uint8Array(bufferLength);
-            
-            sourceNode = audioContext.createMediaStreamSource(stream);
-            sourceNode.connect(analyser);
-            drawLiveWaveform();
+            // Only set up the analyser and visualiser if the canvas exists
+            if (liveWaveformCanvas && canvasCtx) {
+                if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 256;
+                const bufferLength = analyser.frequencyBinCount;
+                dataArray = new Uint8Array(bufferLength);
+                
+                sourceNode = audioContext.createMediaStreamSource(stream);
+                sourceNode.connect(analyser);
+                drawLiveWaveform();
+            }
 
             if(statusDisplay) statusDisplay.textContent = "Status: Recording...";
             setButtonText(recordButton, 'Stop');
@@ -167,7 +169,7 @@ function initializeAudioRecorder(recorderWrapper) {
     
     function cleanupAfterRecording(streamToStop) {
         if (animationFrameId) cancelAnimationFrame(animationFrameId);
-        if (sourceNode) sourceNode.disconnect();
+        if (sourceNode) sourceNode.disconnect(); // sourceNode only exists if canvas does
         if (streamToStop) streamToStop.getTracks().forEach(track => track.stop());
         
         mediaRecorder = null;
