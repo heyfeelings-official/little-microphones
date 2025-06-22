@@ -44,21 +44,34 @@ function injectGlobalStyles() {
 
         /* --- Animation for new recording placeholder and item --- */
         .recording-placeholder {
-            opacity: 0.7;
-            background-color: #f0f0f0;
-            border: 1px dashed #ccc;
-            animation: pulse-bg 2s infinite;
-            color: #555;
-            padding: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
             margin-bottom: 8px;
-            border-radius: 8px;
+            background-color: #f0f0f0;
+            border: 1px solid #e0e0e0;
+            border-radius: 24px; /* Makes it look like an audio player */
+            color: #333;
+            animation: pulse-bg 2s infinite;
             list-style: none;
+            font-size: 14px;
+        }
+
+        .recording-placeholder .placeholder-status {
+            font-weight: 500;
+        }
+
+        .recording-placeholder .placeholder-timer {
+            font-family: monospace;
+            font-size: 14px;
+            color: #555;
         }
 
         @keyframes pulse-bg {
-            0% { background-color: #f9f9f9; }
+            0% { background-color: #f5f5f5; }
             50% { background-color: #e9e9e9; }
-            100% { background-color: #f9f9f9; }
+            100% { background-color: #f5f5f5; }
         }
 
         .new-recording-fade-in {
@@ -163,7 +176,7 @@ function initializeAudioRecorder(recorderWrapper) {
     console.log(`[Q-ID ${questionId}] Recorder ready for user interaction.`);
 
     // --- Instance variables (will be populated on-demand) ---
-    let statusDisplay, timerDisplay, recordingsListUI, liveWaveformCanvas, canvasCtx;
+    let placeholderEl, statusDisplay, timerDisplay, recordingsListUI, liveWaveformCanvas, canvasCtx;
     let mediaRecorder, audioChunks = [], recordings = [], timerInterval, seconds = 0;
     let audioContext, analyser, sourceNode, dataArray, animationFrameId;
     let canvasSized = false;
@@ -182,17 +195,16 @@ function initializeAudioRecorder(recorderWrapper) {
     
     recordButton.addEventListener('click', handleRecordButtonClick);
 
-    function handleRecordButtonClick() {
+    function handleRecordButtonClick(event) {
+        event.preventDefault();
+        
         if (mediaRecorder && mediaRecorder.state === "recording") {
-            stopActualRecording();
+            mediaRecorder.stop();
         } else {
             // --- Step 2: Find all other elements ON-DEMAND when user clicks ---
-            statusDisplay = recorderWrapper.querySelector('.status-display');
-            timerDisplay = recorderWrapper.querySelector('.text-size-small.timer-display');
-            recordingsListUI = recorderWrapper.querySelector('.recording-list.w-list-unstyled');
             liveWaveformCanvas = recorderWrapper.querySelector('.live-waveform-canvas');
-
-            // No longer aborts if canvas is missing.
+            
+            // No longer finding status/timer here, they are created dynamically.
             startActualRecording();
         }
     }
@@ -201,10 +213,20 @@ function initializeAudioRecorder(recorderWrapper) {
         try {
             // --- Create a placeholder in the UI ---
             if (recordingsListUI) {
-                const placeholder = document.createElement('li');
-                placeholder.className = 'recording-placeholder';
-                placeholder.textContent = 'Nagrywanie w toku...';
-                recordingsListUI.prepend(placeholder);
+                placeholderEl = document.createElement('li');
+                placeholderEl.className = 'recording-placeholder';
+
+                statusDisplay = document.createElement('span');
+                statusDisplay.className = 'placeholder-status';
+                statusDisplay.textContent = 'Nagrywanie...';
+
+                timerDisplay = document.createElement('span');
+                timerDisplay.className = 'placeholder-timer';
+                timerDisplay.textContent = '0:00';
+
+                placeholderEl.appendChild(statusDisplay);
+                placeholderEl.appendChild(timerDisplay);
+                recordingsListUI.prepend(placeholderEl);
             }
 
             // --- Waveform visualization is now optional and properly checked ---
@@ -247,7 +269,7 @@ function initializeAudioRecorder(recorderWrapper) {
             };
 
             mediaRecorder.onstop = async () => {
-                if(statusDisplay) statusDisplay.textContent = "Status: Processing...";
+                if(statusDisplay) statusDisplay.textContent = "Przetwarzanie...";
                 
                 const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
                 audioChunks = [];
@@ -266,17 +288,12 @@ function initializeAudioRecorder(recorderWrapper) {
                 newRecordingElement.classList.add('new-recording-fade-in');
 
                 // Find and replace the placeholder
-                const placeholder = recorderWrapper.querySelector('.recording-placeholder');
-                if (recordingsListUI) {
-                    if (placeholder) {
-                        placeholder.replaceWith(newRecordingElement);
-                    } else {
-                        // Fallback in case placeholder wasn't created
-                        recordingsListUI.prepend(newRecordingElement);
-                    }
+                if (recordingsListUI && placeholderEl) {
+                    placeholderEl.replaceWith(newRecordingElement);
+                    placeholderEl = null; // Clear reference
                 }
                 
-                if(statusDisplay) statusDisplay.textContent = "";
+                // No separate status display to clear
             };
 
             mediaRecorder.start();
@@ -300,6 +317,7 @@ function initializeAudioRecorder(recorderWrapper) {
         
         mediaRecorder = null;
         animationFrameId = null;
+        placeholderEl = null; // Clear placeholder reference
         resetRecordingState();
     }
 
@@ -460,6 +478,8 @@ function initializeAudioRecorder(recorderWrapper) {
 
     function stopTimer() {
         clearInterval(timerInterval);
+        seconds = 0;
+        // The timer display will be removed with the placeholder, so no need to clear it.
     }
 
     function formatTime(s) {
