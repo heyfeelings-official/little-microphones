@@ -71,7 +71,20 @@ document.addEventListener("DOMContentLoaded", () => {
       // Check if the lmid from the URL is in the member's list of authorized lmids
       if (memberLmidArray.includes(lmidFromUrl)) {
         console.log(`SUCCESS: Member is authorized for LMID ${lmidFromUrl} in world '${worldFromUrl}'. Ready to record.`);
-        // You can now enable your recording functionality
+        
+        // Expose world and lmid globally for the recording script
+        window.currentRecordingParams = {
+            world: worldFromUrl,
+            lmid: lmidFromUrl
+        };
+
+        // Display world name and set background from URL params
+        const worldNameElement = document.getElementById('world-name');
+        if (worldNameElement) {
+          // Format the world name for display (e.g., "spookyland" -> "Spookyland", "big-city" -> "Big city")
+          const formattedWorldName = worldFromUrl.charAt(0).toUpperCase() + worldFromUrl.slice(1).replace(/-/g, ' ');
+          worldNameElement.textContent = formattedWorldName;
+        }
       } else {
         console.error(`Authorization failed: Member does not have permission for LMID ${lmidFromUrl}.`);
         alert("You are not authorized to access this program. You will be returned to the previous page.");

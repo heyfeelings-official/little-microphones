@@ -177,7 +177,7 @@ function initializeAudioRecorder(recorderWrapper) {
 
     // --- Instance variables (will be populated on-demand) ---
     let placeholderEl, statusDisplay, timerDisplay, recordingsListUI, liveWaveformCanvas, canvasCtx;
-    let mediaRecorder, audioChunks = [], recordings = [], timerInterval, seconds = 0;
+    let mediaRecorder, audioChunks = [], timerInterval, seconds = 0;
     let audioContext, analyser, sourceNode, dataArray, animationFrameId;
     let canvasSized = false;
 
@@ -274,9 +274,15 @@ function initializeAudioRecorder(recorderWrapper) {
                 const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
                 audioChunks = [];
 
+                // --- New Naming Convention ---
+                const world = window.currentRecordingParams?.world || 'unknown-world';
+                const lmid = window.currentRecordingParams?.lmid || 'unknown-lmid';
+                const timestamp = Date.now();
+                const newId = `kids-world_${world}-lmid_${lmid}-question_${questionId}-audio_${timestamp}`;
+
                 const recordingData = {
-                    id: `rec_${Date.now()}`,
-                    questionId: questionId,
+                    id: newId,
+                    questionId: questionId, // Keep for filtering
                     audio: audioBlob,
                     timestamp: new Date().toISOString()
                 };
@@ -417,9 +423,22 @@ function initializeAudioRecorder(recorderWrapper) {
     
     // --- DB Functions ---
 
-    function saveRecordingToDB(recording) {
-        withStore('readwrite', store => {
-            store.put(recording);
+    function saveRecordingToDB(recordingData) {
+        return new Promise((resolve, reject) => {
+            // Use withDB to ensure database is initialized before proceeding.
+            withDB(db => {
+                const transaction = db.transaction("audioRecordings", "readwrite");
+                const store = transaction.objectStore("audioRecordings");
+                const request = store.add(recordingData);
+                transaction.oncomplete = () => {
+                    console.log(`Recording ${recordingData.id} saved to DB.`);
+                    resolve();
+                };
+                transaction.onerror = (event) => {
+                    console.error(`Error saving recording ${recordingData.id} to DB:`, event.target.error);
+                    reject(event.target.error);
+                };
+            });
         });
     }
 
