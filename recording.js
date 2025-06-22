@@ -45,9 +45,9 @@ function injectGlobalStyles() {
         /* --- Animation for new recording placeholder and item --- */
         .recording-placeholder {
             display: flex;
-            justify-content: space-between;
+            justify-content: center;
             align-items: center;
-            padding: 12px 16px;
+            padding: 14px 20px;
             margin-bottom: 8px;
             background-color: #f0f0f0;
             border: none;
@@ -59,7 +59,7 @@ function injectGlobalStyles() {
         }
 
         .recording-placeholder .placeholder-status {
-            font-weight: 500;
+            font-weight: 400;
         }
 
         .recording-placeholder .placeholder-timer {
@@ -102,9 +102,13 @@ function createRecordingElement(recordingData, questionId) {
     audio.style.width = '100%';
 
     const timestamp = new Date(recordingData.timestamp);
-    const dateString = timestamp.toLocaleDateString('pl-PL', { day: '2-digit', month: 'long', year: 'numeric' });
-    const timeString = timestamp.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit', hour12: false });
-    const formattedDate = `${dateString}, ${timeString}`;
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const day = timestamp.getDate();
+    const month = monthNames[timestamp.getMonth()];
+    const year = String(timestamp.getFullYear()).slice(-2);
+    const hours = String(timestamp.getHours()).padStart(2, '0');
+    const minutes = String(timestamp.getMinutes()).padStart(2, '0');
+    const formattedDate = `${day} ${month} ${year} / ${hours}:${minutes}`;
     
     const infoContainer = document.createElement('div');
     infoContainer.style.display = 'flex';
@@ -120,7 +124,7 @@ function createRecordingElement(recordingData, questionId) {
     timestampEl.style.whiteSpace = 'nowrap';
 
     const deleteButton = document.createElement('button');
-    deleteButton.textContent = 'Usuń';
+    deleteButton.textContent = 'Delete';
     deleteButton.style.background = 'none';
     deleteButton.style.border = 'none';
     deleteButton.style.color = '#ff4d4d';
@@ -130,7 +134,9 @@ function createRecordingElement(recordingData, questionId) {
     deleteButton.style.whiteSpace = 'nowrap';
 
     deleteButton.onclick = () => {
-        deleteRecording(recordingData.id, questionId, li);
+        if (confirm("Are you sure you want to delete this recording?")) {
+            deleteRecording(recordingData.id, questionId, li);
+        }
     };
 
     infoContainer.appendChild(timestampEl);
