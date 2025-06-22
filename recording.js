@@ -189,8 +189,16 @@ async function deleteRecording(recordingId, questionId, elementToRemove) {
  * @param {HTMLElement} recorderWrapper - The main container element for this recorder.
  */
 function initializeAudioRecorder(recorderWrapper) {
-    const questionId = recorderWrapper.dataset.questionId;
-    if (!questionId) return;
+    let questionId = recorderWrapper.dataset.questionId;
+    
+    // If no questionId is set, generate one based on element position
+    if (!questionId) {
+        const allRecorders = document.querySelectorAll('.faq1_accordion.lm');
+        const index = Array.from(allRecorders).indexOf(recorderWrapper);
+        questionId = `q${index + 1}`;
+        recorderWrapper.dataset.questionId = questionId;
+        console.log(`Generated questionId: ${questionId} for recorder at index ${index}`);
+    }
 
     // --- Step 1: Find ONLY the button initially ---
     const recordButton = recorderWrapper.querySelector('.record-button');
