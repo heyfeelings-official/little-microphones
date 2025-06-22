@@ -204,6 +204,7 @@ function initializeAudioRecorder(recorderWrapper) {
     let mediaRecorder, audioChunks = [], timerInterval, seconds = 0, stream;
     let audioContext, analyser, sourceNode, dataArray, animationFrameId;
     let canvasSized = false;
+    let isSaving = false; // Lock to prevent race conditions
 
     // --- Initial DB load to show previous recordings ---
     recordingsListUI = recorderWrapper.querySelector('.recording-list.w-list-unstyled');
@@ -290,58 +291,73 @@ function initializeAudioRecorder(recorderWrapper) {
 
             mediaRecorder.onerror = (event) => {
                 console.error("MediaRecorder error:", event.error);
+                isSaving = false; // Release lock on error
                 cleanupAfterRecording(stream);
             };
 
             mediaRecorder.onstop = async () => {
-                if(statusDisplay) statusDisplay.textContent = "Przetwarzanie...";
-                
-                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                audioChunks = [];
-
-                const world = window.currentRecordingParams?.world || 'unknown-world';
-                const lmid = window.currentRecordingParams?.lmid || 'unknown-lmid';
-
-                // --- Correctly calculate the next index to avoid duplicates ---
-                const existingRecordings = await loadRecordingsFromDB(questionId);
-                let maxIndex = 0;
-                existingRecordings.forEach(rec => {
-                    const match = rec.id.match(/_audio_(\d+)$/);
-                    if (match && match[1]) {
-                        const index = parseInt(match[1], 10);
-                        if (index > maxIndex) {
-                            maxIndex = index;
-                        }
-                    }
-                });
-                const newIndex = maxIndex + 1;
-                const newId = `kids-world_${world}-lmid_${lmid}-question_${questionId}-audio_${newIndex}`;
-
-                const recordingData = {
-                    id: newId,
-                    questionId: questionId, // Keep for filtering
-                    audio: audioBlob,
-                    timestamp: new Date().toISOString()
-                };
-
-                await saveRecordingToDB(recordingData);
-
-                // Create the final UI element
-                const newRecordingElement = createRecordingElement(recordingData, questionId);
-                newRecordingElement.classList.add('new-recording-fade-in');
-
-                // Find and replace the placeholder
-                if (recordingsListUI && placeholderEl) {
-                    const placeholderToReplace = placeholderEl;
-                    placeholderToReplace.classList.add('fade-out');
-                    placeholderToReplace.addEventListener('animationend', () => {
-                        placeholderToReplace.replaceWith(newRecordingElement);
-                    }, { once: true });
-                    placeholderEl = null; // Clear instance-level reference immediately
+                if (isSaving) {
+                    console.warn("Save already in progress, skipping.");
+                    return;
                 }
-                
-                // --- Reset button state ---
-                cleanupAfterRecording(stream);
+                isSaving = true;
+
+                try {
+                    if(statusDisplay) statusDisplay.textContent = "Przetwarzanie...";
+                    
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    audioChunks = [];
+
+                    const world = window.currentRecordingParams?.world || 'unknown-world';
+                    const lmid = window.currentRecordingParams?.lmid || 'unknown-lmid';
+
+                    // --- Correctly calculate the next index to avoid duplicates ---
+                    const existingRecordings = await loadRecordingsFromDB(questionId);
+                    let maxIndex = 0;
+                    existingRecordings.forEach(rec => {
+                        const match = rec.id.match(/_audio_(\d+)$/);
+                        if (match && match[1]) {
+                            const index = parseInt(match[1], 10);
+                            if (index > maxIndex) {
+                                maxIndex = index;
+                            }
+                        }
+                    });
+                    const newIndex = maxIndex + 1;
+                    const newId = `kids-world_${world}-lmid_${lmid}-question_${questionId}-audio_${newIndex}`;
+
+                    const recordingData = {
+                        id: newId,
+                        questionId: questionId, // Keep for filtering
+                        audio: audioBlob,
+                        timestamp: new Date().toISOString()
+                    };
+
+                    await saveRecordingToDB(recordingData);
+
+                    // Create the final UI element
+                    const newRecordingElement = createRecordingElement(recordingData, questionId);
+                    newRecordingElement.classList.add('new-recording-fade-in');
+
+                    // Find and replace the placeholder
+                    if (recordingsListUI && placeholderEl) {
+                        const placeholderToReplace = placeholderEl;
+                        placeholderToReplace.classList.add('fade-out');
+                        placeholderToReplace.addEventListener('animationend', () => {
+                            placeholderToReplace.replaceWith(newRecordingElement);
+                        }, { once: true });
+                        placeholderEl = null; // Clear instance-level reference immediately
+                    }
+                } catch (err) {
+                    console.error("Error processing recording:", err);
+                    if (placeholderEl) {
+                        placeholderEl.textContent = "Error saving recording.";
+                    }
+                } finally {
+                    isSaving = false; // Release lock
+                    // --- Reset button state ---
+                    cleanupAfterRecording(stream);
+                }
             };
 
             mediaRecorder.start();
