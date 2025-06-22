@@ -394,7 +394,7 @@ function initializeAudioRecorder(recorderWrapper) {
 
             const deleteButton = document.createElement('button');
             deleteButton.textContent = 'Delete';
-            deleteButton.style.cssText = 'background: none; border: none; color: #f25444; cursor: pointer; padding: 5px; font-size: 0.9em;';
+            deleteButton.style.cssText = 'background: none; border: none; color: #f25444; cursor: pointer; padding: 0px; font-size: 0.9em;';
             deleteButton.onclick = () => {
                 if (confirm(`Are you sure you want to delete this recording?`)) {
                     deleteRecording(rec.id, questionId, li);
