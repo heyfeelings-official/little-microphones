@@ -226,6 +226,12 @@ function initializeAudioRecorder(recorderWrapper) {
         if (mediaRecorder && mediaRecorder.state === "recording") {
             mediaRecorder.stop();
         } else {
+            // Check if saving is already in progress for this question
+            if (savingLocks.has(questionId)) {
+                console.warn(`Recording for Q-ID ${questionId} is already being processed, please wait.`);
+                return;
+            }
+            
             // --- Step 2: Find all other elements ON-DEMAND when user clicks ---
             liveWaveformCanvas = recorderWrapper.querySelector('.live-waveform-canvas');
             
@@ -295,12 +301,7 @@ function initializeAudioRecorder(recorderWrapper) {
             };
 
             mediaRecorder.onstop = async () => {
-                // Check and set lock immediately to prevent any race conditions
-                if (savingLocks.has(questionId)) {
-                    console.warn(`Save for Q-ID ${questionId} already in progress, skipping.`);
-                    cleanupAfterRecording(stream);
-                    return;
-                }
+                // Set lock for saving process
                 savingLocks.add(questionId);
 
                 try {
@@ -314,11 +315,14 @@ function initializeAudioRecorder(recorderWrapper) {
 
                     // --- Read from DB to get proper display index ---
                     const existingRecordings = await loadRecordingsFromDB(questionId);
+                    console.log(`[Q-ID ${questionId}] Found ${existingRecordings.length} existing recordings:`, existingRecordings.map(r => r.id));
+                    
                     let maxIndex = 0;
                     existingRecordings.forEach(rec => {
                         const match = rec.id.match(/_audio_(\d+)$/);
                         if (match && match[1]) {
                             const index = parseInt(match[1], 10);
+                            console.log(`[Q-ID ${questionId}] Found index ${index} in recording ${rec.id}`);
                             if (index > maxIndex) {
                                 maxIndex = index;
                             }
@@ -326,6 +330,7 @@ function initializeAudioRecorder(recorderWrapper) {
                     });
                     const newIndex = maxIndex + 1;
                     const newId = `kids-world_${world}-lmid_${lmid}-question_${questionId}-audio_${newIndex}`;
+                    console.log(`[Q-ID ${questionId}] Calculated new index: ${newIndex}, new ID: ${newId}`);
 
                     const recordingData = {
                         id: newId,
@@ -497,7 +502,7 @@ function initializeAudioRecorder(recorderWrapper) {
 
                 request.onsuccess = () => {
                     const recordings = request.result;
-                    console.log(`[Q-ID ${questionId}] Loaded ${recordings.length} recordings from DB.`);
+                    console.log(`[Q-ID ${questionId}] Loaded ${recordings.length} recordings from DB:`, recordings.map(r => r.id));
                     resolve(recordings);
                 };
                 request.onerror = () => {
