@@ -651,6 +651,14 @@ window.Webflow.push(function() {
     
     const recorderWrappers = document.querySelectorAll('.faq1_accordion.lm');
     console.log(`Found ${recorderWrappers.length} recorder wrappers to initialize`);
+    
+    // Debug: Log each wrapper's details
+    recorderWrappers.forEach((wrapper, index) => {
+        const questionId = wrapper.dataset.questionId;
+        const classes = wrapper.className;
+        console.log(`Wrapper ${index + 1}: questionId="${questionId}", classes="${classes}"`);
+    });
+    
     recorderWrappers.forEach(initializeAudioRecorder);
 });
 

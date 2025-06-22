@@ -13,6 +13,14 @@ function reinitializeRecording() {
     const recorderWrappers = document.querySelectorAll('.faq1_accordion.lm');
     console.log(`Re-initializing ${recorderWrappers.length} recorder wrappers`);
     
+    // Debug: Log each wrapper's details during re-initialization
+    recorderWrappers.forEach((wrapper, index) => {
+        const questionId = wrapper.dataset.questionId;
+        const isInitialized = wrapper.dataset.recordingInitialized;
+        const isVisible = wrapper.offsetParent !== null;
+        console.log(`Re-init Wrapper ${index + 1}: questionId="${questionId}", initialized="${isInitialized}", visible=${isVisible}`);
+    });
+    
     let newlyInitialized = 0;
     recorderWrappers.forEach(wrapper => {
       // Only initialize if not already initialized and has questionId
