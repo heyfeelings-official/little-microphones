@@ -313,24 +313,10 @@ function initializeAudioRecorder(recorderWrapper) {
                     const world = window.currentRecordingParams?.world || 'unknown-world';
                     const lmid = window.currentRecordingParams?.lmid || 'unknown-lmid';
 
-                    // --- Read from DB to get proper display index ---
-                    const existingRecordings = await loadRecordingsFromDB(questionId);
-                    console.log(`[Q-ID ${questionId}] Found ${existingRecordings.length} existing recordings:`, existingRecordings.map(r => r.id));
-                    
-                    let maxIndex = 0;
-                    existingRecordings.forEach(rec => {
-                        const match = rec.id.match(/_audio_(\d+)$/);
-                        if (match && match[1]) {
-                            const index = parseInt(match[1], 10);
-                            console.log(`[Q-ID ${questionId}] Found index ${index} in recording ${rec.id}`);
-                            if (index > maxIndex) {
-                                maxIndex = index;
-                            }
-                        }
-                    });
-                    const newIndex = maxIndex + 1;
-                    const newId = `kids-world_${world}-lmid_${lmid}-question_${questionId}-audio_${newIndex}`;
-                    console.log(`[Q-ID ${questionId}] Calculated new index: ${newIndex}, new ID: ${newId}`);
+                    // --- Use timestamp for unique ID ---
+                    const timestamp = Date.now();
+                    const newId = `kids-world_${world}-lmid_${lmid}-question_${questionId}-tm_${timestamp}`;
+                    console.log(`[Q-ID ${questionId}] Generated unique ID with timestamp: ${newId}`);
 
                     const recordingData = {
                         id: newId,
@@ -502,7 +488,7 @@ function initializeAudioRecorder(recorderWrapper) {
 
                 request.onsuccess = () => {
                     const recordings = request.result;
-                    console.log(`[Q-ID ${questionId}] Loaded ${recordings.length} recordings from DB:`, recordings.map(r => r.id));
+                    console.log(`[Q-ID ${questionId}] Loaded ${recordings.length} recordings from DB.`);
                     resolve(recordings);
                 };
                 request.onerror = () => {
