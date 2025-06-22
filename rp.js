@@ -32,7 +32,7 @@ document.addEventListener("DOMContentLoaded", () => {
         worldBgElement.style.backgroundPosition = 'center';
     }
 
-    const worldNameElement = document.getElementById("wrold-name");
+    const worldNameElement = document.getElementById("world-name");
     if (worldNameElement) {
       // Format the world name for display (e.g., "spookyland" -> "Spookyland", "big-city" -> "Big city")
       const formattedWorldName = worldFromUrl.charAt(0).toUpperCase() + worldFromUrl.slice(1).replace(/-/g, ' ');
@@ -77,14 +77,6 @@ document.addEventListener("DOMContentLoaded", () => {
             world: worldFromUrl,
             lmid: lmidFromUrl
         };
-
-        // Display world name and set background from URL params
-        const worldNameElement = document.getElementById('world-name');
-        if (worldNameElement) {
-          // Format the world name for display (e.g., "spookyland" -> "Spookyland", "big-city" -> "Big city")
-          const formattedWorldName = worldFromUrl.charAt(0).toUpperCase() + worldFromUrl.slice(1).replace(/-/g, ' ');
-          worldNameElement.textContent = formattedWorldName;
-        }
       } else {
         console.error(`Authorization failed: Member does not have permission for LMID ${lmidFromUrl}.`);
         alert("You are not authorized to access this program. You will be returned to the previous page.");

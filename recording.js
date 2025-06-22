@@ -538,10 +538,35 @@ let db;
 function setupDatabase() {
     return new Promise((resolve, reject) => {
         if (db) return resolve(db);
-        const request = indexedDB.open("kidsAudioDB", 1);
-        request.onupgradeneeded = e => e.target.result.createObjectStore("audioRecordings", { keyPath: "id" });
-        request.onsuccess = e => { db = e.target.result; resolve(db); };
-        request.onerror = e => reject(e.target.error);
+        const request = indexedDB.open("kidsAudioDB", 2); // Bumped version to 2 to trigger upgrade
+
+        request.onupgradeneeded = (event) => {
+            const db = event.target.result;
+            const oldVersion = event.oldVersion;
+
+            let store;
+            if (oldVersion < 1) {
+                // Database is new, create object store
+                store = db.createObjectStore("audioRecordings", { keyPath: "id" });
+            } else {
+                // Database exists, get store from transaction
+                store = event.target.transaction.objectStore("audioRecordings");
+            }
+
+            // Create index if it doesn't exist
+            if (!store.indexNames.contains("questionId_idx")) {
+                store.createIndex("questionId_idx", "questionId", { unique: false });
+            }
+        };
+
+        request.onsuccess = e => {
+            db = e.target.result;
+            resolve(db);
+        };
+        request.onerror = e => {
+            console.error("Database error:", e.target.error);
+            reject(e.target.error);
+        };
     });
 }
 
