@@ -285,12 +285,11 @@ function initializeAudioRecorder(recorderWrapper) {
                 const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
                 audioChunks = [];
 
-                // --- New Naming Convention with Counter ---
+                // --- New Naming Convention with Timestamp for uniqueness ---
                 const world = window.currentRecordingParams?.world || 'unknown-world';
                 const lmid = window.currentRecordingParams?.lmid || 'unknown-lmid';
-                const existingRecordings = await loadRecordingsFromDB(questionId);
-                const newIndex = existingRecordings.length + 1;
-                const newId = `kids-world_${world}-lmid_${lmid}-question_${questionId}-audio_${newIndex}`;
+                const timestampId = Date.now();
+                const newId = `kids-world_${world}-lmid_${lmid}-question_${questionId}-audio_${timestampId}`;
 
                 const recordingData = {
                     id: newId,
