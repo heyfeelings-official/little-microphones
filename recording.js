@@ -295,8 +295,10 @@ function initializeAudioRecorder(recorderWrapper) {
             };
 
             mediaRecorder.onstop = async () => {
+                // Check and set lock immediately to prevent any race conditions
                 if (savingLocks.has(questionId)) {
                     console.warn(`Save for Q-ID ${questionId} already in progress, skipping.`);
+                    cleanupAfterRecording(stream);
                     return;
                 }
                 savingLocks.add(questionId);
@@ -314,7 +316,7 @@ function initializeAudioRecorder(recorderWrapper) {
                     const existingRecordings = await loadRecordingsFromDB(questionId);
                     let maxIndex = 0;
                     existingRecordings.forEach(rec => {
-                        const match = rec.id.match(/_audio_(\d+)(?:_\d+)?$/);
+                        const match = rec.id.match(/_audio_(\d+)$/);
                         if (match && match[1]) {
                             const index = parseInt(match[1], 10);
                             if (index > maxIndex) {
@@ -323,10 +325,7 @@ function initializeAudioRecorder(recorderWrapper) {
                         }
                     });
                     const newIndex = maxIndex + 1;
-                    
-                    // --- Use timestamp to guarantee uniqueness ---
-                    const timestamp = Date.now();
-                    const newId = `kids-world_${world}-lmid_${lmid}-question_${questionId}-audio_${newIndex}_${timestamp}`;
+                    const newId = `kids-world_${world}-lmid_${lmid}-question_${questionId}-audio_${newIndex}`;
 
                     const recordingData = {
                         id: newId,
