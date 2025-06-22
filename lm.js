@@ -110,7 +110,11 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
       
-      if (!confirm(`Are you sure you want to delete LMID: ${lmidToDelete}? This action cannot be undone.`)) {
+      // Enhanced confirmation - require user to type "delete"
+      const confirmationText = prompt(`⚠️ WARNING: This will permanently delete LMID ${lmidToDelete} and ALL associated recordings!\n\nThis action cannot be undone.\n\nTo confirm, please type "delete" below:`);
+      
+      if (!confirmationText || confirmationText.toLowerCase() !== 'delete') {
+        console.log(`Deletion cancelled for LMID: ${lmidToDelete}`);
         return;
       }
 
@@ -129,12 +133,6 @@ document.addEventListener("DOMContentLoaded", () => {
         // Delete all associated files from Bunny.net storage before removing LMID
         console.log(`Deleting all Bunny.net files for LMID: ${lmidToDelete}`);
         try {
-          console.log(`Making DELETE request to: https://little-microphones.vercel.app/api/delete-audio`);
-          console.log(`Request body:`, {
-            deleteLmidFolder: true,
-            lmid: lmidToDelete
-          });
-          
           const deleteFilesResponse = await fetch('https://little-microphones.vercel.app/api/delete-audio', {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
@@ -144,20 +142,16 @@ document.addEventListener("DOMContentLoaded", () => {
             })
           });
 
-          console.log(`Delete API response status: ${deleteFilesResponse.status}`);
-          console.log(`Delete API response headers:`, Object.fromEntries(deleteFilesResponse.headers.entries()));
-
           const deleteResult = await deleteFilesResponse.json();
-          console.log(`Delete API response body:`, deleteResult);
           
           if (deleteResult.success) {
-            console.log(`✅ Successfully deleted all files for LMID ${lmidToDelete} from Bunny.net`);
+            console.log(`Successfully deleted all files for LMID ${lmidToDelete} from Bunny.net`);
           } else {
-            console.warn(`⚠️ Failed to delete some files for LMID ${lmidToDelete}:`, deleteResult.error);
+            console.warn(`Failed to delete some files for LMID ${lmidToDelete}:`, deleteResult.error);
             // Continue with LMID deletion even if file deletion partially fails
           }
         } catch (fileDeleteError) {
-          console.error(`❌ Error deleting files for LMID ${lmidToDelete}:`, fileDeleteError);
+          console.error(`Error deleting files for LMID ${lmidToDelete}:`, fileDeleteError);
           // Continue with LMID deletion even if file deletion fails
         }
 

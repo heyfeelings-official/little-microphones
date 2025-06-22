@@ -26,14 +26,11 @@ export default async function handler(req, res) {
 
         // Handle LMID folder deletion (delete entire LMID and all its contents)
         if (deleteLmidFolder && lmid) {
-            console.log(`🗂️ Deleting entire LMID folder: ${lmid}/`);
-            console.log(`📋 Request body:`, req.body);
-            console.log(`🔑 Environment check - API Key present: ${!!process.env.BUNNY_API_KEY}`);
-            console.log(`🏪 Storage Zone: ${process.env.BUNNY_STORAGE_ZONE}`);
+            console.log(`Deleting entire LMID folder: ${lmid}/`);
             
             try {
                 await deleteLmidFolderRecursively(lmid);
-                console.log(`✅ Successfully completed LMID folder deletion for: ${lmid}/`);
+                console.log(`Successfully completed LMID folder deletion for: ${lmid}/`);
                 
                 res.json({ 
                     success: true, 
@@ -41,7 +38,7 @@ export default async function handler(req, res) {
                     lmid: lmid
                 });
             } catch (error) {
-                console.error(`❌ Error during LMID folder deletion for ${lmid}:`, error);
+                console.error(`Error during LMID folder deletion for ${lmid}:`, error);
                 res.status(500).json({ 
                     success: false,
                     error: 'LMID folder deletion failed', 
@@ -120,8 +117,7 @@ async function deleteLmidFolderRecursively(lmid) {
         const headers = { 'AccessKey': process.env.BUNNY_API_KEY };
         const lmidFolderUrl = `${baseUrl}/${lmid}/`;
 
-        console.log(`🚀 Starting recursive deletion of LMID folder: ${lmid}/`);
-        console.log(`📡 Listing contents at: ${lmidFolderUrl}`);
+        console.log(`Starting recursive deletion of LMID folder: ${lmid}/`);
 
         // Step 1: List all contents in the LMID folder
         const listResponse = await fetch(lmidFolderUrl, {
@@ -129,38 +125,32 @@ async function deleteLmidFolderRecursively(lmid) {
             headers: headers
         });
 
-        console.log(`📋 List response status: ${listResponse.status}`);
-
         if (listResponse.ok) {
             const contents = await listResponse.json();
-            console.log(`📦 Raw contents response:`, contents);
             
             if (Array.isArray(contents)) {
-                console.log(`📁 Found ${contents.length} items in LMID folder ${lmid}/`);
+                console.log(`Found ${contents.length} items in LMID folder ${lmid}/`);
                 
                 // Step 2: Delete all world subfolders and their contents
                 for (const item of contents) {
-                    console.log(`🔍 Processing item:`, item);
                     if (item.IsDirectory) {
                         const worldFolder = item.ObjectName;
-                        console.log(`🌍 Deleting world folder: ${lmid}/${worldFolder}/`);
+                        console.log(`Deleting world folder: ${lmid}/${worldFolder}/`);
                         await deleteWorldFolderRecursively(lmid, worldFolder);
                     } else {
                         // Delete any files directly in the LMID folder
                         const fileName = item.ObjectName;
-                        console.log(`📄 Deleting file: ${lmid}/${fileName}`);
+                        console.log(`Deleting file: ${lmid}/${fileName}`);
                         await deleteFile(`${lmid}/${fileName}`);
                     }
                 }
-            } else {
-                console.log(`⚠️ Contents is not an array:`, typeof contents, contents);
             }
         } else if (listResponse.status === 404) {
-            console.log(`🔍 LMID folder ${lmid}/ not found (already deleted)`);
+            console.log(`LMID folder ${lmid}/ not found (already deleted)`);
             return;
         } else {
             const errorText = await listResponse.text();
-            console.warn(`❌ Failed to list LMID folder contents: ${listResponse.status} - ${errorText}`);
+            console.warn(`Failed to list LMID folder contents: ${listResponse.status} - ${errorText}`);
         }
 
         // Step 3: Delete the LMID folder itself
