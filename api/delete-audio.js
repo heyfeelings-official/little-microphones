@@ -38,10 +38,12 @@ export default async function handler(req, res) {
             return res.status(500).json({ error: 'Server configuration error' });
         }
 
-        // Delete from Bunny.net
-        const deleteUrl = `https://storage.bunnycdn.com/${process.env.BUNNY_STORAGE_ZONE}/${filename}`;
+        // Delete from Bunny.net with folder structure: lmid/world/filename
+        const filePath = `${lmid}/${world}/${filename}`;
+        const deleteUrl = `https://storage.bunnycdn.com/${process.env.BUNNY_STORAGE_ZONE}/${filePath}`;
         
         console.log(`Deleting ${filename} from Bunny.net`);
+        console.log(`Delete path: ${filePath}`);
         
         const response = await fetch(deleteUrl, {
             method: 'DELETE',

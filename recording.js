@@ -383,6 +383,20 @@ function initializeAudioRecorder(recorderWrapper) {
                 const recElement = await createRecordingElement(rec, questionId);
                 recordingsListUI.appendChild(recElement);
             }
+            
+            // Clean up any orphaned recordings after processing
+            const cleanedCount = await cleanupOrphanedRecordings(questionId, world, lmid);
+            if (cleanedCount > 0) {
+                console.log(`[Q-ID ${questionId}] Cleaned up ${cleanedCount} orphaned recordings. Reloading...`);
+                // Reload the recordings list after cleanup
+                const updatedRecordings = await loadRecordingsFromDB(questionId, world, lmid);
+                recordingsListUI.innerHTML = '';
+                updatedRecordings.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                for (const rec of updatedRecordings) {
+                    const recElement = await createRecordingElement(rec, questionId);
+                    recordingsListUI.appendChild(recElement);
+                }
+            }
         });
     }
     
@@ -684,7 +698,12 @@ function initializeAudioRecorder(recorderWrapper) {
                     recordingData.cloudUrl = result.url;
                     recordingData.uploadStatus = 'uploaded';
                     recordingData.uploadProgress = 100;
+                    
+                    // Remove the blob to save local storage space since we now have cloud backup
+                    recordingData.audio = null;
+                    
                     console.log(`[Q-ID ${questionId}] Successfully uploaded: ${result.url}`);
+                    console.log(`[Q-ID ${questionId}] Local blob removed to save storage space`);
                 } else {
                     throw new Error(result.error || 'Upload failed');
                 }
@@ -976,4 +995,45 @@ window.Webflow.push(function() {
 
 // Export functions globally
 window.initializeAudioRecorder = initializeAudioRecorder;
-window.initializeRecordersForWorld = initializeRecordersForWorld; 
+window.initializeRecordersForWorld = initializeRecordersForWorld;
+
+/**
+ * Clean up orphaned recordings (no cloud URL and no local blob)
+ */
+async function cleanupOrphanedRecordings(questionId, world, lmid) {
+    try {
+        const recordings = await loadRecordingsFromDB(questionId, world, lmid);
+        const orphanedRecordings = recordings.filter(rec => 
+            !rec.cloudUrl && !rec.audio && rec.uploadStatus === 'failed'
+        );
+        
+        if (orphanedRecordings.length > 0) {
+            console.log(`[Q-ID ${questionId}] Found ${orphanedRecordings.length} orphaned recordings, cleaning up...`);
+            
+            for (const orphaned of orphanedRecordings) {
+                await withDB(db => {
+                    return new Promise((resolve, reject) => {
+                        const transaction = db.transaction("audioRecordings", "readwrite");
+                        const store = transaction.objectStore("audioRecordings");
+                        const request = store.delete(orphaned.id);
+                        transaction.oncomplete = () => {
+                            console.log(`[Q-ID ${questionId}] Cleaned up orphaned recording: ${orphaned.id}`);
+                            resolve();
+                        };
+                        transaction.onerror = (event) => {
+                            console.error(`Error cleaning up recording ${orphaned.id}:`, event.target.error);
+                            reject(event.target.error);
+                        };
+                    });
+                });
+            }
+            
+            return orphanedRecordings.length;
+        }
+        
+        return 0;
+    } catch (error) {
+        console.error(`[Q-ID ${questionId}] Error during cleanup:`, error);
+        return 0;
+    }
+} 

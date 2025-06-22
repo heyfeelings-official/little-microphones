@@ -48,10 +48,12 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'Invalid audio data format' });
         }
 
-        // Upload to Bunny.net
-        const uploadUrl = `https://storage.bunnycdn.com/${process.env.BUNNY_STORAGE_ZONE}/${filename}`;
+        // Upload to Bunny.net with folder structure: lmid/world/filename
+        const filePath = `${lmid}/${world}/${filename}`;
+        const uploadUrl = `https://storage.bunnycdn.com/${process.env.BUNNY_STORAGE_ZONE}/${filePath}`;
         
         console.log(`Uploading ${filename} to Bunny.net (${audioBuffer.length} bytes)`);
+        console.log(`Upload path: ${filePath}`);
         console.log(`Upload URL: ${uploadUrl}`);
         console.log(`API Key present: ${!!process.env.BUNNY_API_KEY}`);
         console.log(`Storage Zone: ${process.env.BUNNY_STORAGE_ZONE}`);
@@ -69,7 +71,7 @@ export default async function handler(req, res) {
         console.log(`Bunny.net response headers:`, Object.fromEntries(response.headers.entries()));
 
         if (response.ok) {
-            const cdnUrl = `https://${process.env.BUNNY_CDN_URL}/${filename}`;
+            const cdnUrl = `https://${process.env.BUNNY_CDN_URL}/${filePath}`;
             console.log(`Successfully uploaded: ${cdnUrl}`);
             
             res.json({ 
