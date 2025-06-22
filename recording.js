@@ -758,56 +758,6 @@ function initializeAudioRecorder(recorderWrapper) {
         });
     }
 
-    function updateRecordingInDB(recordingData) {
-        return new Promise((resolve, reject) => {
-            withDB(db => {
-                const transaction = db.transaction("audioRecordings", "readwrite");
-                const store = transaction.objectStore("audioRecordings");
-                const request = store.put(recordingData); // Use put for updates
-                transaction.oncomplete = () => {
-                    resolve();
-                };
-                transaction.onerror = (event) => {
-                    console.error(`Error updating recording ${recordingData.id} in DB:`, event.target.error);
-                    reject(event.target.error);
-                };
-            });
-        });
-    }
-
-    function deleteRecordingFromDB(recordingId) {
-        withStore('readwrite', store => {
-            store.delete(recordingId);
-        });
-    }
-
-
-
-    function loadRecordingsFromDB(questionId, world, lmid) {
-        return new Promise((resolve) => {
-            withDB(db => {
-                const transaction = db.transaction("audioRecordings", "readonly");
-                const store = transaction.objectStore("audioRecordings");
-                const request = store.getAll();
-
-                request.onsuccess = () => {
-                    const allRecordings = request.result;
-                    // Filter recordings by questionId, world, and lmid
-                    const filteredRecordings = allRecordings.filter(rec => {
-                        return rec.questionId === questionId && 
-                               rec.id.includes(`kids-world_${world}-lmid_${lmid}-`);
-                    });
-                    console.log(`[Q-ID ${questionId}] [${world}/${lmid}] Loaded ${filteredRecordings.length} recordings from DB.`);
-                    resolve(filteredRecordings);
-                };
-                request.onerror = () => {
-                    console.error(`[Q-ID ${questionId}] [${world}/${lmid}] Error loading recordings.`);
-                    resolve([]); // Return empty array on error
-                };
-            });
-        });
-    }
-
     // --- Utility Functions ---
 
     function getSupportedMimeType() {
@@ -949,6 +899,58 @@ function getRecordingFromDB(recordingId) {
     });
 }
 
+/**
+ * Update a recording in the database
+ * @param {object} recordingData - The recording data to update
+ */
+function updateRecordingInDB(recordingData) {
+    return new Promise((resolve, reject) => {
+        withDB(db => {
+            const transaction = db.transaction("audioRecordings", "readwrite");
+            const store = transaction.objectStore("audioRecordings");
+            const request = store.put(recordingData); // Use put for updates
+            transaction.oncomplete = () => {
+                resolve();
+            };
+            transaction.onerror = (event) => {
+                console.error(`Error updating recording ${recordingData.id} in DB:`, event.target.error);
+                reject(event.target.error);
+            };
+        });
+    });
+}
+
+/**
+ * Load recordings from database filtered by questionId, world, and lmid
+ * @param {string} questionId - The question ID to filter by
+ * @param {string} world - The world to filter by
+ * @param {string} lmid - The lmid to filter by
+ */
+function loadRecordingsFromDB(questionId, world, lmid) {
+    return new Promise((resolve) => {
+        withDB(db => {
+            const transaction = db.transaction("audioRecordings", "readonly");
+            const store = transaction.objectStore("audioRecordings");
+            const request = store.getAll();
+
+            request.onsuccess = () => {
+                const allRecordings = request.result;
+                // Filter recordings by questionId, world, and lmid
+                const filteredRecordings = allRecordings.filter(rec => {
+                    return rec.questionId === questionId && 
+                           rec.id.includes(`kids-world_${world}-lmid_${lmid}-`);
+                });
+                console.log(`[Q-ID ${questionId}] [${world}/${lmid}] Loaded ${filteredRecordings.length} recordings from DB.`);
+                resolve(filteredRecordings);
+            };
+            request.onerror = () => {
+                console.error(`[Q-ID ${questionId}] [${world}/${lmid}] Error loading recordings.`);
+                resolve([]); // Return empty array on error
+            };
+        });
+    });
+}
+
 // --- Initialization Logic ---
 
 /**
@@ -1036,4 +1038,70 @@ async function cleanupOrphanedRecordings(questionId, world, lmid) {
         console.error(`[Q-ID ${questionId}] Error during cleanup:`, error);
         return 0;
     }
-} 
+}
+
+/**
+ * Manually clean up all orphaned recordings - can be called from browser console
+ * Usage: cleanupAllOrphanedRecordings()
+ */
+async function cleanupAllOrphanedRecordings() {
+    console.log('Starting manual cleanup of all orphaned recordings...');
+    
+    try {
+        const allRecordings = await new Promise((resolve) => {
+            withDB(db => {
+                const transaction = db.transaction("audioRecordings", "readonly");
+                const store = transaction.objectStore("audioRecordings");
+                const request = store.getAll();
+                
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => resolve([]);
+            });
+        });
+        
+        console.log(`Found ${allRecordings.length} total recordings`);
+        
+        // Find recordings that have failed cloud verification and no local blob
+        const orphanedRecordings = allRecordings.filter(rec => 
+            (!rec.cloudUrl || rec.uploadStatus === 'failed') && !rec.audio
+        );
+        
+        console.log(`Found ${orphanedRecordings.length} orphaned recordings to clean up`);
+        
+        if (orphanedRecordings.length === 0) {
+            console.log('No orphaned recordings found. Database is clean!');
+            return 0;
+        }
+        
+        // Delete orphaned recordings
+        for (const orphaned of orphanedRecordings) {
+            await new Promise((resolve, reject) => {
+                withDB(db => {
+                    const transaction = db.transaction("audioRecordings", "readwrite");
+                    const store = transaction.objectStore("audioRecordings");
+                    const request = store.delete(orphaned.id);
+                    transaction.oncomplete = () => {
+                        console.log(`✅ Cleaned up: ${orphaned.id}`);
+                        resolve();
+                    };
+                    transaction.onerror = (event) => {
+                        console.error(`❌ Error cleaning up ${orphaned.id}:`, event.target.error);
+                        reject(event.target.error);
+                    };
+                });
+            });
+        }
+        
+        console.log(`🎉 Successfully cleaned up ${orphanedRecordings.length} orphaned recordings!`);
+        console.log('Please refresh the page to see the updated recordings list.');
+        
+        return orphanedRecordings.length;
+        
+    } catch (error) {
+        console.error('Error during manual cleanup:', error);
+        return 0;
+    }
+}
+
+// Make cleanup function available globally
+window.cleanupAllOrphanedRecordings = cleanupAllOrphanedRecordings; 
