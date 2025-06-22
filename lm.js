@@ -95,6 +95,7 @@ document.addEventListener("DOMContentLoaded", () => {
   document.body.addEventListener("click", async (event) => {
     // Check if the clicked element is the delete button by its ID
     if (event.target && event.target.id === "lm-delete") {
+      console.log("Delete button clicked:", event.target.tagName, event.target);
       
       const deleteButton = event.target;
       const itemToDelete = deleteButton.closest("[data-lmid]");
@@ -118,8 +119,18 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      deleteButton.disabled = true;
-      deleteButton.textContent = "Deleting...";
+      // Handle both button and div elements
+      if (deleteButton.tagName.toLowerCase() === 'button') {
+        deleteButton.disabled = true;
+        deleteButton.textContent = "Deleting...";
+      } else {
+        // For div elements, add visual feedback
+        deleteButton.style.pointerEvents = 'none';
+        deleteButton.style.opacity = '0.6';
+        const originalText = deleteButton.textContent;
+        deleteButton.textContent = "Deleting...";
+        deleteButton.setAttribute('data-original-text', originalText);
+      }
 
       try {
         // Get the most current member data right before sending the request
@@ -190,8 +201,19 @@ document.addEventListener("DOMContentLoaded", () => {
       } catch (error) {
         console.error("Failed to delete LMID:", error);
         alert(`An error occurred while trying to delete the LMID: ${error.message}`);
-        deleteButton.disabled = false;
-        deleteButton.textContent = "Delete";
+        
+        // Reset button state for both button and div elements
+        if (deleteButton.tagName.toLowerCase() === 'button') {
+          deleteButton.disabled = false;
+          deleteButton.textContent = "Delete";
+        } else {
+          // For div elements, restore original state
+          deleteButton.style.pointerEvents = '';
+          deleteButton.style.opacity = '';
+          const originalText = deleteButton.getAttribute('data-original-text') || 'Delete';
+          deleteButton.textContent = originalText;
+          deleteButton.removeAttribute('data-original-text');
+        }
       }
     }
   });
@@ -364,12 +386,12 @@ document.addEventListener("DOMContentLoaded", () => {
         <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
         <h2 style="color: #d32f2f; margin: 0 0 20px 0; font-size: 24px;">WARNING</h2>
         <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.5;">
-          This will permanently delete <strong>LMID ${lmidToDelete}</strong> and <strong>ALL associated recordings</strong>!
+          This will permanently delete the <strong>Radio Program ${lmidToDelete}</strong> and <strong>ALL associated recordings</strong>!
         </p>
         <p style="margin: 0 0 30px 0; font-size: 16px; color: #666;">
           This action cannot be undone.
         </p>
-        <p style="margin: 0 0 15px 0; font-size: 16px; font-weight: bold;">
+        <p style="margin: 0 0 15px 0; font-size: 16px; color: #666;">
           To confirm, please type "delete" below:
         </p>
         <input type="text" id="deleteConfirmInput" placeholder="Type 'delete' to confirm" 
