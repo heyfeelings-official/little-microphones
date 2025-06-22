@@ -714,23 +714,7 @@ function initializeAudioRecorder(recorderWrapper) {
         });
     }
 
-    function getRecordingFromDB(recordingId) {
-        return new Promise((resolve, reject) => {
-            withDB(db => {
-                const transaction = db.transaction("audioRecordings", "readonly");
-                const store = transaction.objectStore("audioRecordings");
-                const request = store.get(recordingId);
-                
-                request.onsuccess = () => {
-                    resolve(request.result);
-                };
-                request.onerror = (event) => {
-                    console.error(`Error getting recording ${recordingId} from DB:`, event.target.error);
-                    reject(event.target.error);
-                };
-            });
-        });
-    }
+
 
     function loadRecordingsFromDB(questionId, world, lmid) {
         return new Promise((resolve) => {
@@ -874,6 +858,28 @@ function withDB(callback) {
             callback(db);
         });
     }
+}
+
+/**
+ * Get a single recording from the database by ID
+ * @param {string} recordingId - The ID of the recording to retrieve
+ */
+function getRecordingFromDB(recordingId) {
+    return new Promise((resolve, reject) => {
+        withDB(db => {
+            const transaction = db.transaction("audioRecordings", "readonly");
+            const store = transaction.objectStore("audioRecordings");
+            const request = store.get(recordingId);
+            
+            request.onsuccess = () => {
+                resolve(request.result);
+            };
+            request.onerror = (event) => {
+                console.error(`Error getting recording ${recordingId} from DB:`, event.target.error);
+                reject(event.target.error);
+            };
+        });
+    });
 }
 
 // --- Initialization Logic ---
