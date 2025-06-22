@@ -95,8 +95,8 @@ function initializeAudioRecorder(recorderWrapper) {
 
     async function startActualRecording() {
         try {
-            // --- Waveform visualization is now optional ---
-            if (liveWaveformCanvas) {
+            // --- Waveform visualization is now optional and properly checked ---
+            if (liveWaveformCanvas && typeof liveWaveformCanvas.getContext === 'function') {
                 if (!canvasCtx) {
                     canvasCtx = liveWaveformCanvas.getContext('2d');
                 }
@@ -105,8 +105,8 @@ function initializeAudioRecorder(recorderWrapper) {
             
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             
-            // Only set up the analyser and visualiser if the canvas exists
-            if (liveWaveformCanvas && canvasCtx) {
+            // Only set up the analyser and visualiser if the canvas context was successfully created
+            if (canvasCtx) {
                 if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 analyser = audioContext.createAnalyser();
                 analyser.fftSize = 256;
