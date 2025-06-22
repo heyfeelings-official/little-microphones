@@ -425,12 +425,80 @@ function initializeAudioRecorder(recorderWrapper) {
                 return;
             }
             
-            // --- Step 2: Find all other elements ON-DEMAND when user clicks ---
-            liveWaveformCanvas = recorderWrapper.querySelector('.live-waveform-canvas');
-            
-            // No longer finding status/timer here, they are created dynamically.
-            startActualRecording();
+            // SECURITY: Check recording limit before starting
+            checkRecordingLimit().then(canRecord => {
+                if (canRecord) {
+                    // --- Step 2: Find all other elements ON-DEMAND when user clicks ---
+                    liveWaveformCanvas = recorderWrapper.querySelector('.live-waveform-canvas');
+                    
+                    // No longer finding status/timer here, they are created dynamically.
+                    startActualRecording();
+                } else {
+                    // Show limit message
+                    showRecordingLimitMessage();
+                }
+            });
         }
+    }
+
+    /**
+     * Check if user can record more (max 3 per question)
+     */
+    async function checkRecordingLimit() {
+        try {
+            const urlParams = new URLSearchParams(window.location.search);
+            const world = window.currentRecordingParams?.world || urlParams.get('world') || 'unknown-world';
+            const lmid = window.currentRecordingParams?.lmid || urlParams.get('lmid') || 'unknown-lmid';
+            
+            const recordings = await loadRecordingsFromDB(questionId, world, lmid);
+            const currentCount = recordings.length;
+            
+            console.log(`[Q-ID ${questionId}] Current recordings: ${currentCount}/3`);
+            return currentCount < 3;
+        } catch (error) {
+            console.error(`[Q-ID ${questionId}] Error checking recording limit:`, error);
+            return true; // Allow recording if check fails
+        }
+    }
+
+    /**
+     * Show recording limit message
+     */
+    function showRecordingLimitMessage() {
+        // Create temporary message element
+        const limitMessage = document.createElement('div');
+        limitMessage.textContent = 'Maksimum 3 nagrania na pytanie. Usuń stare nagranie, aby nagrać nowe.';
+        limitMessage.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #ff4444;
+            color: white;
+            padding: 16px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            z-index: 10000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            text-align: center;
+            max-width: 300px;
+            animation: fadeIn 0.3s ease-in-out;
+        `;
+        
+        document.body.appendChild(limitMessage);
+        
+        // Auto-remove after 4 seconds
+        setTimeout(() => {
+            limitMessage.style.animation = 'fadeOut 0.3s ease-in-out forwards';
+            setTimeout(() => {
+                if (limitMessage.parentNode) {
+                    limitMessage.parentNode.removeChild(limitMessage);
+                }
+            }, 300);
+        }, 4000);
+        
+        console.log(`[Q-ID ${questionId}] Recording limit reached (3/3)`);
     }
 
     async function startActualRecording() {
@@ -556,6 +624,15 @@ function initializeAudioRecorder(recorderWrapper) {
 
             mediaRecorder.start();
             startTimer();
+
+            // SECURITY: Auto-stop recording after 15 seconds
+            setTimeout(() => {
+                if (mediaRecorder && mediaRecorder.state === "recording") {
+                    console.log(`[Q-ID ${questionId}] Auto-stopping recording after 15 seconds`);
+                    if (statusDisplay) statusDisplay.textContent = "Maksymalny czas nagrania osiągnięty...";
+                    mediaRecorder.stop();
+                }
+            }, 15000); // 15 seconds limit
 
         } catch (err) {
             console.error("Error starting recording:", err);

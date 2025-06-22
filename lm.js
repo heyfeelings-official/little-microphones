@@ -198,16 +198,40 @@ document.addEventListener("DOMContentLoaded", () => {
   const addButton = document.getElementById("add-lmid");
   if (addButton) {
     addButton.addEventListener("click", async () => {
-      addButton.disabled = true;
-      addButton.textContent = "Adding...";
-
+      // SECURITY: Check LMID limit before proceeding
       try {
         const { data: memberData } = await memberstack.getCurrentMember();
         if (!memberData) {
-          throw new Error("You are not logged in.");
+          alert("You are not logged in.");
+          return;
         }
+
+        // Check current LMID count
+        const lmidFromMeta = memberData.metaData.lmids;
+        let currentLmidCount = 0;
+
+        if (lmidFromMeta) {
+          if (typeof lmidFromMeta === 'string' && lmidFromMeta.trim().length > 0) {
+            currentLmidCount = lmidFromMeta.split(',').map(item => item.trim()).length;
+          } else if (typeof lmidFromMeta === 'number') {
+            currentLmidCount = 1;
+          }
+        }
+
+        console.log(`Current LMID count: ${currentLmidCount}/5`);
+
+        // SECURITY: Enforce 5 LMID limit
+        if (currentLmidCount >= 5) {
+          alert("Maksimum 5 programów na użytkownika. Usuń istniejący program, aby utworzyć nowy.");
+          console.log("LMID limit reached (5/5)");
+          return;
+        }
+
         const memberId = memberData.id;
         const memberEmail = memberData.auth.email;
+
+        addButton.disabled = true;
+        addButton.textContent = "Adding...";
 
         const response = await fetch(unifiedWebhookUrl, {
           method: "POST",
@@ -256,7 +280,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         addButton.disabled = false;
         addButton.textContent = "Create a new Program"; // Reset button text
-        console.log(`Successfully added new LMID: ${newLmid}`);
+        console.log(`Successfully added new LMID: ${newLmid} (${currentLmidCount + 1}/5)`);
 
       } catch (error) {
         console.error("Failed to add new LMID:", error);
