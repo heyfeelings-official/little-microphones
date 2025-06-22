@@ -32,7 +32,7 @@ document.addEventListener("DOMContentLoaded", () => {
         worldBgElement.style.backgroundPosition = 'center';
     } */
 
-    const worldNameElement = document.getElementById("world-name");
+    const worldNameElement = document.getElementById("wrold-name");
     if (worldNameElement) {
       // Format the world name for display (e.g., "spookyland" -> "Spookyland", "big-city" -> "Big city")
       const formattedWorldName = worldFromUrl.charAt(0).toUpperCase() + worldFromUrl.slice(1).replace(/-/g, ' ');
