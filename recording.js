@@ -102,15 +102,25 @@ function injectGlobalStyles() {
  * @param {string} questionId - The ID of the question this recording belongs to.
  * @returns {HTMLLIElement} The created list item element.
  */
-function createRecordingElement(recordingData, questionId) {
+async function createRecordingElement(recordingData, questionId) {
     const li = document.createElement('li');
     li.dataset.recordingId = recordingData.id;
 
-    // Use smart audio source (cloud URL if available, otherwise local blob)
-    const audioURL = getAudioSource(recordingData);
-    const audio = new Audio(audioURL);
-    audio.controls = true;
-    audio.style.width = '100%';
+    // Get audio source (now async to verify cloud URLs)
+    const audioURL = await getAudioSource(recordingData);
+    
+    if (audioURL) {
+        const audio = new Audio(audioURL);
+        audio.controls = true;
+        audio.style.width = '100%';
+        li.appendChild(audio);
+    } else {
+        // Show a message if no audio is available
+        const noAudioMsg = document.createElement('div');
+        noAudioMsg.textContent = 'Audio no longer available';
+        noAudioMsg.style.cssText = 'padding: 10px; background: #f5f5f5; border-radius: 8px; color: #666; text-align: center;';
+        li.appendChild(noAudioMsg);
+    }
 
     const timestamp = new Date(recordingData.timestamp);
     const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -161,20 +171,50 @@ function createRecordingElement(recordingData, questionId) {
     infoContainer.appendChild(uploadStatus);
     infoContainer.appendChild(deleteButton);
 
-    li.appendChild(audio);
     li.appendChild(infoContainer);
 
     return li;
 }
 
 /**
- * Get the best audio source (cloud URL if available, otherwise local blob)
+ * Check if a cloud URL is still accessible
  */
-function getAudioSource(recordingData) {
-    if (recordingData.uploadStatus === 'uploaded' && recordingData.cloudUrl) {
-        return recordingData.cloudUrl;
+async function verifyCloudUrl(url) {
+    try {
+        const response = await fetch(url, { method: 'HEAD' });
+        return response.ok;
+    } catch (error) {
+        console.warn('Cloud URL verification failed:', error);
+        return false;
     }
-    return URL.createObjectURL(recordingData.audio);
+}
+
+/**
+ * Get the best audio source (cloud URL if available and accessible, otherwise local blob)
+ */
+async function getAudioSource(recordingData) {
+    // If we have a cloud URL, verify it's still accessible
+    if (recordingData.uploadStatus === 'uploaded' && recordingData.cloudUrl) {
+        const isAccessible = await verifyCloudUrl(recordingData.cloudUrl);
+        if (isAccessible) {
+            return recordingData.cloudUrl;
+        } else {
+            console.warn(`Cloud file no longer accessible: ${recordingData.cloudUrl}`);
+            // Update the recording status to indicate cloud file is missing
+            recordingData.uploadStatus = 'failed';
+            recordingData.cloudUrl = null;
+            await updateRecordingInDB(recordingData);
+        }
+    }
+    
+    // Fall back to local blob if available
+    if (recordingData.audio) {
+        return URL.createObjectURL(recordingData.audio);
+    }
+    
+    // If neither cloud nor local is available, return null
+    console.error('No audio source available for recording:', recordingData.id);
+    return null;
 }
 
 /**
@@ -334,13 +374,15 @@ function initializeAudioRecorder(recorderWrapper) {
         const world = window.currentRecordingParams?.world || urlParams.get('world') || 'unknown-world';
         const lmid = window.currentRecordingParams?.lmid || urlParams.get('lmid') || 'unknown-lmid';
         
-        loadRecordingsFromDB(questionId, world, lmid).then(recordings => {
+        loadRecordingsFromDB(questionId, world, lmid).then(async recordings => {
             recordingsListUI.innerHTML = ''; // Clear previous
             recordings.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-            recordings.forEach(rec => {
-                const recElement = createRecordingElement(rec, questionId);
+            
+            // Process recordings sequentially to handle async createRecordingElement
+            for (const rec of recordings) {
+                const recElement = await createRecordingElement(rec, questionId);
                 recordingsListUI.appendChild(recElement);
-            });
+            }
         });
     }
     
@@ -463,7 +505,7 @@ function initializeAudioRecorder(recorderWrapper) {
                     uploadToBunny(recordingData, world, lmid);
 
                     // Create the final UI element
-                    const newRecordingElement = createRecordingElement(recordingData, questionId);
+                    const newRecordingElement = await createRecordingElement(recordingData, questionId);
                     newRecordingElement.classList.add('new-recording-fade-in');
 
                     // Find and replace the placeholder
