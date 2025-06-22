@@ -1,5 +1,7 @@
 // recording.js - Manages multiple, independent audio recorder instances on a page.
 
+const savingLocks = new Set();
+
 /**
  * Injects the necessary CSS for animations into the document's head.
  * This function is called only once.
@@ -204,7 +206,6 @@ function initializeAudioRecorder(recorderWrapper) {
     let mediaRecorder, audioChunks = [], timerInterval, seconds = 0, stream;
     let audioContext, analyser, sourceNode, dataArray, animationFrameId;
     let canvasSized = false;
-    let isSaving = false; // Lock to prevent race conditions
 
     // --- Initial DB load to show previous recordings ---
     recordingsListUI = recorderWrapper.querySelector('.recording-list.w-list-unstyled');
@@ -291,16 +292,16 @@ function initializeAudioRecorder(recorderWrapper) {
 
             mediaRecorder.onerror = (event) => {
                 console.error("MediaRecorder error:", event.error);
-                isSaving = false; // Release lock on error
+                savingLocks.delete(questionId); // Release global lock on error
                 cleanupAfterRecording(stream);
             };
 
             mediaRecorder.onstop = async () => {
-                if (isSaving) {
-                    console.warn("Save already in progress, skipping.");
+                if (savingLocks.has(questionId)) {
+                    console.warn(`Save for Q-ID ${questionId} already in progress, skipping.`);
                     return;
                 }
-                isSaving = true;
+                savingLocks.add(questionId);
 
                 try {
                     if(statusDisplay) statusDisplay.textContent = "Przetwarzanie...";
@@ -354,7 +355,7 @@ function initializeAudioRecorder(recorderWrapper) {
                         placeholderEl.textContent = "Error saving recording.";
                     }
                 } finally {
-                    isSaving = false; // Release lock
+                    savingLocks.delete(questionId); // Release global lock
                     // --- Reset button state ---
                     cleanupAfterRecording(stream);
                 }
