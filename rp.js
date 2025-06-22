@@ -5,8 +5,6 @@
  * @param {string} world - The world slug (e.g., 'spookyland', 'shopping-spree')
  */
 function showWorldCollection(world) {
-  console.log(`showWorldCollection called with world: ${world}`);
-  
   // Define all possible world collections
   const allCollections = [
     'collection-spookyland',
@@ -17,16 +15,11 @@ function showWorldCollection(world) {
     'collection-waterpark'
   ];
 
-  console.log('Looking for collection elements...');
-  
   // Hide all collections first
   allCollections.forEach(collectionId => {
     const collection = document.getElementById(collectionId);
     if (collection) {
       collection.style.display = 'none';
-      console.log(`Hidden collection: ${collectionId}`);
-    } else {
-      console.log(`Collection not found: ${collectionId}`);
     }
   });
 
@@ -36,13 +29,9 @@ function showWorldCollection(world) {
   
   if (targetCollection) {
     targetCollection.style.display = 'block';
-    console.log(`✅ Showing collection: ${targetCollectionId}`);
+    console.log(`Showing collection for world: ${world}`);
   } else {
-    console.warn(`❌ Collection element not found: ${targetCollectionId}`);
-    // Let's also check what elements are actually available
-    console.log('Available elements with IDs starting with "collection-":');
-    const allElements = document.querySelectorAll('[id^="collection-"]');
-    allElements.forEach(el => console.log(`Found element: ${el.id}`));
+    console.warn(`Collection element not found: ${targetCollectionId}`);
   }
 }
 
@@ -87,15 +76,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // Show only the collection for the current world
-    console.log(`About to call showWorldCollection with: ${worldFromUrl}`);
     showWorldCollection(worldFromUrl);
-    
-    // Also check if recording elements are available after showing collection
-    setTimeout(() => {
-      const recordButtons = document.querySelectorAll('.record-button');
-      const recorderWrappers = document.querySelectorAll('.faq1_accordion.lm');
-      console.log(`Found ${recordButtons.length} record buttons and ${recorderWrappers.length} recorder wrappers`);
-    }, 100);
   }
 
   if (!lmidFromUrl || !worldFromUrl) {
