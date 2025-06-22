@@ -52,6 +52,9 @@ export default async function handler(req, res) {
         const uploadUrl = `https://storage.bunnycdn.com/${process.env.BUNNY_STORAGE_ZONE}/${filename}`;
         
         console.log(`Uploading ${filename} to Bunny.net (${audioBuffer.length} bytes)`);
+        console.log(`Upload URL: ${uploadUrl}`);
+        console.log(`API Key present: ${!!process.env.BUNNY_API_KEY}`);
+        console.log(`Storage Zone: ${process.env.BUNNY_STORAGE_ZONE}`);
         
         const response = await fetch(uploadUrl, {
             method: 'PUT',
@@ -61,6 +64,9 @@ export default async function handler(req, res) {
             },
             body: audioBuffer
         });
+
+        console.log(`Bunny.net response status: ${response.status}`);
+        console.log(`Bunny.net response headers:`, Object.fromEntries(response.headers.entries()));
 
         if (response.ok) {
             const cdnUrl = `https://${process.env.BUNNY_CDN_URL}/${filename}`;
@@ -75,6 +81,12 @@ export default async function handler(req, res) {
         } else {
             const errorText = await response.text();
             console.error(`Bunny.net upload failed: ${response.status} - ${errorText}`);
+            console.error(`Full response:`, {
+                status: response.status,
+                statusText: response.statusText,
+                headers: Object.fromEntries(response.headers.entries()),
+                body: errorText
+            });
             throw new Error(`Upload failed: ${response.status}`);
         }
 
