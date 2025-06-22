@@ -2,6 +2,9 @@
 
 const savingLocks = new Set();
 
+// --- Global initialization tracking ---
+const initializedWorlds = new Set();
+
 /**
  * Injects the necessary CSS for animations into the document's head.
  * This function is called only once.
@@ -365,10 +368,13 @@ function initializeAudioRecorder(recorderWrapper) {
     let mediaRecorder, audioChunks = [], timerInterval, seconds = 0, stream;
     let audioContext, analyser, sourceNode, dataArray, animationFrameId;
     let canvasSized = false;
+    let recordingsLoaded = false; // Flag to prevent duplicate loading
 
     // --- Initial DB load to show previous recordings ---
     recordingsListUI = recorderWrapper.querySelector('.recording-list.w-list-unstyled');
-    if (recordingsListUI) {
+    if (recordingsListUI && !recordingsLoaded) {
+        recordingsLoaded = true; // Set flag immediately
+        
         // Get world and lmid from URL params or global params
         const urlParams = new URLSearchParams(window.location.search);
         const world = window.currentRecordingParams?.world || urlParams.get('world') || 'unknown-world';
@@ -384,19 +390,24 @@ function initializeAudioRecorder(recorderWrapper) {
                 recordingsListUI.appendChild(recElement);
             }
             
-            // Clean up any orphaned recordings after processing
-            const cleanedCount = await cleanupOrphanedRecordings(questionId, world, lmid);
-            if (cleanedCount > 0) {
-                console.log(`[Q-ID ${questionId}] Cleaned up ${cleanedCount} orphaned recordings. Reloading...`);
-                // Reload the recordings list after cleanup
-                const updatedRecordings = await loadRecordingsFromDB(questionId, world, lmid);
-                recordingsListUI.innerHTML = '';
-                updatedRecordings.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-                for (const rec of updatedRecordings) {
-                    const recElement = await createRecordingElement(rec, questionId);
-                    recordingsListUI.appendChild(recElement);
+            // Clean up any orphaned recordings after processing (only if we found recordings)
+            if (recordings.length > 0) {
+                const cleanedCount = await cleanupOrphanedRecordings(questionId, world, lmid);
+                if (cleanedCount > 0) {
+                    console.log(`[Q-ID ${questionId}] Cleaned up ${cleanedCount} orphaned recordings. Reloading...`);
+                    // Reload the recordings list after cleanup
+                    const updatedRecordings = await loadRecordingsFromDB(questionId, world, lmid);
+                    recordingsListUI.innerHTML = '';
+                    updatedRecordings.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                    for (const rec of updatedRecordings) {
+                        const recElement = await createRecordingElement(rec, questionId);
+                        recordingsListUI.appendChild(recElement);
+                    }
                 }
             }
+        }).catch(error => {
+            console.error(`[Q-ID ${questionId}] Error loading recordings:`, error);
+            recordingsLoaded = false; // Reset flag on error
         });
     }
     
@@ -963,6 +974,13 @@ function initializeRecordersForWorld(world) {
         return;
     }
     
+    // Prevent multiple initializations for the same world
+    if (initializedWorlds.has(world)) {
+        console.log(`Recorders for world "${world}" already initialized, skipping.`);
+        return;
+    }
+    
+    initializedWorlds.add(world);
     console.log(`Initializing recorders for world: ${world}`);
     injectGlobalStyles();
     
@@ -972,6 +990,7 @@ function initializeRecordersForWorld(world) {
     
     if (!targetCollection) {
         console.warn(`Collection not found: ${targetCollectionId}`);
+        initializedWorlds.delete(world); // Remove from set if collection not found
         return;
     }
     
@@ -1005,8 +1024,10 @@ window.initializeRecordersForWorld = initializeRecordersForWorld;
 async function cleanupOrphanedRecordings(questionId, world, lmid) {
     try {
         const recordings = await loadRecordingsFromDB(questionId, world, lmid);
+        
+        // Only consider recordings truly orphaned if they have failed upload AND no local blob
         const orphanedRecordings = recordings.filter(rec => 
-            !rec.cloudUrl && !rec.audio && rec.uploadStatus === 'failed'
+            rec.uploadStatus === 'failed' && !rec.audio && !rec.cloudUrl
         );
         
         if (orphanedRecordings.length > 0) {
