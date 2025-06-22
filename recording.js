@@ -548,6 +548,21 @@ function withStore(type, callback) {
     callback(transaction.objectStore("audioRecordings"));
 }
 
+/**
+ * Helper function to ensure DB is open before running a transaction.
+ * @param {function(IDBDatabase): void} callback 
+ */
+function withDB(callback) {
+    if (db) {
+        callback(db);
+    } else {
+        // If DB isn't ready, wait for it
+        setupDatabase().then(db => {
+            callback(db);
+        });
+    }
+}
+
 // --- Initialization Logic ---
 
 window.Webflow = window.Webflow || [];
