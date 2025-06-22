@@ -310,11 +310,11 @@ function initializeAudioRecorder(recorderWrapper) {
                     const world = window.currentRecordingParams?.world || 'unknown-world';
                     const lmid = window.currentRecordingParams?.lmid || 'unknown-lmid';
 
-                    // --- Read from DB inside the lock to get the latest state ---
+                    // --- Read from DB to get proper display index ---
                     const existingRecordings = await loadRecordingsFromDB(questionId);
                     let maxIndex = 0;
                     existingRecordings.forEach(rec => {
-                        const match = rec.id.match(/_audio_(\d+)$/);
+                        const match = rec.id.match(/_audio_(\d+)(?:_\d+)?$/);
                         if (match && match[1]) {
                             const index = parseInt(match[1], 10);
                             if (index > maxIndex) {
@@ -323,7 +323,10 @@ function initializeAudioRecorder(recorderWrapper) {
                         }
                     });
                     const newIndex = maxIndex + 1;
-                    const newId = `kids-world_${world}-lmid_${lmid}-question_${questionId}-audio_${newIndex}`;
+                    
+                    // --- Use timestamp to guarantee uniqueness ---
+                    const timestamp = Date.now();
+                    const newId = `kids-world_${world}-lmid_${lmid}-question_${questionId}-audio_${newIndex}_${timestamp}`;
 
                     const recordingData = {
                         id: newId,
