@@ -99,7 +99,7 @@ function createRecordingElement(recordingData, questionId) {
     const audioURL = URL.createObjectURL(recordingData.audio);
     const audio = new Audio(audioURL);
     audio.controls = true;
-    audio.style.width = '100%';
+    audio.style.flexGrow = '1';
 
     const timestamp = new Date(recordingData.timestamp);
     const dateString = timestamp.toLocaleDateString('pl-PL', { day: '2-digit', month: 'long', year: 'numeric' });
@@ -110,7 +110,8 @@ function createRecordingElement(recordingData, questionId) {
     timestampEl.textContent = formattedDate;
     timestampEl.style.fontSize = '12px';
     timestampEl.style.color = '#888';
-    timestampEl.style.marginBottom = '4px';
+    timestampEl.style.marginRight = '16px';
+    timestampEl.style.whiteSpace = 'nowrap';
 
     const deleteButton = document.createElement('button');
     deleteButton.textContent = 'Usuń';
@@ -118,7 +119,8 @@ function createRecordingElement(recordingData, questionId) {
     deleteButton.style.border = 'none';
     deleteButton.style.color = '#ff4d4d';
     deleteButton.style.cursor = 'pointer';
-    deleteButton.style.padding = '0 0 0 12px';
+    deleteButton.style.padding = '0';
+    deleteButton.style.marginLeft = '16px';
     deleteButton.style.fontSize = '12px';
     deleteButton.style.whiteSpace = 'nowrap';
 
@@ -129,11 +131,12 @@ function createRecordingElement(recordingData, questionId) {
     const playerContainer = document.createElement('div');
     playerContainer.style.display = 'flex';
     playerContainer.style.alignItems = 'center';
+    playerContainer.style.width = '100%';
 
+    playerContainer.appendChild(timestampEl);
     playerContainer.appendChild(audio);
     playerContainer.appendChild(deleteButton);
 
-    li.appendChild(timestampEl);
     li.appendChild(playerContainer);
     return li;
 }
