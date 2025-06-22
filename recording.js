@@ -177,15 +177,16 @@ function initializeAudioRecorder(recorderWrapper) {
 
     // --- Instance variables (will be populated on-demand) ---
     let placeholderEl, statusDisplay, timerDisplay, recordingsListUI, liveWaveformCanvas, canvasCtx;
-    let mediaRecorder, audioChunks = [], timerInterval, seconds = 0;
+    let mediaRecorder, audioChunks = [], timerInterval, seconds = 0, stream;
     let audioContext, analyser, sourceNode, dataArray, animationFrameId;
     let canvasSized = false;
 
     // --- Initial DB load to show previous recordings ---
+    recordingsListUI = recorderWrapper.querySelector('.recording-list.w-list-unstyled');
     if (recordingsListUI) {
         loadRecordingsFromDB(questionId).then(recordings => {
             recordingsListUI.innerHTML = ''; // Clear previous
-            recordings.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)); // Newest first
+            recordings.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
             recordings.forEach(rec => {
                 const recElement = createRecordingElement(rec, questionId);
                 recordingsListUI.appendChild(recElement);
@@ -237,7 +238,7 @@ function initializeAudioRecorder(recorderWrapper) {
                 sizeCanvas(); 
             }
             
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             
             // Only set up the analyser and visualiser if the canvas context was successfully created
             if (canvasCtx) {
@@ -274,11 +275,12 @@ function initializeAudioRecorder(recorderWrapper) {
                 const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
                 audioChunks = [];
 
-                // --- New Naming Convention ---
+                // --- New Naming Convention with Counter ---
                 const world = window.currentRecordingParams?.world || 'unknown-world';
                 const lmid = window.currentRecordingParams?.lmid || 'unknown-lmid';
-                const timestamp = Date.now();
-                const newId = `kids-world_${world}-lmid_${lmid}-question_${questionId}-audio_${timestamp}`;
+                const existingRecordings = await loadRecordingsFromDB(questionId);
+                const newIndex = existingRecordings.length + 1;
+                const newId = `kids-world_${world}-lmid_${lmid}-question_${questionId}-audio_${newIndex}`;
 
                 const recordingData = {
                     id: newId,
@@ -299,7 +301,8 @@ function initializeAudioRecorder(recorderWrapper) {
                     placeholderEl = null; // Clear reference
                 }
                 
-                // No separate status display to clear
+                // --- Reset button state ---
+                cleanupAfterRecording(stream);
             };
 
             mediaRecorder.start();
