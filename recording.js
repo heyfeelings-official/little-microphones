@@ -208,7 +208,12 @@ function initializeAudioRecorder(recorderWrapper) {
     // --- Initial DB load to show previous recordings ---
     recordingsListUI = recorderWrapper.querySelector('.recording-list.w-list-unstyled');
     if (recordingsListUI) {
-        loadRecordingsFromDB(questionId).then(recordings => {
+        // Get world and lmid from URL params or global params
+        const urlParams = new URLSearchParams(window.location.search);
+        const world = window.currentRecordingParams?.world || urlParams.get('world') || 'unknown-world';
+        const lmid = window.currentRecordingParams?.lmid || urlParams.get('lmid') || 'unknown-lmid';
+        
+        loadRecordingsFromDB(questionId, world, lmid).then(recordings => {
             recordingsListUI.innerHTML = ''; // Clear previous
             recordings.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
             recordings.forEach(rec => {
@@ -310,8 +315,10 @@ function initializeAudioRecorder(recorderWrapper) {
                     const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
                     audioChunks = [];
 
-                    const world = window.currentRecordingParams?.world || 'unknown-world';
-                    const lmid = window.currentRecordingParams?.lmid || 'unknown-lmid';
+                    // Get world and lmid from URL params or global params
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const world = window.currentRecordingParams?.world || urlParams.get('world') || 'unknown-world';
+                    const lmid = window.currentRecordingParams?.lmid || urlParams.get('lmid') || 'unknown-lmid';
 
                     // --- Use timestamp for unique ID ---
                     const timestamp = Date.now();
@@ -478,21 +485,25 @@ function initializeAudioRecorder(recorderWrapper) {
         });
     }
 
-    function loadRecordingsFromDB(questionId) {
+    function loadRecordingsFromDB(questionId, world, lmid) {
         return new Promise((resolve) => {
             withDB(db => {
                 const transaction = db.transaction("audioRecordings", "readonly");
                 const store = transaction.objectStore("audioRecordings");
-                const index = store.index("questionId_idx");
-                const request = index.getAll(questionId);
+                const request = store.getAll();
 
                 request.onsuccess = () => {
-                    const recordings = request.result;
-                    console.log(`[Q-ID ${questionId}] Loaded ${recordings.length} recordings from DB.`);
-                    resolve(recordings);
+                    const allRecordings = request.result;
+                    // Filter recordings by questionId, world, and lmid
+                    const filteredRecordings = allRecordings.filter(rec => {
+                        return rec.questionId === questionId && 
+                               rec.id.includes(`kids-world_${world}-lmid_${lmid}-`);
+                    });
+                    console.log(`[Q-ID ${questionId}] [${world}/${lmid}] Loaded ${filteredRecordings.length} recordings from DB.`);
+                    resolve(filteredRecordings);
                 };
                 request.onerror = () => {
-                    console.error(`[Q-ID ${questionId}] Error loading recordings.`);
+                    console.error(`[Q-ID ${questionId}] [${world}/${lmid}] Error loading recordings.`);
                     resolve([]); // Return empty array on error
                 };
             });
