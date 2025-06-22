@@ -95,7 +95,6 @@ function injectGlobalStyles() {
             from {
                 opacity: 1;
                 transform: scaleY(1);
-                max-height: 100px;
             }
             to {
                 opacity: 0;
@@ -184,29 +183,19 @@ function createRecordingElement(recordingData, questionId) {
  */
 async function deleteRecording(recordingId, questionId, elementToRemove) {
     console.log(`Deleting recording ${recordingId} for question ${questionId}`);
-    
+
+    elementToRemove.style.maxHeight = `${elementToRemove.offsetHeight}px`;
     elementToRemove.style.overflow = 'hidden';
+    elementToRemove.style.transformOrigin = 'top';
     elementToRemove.classList.add('element-fade-out');
 
     elementToRemove.addEventListener('animationend', () => {
         elementToRemove.remove();
-    }, { once: true });
-
-    await withDB(db => {
-        return new Promise((resolve, reject) => {
+        withDB(db => {
             const transaction = db.transaction("audioRecordings", "readwrite");
-            const store = transaction.objectStore("audioRecordings");
-            const request = store.delete(recordingId);
-            transaction.oncomplete = () => {
-                console.log(`Recording ${recordingId} deleted from DB.`);
-                resolve();
-            };
-            transaction.onerror = (event) => {
-                console.error(`Error deleting recording ${recordingId} from DB:`, event.target.error);
-                reject(event.target.error);
-            };
+            transaction.objectStore("audioRecordings").delete(recordingId);
         });
-    });
+    }, { once: true });
 }
 
 /**
