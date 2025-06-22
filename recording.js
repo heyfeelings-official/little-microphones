@@ -184,6 +184,14 @@ function createRecordingElement(recordingData, questionId) {
  */
 async function deleteRecording(recordingId, questionId, elementToRemove) {
     console.log(`Deleting recording ${recordingId} for question ${questionId}`);
+    
+    elementToRemove.style.overflow = 'hidden';
+    elementToRemove.classList.add('element-fade-out');
+
+    elementToRemove.addEventListener('animationend', () => {
+        elementToRemove.remove();
+    }, { once: true });
+
     await withDB(db => {
         return new Promise((resolve, reject) => {
             const transaction = db.transaction("audioRecordings", "readwrite");
@@ -199,11 +207,6 @@ async function deleteRecording(recordingId, questionId, elementToRemove) {
             };
         });
     });
-
-    elementToRemove.classList.add('element-fade-out');
-    elementToRemove.addEventListener('animationend', () => {
-        elementToRemove.remove();
-    }, { once: true });
 }
 
 /**
@@ -344,11 +347,12 @@ function initializeAudioRecorder(recorderWrapper) {
 
                 // Find and replace the placeholder
                 if (recordingsListUI && placeholderEl) {
-                    placeholderEl.classList.add('fade-out');
-                    placeholderEl.addEventListener('animationend', () => {
-                        placeholderEl.replaceWith(newRecordingElement);
-                        placeholderEl = null; // Clear reference
+                    const placeholderToReplace = placeholderEl;
+                    placeholderToReplace.classList.add('fade-out');
+                    placeholderToReplace.addEventListener('animationend', () => {
+                        placeholderToReplace.replaceWith(newRecordingElement);
                     }, { once: true });
+                    placeholderEl = null; // Clear instance-level reference immediately
                 }
                 
                 // --- Reset button state ---
@@ -376,7 +380,7 @@ function initializeAudioRecorder(recorderWrapper) {
         
         mediaRecorder = null;
         animationFrameId = null;
-        placeholderEl = null; // Clear placeholder reference
+        // placeholderEl is now handled safely in mediaRecorder.onstop
         resetRecordingState();
     }
 
