@@ -183,7 +183,7 @@ function initializeAudioRecorder(recorderWrapper) {
                     timestamp: new Date().toISOString()
                 };
 
-                await saveRecording(recordingData);
+                await saveRecordingToDB(recordingData);
 
                 // Create the final UI element
                 const newRecordingElement = createRecordingElement(recordingData, questionId);
