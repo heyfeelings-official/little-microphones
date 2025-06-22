@@ -636,4 +636,7 @@ window.Webflow.push(function() {
     console.log("Webflow ready. Setting up recorders...");
     injectGlobalStyles();
     document.querySelectorAll('.faq1_accordion.lm').forEach(initializeAudioRecorder);
-}); 
+});
+
+// Export function globally for re-initialization
+window.initializeAudioRecorder = initializeAudioRecorder; 

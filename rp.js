@@ -4,6 +4,27 @@
  * Shows only the collection for the specified world and hides all others
  * @param {string} world - The world slug (e.g., 'spookyland', 'shopping-spree')
  */
+/**
+ * Re-initializes recording functionality for newly visible elements
+ */
+function reinitializeRecording() {
+  // Check if recording.js functions are available
+  if (typeof initializeAudioRecorder === 'function') {
+    const recorderWrappers = document.querySelectorAll('.faq1_accordion.lm');
+    console.log(`Re-initializing ${recorderWrappers.length} recorder wrappers`);
+    
+    recorderWrappers.forEach(wrapper => {
+      // Only initialize if not already initialized
+      if (!wrapper.dataset.recordingInitialized) {
+        initializeAudioRecorder(wrapper);
+        wrapper.dataset.recordingInitialized = 'true';
+      }
+    });
+  } else {
+    console.warn('initializeAudioRecorder function not available yet');
+  }
+}
+
 function showWorldCollection(world) {
   // Define all possible world collections
   const allCollections = [
@@ -30,6 +51,11 @@ function showWorldCollection(world) {
   if (targetCollection) {
     targetCollection.style.display = 'block';
     console.log(`Showing collection for world: ${world}`);
+    
+    // Re-initialize recording functionality for newly shown elements
+    setTimeout(() => {
+      reinitializeRecording();
+    }, 100);
   } else {
     console.warn(`Collection element not found: ${targetCollectionId}`);
   }
