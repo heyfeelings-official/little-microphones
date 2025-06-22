@@ -118,17 +118,23 @@ function createRecordingElement(recordingData, questionId) {
     deleteButton.style.border = 'none';
     deleteButton.style.color = '#ff4d4d';
     deleteButton.style.cursor = 'pointer';
-    deleteButton.style.padding = '4px';
-    deleteButton.style.marginLeft = 'auto';
-    deleteButton.style.display = 'block';
+    deleteButton.style.padding = '0 0 0 12px';
+    deleteButton.style.fontSize = '12px';
+    deleteButton.style.whiteSpace = 'nowrap';
 
     deleteButton.onclick = () => {
         deleteRecording(recordingData.id, questionId, li);
     };
 
+    const playerContainer = document.createElement('div');
+    playerContainer.style.display = 'flex';
+    playerContainer.style.alignItems = 'center';
+
+    playerContainer.appendChild(audio);
+    playerContainer.appendChild(deleteButton);
+
     li.appendChild(timestampEl);
-    li.appendChild(audio);
-    li.appendChild(deleteButton);
+    li.appendChild(playerContainer);
     return li;
 }
 
