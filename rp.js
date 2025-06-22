@@ -10,18 +10,12 @@
 function reinitializeRecording() {
   // Check if recording.js functions are available
   if (typeof initializeAudioRecorder === 'function') {
-    // Only get visible recorder wrappers
     const recorderWrappers = document.querySelectorAll('.faq1_accordion.lm');
-    const visibleWrappers = Array.from(recorderWrappers).filter(wrapper => {
-      const rect = wrapper.getBoundingClientRect();
-      return rect.width > 0 && rect.height > 0;
-    });
+    console.log(`Re-initializing ${recorderWrappers.length} recorder wrappers`);
     
-    console.log(`Re-initializing ${visibleWrappers.length} visible recorder wrappers out of ${recorderWrappers.length} total`);
-    
-    visibleWrappers.forEach(wrapper => {
-      // Only initialize if not already initialized
-      if (!wrapper.dataset.recordingInitialized) {
+    recorderWrappers.forEach(wrapper => {
+      // Only initialize if not already initialized and has questionId
+      if (!wrapper.dataset.recordingInitialized && wrapper.dataset.questionId) {
         initializeAudioRecorder(wrapper);
         wrapper.dataset.recordingInitialized = 'true';
       }
