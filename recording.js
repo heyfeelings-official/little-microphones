@@ -47,11 +47,11 @@ function injectGlobalStyles() {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 8px 12px;
+            padding: 12px 16px;
             margin-bottom: 8px;
             background-color: #f0f0f0;
-            border: 1px solid #e0e0e0;
-            border-radius: 24px; /* Makes it look like an audio player */
+            border: none;
+            border-radius: 40px; /* Makes it look like an audio player */
             color: #333;
             animation: pulse-bg 2s infinite;
             list-style: none;
@@ -99,18 +99,24 @@ function createRecordingElement(recordingData, questionId) {
     const audioURL = URL.createObjectURL(recordingData.audio);
     const audio = new Audio(audioURL);
     audio.controls = true;
-    audio.style.flexGrow = '1';
+    audio.style.width = '100%';
 
     const timestamp = new Date(recordingData.timestamp);
     const dateString = timestamp.toLocaleDateString('pl-PL', { day: '2-digit', month: 'long', year: 'numeric' });
     const timeString = timestamp.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit', hour12: false });
     const formattedDate = `${dateString}, ${timeString}`;
+    
+    const infoContainer = document.createElement('div');
+    infoContainer.style.display = 'flex';
+    infoContainer.style.justifyContent = 'space-between';
+    infoContainer.style.alignItems = 'center';
+    infoContainer.style.marginTop = '4px';
+    infoContainer.style.padding = '0 2px';
 
     const timestampEl = document.createElement('div');
     timestampEl.textContent = formattedDate;
     timestampEl.style.fontSize = '12px';
     timestampEl.style.color = '#888';
-    timestampEl.style.marginRight = '16px';
     timestampEl.style.whiteSpace = 'nowrap';
 
     const deleteButton = document.createElement('button');
@@ -120,7 +126,6 @@ function createRecordingElement(recordingData, questionId) {
     deleteButton.style.color = '#ff4d4d';
     deleteButton.style.cursor = 'pointer';
     deleteButton.style.padding = '0';
-    deleteButton.style.marginLeft = '16px';
     deleteButton.style.fontSize = '12px';
     deleteButton.style.whiteSpace = 'nowrap';
 
@@ -128,16 +133,12 @@ function createRecordingElement(recordingData, questionId) {
         deleteRecording(recordingData.id, questionId, li);
     };
 
-    const playerContainer = document.createElement('div');
-    playerContainer.style.display = 'flex';
-    playerContainer.style.alignItems = 'center';
-    playerContainer.style.width = '100%';
+    infoContainer.appendChild(timestampEl);
+    infoContainer.appendChild(deleteButton);
 
-    playerContainer.appendChild(timestampEl);
-    playerContainer.appendChild(audio);
-    playerContainer.appendChild(deleteButton);
+    li.appendChild(audio);
+    li.appendChild(infoContainer);
 
-    li.appendChild(playerContainer);
     return li;
 }
 
