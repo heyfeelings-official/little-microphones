@@ -201,7 +201,13 @@ function initializeAudioRecorder(recorderWrapper) {
         return;
     }
     
-    const recordingsListUI = recorderWrapper.querySelector('.recording-list.w-list-unstyled');
+    // --- Instance variables (shared across functions in this scope) ---
+    let placeholderEl, statusDisplay, timerDisplay, recordingsListUI, liveWaveformCanvas, canvasCtx;
+    let mediaRecorder, audioChunks = [], timerInterval, seconds = 0, stream;
+    let audioContext, analyser, sourceNode, dataArray, animationFrameId;
+    let canvasSized = false;
+
+    recordingsListUI = recorderWrapper.querySelector('.recording-list.w-list-unstyled');
 
     // --- Disable button until initialization is complete ---
     recordButton.disabled = true;
