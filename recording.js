@@ -1,8 +1,6 @@
 // recording.js - Manages multiple, independent audio recorder instances on a page.
 
 const savingLocks = new Set();
-const recordingCounters = {};
-const initializationPromises = {};
 
 /**
  * Injects the necessary CSS for animations into the document's head.
@@ -207,47 +205,18 @@ function initializeAudioRecorder(recorderWrapper) {
     let audioContext, analyser, sourceNode, dataArray, animationFrameId;
     let canvasSized = false;
 
+    // --- Initial DB load to show previous recordings ---
     recordingsListUI = recorderWrapper.querySelector('.recording-list.w-list-unstyled');
-
-    // --- Disable button until initialization is complete ---
-    recordButton.disabled = true;
-    setButtonText(recordButton, 'Ładowanie...');
-
-    // --- Centralized, one-time initialization per questionId to prevent race conditions ---
-    if (!initializationPromises[questionId]) {
-        initializationPromises[questionId] = new Promise(resolve => {
-            loadRecordingsFromDB(questionId).then(recordings => {
-                let maxIndex = 0;
-                recordings.forEach(rec => {
-                    const match = rec.id.match(/_audio_(\d+)$/);
-                    if (match && match[1]) {
-                        const index = parseInt(match[1], 10);
-                        if (index > maxIndex) maxIndex = index;
-                    }
-                });
-                recordingCounters[questionId] = maxIndex;
-                console.log(`[Q-ID ${questionId}] Counter initialized to ${maxIndex}.`);
-                resolve(recordings); // Resolve with the recordings for all instances to use.
-            });
-        });
-    }
-
-    // All instances for this questionId wait for the single initialization to complete.
-    initializationPromises[questionId].then(recordings => {
-        // If a list UI exists for this specific instance, populate it.
-        if (recordingsListUI) {
+    if (recordingsListUI) {
+        loadRecordingsFromDB(questionId).then(recordings => {
             recordingsListUI.innerHTML = ''; // Clear previous
             recordings.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
             recordings.forEach(rec => {
                 const recElement = createRecordingElement(rec, questionId);
                 recordingsListUI.appendChild(recElement);
             });
-        }
-
-        // --- Re-enable button after initialization is fully complete ---
-        recordButton.disabled = false;
-        resetRecordingState();
-    });
+        });
+    }
     
     recordButton.addEventListener('click', handleRecordButtonClick);
 
@@ -341,9 +310,19 @@ function initializeAudioRecorder(recorderWrapper) {
                     const world = window.currentRecordingParams?.world || 'unknown-world';
                     const lmid = window.currentRecordingParams?.lmid || 'unknown-lmid';
 
-                    // --- Atomically get the next index from the in-memory counter ---
-                    const newIndex = (recordingCounters[questionId] || 0) + 1;
-                    recordingCounters[questionId] = newIndex;
+                    // --- Read from DB inside the lock to get the latest state ---
+                    const existingRecordings = await loadRecordingsFromDB(questionId);
+                    let maxIndex = 0;
+                    existingRecordings.forEach(rec => {
+                        const match = rec.id.match(/_audio_(\d+)$/);
+                        if (match && match[1]) {
+                            const index = parseInt(match[1], 10);
+                            if (index > maxIndex) {
+                                maxIndex = index;
+                            }
+                        }
+                    });
+                    const newIndex = maxIndex + 1;
                     const newId = `kids-world_${world}-lmid_${lmid}-question_${questionId}-audio_${newIndex}`;
 
                     const recordingData = {
