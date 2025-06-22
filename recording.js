@@ -581,7 +581,7 @@ function initializeAudioRecorder(recorderWrapper) {
             updateRecordingUI(recordingData);
 
             // Upload via API route
-            const response = await fetch('/api/upload-audio', {
+            const response = await fetch('https://little-microphones.vercel.app/api/upload-audio', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -637,7 +637,7 @@ function initializeAudioRecorder(recorderWrapper) {
             const filename = `${recordingData.id}.webm`;
             console.log(`[Q-ID ${questionId}] Deleting from Bunny.net: ${filename}`);
 
-            const response = await fetch('/api/delete-audio', {
+            const response = await fetch('https://little-microphones.vercel.app/api/delete-audio', {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
