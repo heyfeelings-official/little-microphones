@@ -44,7 +44,7 @@ document.addEventListener("DOMContentLoaded", () => {
       template.style.display = "none";
 
       if (lmidArray.length > 0) {
-        console.log("SUCCESS! LMID is accessible from metaData.", lmidArray);
+        console.log(`Found ${lmidArray.length} LMID(s) for member`);
         
         const container = template.parentNode;
         if (!container) {
@@ -79,7 +79,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
       } else {
-        console.log("Member is logged in, but no LMID was found in metaData.", memberData);
+        console.log("Member has no LMIDs");
       }
     })
     .catch(error => {
@@ -93,43 +93,32 @@ document.addEventListener("DOMContentLoaded", () => {
   // --- Secure Deletion Flow ---
   // We keep this event listener on the body so it's always active.
   document.body.addEventListener("click", async (event) => {
-    // Debug: Log all clicks to help troubleshoot
-    console.log("Click detected on:", event.target, "ID:", event.target.id, "Classes:", event.target.className);
-    
     // Check if the clicked element or any of its parents is the delete button
     let deleteButton = null;
     
-    // Method 1: Check if clicked element itself has the ID
+    // Check if clicked element itself has the ID
     if (event.target.id === "lm-delete") {
       deleteButton = event.target;
-      console.log("Method 1: Direct match found");
     } 
-    // Method 2: Use closest() to find parent with ID
+    // Use closest() to find parent with ID
     else {
       deleteButton = event.target.closest("#lm-delete");
-      if (deleteButton) {
-        console.log("Method 2: Closest() found parent");
-      }
     }
     
-    // Method 3: Manual traversal as fallback
+    // Manual traversal as fallback
     if (!deleteButton) {
       let currentElement = event.target.parentElement;
       while (currentElement && currentElement !== document.body) {
-        console.log("Checking parent:", currentElement.tagName, "ID:", currentElement.id);
         if (currentElement.id === "lm-delete") {
           deleteButton = currentElement;
-          console.log("Method 3: Manual traversal found parent");
           break;
         }
         currentElement = currentElement.parentElement;
       }
     }
     
-    console.log("Delete button found:", deleteButton ? "YES" : "NO", deleteButton);
-    
     if (deleteButton) {
-      console.log("Delete button clicked:", deleteButton.tagName, deleteButton);
+      console.log(`Delete button clicked for LMID: ${deleteButton.closest("[data-lmid]")?.getAttribute("data-lmid") || "unknown"}`);
       const itemToDelete = deleteButton.closest("[data-lmid]");
       
       if (!itemToDelete) {
@@ -147,7 +136,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const confirmed = await showDeleteConfirmationModal(lmidToDelete);
       
       if (!confirmed) {
-        console.log(`Deletion cancelled for LMID: ${lmidToDelete}`);
+        console.log(`Deletion cancelled for LMID ${lmidToDelete}`);
         return;
       }
 
@@ -181,7 +170,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const currentLmids = memberData.metaData.lmids;
 
         // Delete all associated files from Bunny.net storage before removing LMID
-        console.log(`Deleting all Bunny.net files for LMID: ${lmidToDelete}`);
+        console.log(`Deleting LMID ${lmidToDelete} and all associated files`);
         try {
           const deleteFilesResponse = await fetch('https://little-microphones.vercel.app/api/delete-audio', {
             method: 'DELETE',
@@ -194,15 +183,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
           const deleteResult = await deleteFilesResponse.json();
           
-          if (deleteResult.success) {
-            console.log(`Successfully deleted all files for LMID ${lmidToDelete} from Bunny.net`);
-          } else {
-            console.warn(`Failed to delete some files for LMID ${lmidToDelete}:`, deleteResult.error);
-            // Continue with LMID deletion even if file deletion partially fails
+          if (!deleteResult.success) {
+            console.warn(`File deletion warning for LMID ${lmidToDelete}:`, deleteResult.error);
           }
         } catch (fileDeleteError) {
-          console.error(`Error deleting files for LMID ${lmidToDelete}:`, fileDeleteError);
-          // Continue with LMID deletion even if file deletion fails
+          console.error(`File deletion error for LMID ${lmidToDelete}:`, fileDeleteError);
         }
 
         // New logic: Prepare the final string in JavaScript instead of Make.com
@@ -227,15 +212,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const result = await response.json();
 
-        // New: Log the entire result for debugging
-        console.log("Response from Make.com:", result);
-
         if (!response.ok || result.status !== "success") {
           throw new Error(result.message || "The server returned an error during the deletion process.");
         }
 
         itemToDelete.remove();
-        console.log(`Successfully deleted LMID: ${lmidToDelete}`);
+        console.log(`Successfully deleted LMID ${lmidToDelete}`);
 
       } catch (error) {
         console.error("Failed to delete LMID:", error);
@@ -315,8 +297,6 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         }
 
-        console.log(`Current LMID count: ${currentLmidCount}/5`);
-
         // SECURITY: Enforce 5 LMID limit
         if (currentLmidCount >= 5) {
           alert("Maximum 5 programs per user. Delete an existing program to create a new one.");
@@ -377,7 +357,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         addButton.disabled = false;
         addButton.textContent = "Create a new Program"; // Reset button text
-        console.log(`Successfully added new LMID: ${newLmid} (${currentLmidCount + 1}/5)`);
+        console.log(`Successfully added new LMID ${newLmid}`);
 
       } catch (error) {
         console.error("Failed to add new LMID:", error);
