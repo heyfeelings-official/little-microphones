@@ -82,6 +82,34 @@ function injectGlobalStyles() {
             from { opacity: 0; transform: translateY(-10px); }
             to { opacity: 1; transform: translateY(0); }
         }
+
+        @keyframes fadeOut {
+            to { opacity: 0; }
+        }
+
+        .fade-out {
+            animation: fadeOut 0.3s ease-out forwards;
+        }
+
+        @keyframes fadeOutAndShrink {
+            from {
+                opacity: 1;
+                transform: scaleY(1);
+                max-height: 100px;
+            }
+            to {
+                opacity: 0;
+                transform: scaleY(0);
+                max-height: 0;
+                margin: 0;
+                padding: 0;
+                border: 0;
+            }
+        }
+
+        .element-fade-out {
+            animation: fadeOutAndShrink 0.4s ease-out forwards;
+        }
     `;
     document.head.appendChild(style);
 }
@@ -112,10 +140,10 @@ function createRecordingElement(recordingData, questionId) {
     
     const infoContainer = document.createElement('div');
     infoContainer.style.display = 'flex';
-    infoContainer.style.justifyContent = 'space-between';
+    infoContainer.style.justifyContent = 'center';
     infoContainer.style.alignItems = 'center';
     infoContainer.style.marginTop = '4px';
-    infoContainer.style.padding = '0 2px';
+    infoContainer.style.gap = '16px';
 
     const timestampEl = document.createElement('div');
     timestampEl.textContent = formattedDate;
@@ -171,7 +199,11 @@ async function deleteRecording(recordingId, questionId, elementToRemove) {
             };
         });
     });
-    elementToRemove.remove();
+
+    elementToRemove.classList.add('element-fade-out');
+    elementToRemove.addEventListener('animationend', () => {
+        elementToRemove.remove();
+    }, { once: true });
 }
 
 /**
@@ -231,7 +263,7 @@ function initializeAudioRecorder(recorderWrapper) {
             // --- Create a placeholder in the UI ---
             if (recordingsListUI) {
                 placeholderEl = document.createElement('li');
-                placeholderEl.className = 'recording-placeholder';
+                placeholderEl.className = 'recording-placeholder new-recording-fade-in';
 
                 statusDisplay = document.createElement('span');
                 statusDisplay.className = 'placeholder-status';
@@ -312,8 +344,11 @@ function initializeAudioRecorder(recorderWrapper) {
 
                 // Find and replace the placeholder
                 if (recordingsListUI && placeholderEl) {
-                    placeholderEl.replaceWith(newRecordingElement);
-                    placeholderEl = null; // Clear reference
+                    placeholderEl.classList.add('fade-out');
+                    placeholderEl.addEventListener('animationend', () => {
+                        placeholderEl.replaceWith(newRecordingElement);
+                        placeholderEl = null; // Clear reference
+                    }, { once: true });
                 }
                 
                 // --- Reset button state ---
