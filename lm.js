@@ -96,8 +96,37 @@ document.addEventListener("DOMContentLoaded", () => {
     // Debug: Log all clicks to help troubleshoot
     console.log("Click detected on:", event.target, "ID:", event.target.id, "Classes:", event.target.className);
     
-    // Check if the clicked element or its parent is the delete button by its ID
-    const deleteButton = event.target.closest("#lm-delete") || (event.target.id === "lm-delete" ? event.target : null);
+    // Check if the clicked element or any of its parents is the delete button
+    let deleteButton = null;
+    
+    // Method 1: Check if clicked element itself has the ID
+    if (event.target.id === "lm-delete") {
+      deleteButton = event.target;
+      console.log("Method 1: Direct match found");
+    } 
+    // Method 2: Use closest() to find parent with ID
+    else {
+      deleteButton = event.target.closest("#lm-delete");
+      if (deleteButton) {
+        console.log("Method 2: Closest() found parent");
+      }
+    }
+    
+    // Method 3: Manual traversal as fallback
+    if (!deleteButton) {
+      let currentElement = event.target.parentElement;
+      while (currentElement && currentElement !== document.body) {
+        console.log("Checking parent:", currentElement.tagName, "ID:", currentElement.id);
+        if (currentElement.id === "lm-delete") {
+          deleteButton = currentElement;
+          console.log("Method 3: Manual traversal found parent");
+          break;
+        }
+        currentElement = currentElement.parentElement;
+      }
+    }
+    
+    console.log("Delete button found:", deleteButton ? "YES" : "NO", deleteButton);
     
     if (deleteButton) {
       console.log("Delete button clicked:", deleteButton.tagName, deleteButton);
