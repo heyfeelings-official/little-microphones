@@ -597,15 +597,21 @@ function initializeAudioRecorder(recorderWrapper) {
             await updateRecordingInDB(recordingData);
             updateRecordingUI(recordingData);
 
-            const result = await response.json();
-
-            if (result.success) {
-                recordingData.cloudUrl = result.url;
-                recordingData.uploadStatus = 'uploaded';
-                recordingData.uploadProgress = 100;
-                console.log(`[Q-ID ${questionId}] Successfully uploaded: ${result.url}`);
+            if (response.ok) {
+                const result = await response.json();
+                if (result.success) {
+                    recordingData.cloudUrl = result.url;
+                    recordingData.uploadStatus = 'uploaded';
+                    recordingData.uploadProgress = 100;
+                    console.log(`[Q-ID ${questionId}] Successfully uploaded: ${result.url}`);
+                } else {
+                    throw new Error(result.error || 'Upload failed');
+                }
             } else {
-                throw new Error(result.error || 'Upload failed');
+                // Handle non-JSON error responses (like HTML error pages)
+                const errorText = await response.text();
+                console.error(`[Q-ID ${questionId}] Upload API error: ${response.status} - ${errorText}`);
+                throw new Error(`Upload API error: ${response.status}`);
             }
 
         } catch (error) {
