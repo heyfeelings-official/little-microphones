@@ -1171,4 +1171,275 @@ async function cleanupAllOrphanedRecordings() {
 }
 
 // Make cleanup function available globally
-window.cleanupAllOrphanedRecordings = cleanupAllOrphanedRecordings; 
+window.cleanupAllOrphanedRecordings = cleanupAllOrphanedRecordings;
+
+/**
+ * Generate Radio Program for current world and LMID
+ * @param {string} world - The world slug
+ * @param {string} lmid - The LMID
+ */
+async function generateRadioProgram(world, lmid) {
+    try {
+        console.log(`Starting radio program generation for ${world}/${lmid}`);
+        
+        // Show progress modal
+        showRadioProgramModal('Preparing...', 0);
+        
+        // Step 1: Collect all recordings for this world/lmid
+        updateRadioProgramProgress('Collecting recordings...', 10);
+        const recordings = await collectRecordingsForRadioProgram(world, lmid);
+        
+        if (Object.keys(recordings).length === 0) {
+            hideRadioProgramModal();
+            alert('No recordings found for this world. Please record some answers first.');
+            return;
+        }
+        
+        const totalRecordings = Object.values(recordings).flat().length;
+        console.log(`Found ${totalRecordings} recordings across ${Object.keys(recordings).length} questions`);
+        
+        // Step 2: Send to API for processing
+        updateRadioProgramProgress('Processing audio...', 20);
+        
+        const response = await fetch('https://little-microphones.vercel.app/api/combine-audio', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                lmid: lmid,
+                world: world,
+                recordings: recordings
+            })
+        });
+        
+        updateRadioProgramProgress('Finalizing radio program...', 80);
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            updateRadioProgramProgress('Complete!', 100);
+            
+            // Show success with player
+            setTimeout(() => {
+                showRadioProgramSuccess(result.url, world, lmid, result.questionCount, result.totalRecordings);
+            }, 1000);
+            
+            console.log(`Radio program generated successfully: ${result.url}`);
+            console.log(`Processing time: ${result.processingTime}ms`);
+            
+        } else {
+            throw new Error(result.error || 'Radio program generation failed');
+        }
+        
+    } catch (error) {
+        console.error('Radio program generation error:', error);
+        hideRadioProgramModal();
+        alert(`Failed to generate radio program: ${error.message}`);
+    }
+}
+
+/**
+ * Collect all recordings for radio program, grouped by question
+ * @param {string} world - The world slug
+ * @param {string} lmid - The LMID
+ */
+async function collectRecordingsForRadioProgram(world, lmid) {
+    const recordings = {};
+    
+    // Find all recorder wrappers for this world
+    const targetCollectionId = `collection-${world}`;
+    const targetCollection = document.getElementById(targetCollectionId);
+    
+    if (!targetCollection) {
+        console.warn(`Collection not found: ${targetCollectionId}`);
+        return recordings;
+    }
+    
+    const recorderWrappers = targetCollection.querySelectorAll('.faq1_accordion.lm');
+    
+    for (const wrapper of recorderWrappers) {
+        const questionId = wrapper.dataset.questionId;
+        if (!questionId) continue;
+        
+        try {
+            const questionRecordings = await loadRecordingsFromDB(questionId, world, lmid);
+            
+            if (questionRecordings.length > 0) {
+                // Filter only recordings that have been successfully uploaded to cloud
+                const validRecordings = questionRecordings
+                    .filter(rec => rec.uploadStatus === 'uploaded' && rec.cloudUrl)
+                    .map(rec => `${rec.id}.webm`); // Extract filename for API
+                
+                if (validRecordings.length > 0) {
+                    recordings[questionId] = validRecordings;
+                    console.log(`Found ${validRecordings.length} valid recordings for ${questionId}`);
+                }
+            }
+        } catch (error) {
+            console.warn(`Error loading recordings for ${questionId}:`, error);
+        }
+    }
+    
+    return recordings;
+}
+
+/**
+ * Show radio program generation modal
+ * @param {string} message - Status message
+ * @param {number} progress - Progress percentage (0-100)
+ */
+function showRadioProgramModal(message, progress = 0) {
+    // Remove existing modal if present
+    const existingModal = document.getElementById('radio-program-modal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Create modal overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'radio-program-modal';
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 10000;
+        font-family: Arial, sans-serif;
+    `;
+    
+    // Create modal content
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        background: white;
+        padding: 40px;
+        border-radius: 12px;
+        max-width: 500px;
+        width: 90%;
+        text-align: center;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    `;
+    
+    modal.innerHTML = `
+        <div style="font-size: 48px; margin-bottom: 20px;">🎙️</div>
+        <h2 style="margin: 0 0 20px 0; color: #333;">Creating Radio Program</h2>
+        <p id="radio-status" style="margin: 0 0 20px 0; font-size: 16px; color: #666;">${message}</p>
+        <div style="width: 100%; height: 8px; background: #f0f0f0; border-radius: 4px; margin-bottom: 20px;">
+            <div id="radio-progress" style="width: ${progress}%; height: 100%; background: #007bff; border-radius: 4px; transition: width 0.3s ease;"></div>
+        </div>
+        <p style="margin: 0; font-size: 14px; color: #888;">This may take a few minutes...</p>
+    `;
+    
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+}
+
+/**
+ * Update radio program generation progress
+ * @param {string} message - Status message
+ * @param {number} progress - Progress percentage (0-100)
+ */
+function updateRadioProgramProgress(message, progress) {
+    const statusEl = document.getElementById('radio-status');
+    const progressEl = document.getElementById('radio-progress');
+    
+    if (statusEl) statusEl.textContent = message;
+    if (progressEl) progressEl.style.width = `${progress}%`;
+}
+
+/**
+ * Hide radio program modal
+ */
+function hideRadioProgramModal() {
+    const modal = document.getElementById('radio-program-modal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+/**
+ * Show radio program success modal with player
+ * @param {string} audioUrl - URL of the generated radio program
+ * @param {string} world - World name
+ * @param {string} lmid - LMID
+ * @param {number} questionCount - Number of questions processed
+ * @param {number} totalRecordings - Total number of recordings processed
+ */
+function showRadioProgramSuccess(audioUrl, world, lmid, questionCount, totalRecordings) {
+    hideRadioProgramModal();
+    
+    // Create success modal
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 10000;
+        font-family: Arial, sans-serif;
+    `;
+    
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        background: white;
+        padding: 40px;
+        border-radius: 12px;
+        max-width: 600px;
+        width: 90%;
+        text-align: center;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    `;
+    
+    const worldName = world.charAt(0).toUpperCase() + world.slice(1).replace(/-/g, ' ');
+    
+    modal.innerHTML = `
+        <div style="font-size: 48px; margin-bottom: 20px;">🎉</div>
+        <h2 style="margin: 0 0 20px 0; color: #28a745;">Radio Program Ready!</h2>
+        <p style="margin: 0 0 20px 0; font-size: 16px; color: #666;">
+            Your <strong>${worldName}</strong> radio program is ready with ${questionCount} questions and ${totalRecordings} recordings.
+        </p>
+        
+        <div style="margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+            <audio controls style="width: 100%; margin-bottom: 15px;">
+                <source src="${audioUrl}" type="audio/mpeg">
+                Your browser does not support the audio element.
+            </audio>
+            <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                <a href="${audioUrl}" download="radio-program-${lmid}-${world}.mp3" 
+                   style="background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-size: 14px;">
+                    📥 Download
+                </a>
+                <button onclick="generateRadioProgram('${world}', '${lmid}')" 
+                        style="background: #6c757d; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                    🔄 Regenerate
+                </button>
+            </div>
+        </div>
+        
+        <button onclick="this.closest('[style*=\"position: fixed\"]').remove()" 
+                style="background: #28a745; color: white; padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 16px;">
+            ✓ Close
+        </button>
+    `;
+    
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    
+    // Auto-close modal when clicking outside
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            overlay.remove();
+        }
+    });
+}
+
+// Make the function available globally
+window.generateRadioProgram = generateRadioProgram; 

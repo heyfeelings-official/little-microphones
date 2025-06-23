@@ -50,6 +50,9 @@ function showWorldCollection(world) {
     // Initialize recording functionality for this world only
     setTimeout(() => {
       initializeRecordingForWorld(world);
+      
+      // Add Radio Program button to this world collection
+      addRadioProgramButton(world, lmidFromUrl);
     }, 100);
   } else {
     console.warn(`Collection element not found: ${targetCollectionId}`);
@@ -146,4 +149,141 @@ document.addEventListener("DOMContentLoaded", () => {
     .catch(error => {
       console.error("An error occurred while verifying member authorization:", error);
     });
-}); 
+});
+
+/**
+ * Add "Create Radio Program" button to the world collection
+ * @param {string} world - The world slug
+ * @param {string} lmid - The LMID
+ */
+function addRadioProgramButton(world, lmid) {
+  const targetCollectionId = `collection-${world}`;
+  const targetCollection = document.getElementById(targetCollectionId);
+  
+  if (!targetCollection) {
+    console.warn(`Collection not found for radio button: ${targetCollectionId}`);
+    return;
+  }
+  
+  // Check if button already exists
+  if (targetCollection.querySelector('.radio-program-button')) {
+    return;
+  }
+  
+  // Create the radio program button
+  const radioButton = document.createElement('div');
+  radioButton.className = 'radio-program-button';
+  radioButton.style.cssText = `
+    margin: 20px 0;
+    text-align: center;
+    padding: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  `;
+  
+  radioButton.innerHTML = `
+    <div style="color: white; font-size: 18px; font-weight: bold; margin-bottom: 8px;">
+      🎙️ Create Radio Program
+    </div>
+    <div style="color: rgba(255, 255, 255, 0.9); font-size: 14px;">
+      Combine all your recordings into a complete radio show
+    </div>
+  `;
+  
+  // Add hover effect
+  radioButton.addEventListener('mouseenter', () => {
+    radioButton.style.transform = 'translateY(-2px)';
+    radioButton.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.3)';
+  });
+  
+  radioButton.addEventListener('mouseleave', () => {
+    radioButton.style.transform = 'translateY(0)';
+    radioButton.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.2)';
+  });
+  
+  // Add click handler
+  radioButton.addEventListener('click', async () => {
+    // Check if user has any recordings first
+    const hasRecordings = await checkIfUserHasRecordings(world, lmid);
+    
+    if (!hasRecordings) {
+      alert('You need to record some answers first before creating a radio program!');
+      return;
+    }
+    
+    // Disable button during processing
+    radioButton.style.pointerEvents = 'none';
+    radioButton.style.opacity = '0.7';
+    radioButton.innerHTML = `
+      <div style="color: white; font-size: 18px; font-weight: bold; margin-bottom: 8px;">
+        ⏳ Creating Radio Program...
+      </div>
+      <div style="color: rgba(255, 255, 255, 0.9); font-size: 14px;">
+        Please wait, this may take a few minutes
+      </div>
+    `;
+    
+    try {
+      // Call the radio program generation function
+      await window.generateRadioProgram(world, lmid);
+    } catch (error) {
+      console.error('Radio program generation failed:', error);
+    } finally {
+      // Re-enable button
+      radioButton.style.pointerEvents = '';
+      radioButton.style.opacity = '';
+      radioButton.innerHTML = `
+        <div style="color: white; font-size: 18px; font-weight: bold; margin-bottom: 8px;">
+          🎙️ Create Radio Program
+        </div>
+        <div style="color: rgba(255, 255, 255, 0.9); font-size: 14px;">
+          Combine all your recordings into a complete radio show
+        </div>
+      `;
+    }
+  });
+  
+  // Insert the button after the collection title
+  const firstChild = targetCollection.firstElementChild;
+  if (firstChild) {
+    targetCollection.insertBefore(radioButton, firstChild);
+  } else {
+    targetCollection.appendChild(radioButton);
+  }
+  
+  console.log(`Added radio program button for ${world}`);
+}
+
+/**
+ * Check if user has any recordings for this world/lmid combination
+ * @param {string} world - The world slug
+ * @param {string} lmid - The LMID
+ * @returns {Promise<boolean>} - True if user has recordings
+ */
+async function checkIfUserHasRecordings(world, lmid) {
+  try {
+    // This function should be available from recording.js
+    if (typeof loadRecordingsFromDB !== 'function') {
+      console.warn('loadRecordingsFromDB function not available');
+      return true; // Assume they have recordings if we can't check
+    }
+    
+    // Check a few common question IDs to see if there are any recordings
+    const questionIds = ['Q1', 'Q2', 'Q3', 'Q4', 'Q5', 'Q6'];
+    
+    for (const questionId of questionIds) {
+      const recordings = await loadRecordingsFromDB(questionId, world, lmid);
+      if (recordings && recordings.length > 0) {
+        return true;
+      }
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('Error checking for recordings:', error);
+    return true; // Assume they have recordings if check fails
+  }
+}
