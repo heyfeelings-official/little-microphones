@@ -40,11 +40,11 @@ Handles audio file uploads from browser recordings to Bunny.net CDN with format 
 Content-Type: application/json
 
 {
-  "audio": "base64_encoded_mp3_data",
+  "audioData": "base64_encoded_mp3_data",
+  "filename": "kids-world_spookyland-lmid_32-question_9-tm_1750763211231.mp3",
   "world": "spookyland",
   "lmid": "32", 
-  "questionId": "QID9",
-  "timestamp": 1750763211231
+  "questionId": "QID9"
 }
 ```
 

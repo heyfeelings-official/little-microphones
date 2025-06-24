@@ -59,9 +59,8 @@ Each user can create up to 5 programs, each containing:
 
 ### Frontend Technologies
 - **Vanilla JavaScript**: Core functionality
-- **WebRTC MediaRecorder API**: Audio recording
+- **MediaRecorder API**: Browser-based audio recording (part of WebRTC suite)
 - **IndexedDB**: Local data persistence
-- **Canvas API**: Waveform visualization
 - **Webflow**: UI framework and hosting
 
 ### Backend Technologies
@@ -89,7 +88,15 @@ Question Display → Audio Recording → Local Storage → Cloud Backup → UI U
 
 ### 3. Radio Program Generation Flow
 ```
-Recording Collection → Audio Plan Creation → FFmpeg Processing → Cloud Upload → Program URL
+Recording Collection → Question Grouping → Audio Plan Creation → 
+File Download → FFmpeg Sequential Combination → Cloud Upload → Program URL
+
+Detailed Audio Combination Process:
+1. Group recordings by question ID
+2. Sort questions by ID 
+3. For each question: combine all user answers sequentially
+4. Insert background music after each question block
+5. Wrap with intro/outro files
 ```
 
 ## 🔒 Security & Privacy
@@ -122,10 +129,10 @@ Recording Collection → Audio Plan Creation → FFmpeg Processing → Cloud Upl
 5. **Program Generation**: One-click radio show creation
 
 ### Visual Feedback
-- Live waveform visualization during recording
 - Recording status indicators (local/cloud)
 - Progress feedback during program generation
 - Upload status with retry mechanisms
+- Audio timer display during recording
 
 ## 📈 Performance Requirements
 
@@ -150,8 +157,8 @@ Recording Collection → Audio Plan Creation → FFmpeg Processing → Cloud Upl
 ## 🔄 Audio Processing Pipeline
 
 ### 1. Recording Capture
-- WebRTC MediaRecorder API
-- Format: WebM (recording) → MP3 (storage)
+- MediaRecorder API (part of WebRTC suite)
+- Format: WebM (browser recording) → MP3 (cloud storage)
 - Quality: 128kbps, 44.1kHz, Stereo
 - Duration: Unlimited per recording
 
@@ -173,12 +180,21 @@ Static Files:
 
 ### 3. Radio Program Assembly
 ```
-Audio Sequence:
+Exact Audio Sequence:
+1. intro.mp3
+2. For each question (sorted by question ID):
+   a. Question prompt (e.g., spookyland-QID1.mp3)
+   b. ALL user recordings for that specific question (combined in sequence)
+   c. Background music (monkeys.mp3)
+3. outro.mp3
+
+Example with 2 questions and multiple answers:
 intro.mp3 → 
-  question1.mp3 → [user recordings for Q1] → monkeys.mp3 →
-  question2.mp3 → [user recordings for Q2] → monkeys.mp3 →
-  ... →
+  spookyland-QID1.mp3 → [user answer 1.1] → [user answer 1.2] → [user answer 1.3] → monkeys.mp3 →
+  spookyland-QID9.mp3 → [user answer 9.1] → [user answer 9.2] → monkeys.mp3 →
 outro.mp3
+
+CRITICAL: All answers for a given question are combined FIRST, then background sound is added.
 ```
 
 ## 🛠️ Development Workflow

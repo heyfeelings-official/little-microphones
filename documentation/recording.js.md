@@ -4,15 +4,14 @@
 
 **File**: `recording.js`  
 **Purpose**: Comprehensive audio recording system with multi-question support, local storage, cloud backup, and radio program generation  
-**Dependencies**: WebRTC MediaRecorder API, IndexedDB, Canvas API, Bunny.net Storage API  
+**Dependencies**: MediaRecorder API, IndexedDB, Bunny.net Storage API  
 **Documentation**: `/documentation/recording.js.md`
 
 ## 🎯 Core Functionality
 
 ### 1. Multi-Question Audio Recording
 - Independent recorder instances per question
-- Real-time waveform visualization during recording
-- WebRTC MediaRecorder API for browser-based audio capture
+- MediaRecorder API for browser-based audio capture
 - Format conversion from WebM (recording) to MP3 (storage)
 
 ### 2. Local Data Management
@@ -42,8 +41,8 @@
 │   UI Layer      │    │  Recording      │    │  Storage        │
 │                 │    │  Engine         │    │  Layer          │
 │ • Record Button │◄──►│ • MediaRecorder │◄──►│ • IndexedDB     │
-│ • Waveform      │    │ • AudioContext  │    │ • Bunny.net     │
-│ • Player List   │    │ • Canvas API    │    │ • URL.createObj │
+│ • Timer Display │    │ • Audio Stream  │    │ • Bunny.net     │
+│ • Player List   │    │ • Blob Creation │    │ • URL.createObj │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
@@ -70,7 +69,7 @@ initializeRecordersForWorld(world) →
 Button Click →
   Permission Request →
     MediaRecorder Start →
-      Waveform Visualization →
+      Timer Display →
         User Stops →
           Audio Processing →
             Local Storage →
@@ -80,7 +79,7 @@ Button Click →
 
 ### 3. Audio Processing Pipeline
 ```
-WebRTC MediaRecorder (WebM) →
+MediaRecorder (WebM) →
   Blob Creation →
     IndexedDB Storage →
       Background Upload →
@@ -93,7 +92,7 @@ WebRTC MediaRecorder (WebM) →
 
 ### IndexedDB Schema
 ```javascript
-Database: "LittleMicrophonesDB"
+Database: "kidsAudioDB"
 Store: "audioRecordings"
 Structure: {
   id: "unique_recording_id",
@@ -122,7 +121,6 @@ Example:
 
 ### Recording Components
 - **Record Button**: Primary recording trigger with visual states
-- **Waveform Canvas**: Real-time audio visualization
 - **Timer Display**: Recording duration counter
 - **Status Indicators**: Recording, processing, and upload states
 
@@ -245,7 +243,6 @@ cleanupOrphanedRecordings(questionId, world, lmid) →
 ### Memory Management
 - Lazy loading of recordings
 - Efficient blob handling
-- Canvas optimization for waveforms
 - Garbage collection for audio objects
 
 ### Network Optimization
@@ -292,11 +289,11 @@ cleanupOrphanedRecordings(questionId, world, lmid) →
 ### Upload API (`/api/upload-audio`)
 ```javascript
 Payload: {
-  audio: base64_encoded_mp3,
+  audioData: base64_encoded_mp3,
+  filename: "kids-world_spookyland-lmid_32-question_9-tm_1750763211231.mp3",
   world: "spookyland",
   lmid: "32", 
-  questionId: "QID9",
-  timestamp: 1750763211231
+  questionId: "QID9"
 }
 ```
 

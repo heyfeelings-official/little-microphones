@@ -2,12 +2,11 @@
  * recording.js - Multi-Question Audio Recording System
  * 
  * PURPOSE: Comprehensive audio recording system with local storage, cloud backup, and radio program generation
- * DEPENDENCIES: WebRTC MediaRecorder API, IndexedDB, Canvas API, Bunny.net Storage API
+ * DEPENDENCIES: MediaRecorder API, IndexedDB, Bunny.net Storage API
  * DOCUMENTATION: See /documentation/recording.js.md for complete system overview
  * 
  * CORE FEATURES:
  * - Multi-question independent recording instances
- * - Real-time waveform visualization during recording
  * - Local IndexedDB storage with cloud backup to Bunny.net
  * - Upload progress tracking and retry mechanisms
  * - Radio program generation from multiple recordings
