@@ -99,10 +99,14 @@ export default async function handler(req, res) {
         });
 
         // Create a simple HTML audio player page for the radio program
+        console.log('Generating radio player HTML...');
         const radioHtml = generateRadioPlayerHtml(playlist, world, lmid);
+        console.log('HTML generated, length:', radioHtml.length);
         
         // Upload the HTML player to Bunny.net
+        console.log('Starting upload to Bunny.net...');
         const uploadResult = await uploadRadioPlayer(radioHtml, lmid, world);
+        console.log('Upload completed:', uploadResult);
 
         const processingTime = Date.now() - startTime;
         console.log(`Simplified radio program generated in ${processingTime}ms`);
@@ -323,7 +327,7 @@ function generateRadioPlayerHtml(playlist, world, lmid) {
             audio.src = item.url;
             audio.style.display = 'block';
             
-            progress.textContent = \`Playing: \${item.title} (\${currentIndex + 1}/\${playlist.length})\`;
+            progress.textContent = 'Playing: ' + item.title + ' (' + (currentIndex + 1) + '/' + playlist.length + ')';
             
             // Update visual feedback
             updatePlaylistDisplay();
@@ -333,7 +337,7 @@ function generateRadioPlayerHtml(playlist, world, lmid) {
                 if (isPlayingAll) {
                     nextItem();
                 } else {
-                    progress.textContent = \`Could not play: \${item.title}\`;
+                    progress.textContent = 'Could not play: ' + item.title;
                 }
             });
         }
