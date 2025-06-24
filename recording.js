@@ -1490,59 +1490,31 @@ function sortQuestionIdsByDOMOrder(questionIds, world) {
 }
 
 /**
- * Show radio program generation modal
+ * Show radio program generation modal using Webflow-designed elements
  * @param {string} message - Status message
  * @param {number} progress - Progress percentage (0-100)
  */
 function showRadioProgramModal(message, progress = 0) {
-    // Remove existing modal if present
-    const existingModal = document.getElementById('radio-program-modal');
-    if (existingModal) {
-        existingModal.remove();
+    // Find the Webflow-designed modal
+    const modal = document.getElementById('radio-progress-modal');
+    if (!modal) {
+        console.error('Radio progress modal not found. Please add an element with ID "radio-progress-modal" in Webflow.');
+        return;
     }
     
-    // Create modal overlay
-    const overlay = document.createElement('div');
-    overlay.id = 'radio-program-modal';
-    overlay.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.8);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 10000;
-        font-family: Arial, sans-serif;
-    `;
+    // Update content elements
+    const statusEl = document.getElementById('radio-status');
+    const progressEl = document.getElementById('radio-progress');
     
-    // Create modal content
-    const modal = document.createElement('div');
-    modal.style.cssText = `
-        background: white;
-        padding: 40px;
-        border-radius: 12px;
-        max-width: 500px;
-        width: 90%;
-        text-align: center;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-    `;
+    if (statusEl) statusEl.textContent = message;
+    if (progressEl) progressEl.style.width = `${progress}%`;
     
-    modal.innerHTML = `
-        <div style="font-size: 48px; margin-bottom: 20px;">🎙️</div>
-        <h2 style="margin: 0 0 20px 0; color: #333;">Creating Radio Program</h2>
-        <p id="radio-status" style="margin: 0 0 20px 0; font-size: 16px; color: #666;">${message}</p>
-        <div style="width: 100%; height: 8px; background: #f0f0f0; border-radius: 4px; margin-bottom: 20px;">
-            <div id="radio-progress" style="width: ${progress}%; height: 100%; background: #007bff; border-radius: 4px; transition: width 0.3s ease;"></div>
-        </div>
-        <p id="radio-details" style="margin: 0 0 10px 0; font-size: 12px; color: #888; min-height: 16px; font-family: monospace;"></p>
-        <p style="margin: 0; font-size: 14px; color: #888;">This may take a few minutes...</p>
-    `;
+    // Show the modal (remove any existing hiding classes and add display)
+    modal.style.display = 'flex';
+    modal.classList.remove('w--hidden', 'hide');
+    modal.classList.add('show');
     
-    overlay.appendChild(modal);
-    document.body.appendChild(overlay);
+    console.log(`📱 Progress modal shown: ${message} (${progress}%)`);
 }
 
 /**
@@ -1580,12 +1552,15 @@ function updateRadioProgramProgress(message, progress, details = '') {
 }
 
 /**
- * Hide radio program modal
+ * Hide radio program modal using Webflow classes
  */
 function hideRadioProgramModal() {
-    const modal = document.getElementById('radio-program-modal');
+    const modal = document.getElementById('radio-progress-modal');
     if (modal) {
-        modal.remove();
+        // Hide the modal using Webflow's standard classes
+        modal.style.display = 'none';
+        modal.classList.add('w--hidden', 'hide');
+        modal.classList.remove('show');
     }
     
     // Clean up any spinner intervals
@@ -1596,10 +1571,12 @@ function hideRadioProgramModal() {
     
     // Clean up fun status messages
     stopFunStatusMessages();
+    
+    console.log('📱 Progress modal hidden');
 }
 
 /**
- * Show radio program success modal with player
+ * Show radio program success modal using Webflow-designed elements
  * @param {string} audioUrl - URL of the generated radio program
  * @param {string} world - World name
  * @param {string} lmid - LMID
@@ -1609,72 +1586,79 @@ function hideRadioProgramModal() {
 function showRadioProgramSuccess(audioUrl, world, lmid, questionCount, totalRecordings) {
     hideRadioProgramModal();
     
-    // Create success modal
-    const overlay = document.createElement('div');
-    overlay.id = 'radio-success-modal';
-    overlay.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.8);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 10000;
-        font-family: Arial, sans-serif;
-    `;
+    // Find the Webflow-designed success modal
+    const modal = document.getElementById('radio-success-modal');
+    if (!modal) {
+        console.error('Radio success modal not found. Please add an element with ID "radio-success-modal" in Webflow.');
+        return;
+    }
     
-    const modal = document.createElement('div');
-    modal.style.cssText = `
-        background: white;
-        padding: 40px;
-        border-radius: 12px;
-        max-width: 600px;
-        width: 90%;
-        text-align: center;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-    `;
+    // Update content elements
+    const descriptionEl = document.getElementById('radio-success-description');
+    const audioPlayerEl = document.getElementById('radio-audio-player');
+    const closeButtonEl = document.getElementById('close-radio-modal');
     
+    // Format world name for display
     const worldName = world.charAt(0).toUpperCase() + world.slice(1).replace(/-/g, ' ');
     
-    modal.innerHTML = `
-        <div style="font-size: 48px; margin-bottom: 20px;">🎉</div>
-        <h2 style="margin: 0 0 20px 0; color: #28a745;">Radio Program Ready!</h2>
-        <p style="margin: 0 0 20px 0; font-size: 16px; color: #666;">
-            Your <strong>${worldName}</strong> radio program is ready with ${questionCount} questions and ${totalRecordings} recordings.
-        </p>
-        
-        <div style="margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 8px;">
-            <audio controls style="width: 100%; margin-bottom: 15px;" preload="metadata" crossorigin="anonymous">
-                <source src="${audioUrl}" type="audio/mpeg">
-                <source src="${audioUrl}" type="audio/mp3">
-                Your browser does not support the audio element.
-            </audio>
-        </div>
-        
-        <button id="close-radio-modal" 
-                style="background: #28a745; color: white; padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 16px;">
-            ✓ Close
-        </button>
-    `;
+    // Update description text
+    if (descriptionEl) {
+        descriptionEl.innerHTML = `Your <strong>${worldName}</strong> radio program is ready with ${questionCount} questions and ${totalRecordings} recordings.`;
+    }
     
-    overlay.appendChild(modal);
-    document.body.appendChild(overlay);
+    // Update audio player
+    if (audioPlayerEl) {
+        audioPlayerEl.src = audioUrl;
+        audioPlayerEl.load(); // Reload the audio element with new source
+    }
     
-    // Add close button event listener
-    const closeButton = modal.querySelector('#close-radio-modal');
-    closeButton.addEventListener('click', () => {
-        overlay.remove();
-    });
+    // Show the success modal
+    modal.style.display = 'flex';
+    modal.classList.remove('w--hidden', 'hide');
+    modal.classList.add('show');
     
-    // Auto-close modal when clicking outside
-    overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) {
-            overlay.remove();
+    // Set up close button event listener (if not already set up in Webflow)
+    if (closeButtonEl && !closeButtonEl.hasAttribute('data-listener-added')) {
+        closeButtonEl.addEventListener('click', () => {
+            hideRadioProgramSuccessModal();
+        });
+        closeButtonEl.setAttribute('data-listener-added', 'true');
+    }
+    
+    // Auto-close modal when clicking outside (if overlay click area exists)
+    const handleOverlayClick = (e) => {
+        if (e.target === modal) {
+            hideRadioProgramSuccessModal();
         }
-    });
+    };
+    
+    // Remove existing listener first, then add new one
+    modal.removeEventListener('click', handleOverlayClick);
+    modal.addEventListener('click', handleOverlayClick);
+    
+    console.log(`🎉 Success modal shown for ${worldName} program`);
+}
+
+/**
+ * Hide radio program success modal
+ */
+function hideRadioProgramSuccessModal() {
+    const modal = document.getElementById('radio-success-modal');
+    if (modal) {
+        // Hide the modal using Webflow's standard classes
+        modal.style.display = 'none';
+        modal.classList.add('w--hidden', 'hide');
+        modal.classList.remove('show');
+        
+        // Stop audio playback
+        const audioPlayerEl = document.getElementById('radio-audio-player');
+        if (audioPlayerEl) {
+            audioPlayerEl.pause();
+            audioPlayerEl.currentTime = 0;
+        }
+    }
+    
+    console.log('🎉 Success modal hidden');
 }
 
 /**
@@ -1857,6 +1841,12 @@ window.loadRecordingsFromDB = loadRecordingsFromDB;
 window.initializeAudioRecorder = initializeAudioRecorder;
 window.initializeRecordersForWorld = initializeRecordersForWorld;
 window.cleanupAllOrphanedRecordings = cleanupAllOrphanedRecordings;
+
+// Export modal functions for external use
+window.showRadioProgramModal = showRadioProgramModal;
+window.hideRadioProgramModal = hideRadioProgramModal;
+window.showRadioProgramSuccess = showRadioProgramSuccess;
+window.hideRadioProgramSuccessModal = hideRadioProgramSuccessModal;
 
 // --- Script ready event - MUST be at the very end ---
 window.isRecordingScriptReady = true;
