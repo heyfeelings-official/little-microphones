@@ -1490,54 +1490,65 @@ function sortQuestionIdsByDOMOrder(questionIds, world) {
 }
 
 /**
- * Show radio program generation section using Webflow-designed elements
- * @param {string} message - Status message
+ * Show radio program generation in the persistent section
+ * @param {string} message - Status message (not used anymore)
  * @param {number} progress - Progress percentage (0-100)
  */
 function showRadioProgramModal(message, progress = 0) {
-    // Find the Webflow-designed progress section
-    const progressSection = document.getElementById('radio-progress-section');
-    if (!progressSection) {
-        console.error('Radio progress section not found. Please add an element with ID "radio-progress-section" in Webflow.');
+    // Find the persistent radio program section
+    const radioSection = document.getElementById('radio-program-section');
+    if (!radioSection) {
+        console.error('Radio program section not found. Please add an element with ID "radio-program-section" in Webflow.');
         return;
     }
     
-    // Update content elements
-    const statusEl = document.getElementById('radio-status');
-    const progressEl = document.getElementById('radio-progress');
+    // Update elements for generation state
+    const titleEl = document.getElementById('radio-program-title');
+    const progressEl = document.getElementById('radio-progress-bar');
+    const infoEl = document.getElementById('radio-progress-info');
     
-    if (statusEl) statusEl.textContent = message;
-    if (progressEl) progressEl.style.width = `${progress}%`;
-    
-    // Show the progress section
-    progressSection.style.display = 'block';
-    progressSection.classList.remove('w--hidden', 'hide');
-    progressSection.classList.add('show');
-    
-    // Hide success section if visible
-    const successSection = document.getElementById('radio-success-section');
-    if (successSection) {
-        successSection.style.display = 'none';
-        successSection.classList.add('w--hidden', 'hide');
-        successSection.classList.remove('show');
+    // Update title to show "Creating Radio Program for [World]"
+    if (titleEl) {
+        const urlParams = URLParams.get();
+        const world = urlParams.world || 'Unknown';
+        const worldName = world.charAt(0).toUpperCase() + world.slice(1).replace(/-/g, ' ');
+        titleEl.textContent = `Creating Radio Program for ${worldName}`;
     }
     
-    console.log(`📱 Progress section shown: ${message} (${progress}%)`);
+    // Update progress bar (using CSS ::before pseudo-element or direct styling)
+    if (progressEl) {
+        // Option 1: Direct background with linear gradient
+        progressEl.style.background = `linear-gradient(to right, #007bff ${progress}%, #e9ecef ${progress}%)`;
+        
+        // Option 2: If using ::before pseudo-element approach
+        // progressEl.style.setProperty('--progress-width', `${progress}%`);
+    }
+    
+    // Show info text during generation
+    if (infoEl) {
+        infoEl.style.display = 'block';
+        infoEl.classList.remove('w--hidden', 'hide');
+    }
+    
+    console.log(`📱 Radio program generation progress: ${progress}%`);
 }
 
 /**
  * Update radio program generation progress
- * @param {string} message - Status message
+ * @param {string} message - Status message (not used anymore)
  * @param {number} progress - Progress percentage (0-100)
  * @param {string} details - Detailed status message (optional)
  */
 function updateRadioProgramProgress(message, progress, details = '') {
-    const statusEl = document.getElementById('radio-status');
-    const progressEl = document.getElementById('radio-progress');
+    const progressEl = document.getElementById('radio-progress-bar');
     const detailsEl = document.getElementById('radio-details');
     
-    if (statusEl) statusEl.textContent = message;
-    if (progressEl) progressEl.style.width = `${progress}%`;
+    // Update progress bar (using CSS linear gradient)
+    if (progressEl) {
+        progressEl.style.background = `linear-gradient(to right, #007bff ${progress}%, #e9ecef ${progress}%)`;
+    }
+    
+    // Update details with spinner animation if provided
     if (detailsEl && details) {
         // Add rotating animation for processing steps
         const spinner = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
@@ -1560,15 +1571,27 @@ function updateRadioProgramProgress(message, progress, details = '') {
 }
 
 /**
- * Hide radio program progress section using Webflow classes
+ * Reset radio program section to idle state
  */
 function hideRadioProgramModal() {
-    const progressSection = document.getElementById('radio-progress-section');
-    if (progressSection) {
-        // Hide the progress section using Webflow's standard classes
-        progressSection.style.display = 'none';
-        progressSection.classList.add('w--hidden', 'hide');
-        progressSection.classList.remove('show');
+    const titleEl = document.getElementById('radio-program-title');
+    const progressEl = document.getElementById('radio-progress-bar');
+    const infoEl = document.getElementById('radio-progress-info');
+    
+    // Reset title to static state
+    if (titleEl) {
+        titleEl.textContent = 'Radio Program';
+    }
+    
+    // Reset progress bar
+    if (progressEl) {
+        progressEl.style.background = '#e9ecef';
+    }
+    
+    // Hide info text when not generating
+    if (infoEl) {
+        infoEl.style.display = 'none';
+        infoEl.classList.add('w--hidden', 'hide');
     }
     
     // Clean up any spinner intervals
@@ -1580,11 +1603,11 @@ function hideRadioProgramModal() {
     // Clean up fun status messages
     stopFunStatusMessages();
     
-    console.log('📱 Progress section hidden');
+    console.log('📱 Radio program section reset to idle state');
 }
 
 /**
- * Show radio program success section using Webflow-designed elements
+ * Show radio program success in the persistent section
  * @param {string} audioUrl - URL of the generated radio program
  * @param {string} world - World name
  * @param {string} lmid - LMID
@@ -1592,70 +1615,149 @@ function hideRadioProgramModal() {
  * @param {number} totalRecordings - Total number of recordings processed
  */
 function showRadioProgramSuccess(audioUrl, world, lmid, questionCount, totalRecordings) {
+    // Reset the section to idle state first
     hideRadioProgramModal();
     
-    // Find the Webflow-designed success section
-    const successSection = document.getElementById('radio-success-section');
-    if (!successSection) {
-        console.error('Radio success section not found. Please add an element with ID "radio-success-section" in Webflow.');
-        return;
-    }
-    
-    // Update content elements
-    const descriptionEl = document.getElementById('radio-success-description');
+    // Update audio player with new file
     const audioPlayerEl = document.getElementById('radio-audio-player');
-    const closeButtonEl = document.getElementById('close-radio-section');
-    
-    // Format world name for display
-    const worldName = world.charAt(0).toUpperCase() + world.slice(1).replace(/-/g, ' ');
-    
-    // Update description text
-    if (descriptionEl) {
-        descriptionEl.innerHTML = `Your <strong>${worldName}</strong> radio program is ready with ${questionCount} questions and ${totalRecordings} recordings.`;
-    }
-    
-    // Update audio player
     if (audioPlayerEl) {
         audioPlayerEl.src = audioUrl;
         audioPlayerEl.load(); // Reload the audio element with new source
-    }
-    
-    // Show the success section
-    successSection.style.display = 'block';
-    successSection.classList.remove('w--hidden', 'hide');
-    successSection.classList.add('show');
-    
-    // Set up close/hide button event listener (if not already set up in Webflow)
-    if (closeButtonEl && !closeButtonEl.hasAttribute('data-listener-added')) {
-        closeButtonEl.addEventListener('click', () => {
-            hideRadioProgramSuccessModal();
-        });
-        closeButtonEl.setAttribute('data-listener-added', 'true');
-    }
-    
-    console.log(`🎉 Success section shown for ${worldName} program`);
-}
-
-/**
- * Hide radio program success section
- */
-function hideRadioProgramSuccessModal() {
-    const successSection = document.getElementById('radio-success-section');
-    if (successSection) {
-        // Hide the section using Webflow's standard classes
-        successSection.style.display = 'none';
-        successSection.classList.add('w--hidden', 'hide');
-        successSection.classList.remove('show');
         
-        // Stop audio playback
-        const audioPlayerEl = document.getElementById('radio-audio-player');
-        if (audioPlayerEl) {
-            audioPlayerEl.pause();
-            audioPlayerEl.currentTime = 0;
+        // Remove any "no programs" message
+        audioPlayerEl.style.display = 'block';
+        const noFileMsg = document.getElementById('no-radio-programs-msg');
+        if (noFileMsg) {
+            noFileMsg.style.display = 'none';
         }
     }
     
-    console.log('🎉 Success section hidden');
+    console.log(`🎉 Radio program ready and loaded into player for ${world}`);
+}
+
+/**
+ * Initialize the radio program section with default state
+ * Should be called when the /rp page loads
+ */
+function initializeRadioProgramSection() {
+    const titleEl = document.getElementById('radio-program-title');
+    const progressEl = document.getElementById('radio-progress-bar');
+    const infoEl = document.getElementById('radio-progress-info');
+    const audioPlayerEl = document.getElementById('radio-audio-player');
+    
+    // Set default title
+    if (titleEl) {
+        titleEl.textContent = 'Radio Program';
+    }
+    
+    // Reset progress bar
+    if (progressEl) {
+        progressEl.style.background = '#e9ecef';
+    }
+    
+    // Hide info text initially
+    if (infoEl) {
+        infoEl.style.display = 'none';
+        infoEl.classList.add('w--hidden', 'hide');
+    }
+    
+    // Initialize audio player
+    initializeAudioPlayer();
+    
+    console.log('📱 Radio program section initialized');
+}
+
+/**
+ * Initialize audio player with latest file or fallback message
+ */
+async function initializeAudioPlayer() {
+    const audioPlayerEl = document.getElementById('radio-audio-player');
+    if (!audioPlayerEl) return;
+    
+    try {
+        // Try to get the latest radio program file for current world/lmid
+        const urlParams = URLParams.get();
+        const world = urlParams.world;
+        const lmid = urlParams.lmid;
+        
+        if (world && lmid) {
+            const latestAudioUrl = await getLatestRadioProgramUrl(world, lmid);
+            if (latestAudioUrl) {
+                audioPlayerEl.src = latestAudioUrl;
+                audioPlayerEl.style.display = 'block';
+                audioPlayerEl.load();
+                return;
+            }
+        }
+        
+        // Show fallback message if no file found
+        showNoRadioProgramsMessage();
+        
+    } catch (error) {
+        console.warn('Could not initialize audio player:', error);
+        showNoRadioProgramsMessage();
+    }
+}
+
+/**
+ * Show "No Radio Programs Generated yet" message
+ */
+function showNoRadioProgramsMessage() {
+    const audioPlayerEl = document.getElementById('radio-audio-player');
+    if (audioPlayerEl) {
+        audioPlayerEl.style.display = 'none';
+    }
+    
+    // Create or show no programs message
+    let noFileMsg = document.getElementById('no-radio-programs-msg');
+    if (!noFileMsg) {
+        noFileMsg = document.createElement('div');
+        noFileMsg.id = 'no-radio-programs-msg';
+        noFileMsg.textContent = 'No Radio Programs Generated yet';
+        noFileMsg.style.cssText = `
+            padding: 20px;
+            text-align: center;
+            color: #6c757d;
+            font-style: italic;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        `;
+        
+        // Insert after audio player
+        if (audioPlayerEl && audioPlayerEl.parentNode) {
+            audioPlayerEl.parentNode.insertBefore(noFileMsg, audioPlayerEl.nextSibling);
+        }
+    } else {
+        noFileMsg.style.display = 'block';
+    }
+}
+
+/**
+ * Get the latest radio program URL for a world/lmid combination
+ * This would typically check your CDN/storage for the most recent file
+ * @param {string} world - World slug
+ * @param {string} lmid - LMID
+ * @returns {Promise<string|null>} Latest audio URL or null if none found
+ */
+async function getLatestRadioProgramUrl(world, lmid) {
+    // TODO: Implement actual logic to check Bunny CDN for latest radio program
+    // For now, return null to show the fallback message
+    // Example URL pattern: https://your-cdn.b-cdn.net/radio-programs/${world}-${lmid}-latest.mp3
+    
+    try {
+        const potentialUrl = `https://lmaudio.b-cdn.net/radio-programs/${world}-${lmid}-latest.mp3`;
+        
+        // Check if file exists with a HEAD request
+        const response = await fetch(potentialUrl, { method: 'HEAD' });
+        if (response.ok) {
+            return potentialUrl;
+        }
+    } catch (error) {
+        console.log(`No existing radio program found for ${world}/${lmid}`);
+    }
+    
+    return null;
 }
 
 /**
@@ -1839,11 +1941,11 @@ window.initializeAudioRecorder = initializeAudioRecorder;
 window.initializeRecordersForWorld = initializeRecordersForWorld;
 window.cleanupAllOrphanedRecordings = cleanupAllOrphanedRecordings;
 
-// Export modal functions for external use
+// Export radio program section functions for external use
 window.showRadioProgramModal = showRadioProgramModal;
 window.hideRadioProgramModal = hideRadioProgramModal;
 window.showRadioProgramSuccess = showRadioProgramSuccess;
-window.hideRadioProgramSuccessModal = hideRadioProgramSuccessModal;
+window.initializeRadioProgramSection = initializeRadioProgramSection;
 
 // --- Script ready event - MUST be at the very end ---
 window.isRecordingScriptReady = true;
