@@ -7,7 +7,7 @@
  * 
  * REQUEST FORMAT:
  * POST /api/combine-audio
- * Body: { world: "spookyland", lmid: "32", recordings: [{ questionId: "QID9", timestamp: 123, cloudUrl: "..." }] }
+ * Body: { world: "spookyland", lmid: "32", audioUrls: ["https://example.com/intro.mp3", "https://example.com/question1.mp3", ...] }
  * 
  * AUDIO SEQUENCE:
  * intro.mp3 → question1.mp3 → [user recordings Q1] → monkeys.mp3 → question2.mp3 → [user recordings Q2] → monkeys.mp3 → outro.mp3
@@ -51,22 +51,21 @@ export default async function handler(req, res) {
     }
 
     const startTime = Date.now();
-    let tempFiles = []; // Track temp files for cleanup
 
     try {
-        const { world, lmid, recordings } = req.body;
+        const { world, lmid, audioUrls } = req.body;
 
         // Validation
-        if (!world || !lmid || !recordings) {
+        if (!world || !lmid || !audioUrls) {
             return res.status(400).json({ 
-                error: 'Missing required parameters: world, lmid, recordings' 
+                error: 'Missing required parameters: world, lmid, audioUrls' 
             });
         }
 
-        // Validate recordings structure
-        if (typeof recordings !== 'object' || Object.keys(recordings).length === 0) {
+        // Validate audioUrls structure
+        if (!Array.isArray(audioUrls) || audioUrls.length === 0) {
             return res.status(400).json({ 
-                error: 'Invalid recordings format. Expected object with question keys.' 
+                error: 'Invalid audioUrls format. Expected array of URLs.' 
             });
         }
 
@@ -83,42 +82,18 @@ export default async function handler(req, res) {
         }
 
         console.log(`🎵 Starting audio combination for ${world}/${lmid}`);
-        console.log(`📊 Processing ${recordings.length} recordings`);
+        console.log(`📊 Processing ${audioUrls.length} audio files`);
 
-        // Group recordings by question ID and clean up question IDs
-        const recordingsByQuestion = {};
-        recordings.forEach(recording => {
-            // Clean up question ID - remove spaces, dashes, and ensure QID format
-            let cleanQuestionId = recording.questionId.toString().trim();
-            if (!cleanQuestionId.startsWith('QID')) {
-                // If it's just a number like "9", convert to "QID9"
-                if (/^\d+$/.test(cleanQuestionId)) {
-                    cleanQuestionId = `QID${cleanQuestionId}`;
-                } else {
-                    // If it contains spaces or dashes, remove them
-                    cleanQuestionId = cleanQuestionId.replace(/[\s\-]/g, '');
-                    if (!cleanQuestionId.startsWith('QID')) {
-                        cleanQuestionId = `QID${cleanQuestionId}`;
-                    }
-                }
-            }
-            
-            if (!recordingsByQuestion[cleanQuestionId]) {
-                recordingsByQuestion[cleanQuestionId] = [];
-            }
-            recordingsByQuestion[cleanQuestionId].push({
-                ...recording,
-                questionId: cleanQuestionId
-            });
-        });
+        // Create simple audio plan from URLs
+        const audioPlan = audioUrls.map((url, index) => ({
+            type: 'audio',
+            url: url,
+            order: index + 1
+        }));
 
-        console.log(`📋 Questions found: ${Object.keys(recordingsByQuestion).join(', ')}`);
-
-        // Create audio combination plan
-        const audioPlan = await createAudioPlan(world, lmid, recordingsByQuestion);
         console.log(`🎼 Created audio plan with ${audioPlan.length} segments`);
 
-        // --- NEW: Pre-flight check for all audio files ---
+        // Pre-flight check for all audio files
         const missingFiles = [];
         for (const segment of audioPlan) {
             try {
@@ -140,7 +115,6 @@ export default async function handler(req, res) {
                 missingFiles: missingFiles.map(f => `${f.url} (Status: ${f.status})`)
             });
         }
-        // --- END: Pre-flight check ---
 
         // Try to combine audio using FFmpeg
         try {
@@ -155,7 +129,6 @@ export default async function handler(req, res) {
         } catch (ffmpegError) {
             console.error('FFmpeg processing failed:', ffmpegError);
             
-            // Return the plan with FFmpeg setup suggestions
             return res.status(200).json({
                 success: false,
                 message: 'Audio combination plan created, but FFmpeg processing failed',
@@ -173,84 +146,6 @@ export default async function handler(req, res) {
             details: error.message 
         });
     }
-}
-
-/**
- * Create audio combination plan with proper order
- */
-async function createAudioPlan(world, lmid, recordingsByQuestion) {
-    const plan = [];
-    
-    // 1. Add intro
-    plan.push({
-        type: 'static',
-        file: 'intro',
-        url: STATIC_FILES.intro,
-        order: 1
-    });
-
-    // 2. For each question, add: question prompt → all answers → background music
-    const questionIds = Object.keys(recordingsByQuestion).sort();
-    let orderCounter = 2;
-
-    for (const questionId of questionIds) {
-        // Add question prompt
-        const questionPromptUrl = getQuestionPromptUrl(world, questionId);
-        plan.push({
-            type: 'question',
-            questionId: questionId,
-            url: questionPromptUrl,
-            order: orderCounter++
-        });
-
-        // Add all user recordings for this question
-        const questionRecordings = recordingsByQuestion[questionId];
-        for (const recording of questionRecordings) {
-            const userRecordingUrl = recording.cloudUrl || getUserRecordingUrl(lmid, world, questionId, recording.timestamp);
-            plan.push({
-                type: 'recording',
-                questionId: questionId,
-                url: userRecordingUrl,
-                timestamp: recording.timestamp,
-                order: orderCounter++
-            });
-        }
-
-        // Add background monkeys audio after each question's recordings
-        plan.push({
-            type: 'background',
-            file: 'monkeys',
-            url: STATIC_FILES.monkeys,
-            order: orderCounter++
-        });
-    }
-
-    // 3. Add outro
-    plan.push({
-        type: 'static',
-        file: 'outro',
-        url: STATIC_FILES.outro,
-        order: orderCounter++
-    });
-
-    return plan;
-}
-
-/**
- * Get question prompt URL using correct format
- */
-function getQuestionPromptUrl(world, questionId) {
-    // Format: https://little-microphones.b-cdn.net/audio/spookyland/spookyland-QID2.mp3
-    return `https://little-microphones.b-cdn.net/audio/${world}/${world}-${questionId}.mp3`;
-}
-
-/**
- * Get user recording URL using correct format
- */
-function getUserRecordingUrl(lmid, world, questionId, timestamp) {
-  // Format: https://little-microphones.b-cdn.net/32/spookyland/kids-world_spookyland-lmid_32-question_2-tm_1750763211231.mp3
-  const questionNumber = questionId.replace('QID', ''); // Extract number from QID2 -> 2
-  return `https://little-microphones.b-cdn.net/${lmid}/${world}/kids-world_${world}-lmid_${lmid}-question_${questionNumber}-tm_${timestamp}.mp3`;
 }
 
 /**
@@ -300,19 +195,19 @@ async function combineAudioWithFFmpeg(audioPlan, world, lmid) {
             // Professional audio processing filters for classroom environment
             const filters = [];
             
-            // Process each input with noise reduction and normalization
+            // Process each input with appropriate settings
             downloadedFiles.forEach((file, index) => {
-                const segment = file.segment;
+                const url = file.segment.url;
                 
-                if (segment.type === 'recording') {
-                    // User recordings: aggressive noise reduction, volume boost, EQ
-                    filters.push(`[${index}:a]highpass=f=80,lowpass=f=8000,volume=2.5,dynaudnorm=p=0.9:s=5,afftdn=nr=20:nf=-25[a${index}]`);
-                } else if (segment.type === 'background') {
+                if (url.includes('/audio/other/monkeys.mp3')) {
                     // Background music: lower volume, EQ for background
                     filters.push(`[${index}:a]volume=0.15,highpass=f=100,lowpass=f=6000[a${index}]`);
-                } else {
-                    // Question prompts and intro/outro: standard processing
+                } else if (url.includes('/audio/other/intro.mp3') || url.includes('/audio/other/outro.mp3') || url.includes(`/audio/${world}/${world}-`)) {
+                    // Question prompts, intro/outro: standard processing
                     filters.push(`[${index}:a]volume=1.2,dynaudnorm=p=0.7:s=3[a${index}]`);
+                } else {
+                    // User recordings: aggressive noise reduction, volume boost, EQ
+                    filters.push(`[${index}:a]highpass=f=80,lowpass=f=8000,volume=2.5,dynaudnorm=p=0.9:s=5,afftdn=nr=20:nf=-25[a${index}]`);
                 }
             });
             
@@ -376,20 +271,35 @@ async function downloadAudioFiles(audioPlan, tempDir) {
     
     for (let i = 0; i < audioPlan.length; i++) {
         const segment = audioPlan[i];
-        const fileName = `${String(i).padStart(3, '0')}-${segment.type}-${segment.file || segment.questionId || 'recording'}.mp3`;
+        const url = segment.url;
+        
+        // Create descriptive filename based on URL
+        let fileName;
+        if (url.includes('/audio/other/intro.mp3')) {
+            fileName = `${String(i).padStart(3, '0')}-intro.mp3`;
+        } else if (url.includes('/audio/other/outro.mp3')) {
+            fileName = `${String(i).padStart(3, '0')}-outro.mp3`;
+        } else if (url.includes('/audio/other/monkeys.mp3')) {
+            fileName = `${String(i).padStart(3, '0')}-monkeys.mp3`;
+        } else if (url.includes(`/audio/`)) {
+            fileName = `${String(i).padStart(3, '0')}-question.mp3`;
+        } else {
+            fileName = `${String(i).padStart(3, '0')}-recording.mp3`;
+        }
+        
         const filePath = path.join(tempDir, fileName);
         
-        console.log(`📥 Downloading: ${segment.url}`);
+        console.log(`📥 Downloading: ${url}`);
         
         try {
-            await downloadFile(segment.url, filePath);
+            await downloadFile(url, filePath);
             downloadedFiles.push({
                 path: filePath,
                 segment: segment
             });
             console.log(`✅ Downloaded: ${fileName}`);
         } catch (error) {
-            console.error(`❌ Failed to download ${segment.url}:`, error);
+            console.error(`❌ Failed to download ${url}:`, error);
             throw error;
         }
     }

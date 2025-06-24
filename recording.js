@@ -1253,64 +1253,78 @@ async function generateRadioProgram(world, lmid) {
         const totalRecordings = Object.values(recordings).flat().length;
         console.log(`Found ${totalRecordings} recordings across ${Object.keys(recordings).length} questions`);
         
-        updateRadioProgramProgress('Preparing audio plan...', 15, `Found ${totalRecordings} recordings across ${Object.keys(recordings).length} questions`);
+        updateRadioProgramProgress('Building audio plan...', 20, `Found ${totalRecordings} recordings across ${Object.keys(recordings).length} questions`);
         
-        // Step 2: Convert recordings data to new format for API
-        const recordingsArray = [];
-        for (const [questionId, recs] of Object.entries(recordings)) {
-            recs.forEach(rec => {
-                recordingsArray.push({
-                    questionId: rec.questionId,
-                    cloudUrl: rec.cloudUrl,
-                    timestamp: rec.timestamp
-                });
-            });
+        // Step 2: Build direct CDN URLs for all audio files
+        const audioUrls = [];
+        
+        // 1. Add intro
+        audioUrls.push('https://little-microphones.b-cdn.net/audio/other/intro.mp3');
+        
+        // 2. For each question: question prompt → all answers → monkeys background
+        const questionIds = Object.keys(recordings).sort();
+        
+        for (const questionId of questionIds) {
+            // Add question prompt
+            audioUrls.push(`https://little-microphones.b-cdn.net/audio/${world}/${world}-${questionId}.mp3`);
+            
+            // Add all user recordings for this question (using their direct cloudUrl)
+            const questionRecordings = recordings[questionId];
+            for (const recording of questionRecordings) {
+                audioUrls.push(recording.cloudUrl);
+            }
+            
+            // Add monkeys background after each question
+            audioUrls.push('https://little-microphones.b-cdn.net/audio/other/monkeys.mp3');
         }
         
-        updateRadioProgramProgress('Sending to audio processor...', 20, 'Uploading recording list to server');
+        // 3. Add outro
+        audioUrls.push('https://little-microphones.b-cdn.net/audio/other/outro.mp3');
         
+        updateRadioProgramProgress('Sending to audio processor...', 30, `Sending ${audioUrls.length} audio files for processing`);
+        
+        // Step 3: Send ONLY the URLs to the API (much faster!)
         const response = await fetch('https://little-microphones.vercel.app/api/combine-audio', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 world: world,
                 lmid: lmid,
-                recordings: recordingsArray
+                audioUrls: audioUrls  // Send direct URLs instead of recording objects
             })
         });
         
-        updateRadioProgramProgress('Processing audio files...', 40, 'Server is combining audio files with FFmpeg');
+        updateRadioProgramProgress('Processing audio files...', 50, 'Server is combining audio files with FFmpeg');
         
-        // Simulate more detailed progress updates while waiting for response
-        let currentProgress = 40;
+        // Simulate progress updates while waiting
+        let currentProgress = 50;
         const progressInterval = setInterval(() => {
-            if (currentProgress < 80) {
-                currentProgress += 2;
+            if (currentProgress < 85) {
+                currentProgress += 3;
                 const messages = [
                     'Downloading audio files from CDN',
-                    'Converting audio formats',
-                    'Applying noise reduction',
-                    'Combining question prompts',
-                    'Adding user recordings',
-                    'Mixing background sounds',
+                    'Applying noise reduction to recordings',
+                    'Normalizing volume levels',
+                    'Combining audio segments',
+                    'Adding background music',
                     'Finalizing audio quality'
                 ];
                 const randomMessage = messages[Math.floor(Math.random() * messages.length)];
                 updateRadioProgramProgress('Processing audio files...', currentProgress, randomMessage);
             }
-        }, 1000);
+        }, 800);
         
         const result = await response.json();
         clearInterval(progressInterval);
         
-        updateRadioProgramProgress('Finalizing...', 90, 'Uploading final radio program to CDN');
+        updateRadioProgramProgress('Finalizing...', 95, 'Uploading final radio program to CDN');
         
         if (result.success) {
             updateRadioProgramProgress('Complete!', 100);
             
             // Show success with player
             setTimeout(() => {
-                showRadioProgramSuccess(result.url, world, lmid, Object.keys(recordings).length, recordingsArray.length);
+                showRadioProgramSuccess(result.url, world, lmid, Object.keys(recordings).length, totalRecordings);
             }, 1000);
             
             console.log(`Radio program generated successfully: ${result.url}`);
@@ -1319,23 +1333,18 @@ async function generateRadioProgram(world, lmid) {
             // Handle audio processing errors
             hideRadioProgramModal();
             
-            // NEW: Greatly improved error handling
             const errorMessage = result.error || 'Radio program generation failed';
             
             if (result.missingFiles && result.missingFiles.length > 0) {
-                // Handle specific missing files error from the new pre-flight check
                 console.error('API reported missing files:', result.missingFiles);
                 const fileList = result.missingFiles.join('\n - ');
                 alert('Audio processing failed because some required files are missing:' + '\n\n' + '- ' + fileList + '\n\n' + 'Please ensure all question prompts and user recordings are available, then try again.');
             } else if (errorMessage.includes('404')) {
-                // Handle generic 404 error if pre-flight check somehow fails
                 const missingFileMatch = errorMessage.match(/https:\/\/[^:\s]+/);
                 const missingFile = missingFileMatch ? missingFileMatch[0] : 'a required audio file';
-
                 console.error(`Audio processing failed because a file was not found: ${missingFile}`);
                 alert(`Could not create the radio program because a required audio file is missing.\n\nMissing file: ${missingFile}\n\nPlease make sure all question prompts and user recordings have been fully uploaded and processed before trying again.`);
             } else {
-                // Generic error for other FFmpeg or server issues
                 console.error(`Generic audio processing error: ${errorMessage}`);
                 alert(`Failed to generate radio program: ${errorMessage}\n\nPlease try again or contact support if the issue persists.`);
             }
