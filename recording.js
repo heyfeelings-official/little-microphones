@@ -1565,8 +1565,8 @@ async function discoverQuestionIdsFromDB(world, lmid) {
     return new Promise((resolve, reject) => {
         withDB(async (db) => {
             try {
-                const transaction = db.transaction(['recordings'], 'readonly');
-                const store = transaction.objectStore('recordings');
+                const transaction = db.transaction(['audioRecordings'], 'readonly');
+                const store = transaction.objectStore('audioRecordings');
                 const request = store.getAll();
                 
                 request.onsuccess = () => {
@@ -1603,8 +1603,8 @@ async function getAllRecordingsForWorldLmid(world, lmid) {
     return new Promise((resolve, reject) => {
         withDB(async (db) => {
             try {
-                const transaction = db.transaction(['recordings'], 'readonly');
-                const store = transaction.objectStore('recordings');
+                const transaction = db.transaction(['audioRecordings'], 'readonly');
+                const store = transaction.objectStore('audioRecordings');
                 const request = store.getAll();
                 
                 request.onsuccess = () => {
