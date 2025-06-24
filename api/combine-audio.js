@@ -426,7 +426,8 @@ async function uploadToBunny(filePath, world, lmid) {
  */
 async function cleanupTempDirectory(tempDir) {
     try {
-        await fs.rmdir(tempDir, { recursive: true });
+        // Use fs.rm instead of deprecated fs.rmdir for Node.js 14+
+        await fs.rm(tempDir, { recursive: true, force: true });
         console.log(`🧹 Cleaned up temp directory: ${tempDir}`);
     } catch (error) {
         console.warn(`⚠️ Failed to cleanup temp directory: ${error.message}`);
