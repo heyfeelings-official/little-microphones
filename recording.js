@@ -1190,14 +1190,6 @@ async function cleanupAllOrphanedRecordings() {
     }
 }
 
-// Make cleanup function available globally
-window.cleanupAllOrphanedRecordings = cleanupAllOrphanedRecordings;
-
-// --- NEW: Announce when the script is fully loaded and ready ---
-window.isRecordingScriptReady = true; // Set a flag for scripts that load later
-document.dispatchEvent(new CustomEvent('recording-script-ready'));
-console.log('✅ recording.js script fully loaded and ready.');
-
 /**
  * Normalize question ID to consistent QID format
  * @param {string} questionId - Raw question ID from DOM
@@ -1313,7 +1305,7 @@ async function generateRadioProgram(world, lmid) {
                 alert('Audio processing failed because some required files are missing:' + '\n\n' + '- ' + fileList + '\n\n' + 'Please ensure all question prompts and user recordings are available, then try again.');
             } else if (errorMessage.includes('404')) {
                 // Handle generic 404 error if pre-flight check somehow fails
-                const missingFileMatch = errorMessage.match(/https:\\/\\/[^:]+/);
+                const missingFileMatch = errorMessage.match(/https:\/\/[^:\s]+/);
                 const missingFile = missingFileMatch ? missingFileMatch[0] : 'a required audio file';
 
                 console.error(`Audio processing failed because a file was not found: ${missingFile}`);
@@ -1687,4 +1679,14 @@ async function getAllRecordingsForWorldLmid(world, lmid) {
 // Make the functions available globally
 window.generateRadioProgram = generateRadioProgram;
 window.getAllRecordingsForWorldLmid = getAllRecordingsForWorldLmid;
-window.loadRecordingsFromDB = loadRecordingsFromDB; 
+window.loadRecordingsFromDB = loadRecordingsFromDB;
+
+// Export other essential functions
+window.initializeAudioRecorder = initializeAudioRecorder;
+window.initializeRecordersForWorld = initializeRecordersForWorld;
+window.cleanupAllOrphanedRecordings = cleanupAllOrphanedRecordings;
+
+// --- Script ready event - MUST be at the very end ---
+window.isRecordingScriptReady = true;
+document.dispatchEvent(new CustomEvent('recording-script-ready'));
+console.log('✅ recording.js script fully loaded and ready.'); 
