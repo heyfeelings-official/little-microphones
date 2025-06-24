@@ -252,12 +252,12 @@ async function combineAnswersWithBackground(answerPaths, backgroundPath, outputP
         const answerStreams = answerPaths.map((_, index) => `[answer${index}]`).join('');
         filters.push(`${answerStreams}concat=n=${answerPaths.length}:v=0:a=1[answers_combined]`);
         
-        // Process background music
+        // Process background music - make it loop/trim to match answers duration
         const bgIndex = answerPaths.length;
-        filters.push(`[${bgIndex}:a]volume=${audioParams.backgroundMusic.volume},highpass=f=${audioParams.backgroundMusic.highpass},lowpass=f=${audioParams.backgroundMusic.lowpass}[background]`);
+        filters.push(`[${bgIndex}:a]volume=${audioParams.backgroundMusic.volume},highpass=f=${audioParams.backgroundMusic.highpass},lowpass=f=${audioParams.backgroundMusic.lowpass},aloop=loop=-1:size=2e+09[background_loop]`);
         
-        // Mix answers with background (background loops to match answers duration)
-        filters.push(`[answers_combined][background]amix=inputs=2:duration=first:dropout_transition=2[mixed]`);
+        // Mix answers with background - background will be trimmed to match answers duration
+        filters.push(`[answers_combined][background_loop]amix=inputs=2:duration=shortest:dropout_transition=0[mixed]`);
         
         command
             .complexFilter(filters)
@@ -394,7 +394,10 @@ async function uploadToBunny(filePath, world, lmid) {
             if (res.statusCode === 200 || res.statusCode === 201) {
                 const downloadUrl = `${process.env.BUNNY_CDN_URL}${uploadPath}`;
                 console.log(`✅ Upload successful: ${downloadUrl}`);
-                resolve(downloadUrl);
+                
+                // Ensure URL has proper protocol
+                const finalUrl = downloadUrl.startsWith('http') ? downloadUrl : `https://${downloadUrl}`;
+                resolve(finalUrl);
             } else {
                 reject(new Error(`Upload failed with status: ${res.statusCode}`));
             }
