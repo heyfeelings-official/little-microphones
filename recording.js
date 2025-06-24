@@ -1313,17 +1313,17 @@ async function generateRadioProgram(world, lmid) {
             console.log(`Radio program generated successfully: ${result.url}`);
             
         } else {
-            // Handle FFmpeg not installed case
-            if (result.suggestions) {
-                console.log('FFmpeg setup suggestions:', result.suggestions);
-                hideRadioProgramModal();
-                
-                const installFFmpeg = confirm(`Audio combination requires FFmpeg. Would you like to see installation instructions?`);
-                if (installFFmpeg) {
-                    alert(`To enable audio combination, install FFmpeg dependencies:\n\nnpm install @ffmpeg-installer/ffmpeg fluent-ffmpeg\n\nThen redeploy to Vercel.`);
-                }
+            // Handle audio processing errors
+            hideRadioProgramModal();
+            
+            let errorMessage = result.error || 'Radio program generation failed';
+            
+            // Check if it's a file download error (404)
+            if (errorMessage.includes('Failed to download') && errorMessage.includes('404')) {
+                alert(`Audio processing failed: Some required audio files are missing.\n\nThis usually means:\n• Question audio files haven't been uploaded yet\n• User recordings are still being processed\n\nPlease try again in a few minutes or contact support if the issue persists.`);
             } else {
-                throw new Error(result.error || 'Radio program generation failed');
+                // Generic error for other issues
+                alert(`Failed to generate radio program: ${errorMessage}\n\nPlease try again or contact support if the issue persists.`);
             }
         }
         
