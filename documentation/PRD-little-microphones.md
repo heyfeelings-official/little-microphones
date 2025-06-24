@@ -1,315 +1,168 @@
 # Little Microphones - Product Requirements Document (PRD)
 
-## 🎵 Executive Summary
+## Project Overview
+Little Microphones is a web-based audio recording platform that allows users to record responses to questions and generate combined radio programs. The system integrates with Webflow CMS for content management and uses Bunny.net CDN for audio storage and delivery.
 
-**Little Microphones** is a comprehensive audio recording and radio program generation system designed for children's programs. The platform enables users to create personalized radio shows by recording answers to themed questions and automatically combining them into professional radio programs.
+## Current System Status ✅
 
-## 🎯 Product Vision
+### Core Functionality - WORKING
+- **Audio Recording**: Multi-format recording with real-time waveform visualization
+- **Cloud Storage**: Automatic upload to Bunny.net CDN with cache-busting
+- **Database Management**: IndexedDB for local storage with upload status tracking
+- **Radio Program Generation**: Professional audio processing with FFmpeg
+- **Progress Tracking**: Dynamic progress bar with detailed status messages
+- **Cross-Platform Compatibility**: Works on desktop and mobile browsers
 
-Create an engaging, secure, and user-friendly platform where children can express themselves through audio recordings, creating personalized radio programs that capture their unique perspectives and stories.
+### Recent Fixes & Improvements (January 2025)
 
-## 🏗️ System Architecture
+#### Audio Processing Overhaul
+- **Default Audio Parameters**: Reset to less aggressive, more natural settings
+  - Light noise reduction (5dB) instead of aggressive (20dB)
+  - Moderate volume boost (1.2x) instead of high boost (2.5x)
+  - Wider frequency range for better audio quality
+  - Balanced background music at 25% volume
 
-### Core Components
+#### User Experience Improvements
+- **Enhanced Progress Feedback**: Added fake progress messages for better UX
+  - "Gathering the questions..."
+  - "Looking for answers..."
+  - "Found X answers"
+  - "Combining answers for Question X"
+  - "Adding background sound"
+  - "Putting things together"
+  - "Sprinkling some fun"
+  - "Fun added"
+  - "Hmm let's add even more fun"
+  - Additional creative status messages
 
-1. **Authentication & User Management**
-   - Memberstack-based authentication
-   - Secure LMID (Little Microphone ID) management
-   - Multi-program support per user (max 5 programs)
+#### Technical Fixes
+- **Modal Close Button**: Fixed non-functional close button with proper event listeners
+- **Simplified UI**: Removed download, regenerate, and "open in new tab" buttons
+- **Question Ordering**: Implemented DOM-based ordering instead of alphabetical
+  - Questions now play in the order they appear on the page
+  - Answers play in chronological order (first recorded = first played)
+- **Cache-Busting**: Timestamp-based file versioning prevents old audio usage
 
-2. **Audio Recording System**
-   - Browser-based audio recording (WebRTC)
-   - Real-time waveform visualization
-   - Multi-question recording support
-   - Local storage with cloud backup
+## Technical Architecture
 
-3. **Cloud Storage & CDN**
-   - Bunny.net CDN for audio file storage
-   - Organized file structure by user/world/question
-   - Automatic backup and synchronization
+### Frontend Components
+1. **recording.js** - Main recording interface and radio program generation
+2. **lm.js** - Webflow integration and initialization
+3. **rp.js** - Radio program player and controls
 
-4. **Radio Program Generation**
-   - Serverless audio processing with FFmpeg
-   - Automated combination of recordings with background audio
-   - Professional radio show output
+### Backend Services
+1. **api/combine-audio.js** - FFmpeg-based audio processing
+2. **api/upload-audio.js** - Bunny.net upload handling
+3. **api/delete-audio.js** - Audio file cleanup
 
-5. **Deployment & Hosting**
-   - Vercel serverless functions
-   - GitHub-based version control
-   - Automatic deployment pipeline
+### Storage Systems
+- **IndexedDB**: Local recording storage and metadata
+- **Bunny.net CDN**: Cloud audio file storage and delivery
+- **Webflow CMS**: Question content and world configuration
 
-## 🌍 Product Concepts
+## Audio Processing Pipeline
 
-### Worlds (Themes)
-- **Spookyland**: Fear-themed questions and scenarios
-- **Shopping Spree**: Consumer/anxiety-themed content  
-- **Amusement Park**: Love-themed experiences
-- **Big City**: Anger-themed situations
-- **Waterpark**: Empathy-focused content
-- **Neighborhood**: Boredom-related topics
+### Input Sources
+- User recordings (various formats: webm, mp4, wav)
+- Question prompts (MP3 files from CDN)
+- Background music (monkeys.mp3)
+- Intro/outro audio files
 
-### Programs (LMIDs)
-Each user can create up to 5 programs, each containing:
-- Unique identifier (LMID)
-- World-specific recordings
-- Question-based structure
-- Generated radio program output
+### Processing Steps
+1. **Audio Collection**: Gather recordings from IndexedDB
+2. **Quality Processing**: Apply noise reduction and normalization
+3. **Segment Assembly**: Combine intro → questions → answers → background → outro
+4. **Final Mastering**: Apply master EQ and compression
+5. **Upload & Delivery**: Upload to CDN with cache-busting
 
-## 🔧 Technical Specifications
-
-### Frontend Technologies
-- **Vanilla JavaScript**: Core functionality
-- **MediaRecorder API**: Browser-based audio recording (part of WebRTC suite)
-- **IndexedDB**: Local data persistence
-- **Webflow**: UI framework and hosting
-
-### Backend Technologies
-- **Node.js**: Runtime environment
-- **Vercel Serverless Functions**: API endpoints
-- **FFmpeg**: Audio processing and combination
-- **Bunny.net Storage API**: File management
-
-### Key APIs
-- **Memberstack API**: User authentication and metadata
-- **Bunny.net Storage**: File upload/download/delete
-- **Make.com Webhooks**: User management automation
-
-## 📊 Data Flow Architecture
-
-### 1. User Authentication Flow
-```
-User → Webflow Login → Memberstack Auth → Metadata Verification → Access Granted
-```
-
-### 2. Recording Flow
-```
-Question Display → Audio Recording → Local Storage → Cloud Backup → UI Update
-```
-
-### 3. Radio Program Generation Flow
-```
-Recording Collection → Question Grouping → Audio Plan Creation → 
-File Download → FFmpeg Sequential Combination → Cloud Upload → Program URL
-
-Detailed Audio Combination Process:
-1. Group recordings by question ID
-2. Sort questions by ID 
-3. For each question: combine all user answers sequentially
-4. Insert background music after each question block
-5. Wrap with intro/outro files
+### Audio Parameters (Current Settings)
+```javascript
+userRecordings: {
+    noiseReduction: 5,         // Light noise reduction
+    volumeBoost: 1.2,          // Slight volume boost
+    highpass: 60,              // Light low-frequency filter
+    lowpass: 12000,            // Light high-frequency filter
+    dynamicNormalization: 0.7  // Moderate normalization
+},
+backgroundMusic: {
+    volume: 0.25,              // Background volume
+    highpass: 80,              // EQ for background
+    lowpass: 8000,             // Reduce high frequencies
+},
+master: {
+    volume: 1.0,               // Normal overall volume
+    highpass: 40,              // Remove very low frequencies
+    lowpass: 15000,            // Keep most frequencies
+    dynamicNormalization: 0.7  // Light final normalization
+}
 ```
 
-## 🔒 Security & Privacy
+## Current Features
 
-### Authentication Security
-- Memberstack secure token validation
-- LMID-based access control
-- URL parameter validation
-- Session management
+### Recording Interface
+- **Real-time Waveform**: Visual feedback during recording
+- **Format Detection**: Automatic best format selection per browser
+- **Recording Limits**: Configurable per-question limits
+- **Upload Status**: Real-time upload progress and status
+- **Error Handling**: Comprehensive error messages and recovery
 
-### Data Protection
-- Local-first data storage
-- Encrypted cloud backups
-- Automatic orphaned file cleanup
-- User data isolation
+### Radio Program Generation
+- **Question Ordering**: DOM-based ordering for natural flow
+- **Answer Chronology**: First recorded answers play first
+- **Background Music**: Automatically mixed with exact duration matching
+- **Progress Tracking**: Detailed progress with creative status messages
+- **Cache Prevention**: Timestamp-based versioning prevents old audio
 
-### Limits & Constraints
-- Maximum 5 programs per user
-- Maximum 30 recordings per question
-- 60-second timeout for audio processing
-- File size limitations for recordings
+### Audio Player
+- **Multiple Sources**: MP3 format with fallback support
+- **CORS Headers**: Proper cross-origin resource sharing
+- **Responsive Design**: Works across all device sizes
+- **Error Recovery**: Graceful handling of playback issues
 
-## 🎨 User Experience
+## Quality Assurance
 
-### Recording Experience
-1. **World Selection**: Choose themed environment
-2. **Question Navigation**: Browse through topic-specific questions
-3. **Audio Recording**: Click-to-record with visual feedback
-4. **Playback & Management**: Review, delete, and organize recordings
-5. **Program Generation**: One-click radio show creation
+### Testing Checklist
+- [x] Recording functionality across browsers
+- [x] Upload to Bunny.net CDN
+- [x] IndexedDB storage and retrieval
+- [x] Radio program generation
+- [x] Audio quality and mixing
+- [x] Progress tracking and user feedback
+- [x] Modal close functionality
+- [x] Question ordering accuracy
+- [x] Cache-busting effectiveness
 
-### Visual Feedback
-- Recording status indicators (local/cloud)
-- Progress feedback during program generation
-- Upload status with retry mechanisms
-- Audio timer display during recording
+### Performance Metrics
+- **Recording Quality**: 44.1kHz, stereo, variable bitrate
+- **Upload Speed**: Optimized for Bunny.net CDN
+- **Processing Time**: ~30-60 seconds for typical radio programs
+- **File Sizes**: Compressed MP3 output for efficient delivery
+- **Cache Performance**: Timestamp-based versioning prevents stale content
 
-## 📈 Performance Requirements
+## Future Considerations
 
-### Recording Performance
-- < 100ms recording start latency
-- Real-time waveform rendering at 60fps
-- Instant playback of recorded audio
-- Background upload without UI blocking
+### Potential Enhancements
+1. **Audio Editing**: Basic trim/edit functionality
+2. **Multiple Formats**: Support for additional audio formats
+3. **Batch Processing**: Multiple radio program generation
+4. **Analytics**: Usage tracking and performance metrics
+5. **Accessibility**: Enhanced screen reader support
 
-### Audio Processing Performance
-- < 60 seconds for radio program generation
-- Support for 10+ audio segments per program
-- Automatic format conversion and normalization
-- Memory-efficient serverless processing
+### Scalability Notes
+- Current system handles moderate concurrent users
+- Bunny.net CDN provides global distribution
+- Serverless architecture scales with demand
+- IndexedDB provides offline capability
 
-### Storage Performance
-- < 2 seconds for file upload completion
-- Automatic retry for failed uploads
-- CDN-based global content delivery
-- Efficient file organization and cleanup
-
-## 🔄 Audio Processing Pipeline
-
-### 1. Recording Capture
-- MediaRecorder API (part of WebRTC suite)
-- Format: WebM (browser recording) → MP3 (cloud storage)
-- Quality: 128kbps, 44.1kHz, Stereo
-- Duration: Unlimited per recording
-
-### 2. File Organization
-```
-Storage Structure:
-/{lmid}/{world}/
-  ├── kids-world_{world}-lmid_{lmid}-question_{qid}-tm_{timestamp}.mp3
-  └── radio-program-{world}-{lmid}.mp3
-
-Static Files:
-/audio/{world}/
-  ├── {world}-QID{number}.mp3  (question prompts)
-  └── /other/
-      ├── intro.mp3
-      ├── outro.mp3
-      └── monkeys.mp3
-```
-
-### 3. Radio Program Assembly
-```
-Exact Audio Sequence:
-1. intro.mp3
-2. For each question (sorted by question ID):
-   a. Question prompt (e.g., spookyland-QID1.mp3)
-   b. ALL user recordings for that specific question (combined in sequence)
-   c. Background music (monkeys.mp3)
-3. outro.mp3
-
-Example with 2 questions and multiple answers:
-intro.mp3 → 
-  spookyland-QID1.mp3 → [user answer 1.1] → [user answer 1.2] → [user answer 1.3] → monkeys.mp3 →
-  spookyland-QID9.mp3 → [user answer 9.1] → [user answer 9.2] → monkeys.mp3 →
-outro.mp3
-
-CRITICAL: All answers for a given question are combined FIRST, then background sound is added.
-```
-
-## 🛠️ Development Workflow
-
-### 1. Local Development
-```bash
-# File changes
-git add .
-git commit -m "Description"
-git push origin main
-
-# Automatic deployment
-Vercel detects changes → Builds project → Deploys to production
-```
-
-### 2. Testing Process
-- Local browser testing for recording functionality
-- Console logging for debugging and monitoring
-- Cloud storage verification for file integrity
-- End-to-end radio program generation testing
-
-### 3. Deployment Pipeline
-- **Source**: GitHub repository
-- **Build**: Vercel automatic builds
-- **Environment**: Production environment variables
-- **Monitoring**: Console logs and error tracking
-
-## 📋 API Endpoints
-
-### `/api/upload-audio`
-- **Method**: POST
-- **Purpose**: Upload recorded audio to cloud storage
-- **Input**: Audio blob, metadata (world, lmid, questionId, timestamp)
-- **Output**: Cloud URL and upload confirmation
-
-### `/api/delete-audio`
-- **Method**: DELETE  
-- **Purpose**: Remove audio files from cloud storage
-- **Input**: File identifier or LMID folder
-- **Output**: Deletion confirmation
-
-### `/api/combine-audio`
-- **Method**: POST
-- **Purpose**: Generate radio program from recordings
-- **Input**: World, LMID, recordings collection
-- **Output**: Combined audio file URL
-
-## 🎯 Success Metrics
-
-### User Engagement
-- Recording completion rate per question
-- Program generation success rate
-- User retention across sessions
-- Multi-world engagement
-
-### Technical Performance
-- Upload success rate (target: >99%)
-- Audio processing time (target: <60s)
-- System uptime (target: >99.9%)
-- Error rate (target: <1%)
-
-### Content Quality
-- Successful radio program generation
-- Audio quality consistency
-- File organization integrity
-- User satisfaction with output
-
-## 🚀 Future Enhancements
-
-### Short Term
-- Additional world themes
-- Enhanced audio effects and filters
-- Mobile app development
-- Social sharing features
-
-### Long Term
-- AI-powered content suggestions
-- Multi-language support
-- Advanced audio editing tools
-- Community features and collaboration
-
-## 🔧 Technical Debt & Maintenance
-
-### Current Limitations
-- ~~FFmpeg dependency size in serverless environment~~ ✅ **RESOLVED**: Fixed ES6 module imports for Vercel compatibility
-- WebM to MP3 conversion during upload
-- Manual file cleanup processes
-- Limited error recovery mechanisms
-
-### Recent Updates
-#### 2024-12-20: FFmpeg Integration Fix ✅ COMPLETE
-- **Issue**: FFmpeg packages installed but failing to load in Vercel serverless environment
-- **Root Cause**: Multiple compatibility issues:
-  1. Mixed CommonJS (`require()`) and ES6 (`export default`) module syntax
-  2. Node.js version compatibility issues with `fs.rmdir()` and `fileStream.close()`
-- **Solution**: 
-  1. Converted all imports to ES6 modules for Vercel compatibility
-  2. Replaced deprecated `fs.rmdir()` with `fs.rm()`
-  3. Added proper callback handling for file stream operations
-- **Files Updated**: `api/combine-audio.js`
-- **Status**: ✅ **FULLY RESOLVED** - FFmpeg now executes properly in serverless environment
-- **Verification**: API now returns specific file download errors instead of generic "FFmpeg not installed" messages
-
-### Monitoring & Maintenance
-- Regular cloud storage cleanup
-- Performance monitoring and optimization
-- Security updates and dependency management
-- User feedback integration and improvements
+## Documentation References
+- [API Documentation](./api-documentation.md)
+- [Deployment Guide](./deployment.md)
+- [Recording.js Documentation](./recording.js.md)
+- [Radio Player Documentation](./rp.js.md)
+- [LM.js Documentation](./lm.js.md)
 
 ---
 
-## 📚 Related Documentation
-
-- [lm.js Documentation](./lm.js.md) - Main authentication and LMID management
-- [recording.js Documentation](./recording.js.md) - Audio recording system
-- [rp.js Documentation](./rp.js.md) - Recording page authorization
-- [API Documentation](./api-documentation.md) - Serverless function details
-- [Deployment Documentation](./deployment.md) - Vercel and infrastructure setup 
+**Last Updated**: January 24, 2025
+**Version**: 2.4.0
+**Status**: Production Ready ✅ 
