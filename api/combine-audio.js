@@ -242,9 +242,8 @@ async function combineAudioWithFFmpeg(audioPlan, world, lmid) {
         console.log('📦 FFmpeg installer object:', ffmpegInstaller);
         
         // Test if FFmpeg binary actually exists
-        const fs = await import('fs');
         try {
-            await fs.promises.access(ffmpegPath);
+            await fs.access(ffmpegPath);
             console.log('✅ FFmpeg binary found and accessible');
         } catch (accessError) {
             console.error('❌ FFmpeg binary not accessible:', accessError);
@@ -372,8 +371,13 @@ function downloadFile(url, filePath) {
             response.pipe(fileStream);
             
             fileStream.on('finish', () => {
-                fileStream.close();
-                resolve();
+                fileStream.close((closeError) => {
+                    if (closeError) {
+                        reject(closeError);
+                    } else {
+                        resolve();
+                    }
+                });
             });
             
             fileStream.on('error', reject);
