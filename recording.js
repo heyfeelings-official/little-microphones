@@ -1228,7 +1228,7 @@ async function generateRadioProgram(world, lmid) {
         showRadioProgramModal('Preparing...', 0);
         
         // Step 1: Collect all recordings for this world/lmid
-        updateRadioProgramProgress('Collecting recordings...', 10);
+        updateRadioProgramProgress('Collecting recordings...', 10, 'Scanning local database for recordings');
         const recordings = await collectRecordingsForRadioProgram(world, lmid);
         
         if (Object.keys(recordings).length === 0) {
@@ -1253,6 +1253,8 @@ async function generateRadioProgram(world, lmid) {
         const totalRecordings = Object.values(recordings).flat().length;
         console.log(`Found ${totalRecordings} recordings across ${Object.keys(recordings).length} questions`);
         
+        updateRadioProgramProgress('Preparing audio plan...', 15, `Found ${totalRecordings} recordings across ${Object.keys(recordings).length} questions`);
+        
         // Step 2: Convert recordings data to new format for API
         const recordingsArray = [];
         for (const [questionId, recs] of Object.entries(recordings)) {
@@ -1265,7 +1267,7 @@ async function generateRadioProgram(world, lmid) {
             });
         }
         
-        updateRadioProgramProgress('Combining audio files...', 20);
+        updateRadioProgramProgress('Sending to audio processor...', 20, 'Uploading recording list to server');
         
         const response = await fetch('https://little-microphones.vercel.app/api/combine-audio', {
             method: 'POST',
@@ -1277,9 +1279,31 @@ async function generateRadioProgram(world, lmid) {
             })
         });
         
-        updateRadioProgramProgress('Uploading combined audio...', 80);
+        updateRadioProgramProgress('Processing audio files...', 40, 'Server is combining audio files with FFmpeg');
+        
+        // Simulate more detailed progress updates while waiting for response
+        let currentProgress = 40;
+        const progressInterval = setInterval(() => {
+            if (currentProgress < 80) {
+                currentProgress += 2;
+                const messages = [
+                    'Downloading audio files from CDN',
+                    'Converting audio formats',
+                    'Applying noise reduction',
+                    'Combining question prompts',
+                    'Adding user recordings',
+                    'Mixing background sounds',
+                    'Finalizing audio quality'
+                ];
+                const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+                updateRadioProgramProgress('Processing audio files...', currentProgress, randomMessage);
+            }
+        }, 1000);
         
         const result = await response.json();
+        clearInterval(progressInterval);
+        
+        updateRadioProgramProgress('Finalizing...', 90, 'Uploading final radio program to CDN');
         
         if (result.success) {
             updateRadioProgramProgress('Complete!', 100);
@@ -1479,6 +1503,7 @@ function showRadioProgramModal(message, progress = 0) {
         <div style="width: 100%; height: 8px; background: #f0f0f0; border-radius: 4px; margin-bottom: 20px;">
             <div id="radio-progress" style="width: ${progress}%; height: 100%; background: #007bff; border-radius: 4px; transition: width 0.3s ease;"></div>
         </div>
+        <p id="radio-details" style="margin: 0 0 10px 0; font-size: 12px; color: #888; min-height: 16px; font-family: monospace;"></p>
         <p style="margin: 0; font-size: 14px; color: #888;">This may take a few minutes...</p>
     `;
     
@@ -1490,13 +1515,34 @@ function showRadioProgramModal(message, progress = 0) {
  * Update radio program generation progress
  * @param {string} message - Status message
  * @param {number} progress - Progress percentage (0-100)
+ * @param {string} details - Detailed status message (optional)
  */
-function updateRadioProgramProgress(message, progress) {
+function updateRadioProgramProgress(message, progress, details = '') {
     const statusEl = document.getElementById('radio-status');
     const progressEl = document.getElementById('radio-progress');
+    const detailsEl = document.getElementById('radio-details');
     
     if (statusEl) statusEl.textContent = message;
     if (progressEl) progressEl.style.width = `${progress}%`;
+    if (detailsEl && details) {
+        // Add rotating animation for processing steps
+        const spinner = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+        let spinnerIndex = 0;
+        
+        const updateSpinner = () => {
+            if (detailsEl.textContent.includes(details.replace(/[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]/g, ''))) {
+                detailsEl.textContent = `${spinner[spinnerIndex]} ${details.replace(/[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]/g, '')}`;
+                spinnerIndex = (spinnerIndex + 1) % spinner.length;
+            }
+        };
+        
+        detailsEl.textContent = `${spinner[0]} ${details}`;
+        const spinnerInterval = setInterval(updateSpinner, 100);
+        
+        // Store interval for cleanup
+        if (!window.radioProgressIntervals) window.radioProgressIntervals = [];
+        window.radioProgressIntervals.push(spinnerInterval);
+    }
 }
 
 /**
@@ -1506,6 +1552,12 @@ function hideRadioProgramModal() {
     const modal = document.getElementById('radio-program-modal');
     if (modal) {
         modal.remove();
+    }
+    
+    // Clean up any spinner intervals
+    if (window.radioProgressIntervals) {
+        window.radioProgressIntervals.forEach(interval => clearInterval(interval));
+        window.radioProgressIntervals = [];
     }
 }
 
@@ -1557,8 +1609,9 @@ function showRadioProgramSuccess(audioUrl, world, lmid, questionCount, totalReco
         </p>
         
         <div style="margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 8px;">
-            <audio controls style="width: 100%; margin-bottom: 15px;">
+            <audio controls style="width: 100%; margin-bottom: 15px;" preload="metadata" crossorigin="anonymous">
                 <source src="${audioUrl}" type="audio/mpeg">
+                <source src="${audioUrl}" type="audio/mp3">
                 Your browser does not support the audio element.
             </audio>
             <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
@@ -1570,6 +1623,10 @@ function showRadioProgramSuccess(audioUrl, world, lmid, questionCount, totalReco
                         style="background: #6c757d; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">
                     🔄 Regenerate
                 </button>
+                <a href="${audioUrl}" target="_blank"
+                   style="background: #28a745; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-size: 14px;">
+                    🎵 Open in New Tab
+                </a>
             </div>
         </div>
         

@@ -286,7 +286,7 @@ async function combineAudioWithFFmpeg(audioPlan, world, lmid) {
         const downloadedFiles = await downloadAudioFiles(audioPlan, tempDir);
         console.log('✅ All audio files downloaded successfully');
         
-        // Combine audio files
+        // Combine audio files with professional audio processing
         const outputPath = path.join(tempDir, `radio-program-${world}-${lmid}.mp3`);
         
         return new Promise((resolve, reject) => {
@@ -297,29 +297,48 @@ async function combineAudioWithFFmpeg(audioPlan, world, lmid) {
                 command.input(file.path);
             });
             
-            // Create complex filter for format conversion and concatenation
+            // Professional audio processing filters for classroom environment
             const filters = [];
             
-            // Convert all inputs to same format
+            // Process each input with noise reduction and normalization
             downloadedFiles.forEach((file, index) => {
-                filters.push(`[${index}:a]aformat=sample_fmts=s16:sample_rates=44100:channel_layouts=stereo[a${index}]`);
+                const segment = file.segment;
+                
+                if (segment.type === 'recording') {
+                    // User recordings: aggressive noise reduction, volume boost, EQ
+                    filters.push(`[${index}:a]highpass=f=80,lowpass=f=8000,volume=2.5,dynaudnorm=p=0.9:s=5,afftdn=nr=20:nf=-25[a${index}]`);
+                } else if (segment.type === 'background') {
+                    // Background music: lower volume, EQ for background
+                    filters.push(`[${index}:a]volume=0.15,highpass=f=100,lowpass=f=6000[a${index}]`);
+                } else {
+                    // Question prompts and intro/outro: standard processing
+                    filters.push(`[${index}:a]volume=1.2,dynaudnorm=p=0.7:s=3[a${index}]`);
+                }
             });
             
-            // Concatenate all converted streams
+            // Concatenate all processed streams
             const inputStreams = downloadedFiles.map((_, index) => `[a${index}]`).join('');
-            filters.push(`${inputStreams}concat=n=${downloadedFiles.length}:v=0:a=1[outa]`);
+            filters.push(`${inputStreams}concat=n=${downloadedFiles.length}:v=0:a=1[temp]`);
+            
+            // Final master processing
+            filters.push(`[temp]dynaudnorm=p=0.8:s=5,volume=0.9,highpass=f=60,lowpass=f=12000[outa]`);
             
             command
                 .complexFilter(filters)
-                .outputOptions(['-map', '[outa]'])
+                .outputOptions([
+                    '-map', '[outa]',
+                    '-ar', '44100',      // Sample rate
+                    '-ac', '2',          // Stereo
+                    '-b:a', '128k',      // Bitrate
+                    '-compression_level', '2'  // MP3 quality
+                ])
                 .format('mp3')
                 .audioCodec('libmp3lame')
-                .audioBitrate('128k')
                 .on('start', (commandLine) => {
                     console.log('🎵 FFmpeg command:', commandLine);
                 })
                 .on('progress', (progress) => {
-                    console.log(`⏳ Processing: ${progress.percent}% done`);
+                    console.log(`⏳ Processing: ${Math.round(progress.percent || 0)}% done`);
                 })
                 .on('end', async () => {
                     console.log('✅ Audio combination complete');
