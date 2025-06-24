@@ -275,26 +275,46 @@ async function checkIfUserHasRecordings(world, lmid) {
       return true; // Assume they have recordings if we can't check
     }
     
-    // Check a broader range of question IDs to catch all possible recordings
-    // Based on console logs, we see recordings stored under various IDs like Q9
-    const questionIds = ['Q1', 'Q2', 'Q3', 'Q4', 'Q5', 'Q6', 'Q7', 'Q8', 'Q9', 'Q10', 'Q11', 'Q12'];
-    
     console.log(`Checking for recordings in ${world}/${lmid}...`);
     
-    for (const questionId of questionIds) {
-      try {
-        const recordings = await loadRecordingsFromDB(questionId, world, lmid);
-        if (recordings && recordings.length > 0) {
-          console.log(`Found ${recordings.length} recordings for ${questionId}`);
-          return true;
+    // First, try to discover question IDs from DOM elements
+    const targetCollectionId = `collection-${world}`;
+    const targetCollection = document.getElementById(targetCollectionId);
+    
+    if (targetCollection) {
+      const recorderWrappers = targetCollection.querySelectorAll('.faq1_accordion.lm');
+      
+      for (const wrapper of recorderWrappers) {
+        const questionId = wrapper.dataset.questionId;
+        if (!questionId) continue;
+        
+        try {
+          const recordings = await loadRecordingsFromDB(questionId, world, lmid);
+          if (recordings && recordings.length > 0) {
+            console.log(`Found ${recordings.length} recordings for ${questionId}`);
+            return true;
+          }
+        } catch (error) {
+          console.warn(`Could not check ${questionId}:`, error);
         }
-      } catch (error) {
-        // Silently continue if a specific question ID fails
-        console.warn(`Could not check ${questionId}:`, error);
       }
     }
     
-    console.log('No recordings found for any question ID');
+    // If no DOM elements found, try to discover question IDs from database
+    // This is a fallback - we'll query the database to find what question IDs exist
+    if (typeof getAllRecordingsForWorldLmid === 'function') {
+      try {
+        const allRecordings = await getAllRecordingsForWorldLmid(world, lmid);
+        if (allRecordings && allRecordings.length > 0) {
+          console.log(`Found ${allRecordings.length} total recordings via database scan`);
+          return true;
+        }
+      } catch (error) {
+        console.warn('Database scan failed:', error);
+      }
+    }
+    
+    console.log('No recordings found');
     return false;
   } catch (error) {
     console.error('Error checking for recordings:', error);

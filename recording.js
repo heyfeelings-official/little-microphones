@@ -1276,32 +1276,36 @@ async function collectRecordingsForRadioProgram(world, lmid) {
         }
     }
     
-    // If no recordings found from DOM, try direct database search
+    // If no recordings found from DOM, try to discover what question IDs exist in the database
     if (Object.keys(recordings).length === 0) {
-        console.log('No recordings found from DOM elements, trying direct database search...');
+        console.log('No recordings found from DOM elements, trying database discovery...');
         
-        // Check all possible question IDs directly
-        const questionIds = ['Q1', 'Q2', 'Q3', 'Q4', 'Q5', 'Q6', 'Q7', 'Q8', 'Q9', 'Q10', 'Q11', 'Q12'];
-        
-        for (const questionId of questionIds) {
-            try {
-                const questionRecordings = await loadRecordingsFromDB(questionId, world, lmid);
-                
-                if (questionRecordings.length > 0) {
-                    // Filter only recordings that have been successfully uploaded to cloud
-                    const validRecordings = questionRecordings
-                        .filter(rec => rec.uploadStatus === 'uploaded' && rec.cloudUrl)
-                        .map(rec => `${rec.id}.webm`); // Extract filename for API
+        // Use IndexedDB to discover what question IDs actually exist for this world/lmid combination
+        try {
+            const discoveredQuestionIds = await discoverQuestionIdsFromDB(world, lmid);
+            console.log(`Discovered question IDs from database:`, discoveredQuestionIds);
+            
+            for (const questionId of discoveredQuestionIds) {
+                try {
+                    const questionRecordings = await loadRecordingsFromDB(questionId, world, lmid);
                     
-                    if (validRecordings.length > 0) {
-                        recordings[questionId] = validRecordings;
-                        console.log(`Found ${validRecordings.length} valid recordings for ${questionId} (direct search)`);
+                    if (questionRecordings.length > 0) {
+                        // Filter only recordings that have been successfully uploaded to cloud
+                        const validRecordings = questionRecordings
+                            .filter(rec => rec.uploadStatus === 'uploaded' && rec.cloudUrl)
+                            .map(rec => `${rec.id}.webm`); // Extract filename for API
+                        
+                        if (validRecordings.length > 0) {
+                            recordings[questionId] = validRecordings;
+                            console.log(`Found ${validRecordings.length} valid recordings for ${questionId} (discovered)`);
+                        }
                     }
+                } catch (error) {
+                    console.warn(`Could not load recordings for ${questionId}:`, error);
                 }
-            } catch (error) {
-                // Silently continue if a specific question ID fails
-                console.warn(`Could not check ${questionId}:`, error);
             }
+        } catch (error) {
+            console.warn('Database discovery failed:', error);
         }
     }
     
@@ -1467,5 +1471,76 @@ function showRadioProgramSuccess(audioUrl, world, lmid, questionCount, totalReco
     });
 }
 
-// Make the function available globally
-window.generateRadioProgram = generateRadioProgram; 
+/**
+ * Discover what question IDs actually exist in the database for a given world/lmid
+ * @param {string} world - The world slug
+ * @param {string} lmid - The LMID
+ * @returns {Promise<string[]>} Array of question IDs that have recordings
+ */
+async function discoverQuestionIdsFromDB(world, lmid) {
+    return new Promise((resolve, reject) => {
+        withDB(async (db) => {
+            try {
+                const transaction = db.transaction(['recordings'], 'readonly');
+                const store = transaction.objectStore('recordings');
+                const request = store.getAll();
+                
+                request.onsuccess = () => {
+                    const allRecordings = request.result;
+                    const questionIds = new Set();
+                    
+                    // Filter recordings for this world/lmid and extract unique question IDs
+                    allRecordings.forEach(recording => {
+                        if (recording.world === world && recording.lmid === lmid) {
+                            questionIds.add(recording.questionId);
+                        }
+                    });
+                    
+                    resolve(Array.from(questionIds));
+                };
+                
+                request.onerror = () => {
+                    reject(new Error('Failed to query recordings from database'));
+                };
+            } catch (error) {
+                reject(error);
+            }
+        });
+    });
+}
+
+/**
+ * Get all recordings for a specific world/lmid combination (used as fallback)
+ * @param {string} world - The world slug  
+ * @param {string} lmid - The LMID
+ * @returns {Promise<Array>} Array of all recordings for this world/lmid
+ */
+async function getAllRecordingsForWorldLmid(world, lmid) {
+    return new Promise((resolve, reject) => {
+        withDB(async (db) => {
+            try {
+                const transaction = db.transaction(['recordings'], 'readonly');
+                const store = transaction.objectStore('recordings');
+                const request = store.getAll();
+                
+                request.onsuccess = () => {
+                    const allRecordings = request.result;
+                    const filteredRecordings = allRecordings.filter(recording => 
+                        recording.world === world && recording.lmid === lmid
+                    );
+                    resolve(filteredRecordings);
+                };
+                
+                request.onerror = () => {
+                    reject(new Error('Failed to query recordings from database'));
+                };
+            } catch (error) {
+                reject(error);
+            }
+        });
+    });
+}
+
+// Make the functions available globally
+window.generateRadioProgram = generateRadioProgram;
+window.getAllRecordingsForWorldLmid = getAllRecordingsForWorldLmid; 
