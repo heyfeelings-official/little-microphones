@@ -1219,14 +1219,10 @@ async function generateRadioProgram(world, lmid) {
     try {
         console.log(`🎙️ Starting radio program generation for ${world}/${lmid}`);
         
-        // Step 1: Show initial modal
-        showRadioProgramModal('Initializing radio program generation...', 0);
+        // Step 1: Show initial modal and start immediately
+        showRadioProgramModal('Collecting recordings...', 5);
         
-        // Show simplified initial progress
-        updateRadioProgramProgress('Gathering recordings...', 10, 'Scanning question database');
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Step 2: Collect recordings (keep this real)
+        // Step 2: Collect recordings immediately
         const recordings = await collectRecordingsForRadioProgram(world, lmid);
         
         if (Object.keys(recordings).length === 0) {
@@ -1238,15 +1234,7 @@ async function generateRadioProgram(world, lmid) {
         const questionIds = Object.keys(recordings);
         const totalRecordings = Object.values(recordings).reduce((sum, recs) => sum + recs.length, 0);
         
-        // Update progress with real data
-        updateRadioProgramProgress(`Found ${totalRecordings} answers`, 25, `Discovered recordings for ${questionIds.length} questions`);
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
         console.log(`Found ${totalRecordings} recordings across ${questionIds.length} questions`);
-        
-        // Show simplified progress
-        updateRadioProgramProgress('Organizing content...', 25, 'Sorting by question order');
-        await new Promise(resolve => setTimeout(resolve, 500));
         
         // Sort question IDs by numeric order  
         const sortedQuestionIds = sortQuestionIdsByDOMOrder(questionIds, world);
@@ -1304,19 +1292,25 @@ async function generateRadioProgram(world, lmid) {
         
         console.log(`🎼 Audio plan complete: ${audioSegments.length} segments`);
         
-        updateRadioProgramProgress('Sending to audio processor...', 70, `Processing ${questionIds.length} questions with combined answers`);
+        // Step 3: Start actual audio processing immediately
+        updateRadioProgramProgress('Starting audio processing...', 15, 'Initializing FFmpeg audio processor');
         
-        // Step 3: Send the structured audio plan to API
+        // Start fun status messages during actual processing
+        startFunStatusMessages();
+        
+        // Send to API for actual processing
         const response = await fetch('https://little-microphones.vercel.app/api/combine-audio', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 world: world,
                 lmid: lmid,
-                audioSegments: audioSegments  // Send structured segments instead of flat URLs
+                audioSegments: audioSegments
             })
         });
         
+        // Stop fun messages when processing is done
+        stopFunStatusMessages();
         updateRadioProgramProgress('Processing complete!', 95, 'Audio processing finished successfully');
         
         const result = await response.json();
@@ -1480,6 +1474,9 @@ function hideRadioProgramModal() {
         window.radioProgressIntervals.forEach(interval => clearInterval(interval));
         window.radioProgressIntervals = [];
     }
+    
+    // Clean up fun status messages
+    stopFunStatusMessages();
 }
 
 /**
@@ -1745,4 +1742,55 @@ window.cleanupAllOrphanedRecordings = cleanupAllOrphanedRecordings;
 // --- Script ready event - MUST be at the very end ---
 window.isRecordingScriptReady = true;
 document.dispatchEvent(new CustomEvent('recording-script-ready'));
-console.log('✅ recording.js script fully loaded and ready.'); 
+console.log('✅ recording.js script fully loaded and ready.');
+
+/**
+ * Start fun status messages during actual audio processing
+ */
+function startFunStatusMessages() {
+    const funMessages = [
+        'Downloading audio files from CDN',
+        'Applying noise reduction to recordings',
+        'Normalizing volume levels',
+        'Combining audio segments',
+        'Adding background music',
+        'Mixing audio tracks',
+        'Applying audio filters',
+        'Balancing sound levels',
+        'Processing audio effects',
+        'Optimizing audio quality',
+        'Adding magical touches',
+        'Polishing the final mix',
+        'Rendering final audio',
+        'Adding sparkles and unicorns',
+        'Teaching monkeys to sing',
+        'Consulting with audio wizards',
+        'Sprinkling audio fairy dust',
+        'Fine-tuning the awesome',
+        'Making it sound amazing'
+    ];
+    
+    let messageIndex = 0;
+    
+    // Update status every 1.5 seconds during actual processing
+    window.funStatusInterval = setInterval(() => {
+        const detailsEl = document.getElementById('radio-details');
+        if (detailsEl && window.funStatusInterval) {
+            const spinner = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+            const spinnerChar = spinner[Math.floor(Date.now() / 100) % spinner.length];
+            const message = funMessages[messageIndex % funMessages.length];
+            detailsEl.textContent = `${spinnerChar} ${message}`;
+            messageIndex++;
+        }
+    }, 1500);
+}
+
+/**
+ * Stop fun status messages
+ */
+function stopFunStatusMessages() {
+    if (window.funStatusInterval) {
+        clearInterval(window.funStatusInterval);
+        window.funStatusInterval = null;
+    }
+} 
