@@ -1686,4 +1686,5 @@ async function getAllRecordingsForWorldLmid(world, lmid) {
 
 // Make the functions available globally
 window.generateRadioProgram = generateRadioProgram;
-window.getAllRecordingsForWorldLmid = getAllRecordingsForWorldLmid; 
+window.getAllRecordingsForWorldLmid = getAllRecordingsForWorldLmid;
+window.loadRecordingsFromDB = loadRecordingsFromDB; 
