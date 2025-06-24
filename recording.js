@@ -1198,10 +1198,10 @@ async function generateRadioProgram(world, lmid) {
         const totalRecordings = Object.values(recordings).flat().length;
         console.log(`Found ${totalRecordings} recordings across ${Object.keys(recordings).length} questions`);
         
-        // Step 2: Send to API for processing
-        updateRadioProgramProgress('Processing audio...', 20);
+        // Step 2: Send to API for processing (using simplified version for now)
+        updateRadioProgramProgress('Creating radio playlist...', 20);
         
-        const response = await fetch('https://little-microphones.vercel.app/api/combine-audio', {
+        const response = await fetch('https://little-microphones.vercel.app/api/combine-audio-simple', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
