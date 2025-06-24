@@ -346,4 +346,15 @@ try {
 - **Main Dashboard**: `lm.js` - LMID management and navigation source
 - **Recording System**: `recording.js` - Core recording functionality
 - **API Integration**: `api/combine-audio.js` - Radio program generation
-- **Configuration**: `vercel.json` - Deployment and routing settings 
+- **Configuration**: `vercel.json` - Deployment and routing settings
+
+---
+
+**Last Updated**: June 24, 2025  
+**Version**: 3.1.0  
+**Status**: Production Ready ✅
+
+### Recent Updates (v3.1.0)
+- **Simplified Question Ordering**: Direct numeric CMS field usage (1, 2, 3, 4, 5, 6)
+- **Removed QID Normalization**: No more complex QID format conversion
+- **Clean Console Logging**: Focused debugging information only 

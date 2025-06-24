@@ -464,3 +464,15 @@ Geographic regions: Global pricing
 - **Bunny.net Support**: Storage and CDN problems
 - **Memberstack Support**: Authentication concerns
 - **Internal Team**: System-specific questions 
+
+---
+
+**Last Updated**: June 24, 2025  
+**Version**: 3.1.0  
+**Status**: Production Ready ✅
+
+### Recent Updates (v3.1.0)
+- **Simplified Question Ordering**: Direct numeric CMS field usage
+- **Immediate Radio Generation**: No fake delays, instant processing start
+- **Clean Console Logging**: 135+ lines of verbose logging removed
+- **Fixed Audio File URLs**: Correct QID format for static files 

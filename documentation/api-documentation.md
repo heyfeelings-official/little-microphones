@@ -5,7 +5,8 @@
 **Purpose**: Serverless API endpoints for audio file management and radio program generation  
 **Platform**: Vercel serverless functions  
 **Runtime**: Node.js 18+  
-**Documentation**: `/documentation/api-documentation.md`
+**Documentation**: `/documentation/api-documentation.md`  
+**Version**: 3.1.0
 
 ## 🏗️ Architecture
 
@@ -41,10 +42,10 @@ Content-Type: application/json
 
 {
   "audioData": "base64_encoded_mp3_data",
-  "filename": "kids-world_spookyland-lmid_32-question_9-tm_1750763211231.mp3",
+  "filename": "kids-world_spookyland-lmid_32-question_1-tm_1750763211231.mp3",
   "world": "spookyland",
   "lmid": "32", 
-  "questionId": "QID9"
+  "questionId": "1"  // Simple numeric format (1, 2, 3, 4, 5, 6)
 }
 ```
 
@@ -53,8 +54,8 @@ Content-Type: application/json
 Success (200):
 {
   "success": true,
-  "url": "https://little-microphones.b-cdn.net/32/spookyland/kids-world_spookyland-lmid_32-question_9-tm_1750763211231.mp3",
-  "filename": "kids-world_spookyland-lmid_32-question_9-tm_1750763211231.mp3"
+  "url": "https://little-microphones.b-cdn.net/32/spookyland/kids-world_spookyland-lmid_32-question_1-tm_1750763211231.mp3",
+  "filename": "kids-world_spookyland-lmid_32-question_1-tm_1750763211231.mp3"
 }
 
 Error (400/500):
@@ -67,7 +68,7 @@ Error (400/500):
 ### File Naming Convention
 ```
 Pattern: kids-world_{world}-lmid_{lmid}-question_{questionNumber}-tm_{timestamp}.mp3
-Example: kids-world_spookyland-lmid_32-question_9-tm_1750763211231.mp3
+Example: kids-world_spookyland-lmid_32-question_1-tm_1750763211231.mp3
 ```
 
 ### Storage Structure
@@ -76,7 +77,7 @@ Bunny.net CDN:
 /{lmid}/{world}/{filename}.mp3
 
 Example:
-/32/spookyland/kids-world_spookyland-lmid_32-question_9-tm_1750763211231.mp3
+/32/spookyland/kids-world_spookyland-lmid_32-question_1-tm_1750763211231.mp3
 ```
 
 ### Processing Pipeline
@@ -110,10 +111,10 @@ Handles deletion of individual audio files or entire LMID folders from Bunny.net
 Content-Type: application/json
 
 {
-  "filename": "kids-world_spookyland-lmid_32-question_9-tm_1750763211231.mp3",
+  "filename": "kids-world_spookyland-lmid_32-question_1-tm_1750763211231.mp3",
   "world": "spookyland",
   "lmid": "32",
-  "questionId": "QID9"
+  "questionId": "1"  // Simple numeric format
 }
 ```
 
@@ -184,30 +185,52 @@ Pattern Matching → File Validation → Deletion Queue
 ## 🎵 `/api/combine-audio` - Radio Program Generation
 
 ### Purpose
-Combines multiple audio recordings with background music and prompts into a single radio program using FFmpeg processing.
+Combines multiple audio recordings with background music and prompts into a single radio program using FFmpeg processing with immediate start.
 
 ### Method & Route
 - **Method**: `POST`
 - **Route**: `/api/combine-audio`
 - **Timeout**: 60 seconds (extended for audio processing)
 
-### Request Format
+### Request Format (v3.1.0 - New Structure)
 ```javascript
 Content-Type: application/json
 
 {
   "world": "spookyland",
   "lmid": "32",
-  "recordings": [
+  "audioSegments": [
     {
-      "questionId": "QID9",
-      "timestamp": 1750763211231,
-      "cloudUrl": "https://little-microphones.b-cdn.net/32/spookyland/..."
+      "type": "single",
+      "url": "https://little-microphones.b-cdn.net/audio/other/intro.mp3"
     },
     {
-      "questionId": "QID2", 
-      "timestamp": 1750763245678,
-      "cloudUrl": "https://little-microphones.b-cdn.net/32/spookyland/..."
+      "type": "single",
+      "url": "https://little-microphones.b-cdn.net/audio/spookyland/spookyland-QID1.mp3"
+    },
+    {
+      "type": "combine_with_background",
+      "answerUrls": [
+        "https://little-microphones.b-cdn.net/32/spookyland/kids-world_spookyland-lmid_32-question_1-tm_1750777259513.mp3"
+      ],
+      "backgroundUrl": "https://little-microphones.b-cdn.net/audio/other/monkeys.mp3",
+      "questionId": "1"
+    },
+    {
+      "type": "single",
+      "url": "https://little-microphones.b-cdn.net/audio/spookyland/spookyland-QID2.mp3"
+    },
+    {
+      "type": "combine_with_background",
+      "answerUrls": [
+        "https://little-microphones.b-cdn.net/32/spookyland/kids-world_spookyland-lmid_32-question_2-tm_1750777266413.mp3"
+      ],
+      "backgroundUrl": "https://little-microphones.b-cdn.net/audio/other/monkeys.mp3",
+      "questionId": "2"
+    },
+    {
+      "type": "single",
+      "url": "https://little-microphones.b-cdn.net/audio/other/outro.mp3"
     }
   ]
 }
@@ -218,40 +241,41 @@ Content-Type: application/json
 Success (200):
 {
   "success": true,
-  "message": "Audio combination completed successfully",
-  "url": "https://little-microphones.b-cdn.net/32/spookyland/radio-program-spookyland-32.mp3",
-  "totalSegments": 12
+  "message": "Radio program generated successfully",
+  "url": "https://little-microphones.b-cdn.net/32/spookyland/radio-program-spookyland-32-v1750777327.mp3",
+  "totalSegments": 6,
+  "audioParams": {
+    // Audio processing parameters used
+  }
 }
 
 Error (400/500):
 {
   "success": false,
   "message": "Error description",
-  "error": "Detailed error message",
-  "suggestions": {
-    // FFmpeg setup recommendations
-  }
+  "error": "Detailed error message"
 }
 ```
 
 ### Audio Processing Pipeline
 
-#### 1. Audio Plan Creation
+#### 1. Immediate Processing Start
 ```javascript
-createAudioPlan(world, lmid, recordingsByQuestion) →
-  intro.mp3 →
-    question1.mp3 → [user recordings Q1] → monkeys.mp3 →
-    question2.mp3 → [user recordings Q2] → monkeys.mp3 →
-    ... →
-  outro.mp3
+// v3.1.0: No fake delays, immediate start
+Request Received →
+  Audio Segments Validation →
+    FFmpeg Processing Start →
+      Download Files →
+        Combine Audio →
+          Upload Result
 ```
 
-#### 2. File URL Generation
+#### 2. File URL Generation (Updated)
 ```javascript
-// Question prompts
-https://little-microphones.b-cdn.net/audio/{world}/{world}-{questionId}.mp3
+// Question prompts (static files with QID format)
+https://little-microphones.b-cdn.net/audio/{world}/{world}-QID{number}.mp3
 
-// User recordings  
+// User recordings (numeric format)
 https://little-microphones.b-cdn.net/{lmid}/{world}/kids-world_{world}-lmid_{lmid}-question_{number}-tm_{timestamp}.mp3
 
 // Static files
@@ -260,8 +284,31 @@ https://little-microphones.b-cdn.net/audio/other/{intro|outro|monkeys}.mp3
 
 #### 3. FFmpeg Processing
 ```javascript
-File Download → Format Conversion → Audio Concatenation → 
+Segment Processing → Format Conversion → Audio Concatenation → 
 Quality Normalization → Final Upload → URL Response
+```
+
+### Audio Segment Types
+
+#### Single Audio File
+```javascript
+{
+  "type": "single",
+  "url": "https://little-microphones.b-cdn.net/audio/spookyland/spookyland-QID1.mp3"
+}
+```
+
+#### Combined Answers with Background
+```javascript
+{
+  "type": "combine_with_background",
+  "answerUrls": [
+    "https://little-microphones.b-cdn.net/32/spookyland/recording1.mp3",
+    "https://little-microphones.b-cdn.net/32/spookyland/recording2.mp3"
+  ],
+  "backgroundUrl": "https://little-microphones.b-cdn.net/audio/other/monkeys.mp3",
+  "questionId": "1"
+}
 ```
 
 ### FFmpeg Configuration
@@ -272,6 +319,7 @@ Processing Settings:
 - Sample Rate: 44.1kHz
 - Channels: Stereo
 - Codec: libmp3lame
+- Zero-padded filenames for proper ordering
 ```
 
 ### Static Audio Files
@@ -283,17 +331,17 @@ STATIC_FILES = {
 }
 ```
 
-### Question ID Normalization
+### Question ID System (v3.1.0 - Simplified)
 ```javascript
-// Input variations: "Q-ID 9", "9", "question-9"
-// Output standard: "QID9"
+// No more QID normalization needed
+// Direct numeric format from CMS "Little Microphones Order" field
+questionId: "1"  // Question 1
+questionId: "2"  // Question 2
+questionId: "3"  // Question 3
 
-cleanQuestionId = questionId.toString().trim();
-if (!cleanQuestionId.startsWith('QID')) {
-  if (/^\d+$/.test(cleanQuestionId)) {
-    cleanQuestionId = `QID${cleanQuestionId}`;
-  }
-}
+// Static file naming still uses QID for compatibility:
+spookyland-QID1.mp3  // Question 1 prompt
+spookyland-QID2.mp3  // Question 2 prompt
 ```
 
 ### Error Recovery
@@ -357,11 +405,11 @@ NODE_ENV=production
 - **Compression**: Efficient audio format handling
 - **CDN utilization**: Global content distribution
 
-### Combination Performance
-- **Temporary file management**: Efficient cleanup
-- **Memory optimization**: Streaming audio processing
-- **Parallel downloads**: Concurrent file retrieval
-- **Caching strategies**: Static file optimization
+### Combination Performance (v3.1.0)
+- **Immediate start**: No fake delays before processing
+- **Clean logging**: Reduced console output for better performance
+- **Zero-padded filenames**: Proper file ordering
+- **Efficient processing**: Streamlined FFmpeg operations
 
 ## 🧪 Testing & Debugging
 
@@ -380,8 +428,8 @@ NODE_ENV=production
 4. Timeout handling validation
 ```
 
-### Debugging Tools
-- **Console logging**: Comprehensive operation tracking
+### Debugging Tools (v3.1.0)
+- **Clean console logging**: Essential information only
 - **Vercel function logs**: Real-time monitoring
 - **Error tracking**: Detailed error reporting
 - **Performance monitoring**: Response time analysis
@@ -406,4 +454,10 @@ NODE_ENV=production
 - **Upload Integration**: `recording.js` - Client-side upload logic
 - **Deletion Integration**: `lm.js` - LMID cleanup operations
 - **Generation Integration**: `recording.js` - Radio program creation
-- **Configuration**: `vercel.json` - Deployment settings 
+- **Configuration**: `vercel.json` - Deployment settings
+
+---
+
+**Last Updated**: June 24, 2025  
+**Version**: 3.1.0  
+**Status**: Production Ready ✅ 
