@@ -1342,6 +1342,9 @@ async function generateRadioProgram(world, lmid) {
         
         updateRadioProgramProgress('Sending to audio processor...', 70, `Processing ${questionIds.length} questions with combined answers`);
         
+        // Start fake status messages for entertainment (independent of real progress)
+        startFakeStatusMessages();
+        
         // Step 3: Send the structured audio plan to API
         const response = await fetch('https://little-microphones.vercel.app/api/combine-audio', {
             method: 'POST',
@@ -1353,7 +1356,9 @@ async function generateRadioProgram(world, lmid) {
             })
         });
         
-        updateRadioProgramProgress('Processing audio files...', 75, 'Server is combining audio files with FFmpeg');
+        // Stop fake messages when real processing is done
+        stopFakeStatusMessages();
+        updateRadioProgramProgress('Processing complete!', 95, 'Audio processing finished successfully');
         
         const result = await response.json();
         
@@ -1525,6 +1530,50 @@ function updateRadioProgramProgress(message, progress, details = '') {
 }
 
 /**
+ * Start fake status messages for user engagement (independent of real progress)
+ */
+function startFakeStatusMessages() {
+    const fakeMessages = [
+        'Downloading audio files from CDN',
+        'Applying noise reduction to recordings',
+        'Normalizing volume levels',
+        'Combining audio segments',
+        'Adding background music',
+        'Mixing audio tracks',
+        'Applying audio filters',
+        'Balancing sound levels',
+        'Processing audio effects',
+        'Optimizing audio quality',
+        'Rendering final audio',
+        'Applying final touches'
+    ];
+    
+    let messageIndex = 0;
+    
+    // Update fake status every 1.2 seconds
+    window.fakeStatusInterval = setInterval(() => {
+        const detailsEl = document.getElementById('radio-details');
+        if (detailsEl && window.fakeStatusInterval) {
+            const spinner = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+            const spinnerChar = spinner[Math.floor(Date.now() / 100) % spinner.length];
+            const message = fakeMessages[messageIndex % fakeMessages.length];
+            detailsEl.textContent = `${spinnerChar} ${message}`;
+            messageIndex++;
+        }
+    }, 1200);
+}
+
+/**
+ * Stop fake status messages
+ */
+function stopFakeStatusMessages() {
+    if (window.fakeStatusInterval) {
+        clearInterval(window.fakeStatusInterval);
+        window.fakeStatusInterval = null;
+    }
+}
+
+/**
  * Hide radio program modal
  */
 function hideRadioProgramModal() {
@@ -1538,6 +1587,9 @@ function hideRadioProgramModal() {
         window.radioProgressIntervals.forEach(interval => clearInterval(interval));
         window.radioProgressIntervals = [];
     }
+    
+    // Clean up fake status messages
+    stopFakeStatusMessages();
 }
 
 /**
