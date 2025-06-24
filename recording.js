@@ -363,7 +363,7 @@ function initializeAudioRecorder(recorderWrapper) {
         return;
     }
     
-    // Normalize questionId to QID format immediately
+    // Normalize questionId to numeric format immediately
     questionId = normalizeQuestionId(questionId);
     
     // Prevent double initialization
@@ -1191,28 +1191,24 @@ async function cleanupAllOrphanedRecordings() {
 }
 
 /**
- * Normalize question ID to consistent QID format
- * @param {string} questionId - Raw question ID from DOM
- * @returns {string} - Normalized QID format (e.g., "QID2", "QID9")
+ * Normalize question ID - now just returns the numeric order field directly
+ * @param {string} questionId - Raw question ID from DOM (should be numeric order)
+ * @returns {string} - Numeric order as string (e.g., "1", "2", "3")
  */
 function normalizeQuestionId(questionId) {
     if (!questionId) return '';
     
+    // Convert to string and trim whitespace
     const cleanId = questionId.toString().trim();
     
-    // If already in QID format, return as-is
-    if (cleanId.startsWith('QID')) {
-        return cleanId.replace(/[\s\-]/g, ''); // Remove any spaces or dashes
-    }
-    
-    // If it's just a number, convert to QID format
+    // If it's already numeric, return as-is
     if (/^\d+$/.test(cleanId)) {
-        return `QID${cleanId}`;
+        return cleanId;
     }
     
-    // If it has other format, clean and prefix with QID
+    // Extract numeric part from any format
     const numericPart = cleanId.replace(/[^\d]/g, '');
-    return numericPart ? `QID${numericPart}` : `QID${cleanId}`;
+    return numericPart || '0';
 }
 
 /**
@@ -1280,12 +1276,12 @@ async function generateRadioProgram(world, lmid) {
         
         // Sort question IDs by DOM order instead of alphabetical
         const sortedQuestionIds = sortQuestionIdsByDOMOrder(questionIds, world);
-        console.log('📋 Question order (by DOM):', sortedQuestionIds);
+        console.log('📋 Question order (numeric):', sortedQuestionIds);
         
         // Verify that we have the correct DOM sequence
-        console.log('🎯 Building audio segments in DOM order:');
+        console.log('🎯 Building audio segments in numeric order:');
         console.log(`   Total questions to process: ${sortedQuestionIds.length}`);
-        console.log(`   Question sequence:`, sortedQuestionIds.map((qid, i) => `${i + 1}. ${qid}`));
+        console.log(`   Question sequence:`, sortedQuestionIds.map((qid, i) => `${i + 1}. Question ${qid}`));
         
         // Build audio segments in correct order
         const audioSegments = [];
@@ -1306,7 +1302,7 @@ async function generateRadioProgram(world, lmid) {
             const questionNumber = i + 1;
             const segmentNumber = (i * 2) + 2; // Each question creates 2 segments (prompt + answers)
             
-            console.log(`🎵 Processing question ${questionNumber}/${sortedQuestionIds.length}: ${questionId}`);
+            console.log(`🎵 Processing question ${questionNumber}/${sortedQuestionIds.length}: Question ${questionId}`);
             
             // Add question prompt with cache-busting
             const cacheBustTimestamp = Date.now();
@@ -1315,13 +1311,13 @@ async function generateRadioProgram(world, lmid) {
                 type: 'single',
                 url: questionUrl
             });
-            console.log(`📁 Added question prompt (segment ${segmentNumber}): ${questionId}`);
+            console.log(`📁 Added question prompt (segment ${segmentNumber}): Question ${questionId}`);
             
             // Sort answers by timestamp (first recorded = first played)
             const sortedAnswers = questionRecordings.sort((a, b) => a.timestamp - b.timestamp);
             const answerUrls = sortedAnswers.map(recording => recording.cloudUrl);
             
-            console.log(`🎤 Adding ${answerUrls.length} answers for ${questionId} (segment ${segmentNumber + 1}):`);
+            console.log(`🎤 Adding ${answerUrls.length} answers for Question ${questionId} (segment ${segmentNumber + 1}):`);
             answerUrls.forEach((url, index) => {
                 console.log(`   Answer ${index + 1}: ${url.substring(url.lastIndexOf('/') + 1)}`);
             });
@@ -1335,7 +1331,7 @@ async function generateRadioProgram(world, lmid) {
                 backgroundUrl: backgroundUrl,
                 questionId: questionId
             });
-            console.log(`🐒 Added answers with background (segment ${segmentNumber + 1}): ${questionId}`);
+            console.log(`🐒 Added answers with background (segment ${segmentNumber + 1}): Question ${questionId}`);
         }
         
         // 3. Add outro with cache-busting
@@ -1349,13 +1345,13 @@ async function generateRadioProgram(world, lmid) {
         
         // Final verification of audio sequence
         console.log(`🎼 FINAL AUDIO PLAN: ${audioSegments.length} segments total`);
-        console.log('📋 Complete radio program sequence (DOM order):');
+        console.log('📋 Complete radio program sequence (numeric order):');
         audioSegments.forEach((segment, index) => {
             if (segment.type === 'single') {
                 const fileName = segment.url.split('/').pop().split('?')[0];
                 console.log(`   ${index + 1}. [SINGLE] ${fileName}`);
             } else if (segment.type === 'combine_with_background') {
-                console.log(`   ${index + 1}. [COMBINED] ${segment.questionId} (${segment.answerUrls.length} answers + background)`);
+                console.log(`   ${index + 1}. [COMBINED] Question ${segment.questionId} (${segment.answerUrls.length} answers + background)`);
             }
         });
         
@@ -1424,104 +1420,24 @@ async function generateRadioProgram(world, lmid) {
 }
 
 /**
- * Sort question IDs by their DOM order instead of alphabetical
- * @param {string[]} questionIds - Array of question IDs to sort
- * @param {string} world - The world slug
- * @returns {string[]} Sorted question IDs
+ * Sort question IDs by their numeric order (from CMS "Little Microphones Order" field)
+ * @param {string[]} questionIds - Array of question IDs (numeric strings)
+ * @param {string} world - The world slug (not used anymore but kept for compatibility)
+ * @returns {string[]} Sorted question IDs in numeric order
  */
 function sortQuestionIdsByDOMOrder(questionIds, world) {
-    const targetCollectionId = `collection-${world}`;
-    const targetCollection = document.getElementById(targetCollectionId);
-    
-    if (!targetCollection) {
-        console.warn('Could not find collection element, falling back to alphabetical sort');
-        return questionIds.sort();
-    }
-    
-    console.log(`🔍 Sorting questions for ${world} using DOM order`);
+    console.log(`🔍 Sorting questions using numeric order`);
     console.log(`📋 Input question IDs:`, questionIds);
     
-    // Try multiple selectors to find question elements in DOM order
-    const possibleSelectors = [
-        '.faq1_accordion.lm',           // Primary selector
-        '.faq1_accordion',              // Fallback 1
-        '[data-question-id]',           // Fallback 2 - any element with question ID
-        '.lm',                          // Fallback 3
-        '*[data-question-id]'           // Fallback 4 - universal selector
-    ];
+    // Simple numeric sort - convert to numbers, sort, then back to strings
+    const sortedIds = questionIds
+        .map(id => normalizeQuestionId(id))
+        .sort((a, b) => parseInt(a) - parseInt(b));
     
-    let recorderWrappers = [];
-    let usedSelector = '';
+    console.log('📋 Final numeric order:', sortedIds);
+    console.log(`🔄 Order mapping:`, sortedIds.map((qid, index) => `${index + 1}. Question ${qid}`));
     
-    // Try each selector until we find elements
-    for (const selector of possibleSelectors) {
-        recorderWrappers = targetCollection.querySelectorAll(selector);
-        if (recorderWrappers.length > 0) {
-            usedSelector = selector;
-            console.log(`✅ Found ${recorderWrappers.length} elements using selector: ${selector}`);
-            break;
-        }
-    }
-    
-    if (recorderWrappers.length === 0) {
-        console.warn('No question elements found in DOM, using alphabetical order as fallback');
-        return questionIds.sort();
-    }
-    
-    const domOrder = [];
-    
-    // Extract question IDs in DOM order
-    recorderWrappers.forEach((wrapper, index) => {
-        const questionId = wrapper.dataset.questionId || wrapper.getAttribute('data-question-id');
-        
-        console.log(`🔍 Element ${index + 1}:`, {
-            tagName: wrapper.tagName,
-            classList: Array.from(wrapper.classList),
-            questionId: questionId,
-            textContent: wrapper.textContent?.substring(0, 100) + '...' || 'no text',
-            hasRecordButton: !!wrapper.querySelector('[class*="record"]')
-        });
-        
-        if (questionId) {
-            // Normalize question ID to handle different formats
-            const normalizedQuestionId = normalizeQuestionId(questionId);
-            
-            // Check if this question ID is in our list of available recordings
-            const matchingId = questionIds.find(id => 
-                normalizeQuestionId(id) === normalizedQuestionId ||
-                id === questionId ||
-                id === normalizedQuestionId
-            );
-            
-            if (matchingId && !domOrder.includes(matchingId)) {
-                domOrder.push(matchingId);
-                console.log(`✅ Added to DOM order: ${matchingId} (from element ${questionId})`);
-            } else if (questionId) {
-                console.log(`⚠️ Question ID ${questionId} not found in available recordings or already added`);
-            }
-        } else {
-            console.log(`⚠️ Element ${index + 1} has no question ID attribute`);
-        }
-    });
-    
-    // Add any missing question IDs at the end (fallback for recordings not found in DOM)
-    questionIds.forEach(qid => {
-        if (!domOrder.includes(qid)) {
-            console.log(`📌 Adding missing question ID to end: ${qid}`);
-            domOrder.push(qid);
-        }
-    });
-    
-    console.log('📋 Final DOM order detected:', domOrder);
-    console.log(`🎯 Used selector: ${usedSelector}`);
-    console.log(`🔄 Order mapping:`, domOrder.map((qid, index) => `${index + 1}. ${qid}`));
-    
-    // Validate that we have the same number of questions
-    if (domOrder.length !== questionIds.length) {
-        console.warn(`⚠️ Order length mismatch: DOM=${domOrder.length}, Input=${questionIds.length}`);
-    }
-    
-    return domOrder;
+    return sortedIds;
 }
 
 /**
@@ -1763,33 +1679,38 @@ function showRadioProgramSuccess(audioUrl, world, lmid, questionCount, totalReco
  */
 async function collectRecordingsForRadioProgram(world, lmid) {
     const recordings = {};
+    const processedQuestionIds = new Set(); // Track processed IDs to prevent duplicates
     
-    console.log(`🔍 Collecting FRESH recordings for ${world}/${lmid} (cache-busted)`);
+    console.log(`🔍 Collecting recordings for ${world}/${lmid}`);
     
-    // First, try to find recordings from DOM elements
+    // Method 1: Try to find recordings from DOM elements first
     const targetCollectionId = `collection-${world}`;
     const targetCollection = document.getElementById(targetCollectionId);
     
     if (targetCollection) {
         const recorderWrappers = targetCollection.querySelectorAll('.faq1_accordion.lm');
+        console.log(`📋 Found ${recorderWrappers.length} question elements in DOM`);
         
         for (const wrapper of recorderWrappers) {
-            const questionId = wrapper.dataset.questionId;
-            if (!questionId) continue;
+            const rawQuestionId = wrapper.dataset.questionId;
+            if (!rawQuestionId) continue;
+            
+            // Normalize to numeric format
+            const questionId = normalizeQuestionId(rawQuestionId);
+            
+            // Skip if already processed
+            if (processedQuestionIds.has(questionId)) {
+                console.log(`⚠️ Skipping duplicate question ID: ${questionId}`);
+                continue;
+            }
+            
+            processedQuestionIds.add(questionId);
             
             try {
-                // Force fresh database query (no caching)
                 const questionRecordings = await loadRecordingsFromDB(questionId, world, lmid);
                 
                 if (questionRecordings.length > 0) {
-                    console.log(`[${questionId}] Raw recordings from DB (FRESH):`, questionRecordings.map(r => ({
-                        id: r.id,
-                        uploadStatus: r.uploadStatus,
-                        hasCloudUrl: !!r.cloudUrl,
-                        hasAudio: !!r.audio,
-                        timestamp: r.timestamp,
-                        cloudUrl: r.cloudUrl ? r.cloudUrl.substring(0, 50) + '...' : 'none'
-                    })));
+                    console.log(`[${questionId}] Found ${questionRecordings.length} recordings in DB`);
                     
                     // Filter only recordings that have been successfully uploaded to cloud
                     const validRecordings = questionRecordings
@@ -1797,74 +1718,65 @@ async function collectRecordingsForRadioProgram(world, lmid) {
                     
                     if (validRecordings.length > 0) {
                         recordings[questionId] = validRecordings;
-                        console.log(`✅ Found ${validRecordings.length} FRESH valid recordings for ${questionId}`);
-                        console.log(`📋 Recording URLs:`, validRecordings.map(r => r.cloudUrl));
+                        console.log(`✅ Added ${validRecordings.length} valid recordings for question ${questionId}`);
                     } else {
-                        console.log(`[${questionId}] No valid uploaded recordings found. ${questionRecordings.length} total recordings but none meet criteria (uploadStatus='uploaded' && cloudUrl exists)`);
-                        
-                        // Check if we have local blob recordings as fallback
-                        const localRecordings = questionRecordings.filter(rec => rec.audio);
-                        if (localRecordings.length > 0) {
-                            console.log(`[${questionId}] Found ${localRecordings.length} local blob recordings as fallback`);
-                            // For now, we'll alert the user that they need to wait for uploads
-                            // TODO: Implement local blob processing
-                        }
+                        console.log(`[${questionId}] No valid uploaded recordings (${questionRecordings.length} total, but none uploaded to cloud)`);
                     }
+                } else {
+                    console.log(`[${questionId}] No recordings found in DB`);
                 }
             } catch (error) {
-                console.warn(`Error loading recordings for ${questionId}:`, error);
+                console.warn(`Error loading recordings for question ${questionId}:`, error);
             }
         }
+    } else {
+        console.warn(`Collection element not found: ${targetCollectionId}`);
     }
     
-    // If no recordings found from DOM, try to discover what question IDs exist in the database
+    // Method 2: Database discovery as fallback (only if no DOM elements found)
     if (Object.keys(recordings).length === 0) {
-        console.log('No recordings found from DOM elements, trying database discovery...');
+        console.log('📋 No recordings found from DOM elements, trying database discovery...');
         
-        // Use IndexedDB to discover what question IDs actually exist for this world/lmid combination
         try {
             const discoveredQuestionIds = await discoverQuestionIdsFromDB(world, lmid);
-            console.log(`Discovered question IDs from database:`, discoveredQuestionIds);
+            console.log(`🔍 Discovered question IDs from database:`, discoveredQuestionIds);
             
             for (const questionId of discoveredQuestionIds) {
+                // Skip if already processed
+                if (processedQuestionIds.has(questionId)) {
+                    console.log(`⚠️ Skipping already processed question ID: ${questionId}`);
+                    continue;
+                }
+                
+                processedQuestionIds.add(questionId);
+                
                 try {
                     const questionRecordings = await loadRecordingsFromDB(questionId, world, lmid);
                     
                     if (questionRecordings.length > 0) {
-                        console.log(`[${questionId}] Raw recordings from DB (discovered):`, questionRecordings.map(r => ({
-                            id: r.id,
-                            uploadStatus: r.uploadStatus,
-                            hasCloudUrl: !!r.cloudUrl,
-                            hasAudio: !!r.audio
-                        })));
-                        
-                        // Filter only recordings that have been successfully uploaded to cloud
                         const validRecordings = questionRecordings
                             .filter(rec => rec.uploadStatus === 'uploaded' && rec.cloudUrl);
                         
                         if (validRecordings.length > 0) {
                             recordings[questionId] = validRecordings;
-                            console.log(`Found ${validRecordings.length} valid recordings for ${questionId} (discovered)`);
-                        } else {
-                            console.log(`[${questionId}] No valid uploaded recordings found (discovered). ${questionRecordings.length} total recordings but none meet criteria (uploadStatus='uploaded' && cloudUrl exists)`);
-                            
-                            // Check if we have local blob recordings as fallback
-                            const localRecordings = questionRecordings.filter(rec => rec.audio);
-                            if (localRecordings.length > 0) {
-                                console.log(`[${questionId}] Found ${localRecordings.length} local blob recordings as fallback (discovered)`);
-                                // For now, we'll alert the user that they need to wait for uploads
-                                // TODO: Implement local blob processing
-                            }
+                            console.log(`✅ Added ${validRecordings.length} valid recordings for question ${questionId} (discovered)`);
                         }
                     }
                 } catch (error) {
-                    console.warn(`Could not load recordings for ${questionId}:`, error);
+                    console.warn(`Could not load recordings for question ${questionId}:`, error);
                 }
             }
         } catch (error) {
             console.warn('Database discovery failed:', error);
         }
     }
+    
+    console.log(`📊 Final collection summary:`);
+    console.log(`   Questions with recordings: ${Object.keys(recordings).length}`);
+    console.log(`   Total processed questions: ${processedQuestionIds.size}`);
+    Object.entries(recordings).forEach(([qid, recs]) => {
+        console.log(`   Question ${qid}: ${recs.length} recordings`);
+    });
     
     return recordings;
 }

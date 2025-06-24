@@ -237,28 +237,24 @@ function setupExistingRadioProgramButton(world, lmid) {
 }
 
 /**
- * Normalize question ID to consistent QID format
- * @param {string} questionId - Raw question ID from DOM
- * @returns {string} - Normalized QID format (e.g., "QID2", "QID9")
+ * Normalize question ID - now just returns the numeric order field directly
+ * @param {string} questionId - Raw question ID from DOM (should be numeric order)
+ * @returns {string} - Numeric order as string (e.g., "1", "2", "3")
  */
 function normalizeQuestionId(questionId) {
     if (!questionId) return '';
     
+    // Convert to string and trim whitespace
     const cleanId = questionId.toString().trim();
     
-    // If already in QID format, return as-is
-    if (cleanId.startsWith('QID')) {
-        return cleanId.replace(/[\s\-]/g, ''); // Remove any spaces or dashes
-    }
-    
-    // If it's just a number, convert to QID format
+    // If it's already numeric, return as-is
     if (/^\d+$/.test(cleanId)) {
-        return `QID${cleanId}`;
+        return cleanId;
     }
     
-    // If it has other format, clean and prefix with QID
+    // Extract numeric part from any format
     const numericPart = cleanId.replace(/[^\d]/g, '');
-    return numericPart ? `QID${numericPart}` : `QID${cleanId}`;
+    return numericPart || '0';
 }
 
 /**
@@ -284,21 +280,21 @@ async function checkIfUserHasRecordings(world, lmid) {
     if (targetCollection) {
       const recorderWrappers = targetCollection.querySelectorAll('.faq1_accordion.lm');
       
-              for (const wrapper of recorderWrappers) {
-            let questionId = wrapper.dataset.questionId;
-            if (!questionId) continue;
-            
-            // Normalize questionId to QID format
-            questionId = normalizeQuestionId(questionId);
+      for (const wrapper of recorderWrappers) {
+        let questionId = wrapper.dataset.questionId;
+        if (!questionId) continue;
+        
+        // Normalize questionId to numeric format
+        questionId = normalizeQuestionId(questionId);
         
         try {
           const recordings = await loadRecordingsFromDB(questionId, world, lmid);
           if (recordings && recordings.length > 0) {
-            console.log(`Found ${recordings.length} recordings for ${questionId}`);
+            console.log(`Found ${recordings.length} recordings for Question ${questionId}`);
             return true;
           }
         } catch (error) {
-          console.warn(`Could not check ${questionId}:`, error);
+          console.warn(`Could not check Question ${questionId}:`, error);
         }
       }
     }
