@@ -1258,30 +1258,12 @@ async function generateRadioProgram(world, lmid) {
         
         // Step 2: Convert recordings data to new format for API
         const recordingsArray = [];
-        for (const [questionId, files] of Object.entries(recordings)) {
-            // Clean up question ID to QID format
-            let cleanQuestionId = questionId.toString().trim();
-            if (!cleanQuestionId.startsWith('QID')) {
-                if (/^\d+$/.test(cleanQuestionId)) {
-                    cleanQuestionId = `QID${cleanQuestionId}`;
-                } else {
-                    cleanQuestionId = cleanQuestionId.replace(/[\s\-]/g, '');
-                    if (!cleanQuestionId.startsWith('QID')) {
-                        cleanQuestionId = `QID${cleanQuestionId}`;
-                    }
-                }
-            }
-            
-            // Add each file with metadata
-            files.forEach(filename => {
-                // Extract timestamp from filename (kids-world_spookyland-lmid_32-question_9-tm_1750614299968.mp3)
-                const timestampMatch = filename.match(/tm_(\d+)/);
-                const timestamp = timestampMatch ? timestampMatch[1] : Date.now().toString();
-                
+        for (const [questionId, recs] of Object.entries(recordings)) {
+            recs.forEach(rec => {
                 recordingsArray.push({
-                    questionId: cleanQuestionId,
-                    filename: filename,
-                    timestamp: timestamp
+                    questionId: rec.questionId,
+                    cloudUrl: rec.cloudUrl,
+                    timestamp: rec.timestamp
                 });
             });
         }
@@ -1377,8 +1359,7 @@ async function collectRecordingsForRadioProgram(world, lmid) {
                     
                     // Filter only recordings that have been successfully uploaded to cloud
                     const validRecordings = questionRecordings
-                        .filter(rec => rec.uploadStatus === 'uploaded' && rec.cloudUrl)
-                        .map(rec => `${rec.id}.mp3`); // Extract filename for API
+                        .filter(rec => rec.uploadStatus === 'uploaded' && rec.cloudUrl);
                     
                     if (validRecordings.length > 0) {
                         recordings[questionId] = validRecordings;
@@ -1424,8 +1405,7 @@ async function collectRecordingsForRadioProgram(world, lmid) {
                         
                         // Filter only recordings that have been successfully uploaded to cloud
                         const validRecordings = questionRecordings
-                            .filter(rec => rec.uploadStatus === 'uploaded' && rec.cloudUrl)
-                            .map(rec => `${rec.id}.mp3`); // Extract filename for API
+                            .filter(rec => rec.uploadStatus === 'uploaded' && rec.cloudUrl);
                         
                         if (validRecordings.length > 0) {
                             recordings[questionId] = validRecordings;

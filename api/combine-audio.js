@@ -206,7 +206,7 @@ async function createAudioPlan(world, lmid, recordingsByQuestion) {
         // Add all user recordings for this question
         const questionRecordings = recordingsByQuestion[questionId];
         for (const recording of questionRecordings) {
-            const userRecordingUrl = getUserRecordingUrl(lmid, world, questionId, recording.timestamp);
+            const userRecordingUrl = recording.cloudUrl || getUserRecordingUrl(lmid, world, questionId, recording.timestamp);
             plan.push({
                 type: 'recording',
                 questionId: questionId,
