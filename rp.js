@@ -1,4 +1,22 @@
-// rp.js - Handles authorization on the recording page
+/**
+ * rp.js - Recording Page Authorization & World Management
+ * 
+ * PURPOSE: Secure authorization system for recording pages with world-specific content management
+ * DEPENDENCIES: Memberstack DOM SDK, URL parameters, recording.js integration
+ * DOCUMENTATION: See /documentation/rp.js.md for complete system overview
+ * 
+ * AUTHORIZATION FLOW:
+ * URL Parameters → Memberstack Auth → LMID Ownership Validation → World Content Display → Recording System Init
+ * 
+ * MAIN FUNCTIONS:
+ * - URL parameter validation (world & lmid required)
+ * - Memberstack authentication verification
+ * - LMID ownership validation against user metadata
+ * - World-specific collection display management
+ * - Recording system initialization and integration
+ * - Radio program generation button setup
+ * - Question ID normalization and recording validation
+ */
 
 /**
  * Shows only the collection for the specified world and hides all others

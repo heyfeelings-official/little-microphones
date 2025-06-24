@@ -1,3 +1,23 @@
+/**
+ * api/combine-audio.js - Radio Program Generation Service
+ * 
+ * PURPOSE: Serverless function for combining multiple audio recordings into a single radio program using FFmpeg
+ * DEPENDENCIES: FFmpeg (with fluent-ffmpeg), Bunny.net Storage API, Node.js file system
+ * DOCUMENTATION: See /documentation/api-documentation.md for complete API overview
+ * 
+ * REQUEST FORMAT:
+ * POST /api/combine-audio
+ * Body: { world: "spookyland", lmid: "32", recordings: [{ questionId: "QID9", timestamp: 123, cloudUrl: "..." }] }
+ * 
+ * AUDIO SEQUENCE:
+ * intro.mp3 → question1.mp3 → [user recordings Q1] → monkeys.mp3 → question2.mp3 → [user recordings Q2] → monkeys.mp3 → outro.mp3
+ * 
+ * PROCESSING PIPELINE:
+ * Recording Collection → Audio Plan Creation → File Download → FFmpeg Combination → Cloud Upload → URL Response
+ * 
+ * OUTPUT: Single MP3 file with all recordings combined in proper sequence
+ */
+
 // Import required modules at the top
 const ffmpeg = require('fluent-ffmpeg');
 const fs = require('fs').promises;

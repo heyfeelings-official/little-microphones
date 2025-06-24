@@ -1,3 +1,22 @@
+/**
+ * api/delete-audio.js - Audio File Deletion Service
+ * 
+ * PURPOSE: Serverless function for deleting individual files or entire LMID folders from Bunny.net storage
+ * DEPENDENCIES: Bunny.net Storage API, HTTPS module for API requests
+ * DOCUMENTATION: See /documentation/api-documentation.md for complete API overview
+ * 
+ * REQUEST FORMATS:
+ * DELETE /api/delete-audio
+ * Single File: { filename: "audio.mp3", world: "world", lmid: "32", questionId: "QID9" }
+ * Folder Delete: { deleteLmidFolder: true, lmid: "32" }
+ * 
+ * PROCESSING MODES:
+ * 1. Single File Deletion → Direct file removal from storage
+ * 2. LMID Folder Deletion → List folder contents → Batch delete all files
+ * 
+ * DELETION STRATEGY: Comprehensive cleanup with error resilience and progress tracking
+ */
+
 export default async function handler(req, res) {
     // Set CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');

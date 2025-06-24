@@ -1,4 +1,17 @@
-// lm.js - Secure version using Memberstack Metadata
+/**
+ * lm.js - Main Authentication & LMID Management System
+ * 
+ * PURPOSE: Core authentication system and LMID (Little Microphone ID) management for the main dashboard
+ * DEPENDENCIES: Memberstack DOM SDK, Webflow, Make.com webhooks, Bunny.net API
+ * DOCUMENTATION: See /documentation/lm.js.md for complete system overview
+ * 
+ * MAIN FUNCTIONS:
+ * - User authentication via Memberstack
+ * - LMID creation and deletion (max 5 per user)
+ * - World navigation and routing
+ * - File cleanup during LMID deletion
+ * - Dynamic UI generation from templates
+ */
 document.addEventListener("DOMContentLoaded", () => {
   const memberstack = window.$memberstackDom;
 

@@ -1,3 +1,21 @@
+/**
+ * api/upload-audio.js - Audio File Upload Service
+ * 
+ * PURPOSE: Serverless function for uploading recorded audio files to Bunny.net CDN storage
+ * DEPENDENCIES: Bunny.net Storage API, Node.js Buffer handling
+ * DOCUMENTATION: See /documentation/api-documentation.md for complete API overview
+ * 
+ * REQUEST FORMAT:
+ * POST /api/upload-audio
+ * Body: { audio: "base64_mp3", world: "spookyland", lmid: "32", questionId: "QID9", timestamp: 1234567890 }
+ * 
+ * PROCESSING PIPELINE:
+ * Base64 Audio → Buffer Conversion → Filename Generation → Bunny.net Upload → CDN URL Response
+ * 
+ * FILE NAMING: kids-world_{world}-lmid_{lmid}-question_{number}-tm_{timestamp}.mp3
+ * STORAGE PATH: /{lmid}/{world}/{filename}
+ */
+
 export default async function handler(req, res) {
     // Set CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
