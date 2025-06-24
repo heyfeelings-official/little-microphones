@@ -275,16 +275,26 @@ async function checkIfUserHasRecordings(world, lmid) {
       return true; // Assume they have recordings if we can't check
     }
     
-    // Check a few common question IDs to see if there are any recordings
-    const questionIds = ['Q1', 'Q2', 'Q3', 'Q4', 'Q5', 'Q6'];
+    // Check a broader range of question IDs to catch all possible recordings
+    // Based on console logs, we see recordings stored under various IDs like Q9
+    const questionIds = ['Q1', 'Q2', 'Q3', 'Q4', 'Q5', 'Q6', 'Q7', 'Q8', 'Q9', 'Q10', 'Q11', 'Q12'];
+    
+    console.log(`Checking for recordings in ${world}/${lmid}...`);
     
     for (const questionId of questionIds) {
-      const recordings = await loadRecordingsFromDB(questionId, world, lmid);
-      if (recordings && recordings.length > 0) {
-        return true;
+      try {
+        const recordings = await loadRecordingsFromDB(questionId, world, lmid);
+        if (recordings && recordings.length > 0) {
+          console.log(`Found ${recordings.length} recordings for ${questionId}`);
+          return true;
+        }
+      } catch (error) {
+        // Silently continue if a specific question ID fails
+        console.warn(`Could not check ${questionId}:`, error);
       }
     }
     
+    console.log('No recordings found for any question ID');
     return false;
   } catch (error) {
     console.error('Error checking for recordings:', error);

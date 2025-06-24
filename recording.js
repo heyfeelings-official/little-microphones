@@ -1245,37 +1245,63 @@ async function generateRadioProgram(world, lmid) {
 async function collectRecordingsForRadioProgram(world, lmid) {
     const recordings = {};
     
-    // Find all recorder wrappers for this world
+    // First, try to find recordings from DOM elements
     const targetCollectionId = `collection-${world}`;
     const targetCollection = document.getElementById(targetCollectionId);
     
-    if (!targetCollection) {
-        console.warn(`Collection not found: ${targetCollectionId}`);
-        return recordings;
+    if (targetCollection) {
+        const recorderWrappers = targetCollection.querySelectorAll('.faq1_accordion.lm');
+        
+        for (const wrapper of recorderWrappers) {
+            const questionId = wrapper.dataset.questionId;
+            if (!questionId) continue;
+            
+            try {
+                const questionRecordings = await loadRecordingsFromDB(questionId, world, lmid);
+                
+                if (questionRecordings.length > 0) {
+                    // Filter only recordings that have been successfully uploaded to cloud
+                    const validRecordings = questionRecordings
+                        .filter(rec => rec.uploadStatus === 'uploaded' && rec.cloudUrl)
+                        .map(rec => `${rec.id}.webm`); // Extract filename for API
+                    
+                    if (validRecordings.length > 0) {
+                        recordings[questionId] = validRecordings;
+                        console.log(`Found ${validRecordings.length} valid recordings for ${questionId}`);
+                    }
+                }
+            } catch (error) {
+                console.warn(`Error loading recordings for ${questionId}:`, error);
+            }
+        }
     }
     
-    const recorderWrappers = targetCollection.querySelectorAll('.faq1_accordion.lm');
-    
-    for (const wrapper of recorderWrappers) {
-        const questionId = wrapper.dataset.questionId;
-        if (!questionId) continue;
+    // If no recordings found from DOM, try direct database search
+    if (Object.keys(recordings).length === 0) {
+        console.log('No recordings found from DOM elements, trying direct database search...');
         
-        try {
-            const questionRecordings = await loadRecordingsFromDB(questionId, world, lmid);
-            
-            if (questionRecordings.length > 0) {
-                // Filter only recordings that have been successfully uploaded to cloud
-                const validRecordings = questionRecordings
-                    .filter(rec => rec.uploadStatus === 'uploaded' && rec.cloudUrl)
-                    .map(rec => `${rec.id}.webm`); // Extract filename for API
+        // Check all possible question IDs directly
+        const questionIds = ['Q1', 'Q2', 'Q3', 'Q4', 'Q5', 'Q6', 'Q7', 'Q8', 'Q9', 'Q10', 'Q11', 'Q12'];
+        
+        for (const questionId of questionIds) {
+            try {
+                const questionRecordings = await loadRecordingsFromDB(questionId, world, lmid);
                 
-                if (validRecordings.length > 0) {
-                    recordings[questionId] = validRecordings;
-                    console.log(`Found ${validRecordings.length} valid recordings for ${questionId}`);
+                if (questionRecordings.length > 0) {
+                    // Filter only recordings that have been successfully uploaded to cloud
+                    const validRecordings = questionRecordings
+                        .filter(rec => rec.uploadStatus === 'uploaded' && rec.cloudUrl)
+                        .map(rec => `${rec.id}.webm`); // Extract filename for API
+                    
+                    if (validRecordings.length > 0) {
+                        recordings[questionId] = validRecordings;
+                        console.log(`Found ${validRecordings.length} valid recordings for ${questionId} (direct search)`);
+                    }
                 }
+            } catch (error) {
+                // Silently continue if a specific question ID fails
+                console.warn(`Could not check ${questionId}:`, error);
             }
-        } catch (error) {
-            console.warn(`Error loading recordings for ${questionId}:`, error);
         }
     }
     
