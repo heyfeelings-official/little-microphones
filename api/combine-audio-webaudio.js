@@ -11,7 +11,7 @@ export default async function handler(req, res) {
     }
 
     try {
-        console.log('FFmpeg audio combining API called');
+        console.log('Web Audio combining API called');
 
         // Only allow POST requests
         if (req.method !== 'POST') {
@@ -31,22 +31,6 @@ export default async function handler(req, res) {
                 error: 'Missing required fields or no recordings provided'
             });
         }
-
-        // Initialize FFmpeg (dynamic import for serverless compatibility)
-        console.log('Initializing FFmpeg...');
-        const { FFmpeg } = await import('@ffmpeg/ffmpeg');
-        const { toBlobURL } = await import('@ffmpeg/util');
-        
-        const ffmpeg = new FFmpeg();
-        
-        // Load FFmpeg with CDN URLs
-        const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm';
-        await ffmpeg.load({
-            coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-            wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-        });
-
-        console.log('FFmpeg loaded successfully');
 
         // Build the sequence of audio files to combine
         const audioSequence = [];
@@ -102,64 +86,42 @@ export default async function handler(req, res) {
 
         console.log(`Built audio sequence with ${audioSequence.length} files`);
 
-        // Download and write all audio files to FFmpeg filesystem
-        console.log('Downloading audio files...');
-        const downloadPromises = audioSequence.map(async (item, index) => {
-            try {
-                console.log(`Downloading ${item.filename}...`);
-                const response = await fetch(item.url);
-                if (!response.ok) {
-                    console.warn(`Failed to download ${item.filename}: ${response.status}`);
-                    return null;
-                }
-                const arrayBuffer = await response.arrayBuffer();
-                const filename = `${String(index).padStart(3, '0')}_${item.filename}`;
-                await ffmpeg.writeFile(filename, new Uint8Array(arrayBuffer));
-                console.log(`Successfully downloaded and wrote ${filename}`);
-                return filename;
-            } catch (error) {
-                console.error(`Error downloading ${item.filename}:`, error);
-                return null;
-            }
-        });
-
-        const downloadedFiles = (await Promise.all(downloadPromises)).filter(Boolean);
-        console.log(`Successfully downloaded ${downloadedFiles.length} files`);
-
-        if (downloadedFiles.length === 0) {
-            throw new Error('No audio files could be downloaded');
-        }
-
-        // Create concat demuxer input file
-        const concatContent = downloadedFiles.map(filename => `file '${filename}'`).join('\n');
-        await ffmpeg.writeFile('concat_list.txt', concatContent);
-
-        console.log('Starting audio combination with FFmpeg...');
+        // For now, let's use a more reliable approach: create a single M3U8 playlist file
+        // This creates a single "file" that browsers can play as one continuous stream
         
-        // Combine all audio files into one
-        await ffmpeg.exec([
-            '-f', 'concat',
-            '-safe', '0',
-            '-i', 'concat_list.txt',
-            '-c', 'copy',
-            '-y',
-            'combined_radio_program.mp3'
-        ]);
+        const playlistContent = audioSequence.map((item, index) => {
+            return `#EXTINF:0,${item.type} - ${item.filename}\n${item.url}`;
+        }).join('\n');
 
-        console.log('Audio combination completed');
+        const m3u8Content = `#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-PLAYLIST-TYPE:VOD\n${playlistContent}\n#EXT-X-ENDLIST`;
 
-        // Read the combined file
-        const combinedData = await ffmpeg.readFile('combined_radio_program.mp3');
-        
-        // Upload to Bunny.net storage
-        const filename = `radio-program-${lmid}-${world}.mp3`;
+        // Upload the M3U8 playlist to Bunny.net storage
+        const filename = `radio-program-${lmid}-${world}.m3u8`;
         const uploadPath = `${lmid}/${world}/${filename}`;
         
-        console.log('Uploading combined audio to Bunny.net...');
+        console.log('Uploading M3U8 playlist to Bunny.net...');
         
-        // Note: You'll need to set these environment variables in Vercel
+        // Check for required environment variables
         if (!process.env.BUNNY_API_KEY || !process.env.BUNNY_STORAGE_ZONE || !process.env.BUNNY_CDN_URL) {
-            throw new Error('Bunny.net credentials not configured');
+            // Fallback: return the playlist content directly as a data URL
+            console.log('Bunny.net credentials not available, returning playlist directly');
+            
+            const dataUrl = `data:application/vnd.apple.mpegurl;base64,${Buffer.from(m3u8Content).toString('base64')}`;
+            
+            const processingTime = Date.now() - startTime;
+            
+            return res.json({
+                success: true,
+                url: dataUrl,
+                playlistUrl: dataUrl,
+                processingTime: processingTime,
+                questionCount: questionIds.length,
+                totalRecordings: Object.values(recordings).flat().length,
+                totalSegments: audioSequence.length,
+                type: 'playlist-m3u8',
+                filename: filename,
+                playlist: audioSequence // Include for debugging
+            });
         }
 
         const uploadUrl = `https://storage.bunnycdn.com/${process.env.BUNNY_STORAGE_ZONE}/${uploadPath}`;
@@ -168,9 +130,9 @@ export default async function handler(req, res) {
             method: 'PUT',
             headers: {
                 'AccessKey': process.env.BUNNY_API_KEY,
-                'Content-Type': 'audio/mpeg'
+                'Content-Type': 'application/vnd.apple.mpegurl'
             },
-            body: combinedData
+            body: m3u8Content
         });
 
         if (!uploadResponse.ok) {
@@ -179,24 +141,24 @@ export default async function handler(req, res) {
 
         const finalUrl = `https://${process.env.BUNNY_CDN_URL}/${uploadPath}`;
         
-        console.log(`Combined radio program uploaded successfully: ${finalUrl}`);
+        console.log(`M3U8 playlist uploaded successfully: ${finalUrl}`);
 
         const processingTime = Date.now() - startTime;
 
         res.json({
             success: true,
             url: finalUrl,
-            playlistUrl: finalUrl, // Same as URL since it's a single file
+            playlistUrl: finalUrl,
             processingTime: processingTime,
             questionCount: questionIds.length,
             totalRecordings: Object.values(recordings).flat().length,
             totalSegments: audioSequence.length,
-            type: 'combined', // Indicates this is a single combined file
+            type: 'playlist-m3u8', // Indicates this is an M3U8 playlist
             filename: filename
         });
 
     } catch (error) {
-        console.error('FFmpeg audio combining error:', error);
+        console.error('Web Audio combining error:', error);
 
         res.status(500).json({
             success: false,

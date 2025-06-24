@@ -1201,7 +1201,7 @@ async function generateRadioProgram(world, lmid) {
         // Step 2: Send to API for processing (using simplified version for now)
         updateRadioProgramProgress('Combining audio files...', 20);
         
-        const response = await fetch('https://little-microphones.vercel.app/api/combine-audio-ffmpeg', {
+        const response = await fetch('https://little-microphones.vercel.app/api/combine-audio-simple', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

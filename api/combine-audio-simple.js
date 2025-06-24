@@ -26,12 +26,8 @@ export default async function handler(req, res) {
 
     // Check for required environment variables
     if (!process.env.BUNNY_API_KEY || !process.env.BUNNY_STORAGE_ZONE || !process.env.BUNNY_CDN_URL) {
-        console.error('Missing required environment variables');
-        return res.status(500).json({
-            success: false,
-            error: 'Server configuration error - missing environment variables',
-            details: 'BUNNY_API_KEY, BUNNY_STORAGE_ZONE, and BUNNY_CDN_URL must be configured'
-        });
+        console.error('Missing required environment variables - will use fallback method');
+        // Don't return error, continue with fallback approach
     }
 
     const startTime = Date.now();
@@ -55,8 +51,8 @@ export default async function handler(req, res) {
 
         // Check environment variables
         if (!process.env.BUNNY_API_KEY || !process.env.BUNNY_STORAGE_ZONE || !process.env.BUNNY_CDN_URL) {
-            console.error('Missing Bunny.net configuration');
-            return res.status(500).json({ error: 'Server configuration error' });
+            console.error('Missing Bunny.net configuration - using fallback approach');
+            // Continue without uploading, will provide direct response
         }
 
         console.log(`Starting simplified radio program generation for LMID ${lmid}, World ${world}`);
@@ -122,10 +118,32 @@ export default async function handler(req, res) {
         const radioHtml = generateRadioPlayerHtml(playlist, world, lmid);
         console.log('HTML generated, length:', radioHtml.length);
         
-        // Upload the HTML player to Bunny.net
-        console.log('Starting upload to Bunny.net...');
-        const uploadResult = await uploadRadioPlayer(radioHtml, lmid, world);
-        console.log('Upload completed:', uploadResult);
+        let uploadResult;
+        
+        // Try to upload to Bunny.net if credentials are available
+        if (process.env.BUNNY_API_KEY && process.env.BUNNY_STORAGE_ZONE && process.env.BUNNY_CDN_URL) {
+            console.log('Starting upload to Bunny.net...');
+            try {
+                uploadResult = await uploadRadioPlayer(radioHtml, lmid, world);
+                console.log('Upload completed:', uploadResult);
+            } catch (uploadError) {
+                console.error('Upload failed, using fallback:', uploadError);
+                uploadResult = null;
+            }
+        } else {
+            console.log('No Bunny.net credentials, using fallback approach');
+            uploadResult = null;
+        }
+        
+        // If upload failed or no credentials, use fallback
+        if (!uploadResult) {
+            const fallbackUrl = `https://little-microphones.vercel.app/api/radio-player?lmid=${lmid}&world=${world}&t=${Date.now()}`;
+            uploadResult = {
+                url: fallbackUrl,
+                playlistUrl: fallbackUrl,
+                filename: `radio-program-${lmid}-${world}.html`
+            };
+        }
 
         const processingTime = Date.now() - startTime;
         console.log(`Simplified radio program generated in ${processingTime}ms`);
