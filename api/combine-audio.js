@@ -370,7 +370,9 @@ function downloadFile(url, filePath) {
  * Upload combined audio to Bunny.net
  */
 async function uploadToBunny(filePath, world, lmid) {
-    const fileName = `radio-program-${world}-${lmid}.mp3`;
+    // Add timestamp for versioning to prevent caching issues
+    const timestamp = Date.now();
+    const fileName = `radio-program-${world}-${lmid}-v${timestamp}.mp3`;
     const uploadPath = `/${lmid}/${world}/${fileName}`;
     
     console.log(`📤 Uploading to Bunny.net: ${uploadPath}`);
@@ -386,7 +388,10 @@ async function uploadToBunny(filePath, world, lmid) {
             headers: {
                 'AccessKey': process.env.BUNNY_API_KEY,
                 'Content-Type': 'audio/mpeg',
-                'Content-Length': fileBuffer.length
+                'Content-Length': fileBuffer.length,
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
             }
         };
         
@@ -395,9 +400,10 @@ async function uploadToBunny(filePath, world, lmid) {
                 const downloadUrl = `${process.env.BUNNY_CDN_URL}${uploadPath}`;
                 console.log(`✅ Upload successful: ${downloadUrl}`);
                 
-                // Ensure URL has proper protocol
+                // Ensure URL has proper protocol and add cache-busting parameter
                 const finalUrl = downloadUrl.startsWith('http') ? downloadUrl : `https://${downloadUrl}`;
-                resolve(finalUrl);
+                const cacheBustUrl = `${finalUrl}?t=${timestamp}`;
+                resolve(cacheBustUrl);
             } else {
                 reject(new Error(`Upload failed with status: ${res.statusCode}`));
             }

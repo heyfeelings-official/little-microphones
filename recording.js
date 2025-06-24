@@ -1258,25 +1258,35 @@ async function generateRadioProgram(world, lmid) {
         // Step 2: Build direct CDN URLs for all audio files
         const audioSegments = [];
         
+        console.log('🎵 BUILDING FRESH AUDIO PLAN WITH LATEST RECORDINGS:');
+        
         // 1. Add intro
         audioSegments.push({
             type: 'single',
             url: 'https://little-microphones.b-cdn.net/audio/other/intro.mp3'
         });
+        console.log('📁 Added intro');
         
         // 2. For each question: question prompt → combine all answers with monkeys background
         const questionIds = Object.keys(recordings).sort();
         
         for (const questionId of questionIds) {
             // Add question prompt
+            const questionUrl = `https://little-microphones.b-cdn.net/audio/${world}/${world}-${questionId}.mp3`;
             audioSegments.push({
                 type: 'single',
-                url: `https://little-microphones.b-cdn.net/audio/${world}/${world}-${questionId}.mp3`
+                url: questionUrl
             });
+            console.log(`📁 Added question prompt for ${questionId}: ${questionUrl}`);
             
             // Combine all user recordings for this question WITH monkeys background
             const questionRecordings = recordings[questionId];
             const answerUrls = questionRecordings.map(recording => recording.cloudUrl);
+            
+            console.log(`🎤 Adding ${answerUrls.length} FRESH answers for ${questionId}:`);
+            answerUrls.forEach((url, index) => {
+                console.log(`   ${index + 1}. ${url}`);
+            });
             
             audioSegments.push({
                 type: 'combine_with_background',
@@ -1284,6 +1294,7 @@ async function generateRadioProgram(world, lmid) {
                 backgroundUrl: 'https://little-microphones.b-cdn.net/audio/other/monkeys.mp3',
                 questionId: questionId
             });
+            console.log(`🐒 Added monkeys background for ${questionId}`);
         }
         
         // 3. Add outro
@@ -1291,6 +1302,10 @@ async function generateRadioProgram(world, lmid) {
             type: 'single',
             url: 'https://little-microphones.b-cdn.net/audio/other/outro.mp3'
         });
+        console.log('📁 Added outro');
+        
+        console.log(`🎼 FINAL AUDIO PLAN: ${audioSegments.length} segments total`);
+        console.log('📋 Full audio plan:', audioSegments);
         
         updateRadioProgramProgress('Sending to audio processor...', 30, `Processing ${questionIds.length} questions with combined answers`);
         
@@ -1376,6 +1391,8 @@ async function generateRadioProgram(world, lmid) {
 async function collectRecordingsForRadioProgram(world, lmid) {
     const recordings = {};
     
+    console.log(`🔍 Collecting FRESH recordings for ${world}/${lmid} (cache-busted)`);
+    
     // First, try to find recordings from DOM elements
     const targetCollectionId = `collection-${world}`;
     const targetCollection = document.getElementById(targetCollectionId);
@@ -1388,14 +1405,17 @@ async function collectRecordingsForRadioProgram(world, lmid) {
             if (!questionId) continue;
             
             try {
+                // Force fresh database query (no caching)
                 const questionRecordings = await loadRecordingsFromDB(questionId, world, lmid);
                 
                 if (questionRecordings.length > 0) {
-                    console.log(`[${questionId}] Raw recordings from DB:`, questionRecordings.map(r => ({
+                    console.log(`[${questionId}] Raw recordings from DB (FRESH):`, questionRecordings.map(r => ({
                         id: r.id,
                         uploadStatus: r.uploadStatus,
                         hasCloudUrl: !!r.cloudUrl,
-                        hasAudio: !!r.audio
+                        hasAudio: !!r.audio,
+                        timestamp: r.timestamp,
+                        cloudUrl: r.cloudUrl ? r.cloudUrl.substring(0, 50) + '...' : 'none'
                     })));
                     
                     // Filter only recordings that have been successfully uploaded to cloud
@@ -1404,7 +1424,8 @@ async function collectRecordingsForRadioProgram(world, lmid) {
                     
                     if (validRecordings.length > 0) {
                         recordings[questionId] = validRecordings;
-                        console.log(`Found ${validRecordings.length} valid recordings for ${questionId}`);
+                        console.log(`✅ Found ${validRecordings.length} FRESH valid recordings for ${questionId}`);
+                        console.log(`📋 Recording URLs:`, validRecordings.map(r => r.cloudUrl));
                     } else {
                         console.log(`[${questionId}] No valid uploaded recordings found. ${questionRecordings.length} total recordings but none meet criteria (uploadStatus='uploaded' && cloudUrl exists)`);
                         
