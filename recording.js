@@ -1193,6 +1193,11 @@ async function cleanupAllOrphanedRecordings() {
 // Make cleanup function available globally
 window.cleanupAllOrphanedRecordings = cleanupAllOrphanedRecordings;
 
+// --- NEW: Announce when the script is fully loaded and ready ---
+window.isRecordingScriptReady = true; // Set a flag for scripts that load later
+document.dispatchEvent(new CustomEvent('recording-script-ready'));
+console.log('✅ recording.js script fully loaded and ready.');
+
 /**
  * Normalize question ID to consistent QID format
  * @param {string} questionId - Raw question ID from DOM

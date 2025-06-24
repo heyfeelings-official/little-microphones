@@ -27,14 +27,18 @@
  * @param {string} world - The world slug
  */
 function initializeRecordingForWorld(world) {
-  // Check if recording.js functions are available
-  if (typeof initializeRecordersForWorld === 'function') {
-    console.log(`Initializing recording functionality for world: ${world}`);
+  // NEW: Robust, event-driven initialization
+  // Check if the recording script is already ready
+  if (window.isRecordingScriptReady) {
+    console.log(`Recording script is ready. Initializing for world: ${world}`);
     initializeRecordersForWorld(world);
   } else {
-    console.warn('initializeRecordersForWorld function not available yet');
-    // Retry after a short delay
-    setTimeout(() => initializeRecordingForWorld(world), 100);
+    // If not, wait for the custom event
+    console.log('Recording script not ready yet. Waiting for event...');
+    document.addEventListener('recording-script-ready', () => {
+      console.log(`'recording-script-ready' event received. Initializing for world: ${world}`);
+      initializeRecordersForWorld(world);
+    }, { once: true }); // Use 'once' to ensure the listener is auto-removed
   }
 }
 
