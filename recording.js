@@ -1316,12 +1316,17 @@ async function generateRadioProgram(world, lmid) {
             // Handle audio processing errors
             hideRadioProgramModal();
             
+            // NEW: Greatly improved error handling
             const errorMessage = result.error || 'Radio program generation failed';
             
-            // NEW: More specific error handling for 404 Not Found
-            if (errorMessage.includes('404')) {
-                // Extract the missing file URL from the error message for better debugging
-                const missingFileMatch = errorMessage.match(/https:\/\/[^:]+/);
+            if (result.missingFiles && result.missingFiles.length > 0) {
+                // Handle specific missing files error from the new pre-flight check
+                console.error('API reported missing files:', result.missingFiles);
+                const fileList = result.missingFiles.join('\n - ');
+                alert('Audio processing failed because some required files are missing:' + '\n\n' + '- ' + fileList + '\n\n' + 'Please ensure all question prompts and user recordings are available, then try again.');
+            } else if (errorMessage.includes('404')) {
+                // Handle generic 404 error if pre-flight check somehow fails
+                const missingFileMatch = errorMessage.match(/https:\\/\\/[^:]+/);
                 const missingFile = missingFileMatch ? missingFileMatch[0] : 'a required audio file';
 
                 console.error(`Audio processing failed because a file was not found: ${missingFile}`);

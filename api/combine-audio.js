@@ -118,6 +118,30 @@ export default async function handler(req, res) {
         const audioPlan = await createAudioPlan(world, lmid, recordingsByQuestion);
         console.log(`🎼 Created audio plan with ${audioPlan.length} segments`);
 
+        // --- NEW: Pre-flight check for all audio files ---
+        const missingFiles = [];
+        for (const segment of audioPlan) {
+            try {
+                const response = await fetch(segment.url, { method: 'HEAD' });
+                if (!response.ok) {
+                    missingFiles.push({ url: segment.url, status: response.status });
+                }
+            } catch (error) {
+                missingFiles.push({ url: segment.url, status: 'Network Error' });
+            }
+        }
+
+        if (missingFiles.length > 0) {
+            console.error('❌ Missing audio files detected:', missingFiles);
+            return res.status(400).json({
+                success: false,
+                error: `One or more required audio files could not be found.`,
+                details: 'The following files are missing or inaccessible:',
+                missingFiles: missingFiles.map(f => `${f.url} (Status: ${f.status})`)
+            });
+        }
+        // --- END: Pre-flight check ---
+
         // Try to combine audio using FFmpeg
         try {
             const combinedAudioUrl = await combineAudioWithFFmpeg(audioPlan, world, lmid);
