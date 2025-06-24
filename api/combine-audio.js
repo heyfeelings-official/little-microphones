@@ -153,21 +153,32 @@ async function combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams) {
         ffmpeg.setFfmpegPath(ffmpegPath);
         
         console.log('📦 FFmpeg found, starting radio program generation...');
+        console.log(`🎵 Processing ${audioSegments.length} audio segments in DOM order:`);
+        
+        // Log the complete audio sequence order for debugging
+        audioSegments.forEach((segment, index) => {
+            if (segment.type === 'single') {
+                console.log(`  ${index + 1}. [SINGLE] ${segment.url.split('/').pop()}`);
+            } else if (segment.type === 'combine_with_background') {
+                console.log(`  ${index + 1}. [COMBINED] ${segment.questionId} - ${segment.answerUrls.length} answers with background`);
+            }
+        });
         
         // Create temp directory
         const tempDir = path.join(os.tmpdir(), `radio-${world}-${lmid}-${Date.now()}`);
         console.log('📁 Creating temp directory:', tempDir);
         await fs.mkdir(tempDir, { recursive: true });
         
-        // Process each segment
+        // Process each segment IN ORDER (critical for maintaining DOM sequence)
         const processedSegments = [];
         
         for (let i = 0; i < audioSegments.length; i++) {
             const segment = audioSegments[i];
+            console.log(`🎵 Processing segment ${i + 1}/${audioSegments.length}:`, segment.type);
             
             if (segment.type === 'single') {
                 // Single audio file (intro, outro, questions)
-                const fileName = `segment-${i}-single.mp3`;
+                const fileName = `segment-${String(i).padStart(3, '0')}-single.mp3`;
                 const filePath = path.join(tempDir, fileName);
                 
                 console.log(`📥 Downloading: ${segment.url}`);
@@ -176,8 +187,11 @@ async function combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams) {
                 processedSegments.push({
                     path: filePath,
                     type: 'single',
-                    url: segment.url
+                    url: segment.url,
+                    originalIndex: i
                 });
+                
+                console.log(`✅ Processed single segment ${i + 1}: ${fileName}`);
                 
             } else if (segment.type === 'combine_with_background') {
                 // Combine multiple answers with background music
@@ -186,31 +200,40 @@ async function combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams) {
                 // Download all answer files
                 const answerPaths = [];
                 for (let j = 0; j < segment.answerUrls.length; j++) {
-                    const answerPath = path.join(tempDir, `answers-${i}-${j}.mp3`);
-                    console.log(`📥 Downloading answer: ${segment.answerUrls[j]}`);
+                    const answerPath = path.join(tempDir, `answers-${String(i).padStart(3, '0')}-${j}.mp3`);
+                    console.log(`📥 Downloading answer ${j + 1}/${segment.answerUrls.length}: ${segment.answerUrls[j]}`);
                     await downloadFile(segment.answerUrls[j], answerPath);
                     answerPaths.push(answerPath);
                 }
                 
                 // Download background music
-                const backgroundPath = path.join(tempDir, `background-${i}.mp3`);
+                const backgroundPath = path.join(tempDir, `background-${String(i).padStart(3, '0')}.mp3`);
                 console.log(`📥 Downloading background: ${segment.backgroundUrl}`);
                 await downloadFile(segment.backgroundUrl, backgroundPath);
                 
                 // Combine answers with background
-                const combinedPath = path.join(tempDir, `segment-${i}-combined.mp3`);
+                const combinedPath = path.join(tempDir, `segment-${String(i).padStart(3, '0')}-combined.mp3`);
                 await combineAnswersWithBackground(answerPaths, backgroundPath, combinedPath, audioParams);
                 
                 processedSegments.push({
                     path: combinedPath,
                     type: 'combined',
-                    questionId: segment.questionId
+                    questionId: segment.questionId,
+                    originalIndex: i
                 });
+                
+                console.log(`✅ Processed combined segment ${i + 1}: ${segment.questionId}`);
             }
         }
         
-        // Final assembly of all segments
-        console.log('🎼 Assembling final radio program...');
+        // Verify processing order
+        console.log('📋 Verifying segment processing order:');
+        processedSegments.forEach((segment, index) => {
+            console.log(`  ${index + 1}. [${segment.type.toUpperCase()}] Original index: ${segment.originalIndex}, Path: ${path.basename(segment.path)}`);
+        });
+        
+        // Final assembly of all segments IN ORDER
+        console.log('🎼 Assembling final radio program in correct order...');
         const outputPath = path.join(tempDir, `radio-program-${world}-${lmid}.mp3`);
         await assembleFinalProgram(processedSegments, outputPath, audioParams);
         
@@ -220,6 +243,7 @@ async function combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams) {
         // Cleanup temp files
         await cleanupTempDirectory(tempDir);
         
+        console.log('✅ Radio program generation completed successfully');
         return uploadUrl;
         
     } catch (error) {

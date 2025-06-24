@@ -1282,6 +1282,11 @@ async function generateRadioProgram(world, lmid) {
         const sortedQuestionIds = sortQuestionIdsByDOMOrder(questionIds, world);
         console.log('📋 Question order (by DOM):', sortedQuestionIds);
         
+        // Verify that we have the correct DOM sequence
+        console.log('🎯 Building audio segments in DOM order:');
+        console.log(`   Total questions to process: ${sortedQuestionIds.length}`);
+        console.log(`   Question sequence:`, sortedQuestionIds.map((qid, i) => `${i + 1}. ${qid}`));
+        
         // Build audio segments in correct order
         const audioSegments = [];
         
@@ -1292,11 +1297,16 @@ async function generateRadioProgram(world, lmid) {
             type: 'single',
             url: introUrl
         });
-        console.log('📁 Added intro');
+        console.log('📁 Added intro (segment 1)');
         
         // 2. Add questions and answers in DOM order
-        for (const questionId of sortedQuestionIds) {
+        for (let i = 0; i < sortedQuestionIds.length; i++) {
+            const questionId = sortedQuestionIds[i];
             const questionRecordings = recordings[questionId];
+            const questionNumber = i + 1;
+            const segmentNumber = (i * 2) + 2; // Each question creates 2 segments (prompt + answers)
+            
+            console.log(`🎵 Processing question ${questionNumber}/${sortedQuestionIds.length}: ${questionId}`);
             
             // Add question prompt with cache-busting
             const cacheBustTimestamp = Date.now();
@@ -1305,15 +1315,15 @@ async function generateRadioProgram(world, lmid) {
                 type: 'single',
                 url: questionUrl
             });
-            console.log(`📁 Added question prompt for ${questionId}: ${questionUrl}`);
+            console.log(`📁 Added question prompt (segment ${segmentNumber}): ${questionId}`);
             
             // Sort answers by timestamp (first recorded = first played)
             const sortedAnswers = questionRecordings.sort((a, b) => a.timestamp - b.timestamp);
             const answerUrls = sortedAnswers.map(recording => recording.cloudUrl);
             
-            console.log(`🎤 Adding ${answerUrls.length} FRESH answers for ${questionId}:`);
+            console.log(`🎤 Adding ${answerUrls.length} answers for ${questionId} (segment ${segmentNumber + 1}):`);
             answerUrls.forEach((url, index) => {
-                console.log(`   ${index + 1}. ${url}`);
+                console.log(`   Answer ${index + 1}: ${url.substring(url.lastIndexOf('/') + 1)}`);
             });
             
             // Combine answers with background music (cache-busted)
@@ -1325,7 +1335,7 @@ async function generateRadioProgram(world, lmid) {
                 backgroundUrl: backgroundUrl,
                 questionId: questionId
             });
-            console.log(`🐒 Added monkeys background for ${questionId}`);
+            console.log(`🐒 Added answers with background (segment ${segmentNumber + 1}): ${questionId}`);
         }
         
         // 3. Add outro with cache-busting
@@ -1335,10 +1345,21 @@ async function generateRadioProgram(world, lmid) {
             type: 'single',
             url: outroUrl
         });
-        console.log('📁 Added outro');
+        console.log(`📁 Added outro (segment ${audioSegments.length})`);
         
+        // Final verification of audio sequence
         console.log(`🎼 FINAL AUDIO PLAN: ${audioSegments.length} segments total`);
-        console.log('📋 Full audio plan:', audioSegments);
+        console.log('📋 Complete radio program sequence (DOM order):');
+        audioSegments.forEach((segment, index) => {
+            if (segment.type === 'single') {
+                const fileName = segment.url.split('/').pop().split('?')[0];
+                console.log(`   ${index + 1}. [SINGLE] ${fileName}`);
+            } else if (segment.type === 'combine_with_background') {
+                console.log(`   ${index + 1}. [COMBINED] ${segment.questionId} (${segment.answerUrls.length} answers + background)`);
+            }
+        });
+        
+        console.log('📋 Full audio plan details:', audioSegments);
         
         updateRadioProgramProgress('Sending to audio processor...', 70, `Processing ${questionIds.length} questions with combined answers`);
         
@@ -1417,25 +1438,89 @@ function sortQuestionIdsByDOMOrder(questionIds, world) {
         return questionIds.sort();
     }
     
-    const recorderWrappers = targetCollection.querySelectorAll('.faq1_accordion.lm');
+    console.log(`🔍 Sorting questions for ${world} using DOM order`);
+    console.log(`📋 Input question IDs:`, questionIds);
+    
+    // Try multiple selectors to find question elements in DOM order
+    const possibleSelectors = [
+        '.faq1_accordion.lm',           // Primary selector
+        '.faq1_accordion',              // Fallback 1
+        '[data-question-id]',           // Fallback 2 - any element with question ID
+        '.lm',                          // Fallback 3
+        '*[data-question-id]'           // Fallback 4 - universal selector
+    ];
+    
+    let recorderWrappers = [];
+    let usedSelector = '';
+    
+    // Try each selector until we find elements
+    for (const selector of possibleSelectors) {
+        recorderWrappers = targetCollection.querySelectorAll(selector);
+        if (recorderWrappers.length > 0) {
+            usedSelector = selector;
+            console.log(`✅ Found ${recorderWrappers.length} elements using selector: ${selector}`);
+            break;
+        }
+    }
+    
+    if (recorderWrappers.length === 0) {
+        console.warn('No question elements found in DOM, using alphabetical order as fallback');
+        return questionIds.sort();
+    }
+    
     const domOrder = [];
     
     // Extract question IDs in DOM order
-    recorderWrappers.forEach(wrapper => {
-        const questionId = wrapper.dataset.questionId;
-        if (questionId && questionIds.includes(questionId)) {
-            domOrder.push(questionId);
+    recorderWrappers.forEach((wrapper, index) => {
+        const questionId = wrapper.dataset.questionId || wrapper.getAttribute('data-question-id');
+        
+        console.log(`🔍 Element ${index + 1}:`, {
+            tagName: wrapper.tagName,
+            classList: Array.from(wrapper.classList),
+            questionId: questionId,
+            textContent: wrapper.textContent?.substring(0, 100) + '...' || 'no text',
+            hasRecordButton: !!wrapper.querySelector('[class*="record"]')
+        });
+        
+        if (questionId) {
+            // Normalize question ID to handle different formats
+            const normalizedQuestionId = normalizeQuestionId(questionId);
+            
+            // Check if this question ID is in our list of available recordings
+            const matchingId = questionIds.find(id => 
+                normalizeQuestionId(id) === normalizedQuestionId ||
+                id === questionId ||
+                id === normalizedQuestionId
+            );
+            
+            if (matchingId && !domOrder.includes(matchingId)) {
+                domOrder.push(matchingId);
+                console.log(`✅ Added to DOM order: ${matchingId} (from element ${questionId})`);
+            } else if (questionId) {
+                console.log(`⚠️ Question ID ${questionId} not found in available recordings or already added`);
+            }
+        } else {
+            console.log(`⚠️ Element ${index + 1} has no question ID attribute`);
         }
     });
     
-    // Add any missing question IDs at the end (fallback)
+    // Add any missing question IDs at the end (fallback for recordings not found in DOM)
     questionIds.forEach(qid => {
         if (!domOrder.includes(qid)) {
+            console.log(`📌 Adding missing question ID to end: ${qid}`);
             domOrder.push(qid);
         }
     });
     
-    console.log('📋 DOM order detected:', domOrder);
+    console.log('📋 Final DOM order detected:', domOrder);
+    console.log(`🎯 Used selector: ${usedSelector}`);
+    console.log(`🔄 Order mapping:`, domOrder.map((qid, index) => `${index + 1}. ${qid}`));
+    
+    // Validate that we have the same number of questions
+    if (domOrder.length !== questionIds.length) {
+        console.warn(`⚠️ Order length mismatch: DOM=${domOrder.length}, Input=${questionIds.length}`);
+    }
+    
     return domOrder;
 }
 
