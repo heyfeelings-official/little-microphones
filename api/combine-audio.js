@@ -59,22 +59,23 @@ export default async function handler(req, res) {
 
         // Step 1: Download static audio files
         console.log('Downloading static audio files...');
-        const staticFiles = await downloadStaticFiles(world, tempDir);
+        const staticFiles = await downloadStaticFiles(world, tempDir, recordings);
         tempFiles.push(...staticFiles);
 
-        // Step 2: Process each question block
+        // Step 2: Process each question block (dynamically based on actual recordings)
         console.log('Processing question blocks...');
         const questionBlocks = [];
         
-        for (let questionNum = 1; questionNum <= 6; questionNum++) {
-            const questionKey = `Q${questionNum}`;
-            const questionRecordings = recordings[questionKey] || [];
-            
-            if (questionRecordings.length > 0) {
+        // Process all question keys that actually have recordings
+        for (const [questionKey, questionRecordings] of Object.entries(recordings)) {
+            if (questionRecordings && questionRecordings.length > 0) {
                 console.log(`Processing ${questionKey} with ${questionRecordings.length} recordings...`);
                 
+                // Extract question number/identifier from key (e.g., "Q9" -> 9, "Qasd" -> "asd")
+                const questionIdentifier = questionKey.replace(/^Q/, '');
+                
                 const questionBlock = await processQuestionBlock(
-                    questionNum, 
+                    questionIdentifier, 
                     world, 
                     lmid, 
                     questionRecordings, 
@@ -176,7 +177,7 @@ function getClassroomAudioConfig() {
 }
 
 // Download static audio files (intro, outro, background music, questions)
-async function downloadStaticFiles(world, tempDir) {
+async function downloadStaticFiles(world, tempDir, recordingsData = {}) {
     const files = [];
     const baseUrl = `https://${process.env.BUNNY_CDN_URL}`;
     
@@ -188,16 +189,24 @@ async function downloadStaticFiles(world, tempDir) {
             outro: `${baseUrl}/audio/other/outro.mp3`
         };
 
-        // Download question files for this world
-        for (let i = 1; i <= 6; i++) {
-            staticUrls[`question${i}`] = `${baseUrl}/audio/${world}/${world}-Q${i}.mp3`;
+        // Download question files for this world based on actual recordings
+        for (const questionKey of Object.keys(recordingsData)) {
+            if (questionKey.startsWith('Q')) {
+                const questionId = questionKey.replace(/^Q/, '');
+                staticUrls[`question${questionId}`] = `${baseUrl}/audio/${world}/${world}-Q${questionId}.mp3`;
+            }
         }
 
         // Download all files
         for (const [key, url] of Object.entries(staticUrls)) {
             const filePath = path.join(tempDir, `${key}.mp3`);
-            await downloadFile(url, filePath);
-            files.push(filePath);
+            try {
+                await downloadFile(url, filePath);
+                files.push(filePath);
+            } catch (error) {
+                console.warn(`Failed to download ${key} from ${url}:`, error.message);
+                // Continue without this file - some question files might not exist
+            }
         }
 
         return files;

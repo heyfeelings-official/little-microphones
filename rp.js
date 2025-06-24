@@ -51,8 +51,8 @@ function showWorldCollection(world) {
     setTimeout(() => {
       initializeRecordingForWorld(world);
       
-      // Add Radio Program button to this world collection
-      addRadioProgramButton(world, window.currentLmid);
+      // Hook into existing generate-program button instead of creating a new one
+      setupExistingRadioProgramButton(world, window.currentLmid);
     }, 100);
   } else {
     console.warn(`Collection element not found: ${targetCollectionId}`);
@@ -156,60 +156,32 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 /**
- * Add "Create Radio Program" button to the world collection
+ * Hook into existing "generate-program" button instead of creating a new one
  * @param {string} world - The world slug
  * @param {string} lmid - The LMID
  */
-function addRadioProgramButton(world, lmid) {
-  const targetCollectionId = `collection-${world}`;
-  const targetCollection = document.getElementById(targetCollectionId);
+function setupExistingRadioProgramButton(world, lmid) {
+  // Find the existing generate-program button
+  const existingButton = document.getElementById('generate-program');
   
-  if (!targetCollection) {
-    console.warn(`Collection not found for radio button: ${targetCollectionId}`);
+  if (!existingButton) {
+    console.warn('generate-program button not found in DOM');
     return;
   }
   
-  // Check if button already exists
-  if (targetCollection.querySelector('.radio-program-button')) {
-    return;
-  }
+  console.log(`Setting up existing generate-program button for ${world}/${lmid}`);
   
-  // Create the radio program button
-  const radioButton = document.createElement('div');
-  radioButton.className = 'radio-program-button';
-  radioButton.style.cssText = `
-    margin: 20px 0;
-    text-align: center;
-    padding: 20px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 12px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-  `;
+  // Remove any existing event listeners by cloning the button
+  const newButton = existingButton.cloneNode(true);
+  existingButton.parentNode.replaceChild(newButton, existingButton);
   
-  radioButton.innerHTML = `
-    <div style="color: white; font-size: 18px; font-weight: bold; margin-bottom: 8px;">
-      🎙️ Create Radio Program
-    </div>
-    <div style="color: rgba(255, 255, 255, 0.9); font-size: 14px;">
-      Combine all your recordings into a complete radio show
-    </div>
-  `;
-  
-  // Add hover effect
-  radioButton.addEventListener('mouseenter', () => {
-    radioButton.style.transform = 'translateY(-2px)';
-    radioButton.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.3)';
-  });
-  
-  radioButton.addEventListener('mouseleave', () => {
-    radioButton.style.transform = 'translateY(0)';
-    radioButton.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.2)';
-  });
-  
-  // Add click handler
-  radioButton.addEventListener('click', async () => {
+  // Add click handler to the existing button
+  newButton.addEventListener('click', async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    console.log(`Generate program button clicked for ${world}/${lmid}`);
+    
     // Check if user has any recordings first
     const hasRecordings = await checkIfUserHasRecordings(world, lmid);
     
@@ -218,47 +190,28 @@ function addRadioProgramButton(world, lmid) {
       return;
     }
     
+    // Store original button state
+    const originalText = newButton.textContent;
+    const originalDisabled = newButton.disabled;
+    
     // Disable button during processing
-    radioButton.style.pointerEvents = 'none';
-    radioButton.style.opacity = '0.7';
-    radioButton.innerHTML = `
-      <div style="color: white; font-size: 18px; font-weight: bold; margin-bottom: 8px;">
-        ⏳ Creating Radio Program...
-      </div>
-      <div style="color: rgba(255, 255, 255, 0.9); font-size: 14px;">
-        Please wait, this may take a few minutes
-      </div>
-    `;
+    newButton.disabled = true;
+    newButton.textContent = 'Creating Radio Program...';
     
     try {
       // Call the radio program generation function
       await window.generateRadioProgram(world, lmid);
     } catch (error) {
       console.error('Radio program generation failed:', error);
+      alert('Failed to generate radio program. Please try again.');
     } finally {
       // Re-enable button
-      radioButton.style.pointerEvents = '';
-      radioButton.style.opacity = '';
-      radioButton.innerHTML = `
-        <div style="color: white; font-size: 18px; font-weight: bold; margin-bottom: 8px;">
-          🎙️ Create Radio Program
-        </div>
-        <div style="color: rgba(255, 255, 255, 0.9); font-size: 14px;">
-          Combine all your recordings into a complete radio show
-        </div>
-      `;
+      newButton.disabled = originalDisabled;
+      newButton.textContent = originalText;
     }
   });
   
-  // Insert the button after the collection title
-  const firstChild = targetCollection.firstElementChild;
-  if (firstChild) {
-    targetCollection.insertBefore(radioButton, firstChild);
-  } else {
-    targetCollection.appendChild(radioButton);
-  }
-  
-  console.log(`Added radio program button for ${world}`);
+  console.log(`Generate-program button setup complete for ${world}`);
 }
 
 /**
