@@ -52,7 +52,7 @@ function showWorldCollection(world) {
       initializeRecordingForWorld(world);
       
       // Add Radio Program button to this world collection
-      addRadioProgramButton(world, lmidFromUrl);
+      addRadioProgramButton(world, window.currentLmid);
     }, 100);
   } else {
     console.warn(`Collection element not found: ${targetCollectionId}`);
@@ -71,6 +71,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const urlParams = new URLSearchParams(window.location.search);
   const lmidFromUrl = urlParams.get("lmid");
   const worldFromUrl = urlParams.get("world");
+  
+  // Store globally for other functions
+  window.currentLmid = lmidFromUrl;
+  window.currentWorld = worldFromUrl;
 
   // Define the mapping of world slugs to background images
   /* const worldBackgrounds = {
