@@ -1285,10 +1285,12 @@ async function generateRadioProgram(world, lmid) {
         // Build audio segments in correct order
         const audioSegments = [];
         
-        // 1. Add intro
+        // 1. Add intro with cache-busting
+        const introTimestamp = Date.now();
+        const introUrl = `https://little-microphones.b-cdn.net/audio/other/intro.mp3?t=${introTimestamp}`;
         audioSegments.push({
             type: 'single',
-            url: 'https://little-microphones.b-cdn.net/audio/other/intro.mp3'
+            url: introUrl
         });
         console.log('📁 Added intro');
         
@@ -1296,12 +1298,14 @@ async function generateRadioProgram(world, lmid) {
         for (const questionId of sortedQuestionIds) {
             const questionRecordings = recordings[questionId];
             
-            // Add question prompt
+            // Add question prompt with cache-busting
+            const cacheBustTimestamp = Date.now();
+            const questionUrl = `https://little-microphones.b-cdn.net/audio/${world}/${world}-${questionId}.mp3?t=${cacheBustTimestamp}`;
             audioSegments.push({
                 type: 'single',
-                url: `https://little-microphones.b-cdn.net/audio/${world}/${world}-${questionId}.mp3`
+                url: questionUrl
             });
-            console.log(`📁 Added question prompt for ${questionId}: https://little-microphones.b-cdn.net/audio/${world}/${world}-${questionId}.mp3`);
+            console.log(`📁 Added question prompt for ${questionId}: ${questionUrl}`);
             
             // Sort answers by timestamp (first recorded = first played)
             const sortedAnswers = questionRecordings.sort((a, b) => a.timestamp - b.timestamp);
@@ -1312,20 +1316,24 @@ async function generateRadioProgram(world, lmid) {
                 console.log(`   ${index + 1}. ${url}`);
             });
             
-            // Combine answers with background music
+            // Combine answers with background music (cache-busted)
+            const backgroundTimestamp = Date.now() + Math.random(); // Unique timestamp per question
+            const backgroundUrl = `https://little-microphones.b-cdn.net/audio/other/monkeys.mp3?t=${backgroundTimestamp}`;
             audioSegments.push({
                 type: 'combine_with_background',
                 answerUrls: answerUrls,
-                backgroundUrl: 'https://little-microphones.b-cdn.net/audio/other/monkeys.mp3',
+                backgroundUrl: backgroundUrl,
                 questionId: questionId
             });
             console.log(`🐒 Added monkeys background for ${questionId}`);
         }
         
-        // 3. Add outro
+        // 3. Add outro with cache-busting
+        const outroTimestamp = Date.now() + 1; // Slightly different timestamp
+        const outroUrl = `https://little-microphones.b-cdn.net/audio/other/outro.mp3?t=${outroTimestamp}`;
         audioSegments.push({
             type: 'single',
-            url: 'https://little-microphones.b-cdn.net/audio/other/outro.mp3'
+            url: outroUrl
         });
         console.log('📁 Added outro');
         
@@ -1347,26 +1355,7 @@ async function generateRadioProgram(world, lmid) {
         
         updateRadioProgramProgress('Processing audio files...', 75, 'Server is combining audio files with FFmpeg');
         
-        // Simulate progress updates while waiting
-        let currentProgress = 75;
-        const progressInterval = setInterval(() => {
-            if (currentProgress < 95) {
-                currentProgress += 2;
-                const messages = [
-                    'Downloading audio files from CDN',
-                    'Applying audio processing',
-                    'Normalizing volume levels',
-                    'Combining audio segments',
-                    'Adding background music',
-                    'Finalizing audio quality'
-                ];
-                const randomMessage = messages[Math.floor(Math.random() * messages.length)];
-                updateRadioProgramProgress('Processing audio files...', currentProgress, randomMessage);
-            }
-        }, 1000);
-        
         const result = await response.json();
-        clearInterval(progressInterval);
         
         updateRadioProgramProgress('Finalizing...', 98, 'Uploading final radio program to CDN');
         
