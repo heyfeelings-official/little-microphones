@@ -1490,15 +1490,15 @@ function sortQuestionIdsByDOMOrder(questionIds, world) {
 }
 
 /**
- * Show radio program generation modal using Webflow-designed elements
+ * Show radio program generation section using Webflow-designed elements
  * @param {string} message - Status message
  * @param {number} progress - Progress percentage (0-100)
  */
 function showRadioProgramModal(message, progress = 0) {
-    // Find the Webflow-designed modal
-    const modal = document.getElementById('radio-progress-modal');
-    if (!modal) {
-        console.error('Radio progress modal not found. Please add an element with ID "radio-progress-modal" in Webflow.');
+    // Find the Webflow-designed progress section
+    const progressSection = document.getElementById('radio-progress-section');
+    if (!progressSection) {
+        console.error('Radio progress section not found. Please add an element with ID "radio-progress-section" in Webflow.');
         return;
     }
     
@@ -1509,12 +1509,20 @@ function showRadioProgramModal(message, progress = 0) {
     if (statusEl) statusEl.textContent = message;
     if (progressEl) progressEl.style.width = `${progress}%`;
     
-    // Show the modal (remove any existing hiding classes and add display)
-    modal.style.display = 'flex';
-    modal.classList.remove('w--hidden', 'hide');
-    modal.classList.add('show');
+    // Show the progress section
+    progressSection.style.display = 'block';
+    progressSection.classList.remove('w--hidden', 'hide');
+    progressSection.classList.add('show');
     
-    console.log(`📱 Progress modal shown: ${message} (${progress}%)`);
+    // Hide success section if visible
+    const successSection = document.getElementById('radio-success-section');
+    if (successSection) {
+        successSection.style.display = 'none';
+        successSection.classList.add('w--hidden', 'hide');
+        successSection.classList.remove('show');
+    }
+    
+    console.log(`📱 Progress section shown: ${message} (${progress}%)`);
 }
 
 /**
@@ -1552,15 +1560,15 @@ function updateRadioProgramProgress(message, progress, details = '') {
 }
 
 /**
- * Hide radio program modal using Webflow classes
+ * Hide radio program progress section using Webflow classes
  */
 function hideRadioProgramModal() {
-    const modal = document.getElementById('radio-progress-modal');
-    if (modal) {
-        // Hide the modal using Webflow's standard classes
-        modal.style.display = 'none';
-        modal.classList.add('w--hidden', 'hide');
-        modal.classList.remove('show');
+    const progressSection = document.getElementById('radio-progress-section');
+    if (progressSection) {
+        // Hide the progress section using Webflow's standard classes
+        progressSection.style.display = 'none';
+        progressSection.classList.add('w--hidden', 'hide');
+        progressSection.classList.remove('show');
     }
     
     // Clean up any spinner intervals
@@ -1572,11 +1580,11 @@ function hideRadioProgramModal() {
     // Clean up fun status messages
     stopFunStatusMessages();
     
-    console.log('📱 Progress modal hidden');
+    console.log('📱 Progress section hidden');
 }
 
 /**
- * Show radio program success modal using Webflow-designed elements
+ * Show radio program success section using Webflow-designed elements
  * @param {string} audioUrl - URL of the generated radio program
  * @param {string} world - World name
  * @param {string} lmid - LMID
@@ -1586,17 +1594,17 @@ function hideRadioProgramModal() {
 function showRadioProgramSuccess(audioUrl, world, lmid, questionCount, totalRecordings) {
     hideRadioProgramModal();
     
-    // Find the Webflow-designed success modal
-    const modal = document.getElementById('radio-success-modal');
-    if (!modal) {
-        console.error('Radio success modal not found. Please add an element with ID "radio-success-modal" in Webflow.');
+    // Find the Webflow-designed success section
+    const successSection = document.getElementById('radio-success-section');
+    if (!successSection) {
+        console.error('Radio success section not found. Please add an element with ID "radio-success-section" in Webflow.');
         return;
     }
     
     // Update content elements
     const descriptionEl = document.getElementById('radio-success-description');
     const audioPlayerEl = document.getElementById('radio-audio-player');
-    const closeButtonEl = document.getElementById('close-radio-modal');
+    const closeButtonEl = document.getElementById('close-radio-section');
     
     // Format world name for display
     const worldName = world.charAt(0).toUpperCase() + world.slice(1).replace(/-/g, ' ');
@@ -1612,12 +1620,12 @@ function showRadioProgramSuccess(audioUrl, world, lmid, questionCount, totalReco
         audioPlayerEl.load(); // Reload the audio element with new source
     }
     
-    // Show the success modal
-    modal.style.display = 'flex';
-    modal.classList.remove('w--hidden', 'hide');
-    modal.classList.add('show');
+    // Show the success section
+    successSection.style.display = 'block';
+    successSection.classList.remove('w--hidden', 'hide');
+    successSection.classList.add('show');
     
-    // Set up close button event listener (if not already set up in Webflow)
+    // Set up close/hide button event listener (if not already set up in Webflow)
     if (closeButtonEl && !closeButtonEl.hasAttribute('data-listener-added')) {
         closeButtonEl.addEventListener('click', () => {
             hideRadioProgramSuccessModal();
@@ -1625,30 +1633,19 @@ function showRadioProgramSuccess(audioUrl, world, lmid, questionCount, totalReco
         closeButtonEl.setAttribute('data-listener-added', 'true');
     }
     
-    // Auto-close modal when clicking outside (if overlay click area exists)
-    const handleOverlayClick = (e) => {
-        if (e.target === modal) {
-            hideRadioProgramSuccessModal();
-        }
-    };
-    
-    // Remove existing listener first, then add new one
-    modal.removeEventListener('click', handleOverlayClick);
-    modal.addEventListener('click', handleOverlayClick);
-    
-    console.log(`🎉 Success modal shown for ${worldName} program`);
+    console.log(`🎉 Success section shown for ${worldName} program`);
 }
 
 /**
- * Hide radio program success modal
+ * Hide radio program success section
  */
 function hideRadioProgramSuccessModal() {
-    const modal = document.getElementById('radio-success-modal');
-    if (modal) {
-        // Hide the modal using Webflow's standard classes
-        modal.style.display = 'none';
-        modal.classList.add('w--hidden', 'hide');
-        modal.classList.remove('show');
+    const successSection = document.getElementById('radio-success-section');
+    if (successSection) {
+        // Hide the section using Webflow's standard classes
+        successSection.style.display = 'none';
+        successSection.classList.add('w--hidden', 'hide');
+        successSection.classList.remove('show');
         
         // Stop audio playback
         const audioPlayerEl = document.getElementById('radio-audio-player');
@@ -1658,7 +1655,7 @@ function hideRadioProgramSuccessModal() {
         }
     }
     
-    console.log('🎉 Success modal hidden');
+    console.log('🎉 Success section hidden');
 }
 
 /**
