@@ -17,7 +17,144 @@
  * WebRTC Recording (WebM) → Local Storage (IndexedDB) → Cloud Upload (MP3) → CDN Delivery
  */
 
-const savingLocks = new Set();
+// =============================================================================
+// CONSTANTS - Centralized configuration
+// =============================================================================
+const RECORDING_CONFIG = {
+    MAX_RECORDINGS_PER_QUESTION: 30,
+    AUTO_STOP_TIMEOUT_MS: 600000, // 10 minutes
+    DATABASE_NAME: "kidsAudioDB",
+    DATABASE_VERSION: 2,
+    STORE_NAME: "audioRecordings",
+    API_BASE_URL: "https://little-microphones.vercel.app/api",
+    CDN_BASE_URL: "https://little-microphones.b-cdn.net"
+};
+
+const UPLOAD_STATUS = {
+    PENDING: 'pending',
+    UPLOADING: 'uploading', 
+    UPLOADED: 'uploaded',
+    FAILED: 'failed'
+};
+
+const AUDIO_CONFIG = {
+    SUPPORTED_MIME_TYPES: ['audio/webm;codecs=opus', 'audio/webm'],
+    CANVAS_REFRESH_RATE: 60 // FPS for waveform animation
+};
+
+// =============================================================================
+// UTILITY FUNCTIONS - Reusable helpers
+// =============================================================================
+
+/**
+ * Extract URL parameters once and cache them
+ */
+const URLParams = (() => {
+    let cached = null;
+    return {
+        get() {
+            if (!cached) {
+                const urlParams = new URLSearchParams(window.location.search);
+                cached = {
+                    world: window.currentRecordingParams?.world || urlParams.get('world') || 'unknown-world',
+                    lmid: window.currentRecordingParams?.lmid || urlParams.get('lmid') || 'unknown-lmid'
+                };
+            }
+            return cached;
+        },
+        invalidate() {
+            cached = null;
+        }
+    };
+})();
+
+/**
+ * Normalize question ID - now just returns the numeric order field directly
+ * @param {string} questionId - Raw question ID from DOM (should be numeric order)
+ * @returns {string} - Numeric order as string (e.g., "1", "2", "3")
+ */
+function normalizeQuestionId(questionId) {
+    if (!questionId) return '';
+    
+    // Convert to string and trim whitespace
+    const cleanId = questionId.toString().trim();
+    
+    // If it's already numeric, return as-is
+    if (/^\d+$/.test(cleanId)) {
+        return cleanId;
+    }
+    
+    // Extract numeric part from any format
+    const numericPart = cleanId.replace(/[^\d]/g, '');
+    return numericPart || '0';
+}
+
+/**
+ * Format time from seconds to MM:SS
+ */
+function formatTime(seconds) {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+/**
+ * Generate unique recording ID
+ */
+function generateRecordingId(world, lmid, questionId, timestamp = Date.now()) {
+    return `kids-world_${world}-lmid_${lmid}-question_${questionId}-tm_${timestamp}`;
+}
+
+/**
+ * Get supported MediaRecorder MIME type
+ */
+function getSupportedMimeType() {
+    const type = AUDIO_CONFIG.SUPPORTED_MIME_TYPES.find(MediaRecorder.isTypeSupported);
+    return type ? { mimeType: type } : undefined;
+}
+
+// =============================================================================
+// GLOBAL STATE MANAGEMENT
+// =============================================================================
+const RecordingState = {
+    savingLocks: new Set(),
+    initializedWorlds: new Set(),
+    activeRecorders: new Map(),
+    
+    // Memory management for URL objects
+    objectUrls: new Set(),
+    
+    addObjectUrl(url) {
+        this.objectUrls.add(url);
+    },
+    
+    cleanupObjectUrls() {
+        this.objectUrls.forEach(url => URL.revokeObjectURL(url));
+        this.objectUrls.clear();
+    },
+    
+    // Recording instance management
+    addRecorder(questionId, recorder) {
+        this.activeRecorders.set(questionId, recorder);
+    },
+    
+    getRecorder(questionId) {
+        return this.activeRecorders.get(questionId);
+    },
+    
+    removeRecorder(questionId) {
+        this.activeRecorders.delete(questionId);
+    }
+};
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+    RecordingState.cleanupObjectUrls();
+});
+
+// =============================================================================
+// ORIGINAL CODE CONTINUES
+// =============================================================================
 
 // --- Global initialization tracking ---
 const initializedWorlds = new Set();
@@ -214,14 +351,14 @@ async function verifyCloudUrl(url) {
  */
 async function getAudioSource(recordingData) {
     // If we have a cloud URL, verify it's still accessible
-    if (recordingData.uploadStatus === 'uploaded' && recordingData.cloudUrl) {
+    if (recordingData.uploadStatus === UPLOAD_STATUS.UPLOADED && recordingData.cloudUrl) {
         const isAccessible = await verifyCloudUrl(recordingData.cloudUrl);
         if (isAccessible) {
             return recordingData.cloudUrl;
         } else {
             console.warn(`Cloud file no longer accessible: ${recordingData.cloudUrl}`);
             // Update the recording status to indicate cloud file is missing
-            recordingData.uploadStatus = 'failed';
+            recordingData.uploadStatus = UPLOAD_STATUS.FAILED;
             recordingData.cloudUrl = null;
             await updateRecordingInDB(recordingData);
         }
@@ -229,7 +366,10 @@ async function getAudioSource(recordingData) {
     
     // Fall back to local blob if available
     if (recordingData.audio) {
-        return URL.createObjectURL(recordingData.audio);
+        const objectUrl = URL.createObjectURL(recordingData.audio);
+        // Track URL for cleanup
+        RecordingState.addObjectUrl(objectUrl);
+        return objectUrl;
     }
     
     // If neither cloud nor local is available, return null
@@ -242,19 +382,19 @@ async function getAudioSource(recordingData) {
  */
 function updateUploadStatusUI(statusElement, recordingData) {
     switch(recordingData.uploadStatus) {
-        case 'pending':
+        case UPLOAD_STATUS.PENDING:
             statusElement.innerHTML = '⏳ Queued for backup';
             statusElement.style.color = '#888';
             break;
-        case 'uploading':
+        case UPLOAD_STATUS.UPLOADING:
             statusElement.innerHTML = `⬆️ Backing up... ${recordingData.uploadProgress}%`;
             statusElement.style.color = '#007bff';
             break;
-        case 'uploaded':
+        case UPLOAD_STATUS.UPLOADED:
             statusElement.innerHTML = '☁️ Backed up';
             statusElement.style.color = '#28a745';
             break;
-        case 'failed':
+        case UPLOAD_STATUS.FAILED:
             statusElement.innerHTML = '⚠️ Backup failed';
             statusElement.style.color = '#dc3545';
             break;
@@ -440,7 +580,7 @@ function initializeAudioRecorder(recorderWrapper) {
             mediaRecorder.stop();
         } else {
             // Check if saving is already in progress for this question
-            if (savingLocks.has(questionId)) {
+            if (RecordingState.savingLocks.has(questionId)) {
                 console.warn(`[${questionId}] Recording already in progress, please wait`);
                 return;
             }
@@ -462,19 +602,17 @@ function initializeAudioRecorder(recorderWrapper) {
     }
 
     /**
-     * Check if user can record more (max 30 per question)
+     * Check if user can record more (max limit per question)
      */
     async function checkRecordingLimit() {
         try {
-            const urlParams = new URLSearchParams(window.location.search);
-            const world = window.currentRecordingParams?.world || urlParams.get('world') || 'unknown-world';
-            const lmid = window.currentRecordingParams?.lmid || urlParams.get('lmid') || 'unknown-lmid';
+            const { world, lmid } = URLParams.get();
             
             const recordings = await loadRecordingsFromDB(questionId, world, lmid);
             const currentCount = recordings.length;
             
-            console.log(`[${questionId}] Recordings: ${currentCount}/30`);
-            return currentCount < 30;
+            console.log(`[${questionId}] Recordings: ${currentCount}/${RECORDING_CONFIG.MAX_RECORDINGS_PER_QUESTION}`);
+            return currentCount < RECORDING_CONFIG.MAX_RECORDINGS_PER_QUESTION;
         } catch (error) {
             console.error(`[${questionId}] Error checking limit:`, error);
             return true; // Allow recording if check fails
@@ -486,8 +624,8 @@ function initializeAudioRecorder(recorderWrapper) {
      */
     function showRecordingLimitMessage() {
         // Use native browser alert for better accessibility and simplicity
-        alert('Maximum 30 recordings per question. Delete an old recording to record a new one.');
-        console.log(`[${questionId}] Recording limit reached (30/30)`);
+        alert(`Maximum ${RECORDING_CONFIG.MAX_RECORDINGS_PER_QUESTION} recordings per question. Delete an old recording to record a new one.`);
+        console.log(`[${questionId}] Recording limit reached (${RECORDING_CONFIG.MAX_RECORDINGS_PER_QUESTION}/${RECORDING_CONFIG.MAX_RECORDINGS_PER_QUESTION})`);
     }
 
     async function startActualRecording() {
@@ -546,13 +684,13 @@ function initializeAudioRecorder(recorderWrapper) {
 
             mediaRecorder.onerror = (event) => {
                 console.error("MediaRecorder error:", event.error);
-                savingLocks.delete(questionId); // Release global lock on error
+                RecordingState.savingLocks.delete(questionId); // Release global lock on error
                 cleanupAfterRecording(stream);
             };
 
             mediaRecorder.onstop = async () => {
                 // Set lock for saving process
-                savingLocks.add(questionId);
+                RecordingState.savingLocks.add(questionId);
 
                 try {
                     if(statusDisplay) statusDisplay.textContent = "Processing...";
@@ -560,14 +698,12 @@ function initializeAudioRecorder(recorderWrapper) {
                     const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
                     audioChunks = [];
 
-                    // Get world and lmid from URL params or global params
-                    const urlParams = new URLSearchParams(window.location.search);
-                    const world = window.currentRecordingParams?.world || urlParams.get('world') || 'unknown-world';
-                    const lmid = window.currentRecordingParams?.lmid || urlParams.get('lmid') || 'unknown-lmid';
+                    // Get world and lmid from cached URL params
+                    const { world, lmid } = URLParams.get();
 
                     // --- Use timestamp for unique ID ---
                     const timestamp = Date.now();
-                    const newId = `kids-world_${world}-lmid_${lmid}-question_${questionId}-tm_${timestamp}`;
+                    const newId = generateRecordingId(world, lmid, questionId, timestamp);
                     console.log(`[${questionId}] Generated ID: ${newId}`);
 
                     const recordingData = {
@@ -575,7 +711,7 @@ function initializeAudioRecorder(recorderWrapper) {
                         questionId: questionId, // Keep for filtering
                         audio: audioBlob,
                         cloudUrl: null,          // Will be set after upload
-                        uploadStatus: 'pending', // pending, uploading, uploaded, failed
+                        uploadStatus: UPLOAD_STATUS.PENDING,
                         uploadProgress: 0,       // 0-100 percentage
                         timestamp: new Date().toISOString(),
                         fileSize: audioBlob.size
@@ -605,7 +741,7 @@ function initializeAudioRecorder(recorderWrapper) {
                         placeholderEl.textContent = "Error saving recording.";
                     }
                 } finally {
-                    savingLocks.delete(questionId); // Release global lock
+                    RecordingState.savingLocks.delete(questionId); // Release global lock
                     // --- Reset button state ---
                     cleanupAfterRecording(stream);
                 }
@@ -621,7 +757,7 @@ function initializeAudioRecorder(recorderWrapper) {
                     if (statusDisplay) statusDisplay.textContent = "Maximum recording time reached...";
                     mediaRecorder.stop();
                 }
-            }, 600000); // 10 minutes limit
+            }, RECORDING_CONFIG.AUTO_STOP_TIMEOUT_MS); // 10 minutes limit
 
         } catch (err) {
             console.error("Error starting recording:", err);
@@ -652,31 +788,44 @@ function initializeAudioRecorder(recorderWrapper) {
     }
     
     function drawLiveWaveform() {
-        animationFrameId = requestAnimationFrame(drawLiveWaveform);
-        if (!analyser || !canvasCtx) return;
+        // Throttle animation to target FPS for better performance
+        const targetFPS = AUDIO_CONFIG.CANVAS_REFRESH_RATE;
+        const interval = 1000 / targetFPS;
+        
+        const now = performance.now();
+        if (!window.lastWaveformDraw) window.lastWaveformDraw = now;
+        
+        if (now - window.lastWaveformDraw >= interval) {
+            window.lastWaveformDraw = now;
+            
+            if (!analyser || !canvasCtx) return;
 
-        analyser.getByteFrequencyData(dataArray);
+            analyser.getByteFrequencyData(dataArray);
 
-        const canvasWidth = liveWaveformCanvas.width;
-        const canvasHeight = liveWaveformCanvas.height;
-    
-        if (canvasWidth === 0 || canvasHeight === 0) return;
+            const canvasWidth = liveWaveformCanvas.width;
+            const canvasHeight = liveWaveformCanvas.height;
+        
+            if (canvasWidth === 0 || canvasHeight === 0) return;
 
-        canvasCtx.fillStyle = '#FFFFFF';
-        canvasCtx.fillRect(0, 0, canvasWidth, canvasHeight);
+            // Clear canvas more efficiently
+            canvasCtx.clearRect(0, 0, canvasWidth, canvasHeight);
 
-        const bufferLength = analyser.frequencyBinCount;
-        const barWidth = 3;
-        const barSpacing = 2;
-        const totalBarAreaWidth = bufferLength * (barWidth + barSpacing);
-        let x = (canvasWidth - totalBarAreaWidth) / 2;
+            const bufferLength = analyser.frequencyBinCount;
+            const barWidth = 3;
+            const barSpacing = 2;
+            const totalBarAreaWidth = bufferLength * (barWidth + barSpacing);
+            let x = (canvasWidth - totalBarAreaWidth) / 2;
 
-        for (let i = 0; i < bufferLength; i++) {
-            const barHeight = (dataArray[i] / 255) * canvasHeight;
+            // Batch drawing operations for better performance
             canvasCtx.fillStyle = '#D9D9D9';
-            canvasCtx.fillRect(x, (canvasHeight - barHeight) / 2, barWidth, barHeight);
-            x += barWidth + barSpacing;
+            for (let i = 0; i < bufferLength; i++) {
+                const barHeight = (dataArray[i] / 255) * canvasHeight;
+                canvasCtx.fillRect(x, (canvasHeight - barHeight) / 2, barWidth, barHeight);
+                x += barWidth + barSpacing;
+            }
         }
+        
+        animationFrameId = requestAnimationFrame(drawLiveWaveform);
     }
 
     function renderRecordingsList() {
@@ -741,7 +890,7 @@ function initializeAudioRecorder(recorderWrapper) {
             console.log(`[${questionId}] Uploading: ${recordingData.id}`);
             
             // Update status to uploading
-            recordingData.uploadStatus = 'uploading';
+            recordingData.uploadStatus = UPLOAD_STATUS.UPLOADING;
             recordingData.uploadProgress = 10;
             await updateRecordingInDB(recordingData);
             updateRecordingUI(recordingData);
@@ -753,7 +902,7 @@ function initializeAudioRecorder(recorderWrapper) {
             updateRecordingUI(recordingData);
 
             // Upload via API route
-            const response = await fetch('https://little-microphones.vercel.app/api/upload-audio', {
+            const response = await fetch(`${RECORDING_CONFIG.API_BASE_URL}/upload-audio`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -773,13 +922,13 @@ function initializeAudioRecorder(recorderWrapper) {
                 const result = await response.json();
                 if (result.success) {
                     recordingData.cloudUrl = result.url;
-                    recordingData.uploadStatus = 'uploaded';
+                    recordingData.uploadStatus = UPLOAD_STATUS.UPLOADED;
                     recordingData.uploadProgress = 100;
                     
                     // Remove the blob to save local storage space since we now have cloud backup
                     recordingData.audio = null;
                     
-                                    console.log(`[${questionId}] Upload complete: ${result.url}`);
+                    console.log(`[${questionId}] Upload complete: ${result.url}`);
                 } else {
                     throw new Error(result.error || 'Upload failed');
                 }
@@ -791,7 +940,7 @@ function initializeAudioRecorder(recorderWrapper) {
             }
 
         } catch (error) {
-            recordingData.uploadStatus = 'failed';
+            recordingData.uploadStatus = UPLOAD_STATUS.FAILED;
             recordingData.uploadProgress = 0;
             console.error(`[${questionId}] Upload error:`, error);
         }
@@ -836,11 +985,6 @@ function initializeAudioRecorder(recorderWrapper) {
 
     // --- Utility Functions ---
 
-    function getSupportedMimeType() {
-        const type = ['audio/webm;codecs=opus', 'audio/webm'].find(MediaRecorder.isTypeSupported);
-        return type ? { mimeType: type } : undefined;
-    }
-    
     function setButtonText(button, text) {
         for (let i = button.childNodes.length - 1; i >= 0; i--) {
             const node = button.childNodes[i];
@@ -866,12 +1010,6 @@ function initializeAudioRecorder(recorderWrapper) {
         // The timer display will be removed with the placeholder, so no need to clear it.
     }
 
-    function formatTime(s) {
-        const m = Math.floor(s / 60);
-        const rs = s % 60;
-        return `${String(m).padStart(2, '0')}:${String(rs).padStart(2, '0')}`;
-    }
-    
     function sizeCanvas() {
         if (canvasSized || !liveWaveformCanvas) return;
         
@@ -900,7 +1038,7 @@ let db;
 function setupDatabase() {
     return new Promise((resolve, reject) => {
         if (db) return resolve(db);
-        const request = indexedDB.open("kidsAudioDB", 2); // Bumped version to 2 to trigger upgrade
+        const request = indexedDB.open(RECORDING_CONFIG.DATABASE_NAME, RECORDING_CONFIG.DATABASE_VERSION);
 
         request.onupgradeneeded = (event) => {
             const db = event.target.result;
@@ -909,10 +1047,10 @@ function setupDatabase() {
             let store;
             if (oldVersion < 1) {
                 // Database is new, create object store
-                store = db.createObjectStore("audioRecordings", { keyPath: "id" });
+                store = db.createObjectStore(RECORDING_CONFIG.STORE_NAME, { keyPath: "id" });
             } else {
                 // Database exists, get store from transaction
-                store = event.target.transaction.objectStore("audioRecordings");
+                store = event.target.transaction.objectStore(RECORDING_CONFIG.STORE_NAME);
             }
 
             // Create index if it doesn't exist
@@ -934,8 +1072,8 @@ function setupDatabase() {
 
 function withStore(type, callback) {
     if (!db) { console.error("Database is not initialized."); return; }
-    const transaction = db.transaction("audioRecordings", type);
-    callback(transaction.objectStore("audioRecordings"));
+    const transaction = db.transaction(RECORDING_CONFIG.STORE_NAME, type);
+    callback(transaction.objectStore(RECORDING_CONFIG.STORE_NAME));
 }
 
 /**
@@ -960,8 +1098,8 @@ function withDB(callback) {
 function getRecordingFromDB(recordingId) {
     return new Promise((resolve, reject) => {
         withDB(db => {
-            const transaction = db.transaction("audioRecordings", "readonly");
-            const store = transaction.objectStore("audioRecordings");
+            const transaction = db.transaction(RECORDING_CONFIG.STORE_NAME, "readonly");
+            const store = transaction.objectStore(RECORDING_CONFIG.STORE_NAME);
             const request = store.get(recordingId);
             
             request.onsuccess = () => {
@@ -1005,16 +1143,18 @@ function updateRecordingInDB(recordingData) {
 function loadRecordingsFromDB(questionId, world, lmid) {
     return new Promise((resolve) => {
         withDB(db => {
-            const transaction = db.transaction("audioRecordings", "readonly");
-            const store = transaction.objectStore("audioRecordings");
-            const request = store.getAll();
+            const transaction = db.transaction(RECORDING_CONFIG.STORE_NAME, "readonly");
+            const store = transaction.objectStore(RECORDING_CONFIG.STORE_NAME);
+            
+            // Use index for efficient querying instead of getAll() + filter
+            const index = store.index("questionId_idx");
+            const request = index.getAll(questionId);
 
             request.onsuccess = () => {
-                const allRecordings = request.result;
-                // Filter recordings by questionId, world, and lmid
-                const filteredRecordings = allRecordings.filter(rec => {
-                    return rec.questionId === questionId && 
-                           rec.id.includes(`kids-world_${world}-lmid_${lmid}-`);
+                const questionRecordings = request.result;
+                // Secondary filter for world/lmid (more efficient than filtering all records)
+                const filteredRecordings = questionRecordings.filter(rec => {
+                    return rec.id.includes(`kids-world_${world}-lmid_${lmid}-`);
                 });
                 resolve(filteredRecordings);
             };
@@ -1039,12 +1179,12 @@ function initializeRecordersForWorld(world) {
     }
     
     // Prevent multiple initializations for the same world
-    if (initializedWorlds.has(world)) {
+    if (RecordingState.initializedWorlds.has(world)) {
         console.log(`Recorders for world "${world}" already initialized, skipping.`);
         return;
     }
     
-    initializedWorlds.add(world);
+    RecordingState.initializedWorlds.add(world);
     console.log(`Initializing recorders for world: ${world}`);
     injectGlobalStyles();
     
@@ -1054,7 +1194,7 @@ function initializeRecordersForWorld(world) {
     
     if (!targetCollection) {
         console.warn(`Collection not found: ${targetCollectionId}`);
-        initializedWorlds.delete(world); // Remove from set if collection not found
+        RecordingState.initializedWorlds.delete(world); // Remove from set if collection not found
         return;
     }
     
@@ -1092,7 +1232,7 @@ async function cleanupOrphanedRecordings(questionId, world, lmid) {
         
         // Only consider recordings truly orphaned if they have failed upload AND no local blob
         const orphanedRecordings = recordings.filter(rec => 
-            rec.uploadStatus === 'failed' && !rec.audio && !rec.cloudUrl
+            rec.uploadStatus === UPLOAD_STATUS.FAILED && !rec.audio && !rec.cloudUrl
         );
         
         if (orphanedRecordings.length > 0) {
@@ -1149,7 +1289,7 @@ async function cleanupAllOrphanedRecordings() {
         
         // Find recordings that have failed cloud verification and no local blob
         const orphanedRecordings = allRecordings.filter(rec => 
-            (!rec.cloudUrl || rec.uploadStatus === 'failed') && !rec.audio
+            (!rec.cloudUrl || rec.uploadStatus === UPLOAD_STATUS.FAILED) && !rec.audio
         );
         
         console.log(`Found ${orphanedRecordings.length} orphaned recordings to clean up`);
@@ -1190,27 +1330,6 @@ async function cleanupAllOrphanedRecordings() {
 }
 
 /**
- * Normalize question ID - now just returns the numeric order field directly
- * @param {string} questionId - Raw question ID from DOM (should be numeric order)
- * @returns {string} - Numeric order as string (e.g., "1", "2", "3")
- */
-function normalizeQuestionId(questionId) {
-    if (!questionId) return '';
-    
-    // Convert to string and trim whitespace
-    const cleanId = questionId.toString().trim();
-    
-    // If it's already numeric, return as-is
-    if (/^\d+$/.test(cleanId)) {
-        return cleanId;
-    }
-    
-    // Extract numeric part from any format
-    const numericPart = cleanId.replace(/[^\d]/g, '');
-    return numericPart || '0';
-}
-
-/**
  * Generate radio program from collected recordings
  * @param {string} world - The world slug
  * @param {string} lmid - The LMID
@@ -1245,7 +1364,7 @@ async function generateRadioProgram(world, lmid) {
         
         // 1. Add intro
         const introTimestamp = Date.now();
-        const introUrl = `https://little-microphones.b-cdn.net/audio/other/intro.mp3?t=${introTimestamp}`;
+        const introUrl = `${RECORDING_CONFIG.CDN_BASE_URL}/audio/other/intro.mp3?t=${introTimestamp}`;
         audioSegments.push({
             type: 'single',
             url: introUrl
@@ -1258,7 +1377,7 @@ async function generateRadioProgram(world, lmid) {
             
             // Add question prompt with cache-busting
             const cacheBustTimestamp = Date.now();
-            const questionUrl = `https://little-microphones.b-cdn.net/audio/${world}/${world}-QID${questionId}.mp3?t=${cacheBustTimestamp}`;
+            const questionUrl = `${RECORDING_CONFIG.CDN_BASE_URL}/audio/${world}/${world}-QID${questionId}.mp3?t=${cacheBustTimestamp}`;
             audioSegments.push({
                 type: 'single',
                 url: questionUrl
@@ -1273,7 +1392,7 @@ async function generateRadioProgram(world, lmid) {
             
             // Combine answers with background music (cache-busted)
             const backgroundTimestamp = Date.now() + Math.random(); // Unique timestamp per question
-            const backgroundUrl = `https://little-microphones.b-cdn.net/audio/other/monkeys.mp3?t=${backgroundTimestamp}`;
+            const backgroundUrl = `${RECORDING_CONFIG.CDN_BASE_URL}/audio/other/monkeys.mp3?t=${backgroundTimestamp}`;
             audioSegments.push({
                 type: 'combine_with_background',
                 answerUrls: answerUrls,
@@ -1284,7 +1403,7 @@ async function generateRadioProgram(world, lmid) {
         
         // 3. Add outro
         const outroTimestamp = Date.now() + 1;
-        const outroUrl = `https://little-microphones.b-cdn.net/audio/other/outro.mp3?t=${outroTimestamp}`;
+        const outroUrl = `${RECORDING_CONFIG.CDN_BASE_URL}/audio/other/outro.mp3?t=${outroTimestamp}`;
         audioSegments.push({
             type: 'single',
             url: outroUrl
@@ -1299,7 +1418,7 @@ async function generateRadioProgram(world, lmid) {
         startFunStatusMessages();
         
         // Send to API for actual processing
-        const response = await fetch('https://little-microphones.vercel.app/api/combine-audio', {
+        const response = await fetch(`${RECORDING_CONFIG.API_BASE_URL}/combine-audio`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1596,7 +1715,7 @@ async function collectRecordingsForRadioProgram(world, lmid) {
                 if (questionRecordings.length > 0) {
                     // Filter only recordings that have been successfully uploaded to cloud
                     const validRecordings = questionRecordings
-                        .filter(rec => rec.uploadStatus === 'uploaded' && rec.cloudUrl);
+                        .filter(rec => rec.uploadStatus === UPLOAD_STATUS.UPLOADED && rec.cloudUrl);
                     
                     if (validRecordings.length > 0) {
                         recordings[questionId] = validRecordings;
@@ -1629,9 +1748,9 @@ async function collectRecordingsForRadioProgram(world, lmid) {
                 try {
                     const questionRecordings = await loadRecordingsFromDB(questionId, world, lmid);
                     
-                    if (questionRecordings.length > 0) {
-                        const validRecordings = questionRecordings
-                            .filter(rec => rec.uploadStatus === 'uploaded' && rec.cloudUrl);
+                                            if (questionRecordings.length > 0) {
+                            const validRecordings = questionRecordings
+                                .filter(rec => rec.uploadStatus === UPLOAD_STATUS.UPLOADED && rec.cloudUrl);
                         
                         if (validRecordings.length > 0) {
                             recordings[questionId] = validRecordings;

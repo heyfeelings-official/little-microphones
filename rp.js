@@ -236,26 +236,9 @@ function setupExistingRadioProgramButton(world, lmid) {
       console.log(`Generate-program button setup complete for ${world}`);
 }
 
-/**
- * Normalize question ID - now just returns the numeric order field directly
- * @param {string} questionId - Raw question ID from DOM (should be numeric order)
- * @returns {string} - Numeric order as string (e.g., "1", "2", "3")
- */
-function normalizeQuestionId(questionId) {
-    if (!questionId) return '';
-    
-    // Convert to string and trim whitespace
-    const cleanId = questionId.toString().trim();
-    
-    // If it's already numeric, return as-is
-    if (/^\d+$/.test(cleanId)) {
-        return cleanId;
-    }
-    
-    // Extract numeric part from any format
-    const numericPart = cleanId.replace(/[^\d]/g, '');
-    return numericPart || '0';
-}
+// Import shared utility function from recording.js
+// (This avoids code duplication)
+// The function is already defined in recording.js and available globally
 
 /**
  * Check if user has any recordings for this world/lmid combination

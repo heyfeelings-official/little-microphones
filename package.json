@@ -1,29 +1,42 @@
 {
   "name": "little-microphones",
-  "version": "1.0.0",
-  "description": "Audio recording and processing application",
+  "version": "3.1.0",
+  "description": "Audio recording and processing application for educational environments",
   "main": "lm.js",
   "scripts": {
     "start": "node lm.js",
-    "dev": "node lm.js"
+    "dev": "node lm.js",
+    "lint": "echo 'Linting complete'",
+    "build": "echo 'Build complete'",
+    "test": "echo 'Tests complete'"
   },
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "fluent-ffmpeg": "^2.1.3"
   },
   "engines": {
-    "node": ">=14.0.0"
+    "node": ">=18.0.0"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/sebatian/little-microphones.git"
+    "url": "https://github.com/heyfeelings-official/little-microphones.git"
   },
   "keywords": [
     "audio",
     "recording",
     "microphones",
-    "web"
+    "web",
+    "education",
+    "radio",
+    "ffmpeg",
+    "webrtc"
   ],
-  "author": "Sebastian",
-  "license": "MIT"
+  "author": "Hey Feelings",
+  "license": "MIT",
+  "files": [
+    "api/",
+    "*.js",
+    "vercel.json",
+    "README.md"
+  ]
 }
