@@ -1,3 +1,9 @@
+// Import required modules at the top
+const ffmpeg = require('fluent-ffmpeg');
+const fs = require('fs').promises;
+const path = require('path');
+const os = require('os');
+
 export default async function handler(req, res) {
     // Set CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -43,12 +49,9 @@ export default async function handler(req, res) {
 
         console.log(`Starting radio program generation for LMID ${lmid}, World ${world}`);
         console.log(`Recordings structure:`, Object.keys(recordings).map(q => `${q}: ${recordings[q].length} files`));
+        console.log(`Full recordings data:`, JSON.stringify(recordings, null, 2));
 
-        // Initialize required modules
-        const ffmpeg = require('fluent-ffmpeg');
-        const fs = require('fs').promises;
-        const path = require('path');
-        const os = require('os');
+        // Modules are imported at the top of the file
 
         // Create temp directory
         const tempDir = path.join(os.tmpdir(), `radio-${lmid}-${world}-${Date.now()}`);
@@ -232,20 +235,25 @@ async function downloadFile(url, filePath) {
 async function processQuestionBlock(questionNum, world, lmid, recordings, tempDir, config) {
     return new Promise(async (resolve, reject) => {
         try {
-            const ffmpeg = require('fluent-ffmpeg');
+            console.log(`Processing question block ${questionNum} with ${recordings.length} recordings`);
             
             // Download user recordings for this question
             const recordingFiles = [];
             const baseUrl = `https://${process.env.BUNNY_CDN_URL}`;
+            
+            console.log(`Downloading recordings from: ${baseUrl}/${lmid}/${world}/`);
             
             for (let i = 0; i < recordings.length; i++) {
                 const recordingFilename = recordings[i];
                 const recordingUrl = `${baseUrl}/${lmid}/${world}/${recordingFilename}`;
                 const localPath = path.join(tempDir, `q${questionNum}_answer${i + 1}.webm`);
                 
+                console.log(`Trying to download: ${recordingUrl} -> ${localPath}`);
+                
                 try {
                     await downloadFile(recordingUrl, localPath);
                     recordingFiles.push(localPath);
+                    console.log(`Successfully downloaded: ${recordingFilename}`);
                 } catch (error) {
                     console.warn(`Failed to download recording ${recordingFilename}:`, error.message);
                     // Continue with other recordings
@@ -367,7 +375,6 @@ function buildClassroomEnhancementFilter(config, inputCount) {
 // Create final radio program by combining all parts
 async function createFinalRadioProgram(staticFiles, questionBlocks, tempDir, config) {
     return new Promise((resolve, reject) => {
-        const ffmpeg = require('fluent-ffmpeg');
         const finalPath = path.join(tempDir, 'final_radio_program.mp3');
         
         let command = ffmpeg();
@@ -411,7 +418,6 @@ async function createFinalRadioProgram(staticFiles, questionBlocks, tempDir, con
 
 // Upload final program to Bunny.net
 async function uploadFinalProgram(filePath, lmid, world) {
-    const fs = require('fs').promises;
     
     try {
         const audioBuffer = await fs.readFile(filePath);
