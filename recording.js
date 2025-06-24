@@ -1198,16 +1198,45 @@ async function generateRadioProgram(world, lmid) {
         const totalRecordings = Object.values(recordings).flat().length;
         console.log(`Found ${totalRecordings} recordings across ${Object.keys(recordings).length} questions`);
         
-        // Step 2: Send to API for processing (using simplified version for now)
+        // Step 2: Convert recordings data to new format for API
+        const recordingsArray = [];
+        for (const [questionId, files] of Object.entries(recordings)) {
+            // Clean up question ID to QID format
+            let cleanQuestionId = questionId.toString().trim();
+            if (!cleanQuestionId.startsWith('QID')) {
+                if (/^\d+$/.test(cleanQuestionId)) {
+                    cleanQuestionId = `QID${cleanQuestionId}`;
+                } else {
+                    cleanQuestionId = cleanQuestionId.replace(/[\s\-]/g, '');
+                    if (!cleanQuestionId.startsWith('QID')) {
+                        cleanQuestionId = `QID${cleanQuestionId}`;
+                    }
+                }
+            }
+            
+            // Add each file with metadata
+            files.forEach(filename => {
+                // Extract timestamp from filename (kids-world_spookyland-lmid_32-question_9-tm_1750614299968.webm)
+                const timestampMatch = filename.match(/tm_(\d+)/);
+                const timestamp = timestampMatch ? timestampMatch[1] : Date.now().toString();
+                
+                recordingsArray.push({
+                    questionId: cleanQuestionId,
+                    filename: filename,
+                    timestamp: timestamp
+                });
+            });
+        }
+        
         updateRadioProgramProgress('Combining audio files...', 20);
         
-        const response = await fetch('https://little-microphones.vercel.app/api/combine-audio-simple', {
+        const response = await fetch('https://little-microphones.vercel.app/api/combine-audio', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                lmid: lmid,
                 world: world,
-                recordings: recordings
+                lmid: lmid,
+                recordings: recordingsArray
             })
         });
         
@@ -1220,14 +1249,24 @@ async function generateRadioProgram(world, lmid) {
             
             // Show success with player
             setTimeout(() => {
-                showRadioProgramSuccess(result.url, world, lmid, result.questionCount, result.totalRecordings);
+                showRadioProgramSuccess(result.url, world, lmid, Object.keys(recordings).length, recordingsArray.length);
             }, 1000);
             
             console.log(`Radio program generated successfully: ${result.url}`);
-            console.log(`Processing time: ${result.processingTime}ms`);
             
         } else {
-            throw new Error(result.error || 'Radio program generation failed');
+            // Handle FFmpeg not installed case
+            if (result.suggestions) {
+                console.log('FFmpeg setup suggestions:', result.suggestions);
+                hideRadioProgramModal();
+                
+                const installFFmpeg = confirm(`Audio combination requires FFmpeg. Would you like to see installation instructions?`);
+                if (installFFmpeg) {
+                    alert(`To enable audio combination, install FFmpeg dependencies:\n\nnpm install @ffmpeg-installer/ffmpeg fluent-ffmpeg\n\nThen redeploy to Vercel.`);
+                }
+            } else {
+                throw new Error(result.error || 'Radio program generation failed');
+            }
         }
         
     } catch (error) {

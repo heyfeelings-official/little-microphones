@@ -3,17 +3,25 @@ const ffmpeg = require('fluent-ffmpeg');
 const fs = require('fs').promises;
 const path = require('path');
 const os = require('os');
+const https = require('https');
+const http = require('http');
+
+// Static file URLs
+const STATIC_FILES = {
+  intro: 'https://little-microphones.b-cdn.net/audio/other/intro.mp3',
+  outro: 'https://little-microphones.b-cdn.net/audio/other/outro.mp3',
+  monkeys: 'https://little-microphones.b-cdn.net/audio/other/monkeys.mp3'
+};
 
 export default async function handler(req, res) {
     // Set CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
     // Handle preflight OPTIONS request
     if (req.method === 'OPTIONS') {
-        res.status(200).end();
-        return;
+        return res.status(200).end();
     }
 
     // Only allow POST requests
@@ -25,12 +33,12 @@ export default async function handler(req, res) {
     let tempFiles = []; // Track temp files for cleanup
 
     try {
-        const { lmid, world, recordings } = req.body;
+        const { world, lmid, recordings } = req.body;
 
         // Validation
-        if (!lmid || !world || !recordings) {
+        if (!world || !lmid || !recordings) {
             return res.status(400).json({ 
-                error: 'Missing required fields: lmid, world, and recordings' 
+                error: 'Missing required parameters: world, lmid, recordings' 
             });
         }
 
@@ -42,432 +50,408 @@ export default async function handler(req, res) {
         }
 
         // Check environment variables
-        if (!process.env.BUNNY_API_KEY || !process.env.BUNNY_STORAGE_ZONE || !process.env.BUNNY_CDN_URL) {
-            console.error('Missing Bunny.net configuration');
-            return res.status(500).json({ error: 'Server configuration error' });
-        }
+        const BUNNY_API_KEY = process.env.BUNNY_API_KEY;
+        const BUNNY_STORAGE_ZONE = process.env.BUNNY_STORAGE_ZONE;
+        const BUNNY_CDN_URL = process.env.BUNNY_CDN_URL;
 
-        console.log(`Starting radio program generation for LMID ${lmid}, World ${world}`);
-        console.log(`Recordings structure:`, Object.keys(recordings).map(q => `${q}: ${recordings[q].length} files`));
-        console.log(`Full recordings data:`, JSON.stringify(recordings, null, 2));
-
-        // Modules are imported at the top of the file
-
-        // Create temp directory
-        const tempDir = path.join(os.tmpdir(), `radio-${lmid}-${world}-${Date.now()}`);
-        await fs.mkdir(tempDir, { recursive: true });
-
-        // Audio configuration optimized for classroom recordings
-        const audioConfig = getClassroomAudioConfig();
-
-        // Step 1: Download static audio files
-        console.log('Downloading static audio files...');
-        const staticFiles = await downloadStaticFiles(world, tempDir, recordings);
-        tempFiles.push(...staticFiles);
-
-        // Step 2: Process each question block (dynamically based on actual recordings)
-        console.log('Processing question blocks...');
-        const questionBlocks = [];
-        
-        // Process all question keys that actually have recordings
-        for (const [questionKey, questionRecordings] of Object.entries(recordings)) {
-            if (questionRecordings && questionRecordings.length > 0) {
-                console.log(`Processing ${questionKey} with ${questionRecordings.length} recordings...`);
-                
-                // Extract question number/identifier from key (e.g., "Q9" -> 9, "Qasd" -> "asd")
-                const questionIdentifier = questionKey.replace(/^Q/, '');
-                
-                const questionBlock = await processQuestionBlock(
-                    questionIdentifier, 
-                    world, 
-                    lmid, 
-                    questionRecordings, 
-                    tempDir, 
-                    audioConfig
-                );
-                
-                if (questionBlock) {
-                    questionBlocks.push(questionBlock);
-                    tempFiles.push(questionBlock);
-                }
-            } else {
-                console.log(`Skipping ${questionKey} - no recordings found`);
-            }
-        }
-
-        if (questionBlocks.length === 0) {
-            return res.status(400).json({ 
-                error: 'No valid recordings found to process' 
+        if (!BUNNY_API_KEY || !BUNNY_STORAGE_ZONE || !BUNNY_CDN_URL) {
+            console.error('❌ Missing Bunny.net environment variables');
+            return res.status(500).json({ 
+                error: 'Server configuration error: Missing storage credentials' 
             });
         }
 
-        // Step 3: Combine everything into final radio program
-        console.log('Creating final radio program...');
-        const finalAudioPath = await createFinalRadioProgram(
-            staticFiles,
-            questionBlocks,
-            tempDir,
-            audioConfig
-        );
-        tempFiles.push(finalAudioPath);
+        console.log(`🎵 Starting audio combination for ${world}/${lmid}`);
+        console.log(`📊 Processing ${recordings.length} recordings`);
 
-        // Step 4: Upload to Bunny.net
-        console.log('Uploading final radio program...');
-        const uploadResult = await uploadFinalProgram(finalAudioPath, lmid, world);
-
-        // Step 5: Cleanup temp files
-        await cleanupTempFiles([tempDir, ...tempFiles]);
-
-        const processingTime = Date.now() - startTime;
-        console.log(`Radio program generation completed in ${processingTime}ms`);
-
-        res.json({
-            success: true,
-            url: uploadResult.url,
-            processingTime: processingTime,
-            questionCount: questionBlocks.length,
-            totalRecordings: Object.values(recordings).flat().length
+        // Group recordings by question ID and clean up question IDs
+        const recordingsByQuestion = {};
+        recordings.forEach(recording => {
+            // Clean up question ID - remove spaces, dashes, and ensure QID format
+            let cleanQuestionId = recording.questionId.toString().trim();
+            if (!cleanQuestionId.startsWith('QID')) {
+                // If it's just a number like "9", convert to "QID9"
+                if (/^\d+$/.test(cleanQuestionId)) {
+                    cleanQuestionId = `QID${cleanQuestionId}`;
+                } else {
+                    // If it contains spaces or dashes, remove them
+                    cleanQuestionId = cleanQuestionId.replace(/[\s\-]/g, '');
+                    if (!cleanQuestionId.startsWith('QID')) {
+                        cleanQuestionId = `QID${cleanQuestionId}`;
+                    }
+                }
+            }
+            
+            if (!recordingsByQuestion[cleanQuestionId]) {
+                recordingsByQuestion[cleanQuestionId] = [];
+            }
+            recordingsByQuestion[cleanQuestionId].push({
+                ...recording,
+                questionId: cleanQuestionId
+            });
         });
 
-    } catch (error) {
-        console.error('Radio program generation error:', error);
-        
-        // Cleanup on error
-        if (tempFiles.length > 0) {
-            cleanupTempFiles(tempFiles).catch(e => 
-                console.error('Cleanup error:', e)
-            );
-        }
+        console.log(`📋 Questions found: ${Object.keys(recordingsByQuestion).join(', ')}`);
 
-        res.status(500).json({
-            success: false,
-            error: 'Radio program generation failed',
-            details: error.message
-        });
-    }
-}
+        // Create audio combination plan
+        const audioPlan = await createAudioPlan(world, lmid, recordingsByQuestion);
+        console.log(`🎼 Created audio plan with ${audioPlan.length} segments`);
 
-// Audio configuration optimized for classroom recordings
-function getClassroomAudioConfig() {
-    return {
-        volumes: {
-            backgroundMusic: 0.15,
-            introOutro: 0.75,
-            questions: 0.85,
-            userAnswers: 1.0,
-            masterVolume: 0.95
-        },
-        enhancement: {
-            noiseReductionLevel: 0.7,
-            highpassFreq: 120,
-            lowpassFreq: 8000,
-            compressorThreshold: -25,
-            compressorRatio: 4.0,
-            gateThreshold: -45
-        },
-        timing: {
-            fadeInDuration: 0.3,
-            fadeOutDuration: 0.3,
-            silenceBetweenAnswers: 0.5,
-            silenceBetweenQuestions: 1.0
-        },
-        output: {
-            sampleRate: 48000,
-            bitRate: 256,
-            format: 'mp3'
-        }
-    };
-}
-
-// Download static audio files (intro, outro, background music, questions)
-async function downloadStaticFiles(world, tempDir, recordingsData = {}) {
-    const files = [];
-    const baseUrl = `https://${process.env.BUNNY_CDN_URL}`;
-    
-    try {
-        // Download intro, background music, outro
-        const staticUrls = {
-            intro: `${baseUrl}/audio/other/intro.mp3`,
-            monkeys: `${baseUrl}/audio/other/monkeys.mp3`,
-            outro: `${baseUrl}/audio/other/outro.mp3`
-        };
-
-        // Download question files for this world based on actual recordings
-        for (const questionKey of Object.keys(recordingsData)) {
-            if (questionKey.startsWith('Q')) {
-                const questionId = questionKey.replace(/^Q/, '');
-                staticUrls[`question${questionId}`] = `${baseUrl}/audio/${world}/${world}-Q${questionId}.mp3`;
-            }
-        }
-
-        // Download all files
-        for (const [key, url] of Object.entries(staticUrls)) {
-            const filePath = path.join(tempDir, `${key}.mp3`);
-            try {
-                await downloadFile(url, filePath);
-                files.push(filePath);
-            } catch (error) {
-                console.warn(`Failed to download ${key} from ${url}:`, error.message);
-                // Continue without this file - some question files might not exist
-            }
-        }
-
-        return files;
-    } catch (error) {
-        console.error('Error downloading static files:', error);
-        throw error;
-    }
-}
-
-// Download a single file from URL
-async function downloadFile(url, filePath) {
-    const response = await fetch(url);
-    if (!response.ok) {
-        throw new Error(`Failed to download ${url}: ${response.status}`);
-    }
-    
-    const buffer = await response.arrayBuffer();
-    await fs.writeFile(filePath, Buffer.from(buffer));
-    console.log(`Downloaded: ${path.basename(filePath)}`);
-}
-
-// Process a single question block (question + answers + background music)
-async function processQuestionBlock(questionNum, world, lmid, recordings, tempDir, config) {
-    return new Promise(async (resolve, reject) => {
+        // Try to combine audio using FFmpeg
         try {
-            console.log(`Processing question block ${questionNum} with ${recordings.length} recordings`);
+            const combinedAudioUrl = await combineAudioWithFFmpeg(audioPlan, world, lmid);
             
-            // Download user recordings for this question
-            const recordingFiles = [];
-            const baseUrl = `https://${process.env.BUNNY_CDN_URL}`;
-            
-            console.log(`Downloading recordings from: ${baseUrl}/${lmid}/${world}/`);
-            
-            for (let i = 0; i < recordings.length; i++) {
-                const recordingFilename = recordings[i];
-                const recordingUrl = `${baseUrl}/${lmid}/${world}/${recordingFilename}`;
-                const localPath = path.join(tempDir, `q${questionNum}_answer${i + 1}.webm`);
-                
-                console.log(`Trying to download: ${recordingUrl} -> ${localPath}`);
-                
-                try {
-                    await downloadFile(recordingUrl, localPath);
-                    recordingFiles.push(localPath);
-                    console.log(`Successfully downloaded: ${recordingFilename}`);
-                } catch (error) {
-                    console.warn(`Failed to download recording ${recordingFilename}:`, error.message);
-                    // Continue with other recordings
-                }
-            }
-
-            if (recordingFiles.length === 0) {
-                console.warn(`No valid recordings for Q${questionNum}`);
-                resolve(null);
-                return;
-            }
-
-            // Step 1: Enhance and concatenate all answers for this question
-            const answersPath = path.join(tempDir, `q${questionNum}_combined_answers.mp3`);
-            
-            let command = ffmpeg();
-            
-            // Add all recording files as inputs
-            recordingFiles.forEach(file => {
-                command = command.input(file);
+            return res.status(200).json({
+                success: true,
+                message: 'Audio combination completed successfully',
+                url: combinedAudioUrl,
+                totalSegments: audioPlan.length
             });
+        } catch (ffmpegError) {
+            console.error('FFmpeg processing failed:', ffmpegError);
+            
+            // Return the plan with FFmpeg setup suggestions
+            return res.status(200).json({
+                success: false,
+                message: 'Audio combination plan created, but FFmpeg processing failed',
+                plan: audioPlan,
+                totalSegments: audioPlan.length,
+                error: ffmpegError.message,
+                suggestions: getFFmpegSetupSuggestions()
+            });
+        }
 
-            // Apply classroom audio enhancement and concatenation
-            const enhancementFilter = buildClassroomEnhancementFilter(config, recordingFiles.length);
+    } catch (error) {
+        console.error('❌ Error in combine-audio API:', error);
+        return res.status(500).json({ 
+            error: 'Internal server error',
+            details: error.message 
+        });
+    }
+}
+
+/**
+ * Create audio combination plan with proper order
+ */
+async function createAudioPlan(world, lmid, recordingsByQuestion) {
+    const plan = [];
+    
+    // 1. Add intro
+    plan.push({
+        type: 'static',
+        file: 'intro',
+        url: STATIC_FILES.intro,
+        order: 1
+    });
+
+    // 2. For each question, add: question prompt → all answers → background music
+    const questionIds = Object.keys(recordingsByQuestion).sort();
+    let orderCounter = 2;
+
+    for (const questionId of questionIds) {
+        // Add question prompt
+        const questionPromptUrl = getQuestionPromptUrl(world, questionId);
+        plan.push({
+            type: 'question',
+            questionId: questionId,
+            url: questionPromptUrl,
+            order: orderCounter++
+        });
+
+        // Add all user recordings for this question
+        const questionRecordings = recordingsByQuestion[questionId];
+        for (const recording of questionRecordings) {
+            const userRecordingUrl = getUserRecordingUrl(lmid, world, questionId, recording.timestamp);
+            plan.push({
+                type: 'recording',
+                questionId: questionId,
+                url: userRecordingUrl,
+                timestamp: recording.timestamp,
+                order: orderCounter++
+            });
+        }
+
+        // Add background monkeys audio after each question's recordings
+        plan.push({
+            type: 'background',
+            file: 'monkeys',
+            url: STATIC_FILES.monkeys,
+            order: orderCounter++
+        });
+    }
+
+    // 3. Add outro
+    plan.push({
+        type: 'static',
+        file: 'outro',
+        url: STATIC_FILES.outro,
+        order: orderCounter++
+    });
+
+    return plan;
+}
+
+/**
+ * Get question prompt URL using correct format
+ */
+function getQuestionPromptUrl(world, questionId) {
+    // Format: https://little-microphones.b-cdn.net/audio/spookyland/spookyland-QID2.mp3
+    return `https://little-microphones.b-cdn.net/audio/${world}/${world}-${questionId}.mp3`;
+}
+
+/**
+ * Get user recording URL using correct format
+ */
+function getUserRecordingUrl(lmid, world, questionId, timestamp) {
+    // Format: https://little-microphones.b-cdn.net/32/spookyland/kids-world_spookyland-lmid_32-question_2-tm_1750763211231.webm
+    const questionNumber = questionId.replace('QID', ''); // Extract number from QID2 -> 2
+    return `https://little-microphones.b-cdn.net/${lmid}/${world}/kids-world_${world}-lmid_${lmid}-question_${questionNumber}-tm_${timestamp}.webm`;
+}
+
+/**
+ * Combine audio files using FFmpeg
+ */
+async function combineAudioWithFFmpeg(audioPlan, world, lmid) {
+    // Check if FFmpeg is available
+    try {
+        const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
+        const ffmpeg = require('fluent-ffmpeg');
+        ffmpeg.setFfmpegPath(ffmpegPath);
+        
+        console.log('📦 FFmpeg found, starting audio combination...');
+        
+        // Create temp directory
+        const tempDir = path.join(os.tmpdir(), `radio-${world}-${lmid}-${Date.now()}`);
+        await fs.mkdir(tempDir, { recursive: true });
+        
+        // Download all audio files
+        const downloadedFiles = await downloadAudioFiles(audioPlan, tempDir);
+        
+        // Combine audio files
+        const outputPath = path.join(tempDir, `radio-program-${world}-${lmid}.mp3`);
+        
+        return new Promise((resolve, reject) => {
+            const command = ffmpeg();
+            
+            // Add all input files in order
+            downloadedFiles.forEach(file => {
+                command.input(file.path);
+            });
+            
+            // Create complex filter for format conversion and concatenation
+            const filters = [];
+            
+            // Convert all inputs to same format
+            downloadedFiles.forEach((file, index) => {
+                filters.push(`[${index}:a]aformat=sample_fmts=s16:sample_rates=44100:channel_layouts=stereo[a${index}]`);
+            });
+            
+            // Concatenate all converted streams
+            const inputStreams = downloadedFiles.map((_, index) => `[a${index}]`).join('');
+            filters.push(`${inputStreams}concat=n=${downloadedFiles.length}:v=0:a=1[outa]`);
             
             command
-                .complexFilter(enhancementFilter)
-                .audioFrequency(config.output.sampleRate)
-                .audioBitrate(config.output.bitRate)
+                .complexFilter(filters)
+                .outputOptions(['-map', '[outa]'])
                 .format('mp3')
-                .output(answersPath)
+                .audioCodec('libmp3lame')
+                .audioBitrate('128k')
+                .on('start', (commandLine) => {
+                    console.log('🎵 FFmpeg command:', commandLine);
+                })
+                .on('progress', (progress) => {
+                    console.log(`⏳ Processing: ${progress.percent}% done`);
+                })
                 .on('end', async () => {
+                    console.log('✅ Audio combination complete');
+                    
                     try {
-                        // Step 2: Add background music with ducking
-                        const answersWithBgPath = path.join(tempDir, `q${questionNum}_answers_with_bg.mp3`);
-                        const backgroundPath = path.join(tempDir, 'monkeys.mp3');
+                        // Upload to Bunny.net
+                        const uploadUrl = await uploadToBunny(outputPath, world, lmid);
                         
-                        ffmpeg()
-                            .input(answersPath)
-                            .input(backgroundPath)
-                            .complexFilter([
-                                `[1:a]volume=${config.volumes.backgroundMusic}[bg]`,
-                                `[0:a][bg]sidechaincompress=threshold=0.003:ratio=0.2:attack=3:release=100[mixed]`
-                            ])
-                            .map('[mixed]')
-                            .format('mp3')
-                            .output(answersWithBgPath)
-                            .on('end', async () => {
-                                try {
-                                    // Step 3: Combine question + processed answers
-                                    const questionPath = path.join(tempDir, `question${questionNum}.mp3`);
-                                    const finalQuestionBlockPath = path.join(tempDir, `complete_q${questionNum}.mp3`);
-                                    
-                                    ffmpeg()
-                                        .input(questionPath)
-                                        .input(answersWithBgPath)
-                                        .complexFilter([
-                                            `[0:a]volume=${config.volumes.questions}[q]`,
-                                            `[1:a]volume=${config.volumes.userAnswers}[a]`,
-                                            `[q][a]concat=n=2:v=0:a=1[out]`
-                                        ])
-                                        .map('[out]')
-                                        .format('mp3')
-                                        .output(finalQuestionBlockPath)
-                                        .on('end', () => {
-                                            console.log(`Completed processing Q${questionNum}`);
-                                            resolve(finalQuestionBlockPath);
-                                        })
-                                        .on('error', reject)
-                                        .run();
-                                } catch (error) {
-                                    reject(error);
-                                }
-                            })
-                            .on('error', reject)
-                            .run();
-                    } catch (error) {
-                        reject(error);
+                        // Cleanup temp files
+                        await cleanupTempDirectory(tempDir);
+                        
+                        resolve(uploadUrl);
+                    } catch (uploadError) {
+                        reject(uploadError);
                     }
                 })
-                .on('error', reject)
-                .run();
-
-        } catch (error) {
-            reject(error);
-        }
-    });
-}
-
-// Build FFmpeg filter for classroom audio enhancement
-function buildClassroomEnhancementFilter(config, inputCount) {
-    const filters = [];
-    
-    // For each input, apply classroom enhancement
-    for (let i = 0; i < inputCount; i++) {
-        const enhanceFilter = [
-            `[${i}:a]`,
-            `highpass=f=${config.enhancement.highpassFreq}`,
-            `lowpass=f=${config.enhancement.lowpassFreq}`,
-            `anlmdn=s=${config.enhancement.noiseReductionLevel}:p=0.002`,
-            `agate=level_in=1:threshold=${config.enhancement.gateThreshold / 100}:ratio=10:attack=1:release=500`,
-            `acompressor=threshold=${config.enhancement.compressorThreshold / 100}:ratio=${config.enhancement.compressorRatio}:attack=5:release=150`,
-            `equalizer=f=150:width_type=q:width=1.5:g=4`,
-            `equalizer=f=1000:width_type=q:width=2.0:g=3`,
-            `equalizer=f=2500:width_type=q:width=1.5:g=2.5`,
-            `volume=${config.volumes.userAnswers}[enhanced${i}]`
-        ].join(',');
-        
-        filters.push(enhanceFilter);
-    }
-    
-    // Concatenate all enhanced inputs
-    const concatInputs = Array.from({length: inputCount}, (_, i) => `[enhanced${i}]`).join('');
-    filters.push(`${concatInputs}concat=n=${inputCount}:v=0:a=1[out]`);
-    
-    return filters;
-}
-
-// Create final radio program by combining all parts
-async function createFinalRadioProgram(staticFiles, questionBlocks, tempDir, config) {
-    return new Promise((resolve, reject) => {
-        const finalPath = path.join(tempDir, 'final_radio_program.mp3');
-        
-        let command = ffmpeg();
-        
-        // Add intro
-        const introPath = staticFiles.find(f => f.includes('intro.mp3'));
-        if (introPath) {
-            command = command.input(introPath);
-        }
-        
-        // Add all question blocks
-        questionBlocks.forEach(block => {
-            command = command.input(block);
+                .on('error', (error) => {
+                    console.error('❌ FFmpeg error:', error);
+                    reject(error);
+                })
+                .save(outputPath);
         });
         
-        // Add outro
-        const outroPath = staticFiles.find(f => f.includes('outro.mp3'));
-        if (outroPath) {
-            command = command.input(outroPath);
+    } catch (error) {
+        console.error('❌ FFmpeg not available:', error);
+        throw new Error('FFmpeg not installed or configured properly');
+    }
+}
+
+/**
+ * Download audio files from URLs
+ */
+async function downloadAudioFiles(audioPlan, tempDir) {
+    const downloadedFiles = [];
+    
+    for (let i = 0; i < audioPlan.length; i++) {
+        const segment = audioPlan[i];
+        const fileName = `${String(i).padStart(3, '0')}-${segment.type}-${segment.file || segment.questionId || 'recording'}.${segment.url.endsWith('.webm') ? 'webm' : 'mp3'}`;
+        const filePath = path.join(tempDir, fileName);
+        
+        console.log(`📥 Downloading: ${segment.url}`);
+        
+        try {
+            await downloadFile(segment.url, filePath);
+            downloadedFiles.push({
+                path: filePath,
+                segment: segment
+            });
+            console.log(`✅ Downloaded: ${fileName}`);
+        } catch (error) {
+            console.error(`❌ Failed to download ${segment.url}:`, error);
+            throw error;
         }
+    }
+    
+    return downloadedFiles;
+}
+
+/**
+ * Download a file from URL
+ */
+function downloadFile(url, filePath) {
+    return new Promise((resolve, reject) => {
+        const protocol = url.startsWith('https:') ? https : http;
         
-        // Build concatenation filter
-        const totalInputs = (introPath ? 1 : 0) + questionBlocks.length + (outroPath ? 1 : 0);
-        const concatFilter = `concat=n=${totalInputs}:v=0:a=1[final]`;
-        
-        command
-            .complexFilter([concatFilter])
-            .map('[final]')
-            .audioFrequency(config.output.sampleRate)
-            .audioBitrate(config.output.bitRate)
-            .format('mp3')
-            .output(finalPath)
-            .on('end', () => {
-                console.log('Final radio program created successfully');
-                resolve(finalPath);
-            })
-            .on('error', reject)
-            .run();
+        protocol.get(url, (response) => {
+            if (response.statusCode !== 200) {
+                reject(new Error(`Failed to download ${url}: ${response.statusCode}`));
+                return;
+            }
+            
+            const fileStream = require('fs').createWriteStream(filePath);
+            response.pipe(fileStream);
+            
+            fileStream.on('finish', () => {
+                fileStream.close();
+                resolve();
+            });
+            
+            fileStream.on('error', reject);
+        }).on('error', reject);
     });
 }
 
-// Upload final program to Bunny.net
-async function uploadFinalProgram(filePath, lmid, world) {
+/**
+ * Upload combined audio to Bunny.net
+ */
+async function uploadToBunny(filePath, world, lmid) {
+    const fileName = `radio-program-${world}-${lmid}.mp3`;
+    const uploadPath = `/${lmid}/${world}/${fileName}`;
     
-    try {
-        const audioBuffer = await fs.readFile(filePath);
-        const filename = `little-microphones-full-${lmid}-${world}.mp3`;
-        const uploadPath = `${lmid}/${world}/${filename}`;
-        const uploadUrl = `https://storage.bunnycdn.com/${process.env.BUNNY_STORAGE_ZONE}/${uploadPath}`;
-        
-        console.log(`Uploading final program: ${filename} (${audioBuffer.length} bytes)`);
-        
-        const response = await fetch(uploadUrl, {
+    console.log(`📤 Uploading to Bunny.net: ${uploadPath}`);
+    
+    const fileBuffer = await fs.readFile(filePath);
+    
+    return new Promise((resolve, reject) => {
+        const options = {
+            hostname: 'storage.bunnycdn.com',
+            port: 443,
+            path: `/${process.env.BUNNY_STORAGE_ZONE}${uploadPath}`,
             method: 'PUT',
             headers: {
                 'AccessKey': process.env.BUNNY_API_KEY,
-                'Content-Type': 'audio/mpeg'
-            },
-            body: audioBuffer
+                'Content-Type': 'audio/mpeg',
+                'Content-Length': fileBuffer.length
+            }
+        };
+        
+        const req = https.request(options, (res) => {
+            if (res.statusCode === 200 || res.statusCode === 201) {
+                const downloadUrl = `${process.env.BUNNY_CDN_URL}${uploadPath}`;
+                console.log(`✅ Upload successful: ${downloadUrl}`);
+                resolve(downloadUrl);
+            } else {
+                reject(new Error(`Upload failed with status: ${res.statusCode}`));
+            }
         });
+        
+        req.on('error', reject);
+        req.write(fileBuffer);
+        req.end();
+    });
+}
 
-        if (response.ok) {
-            const cdnUrl = `https://${process.env.BUNNY_CDN_URL}/${uploadPath}`;
-            console.log(`Successfully uploaded final program: ${cdnUrl}`);
-            
-            return {
-                success: true,
-                url: cdnUrl,
-                filename: filename,
-                size: audioBuffer.length
-            };
-        } else {
-            const errorText = await response.text();
-            console.error(`Upload failed: ${response.status} - ${errorText}`);
-            throw new Error(`Upload failed: ${response.status}`);
-        }
+/**
+ * Clean up temporary directory
+ */
+async function cleanupTempDirectory(tempDir) {
+    try {
+        await fs.rmdir(tempDir, { recursive: true });
+        console.log(`🧹 Cleaned up temp directory: ${tempDir}`);
     } catch (error) {
-        console.error('Upload error:', error);
-        throw error;
+        console.warn(`⚠️ Failed to cleanup temp directory: ${error.message}`);
     }
 }
 
-// Cleanup temporary files
-async function cleanupTempFiles(files) {
-    const fs = require('fs').promises;
-    
-    for (const file of files) {
-        try {
-            const path = require('path');
-            await fs.rm(file, { recursive: true, force: true });
-            console.log(`Cleaned up: ${path.basename(file)}`);
-        } catch (error) {
-            console.warn(`Failed to cleanup ${file}:`, error.message);
+/**
+ * Get FFmpeg serverless setup suggestions
+ */
+function getFFmpegSetupSuggestions() {
+    return {
+        option1: {
+            name: "FFmpeg Layer for Vercel",
+            description: "Install FFmpeg as a dependency",
+            steps: [
+                "npm install @ffmpeg-installer/ffmpeg fluent-ffmpeg",
+                "Update package.json with proper dependencies",
+                "Deploy to Vercel with increased function timeout",
+                "Test with sample audio files"
+            ],
+            pros: ["Full FFmpeg functionality", "Handle all formats", "Works in serverless"],
+            cons: ["Large deployment size", "Cold start time", "Memory usage"]
+        },
+        option2: {
+            name: "External Audio Processing Service",
+            description: "Use service like Bannerbear, Cloudinary, or similar",
+            steps: [
+                "Sign up for audio processing service",
+                "Send audio file URLs to service API",
+                "Receive combined audio file",
+                "Upload result to Bunny.net"
+            ],
+            pros: ["No deployment size issues", "Fast processing", "Professional quality"],
+            cons: ["Additional monthly cost", "External dependency", "API limits"]
+        },
+        option3: {
+            name: "AWS Lambda with FFmpeg Layer",
+            description: "Use dedicated Lambda function with FFmpeg",
+            steps: [
+                "Create Lambda function with FFmpeg layer",
+                "Deploy audio processing logic",
+                "Call from Vercel API",
+                "Return processed audio URL"
+            ],
+            pros: ["Dedicated processing power", "Full control", "Scalable"],
+            cons: ["More complex setup", "AWS costs", "Cross-platform complexity"]
+        },
+        recommended: "option1",
+        currentIssue: "FFmpeg not installed - run: npm install @ffmpeg-installer/ffmpeg fluent-ffmpeg",
+        implementation: {
+            packages: [
+                "@ffmpeg-installer/ffmpeg",
+                "fluent-ffmpeg"
+            ],
+            vercelConfig: {
+                functions: {
+                    "api/combine-audio.js": {
+                        maxDuration: 60
+                    }
+                }
+            }
         }
-    }
+    };
 } 
