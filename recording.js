@@ -1216,49 +1216,74 @@ function normalizeQuestionId(questionId) {
 }
 
 /**
- * Generate Radio Program for current world and LMID
+ * Generate radio program from collected recordings
  * @param {string} world - The world slug
  * @param {string} lmid - The LMID
  */
 async function generateRadioProgram(world, lmid) {
     try {
-        console.log(`Starting radio program generation for ${world}/${lmid}`);
+        console.log(`🎙️ Starting radio program generation for ${world}/${lmid}`);
         
-        // Show progress modal
-        showRadioProgramModal('Preparing...', 0);
+        // Step 1: Show initial modal
+        showRadioProgramModal('Initializing radio program generation...', 0);
         
-        // Step 1: Collect all recordings for this world/lmid
-        updateRadioProgramProgress('Collecting recordings...', 10, 'Scanning local database for recordings');
+        // Add fake progress messages
+        const fakeProgressSteps = [
+            { message: 'Gathering the questions...', progress: 5, detail: 'Scanning question database' },
+            { message: 'Looking for answers...', progress: 10, detail: 'Searching for recorded responses' },
+            { message: 'Analyzing recordings...', progress: 15, detail: 'Checking audio quality' },
+            { message: 'Organizing content...', progress: 20, detail: 'Sorting by question order' }
+        ];
+        
+        // Show fake progress
+        for (const step of fakeProgressSteps) {
+            updateRadioProgramProgress(step.message, step.progress, step.detail);
+            await new Promise(resolve => setTimeout(resolve, 800));
+        }
+        
+        // Step 2: Collect recordings (keep this real)
         const recordings = await collectRecordingsForRadioProgram(world, lmid);
         
         if (Object.keys(recordings).length === 0) {
             hideRadioProgramModal();
-            
-            // Check if there are any recordings at all (including local ones)
-            const allRecordings = await getAllRecordingsForWorldLmid(world, lmid);
-            if (allRecordings.length === 0) {
-                alert('No recordings found for this world. Please record some answers first.');
-            } else {
-                const uploadedCount = allRecordings.filter(r => r.uploadStatus === 'uploaded' && r.cloudUrl).length;
-                const localCount = allRecordings.filter(r => r.audio).length;
-                
-                alert(`Found ${allRecordings.length} recordings, but none are ready for radio program generation.\n\n` +
-                      `• ${uploadedCount} uploaded to cloud\n` +
-                      `• ${localCount} stored locally\n\n` +
-                      `Please wait for uploads to complete or check your recordings.`);
-            }
+            alert('No recordings found for radio program generation. Please record some answers first.');
             return;
         }
         
-        const totalRecordings = Object.values(recordings).flat().length;
-        console.log(`Found ${totalRecordings} recordings across ${Object.keys(recordings).length} questions`);
+        const questionIds = Object.keys(recordings);
+        const totalRecordings = Object.values(recordings).reduce((sum, recs) => sum + recs.length, 0);
         
-        updateRadioProgramProgress('Building audio plan...', 20, `Found ${totalRecordings} recordings across ${Object.keys(recordings).length} questions`);
+        // Update progress with real data
+        updateRadioProgramProgress(`Found ${totalRecordings} answers`, 25, `Discovered recordings for ${questionIds.length} questions`);
+        await new Promise(resolve => setTimeout(resolve, 500));
         
-        // Step 2: Build direct CDN URLs for all audio files
-        const audioSegments = [];
-        
+        console.log(`Found ${totalRecordings} recordings across ${questionIds.length} questions`);
         console.log('🎵 BUILDING FRESH AUDIO PLAN WITH LATEST RECORDINGS:');
+        
+        // More fake progress messages
+        const moreFakeSteps = [
+            { message: 'Combining answers for questions...', progress: 30, detail: 'Processing audio segments' },
+            { message: 'Adding background sound...', progress: 35, detail: 'Mixing background music' },
+            { message: 'Putting things together...', progress: 40, detail: 'Assembling audio timeline' },
+            { message: 'Sprinkling some fun...', progress: 45, detail: 'Adding creative elements' },
+            { message: 'Fun added!', progress: 50, detail: 'Creative processing complete' },
+            { message: 'Hmm let\'s add even more fun...', progress: 55, detail: 'Extra fun processing' },
+            { message: 'Adding magical touches...', progress: 60, detail: 'Enhancing audio experience' },
+            { message: 'Almost there...', progress: 65, detail: 'Final preparations' }
+        ];
+        
+        // Show more fake progress
+        for (const step of moreFakeSteps) {
+            updateRadioProgramProgress(step.message, step.progress, step.detail);
+            await new Promise(resolve => setTimeout(resolve, 600));
+        }
+        
+        // Sort question IDs by DOM order instead of alphabetical
+        const sortedQuestionIds = sortQuestionIdsByDOMOrder(questionIds, world);
+        console.log('📋 Question order (by DOM):', sortedQuestionIds);
+        
+        // Build audio segments in correct order
+        const audioSegments = [];
         
         // 1. Add intro
         audioSegments.push({
@@ -1267,27 +1292,27 @@ async function generateRadioProgram(world, lmid) {
         });
         console.log('📁 Added intro');
         
-        // 2. For each question: question prompt → combine all answers with monkeys background
-        const questionIds = Object.keys(recordings).sort();
-        
-        for (const questionId of questionIds) {
+        // 2. Add questions and answers in DOM order
+        for (const questionId of sortedQuestionIds) {
+            const questionRecordings = recordings[questionId];
+            
             // Add question prompt
-            const questionUrl = `https://little-microphones.b-cdn.net/audio/${world}/${world}-${questionId}.mp3`;
             audioSegments.push({
                 type: 'single',
-                url: questionUrl
+                url: `https://little-microphones.b-cdn.net/audio/${world}/${world}-${questionId}.mp3`
             });
-            console.log(`📁 Added question prompt for ${questionId}: ${questionUrl}`);
+            console.log(`📁 Added question prompt for ${questionId}: https://little-microphones.b-cdn.net/audio/${world}/${world}-${questionId}.mp3`);
             
-            // Combine all user recordings for this question WITH monkeys background
-            const questionRecordings = recordings[questionId];
-            const answerUrls = questionRecordings.map(recording => recording.cloudUrl);
+            // Sort answers by timestamp (first recorded = first played)
+            const sortedAnswers = questionRecordings.sort((a, b) => a.timestamp - b.timestamp);
+            const answerUrls = sortedAnswers.map(recording => recording.cloudUrl);
             
             console.log(`🎤 Adding ${answerUrls.length} FRESH answers for ${questionId}:`);
             answerUrls.forEach((url, index) => {
                 console.log(`   ${index + 1}. ${url}`);
             });
             
+            // Combine answers with background music
             audioSegments.push({
                 type: 'combine_with_background',
                 answerUrls: answerUrls,
@@ -1307,7 +1332,7 @@ async function generateRadioProgram(world, lmid) {
         console.log(`🎼 FINAL AUDIO PLAN: ${audioSegments.length} segments total`);
         console.log('📋 Full audio plan:', audioSegments);
         
-        updateRadioProgramProgress('Sending to audio processor...', 30, `Processing ${questionIds.length} questions with combined answers`);
+        updateRadioProgramProgress('Sending to audio processor...', 70, `Processing ${questionIds.length} questions with combined answers`);
         
         // Step 3: Send the structured audio plan to API
         const response = await fetch('https://little-microphones.vercel.app/api/combine-audio', {
@@ -1320,16 +1345,16 @@ async function generateRadioProgram(world, lmid) {
             })
         });
         
-        updateRadioProgramProgress('Processing audio files...', 50, 'Server is combining audio files with FFmpeg');
+        updateRadioProgramProgress('Processing audio files...', 75, 'Server is combining audio files with FFmpeg');
         
         // Simulate progress updates while waiting
-        let currentProgress = 50;
+        let currentProgress = 75;
         const progressInterval = setInterval(() => {
-            if (currentProgress < 85) {
-                currentProgress += 3;
+            if (currentProgress < 95) {
+                currentProgress += 2;
                 const messages = [
                     'Downloading audio files from CDN',
-                    'Applying noise reduction to recordings',
+                    'Applying audio processing',
                     'Normalizing volume levels',
                     'Combining audio segments',
                     'Adding background music',
@@ -1338,12 +1363,12 @@ async function generateRadioProgram(world, lmid) {
                 const randomMessage = messages[Math.floor(Math.random() * messages.length)];
                 updateRadioProgramProgress('Processing audio files...', currentProgress, randomMessage);
             }
-        }, 800);
+        }, 1000);
         
         const result = await response.json();
         clearInterval(progressInterval);
         
-        updateRadioProgramProgress('Finalizing...', 95, 'Uploading final radio program to CDN');
+        updateRadioProgramProgress('Finalizing...', 98, 'Uploading final radio program to CDN');
         
         if (result.success) {
             updateRadioProgramProgress('Complete!', 100);
@@ -1384,116 +1409,40 @@ async function generateRadioProgram(world, lmid) {
 }
 
 /**
- * Collect all recordings for radio program, grouped by question
+ * Sort question IDs by their DOM order instead of alphabetical
+ * @param {string[]} questionIds - Array of question IDs to sort
  * @param {string} world - The world slug
- * @param {string} lmid - The LMID
+ * @returns {string[]} Sorted question IDs
  */
-async function collectRecordingsForRadioProgram(world, lmid) {
-    const recordings = {};
-    
-    console.log(`🔍 Collecting FRESH recordings for ${world}/${lmid} (cache-busted)`);
-    
-    // First, try to find recordings from DOM elements
+function sortQuestionIdsByDOMOrder(questionIds, world) {
     const targetCollectionId = `collection-${world}`;
     const targetCollection = document.getElementById(targetCollectionId);
     
-    if (targetCollection) {
-        const recorderWrappers = targetCollection.querySelectorAll('.faq1_accordion.lm');
-        
-        for (const wrapper of recorderWrappers) {
-            const questionId = wrapper.dataset.questionId;
-            if (!questionId) continue;
-            
-            try {
-                // Force fresh database query (no caching)
-                const questionRecordings = await loadRecordingsFromDB(questionId, world, lmid);
-                
-                if (questionRecordings.length > 0) {
-                    console.log(`[${questionId}] Raw recordings from DB (FRESH):`, questionRecordings.map(r => ({
-                        id: r.id,
-                        uploadStatus: r.uploadStatus,
-                        hasCloudUrl: !!r.cloudUrl,
-                        hasAudio: !!r.audio,
-                        timestamp: r.timestamp,
-                        cloudUrl: r.cloudUrl ? r.cloudUrl.substring(0, 50) + '...' : 'none'
-                    })));
-                    
-                    // Filter only recordings that have been successfully uploaded to cloud
-                    const validRecordings = questionRecordings
-                        .filter(rec => rec.uploadStatus === 'uploaded' && rec.cloudUrl);
-                    
-                    if (validRecordings.length > 0) {
-                        recordings[questionId] = validRecordings;
-                        console.log(`✅ Found ${validRecordings.length} FRESH valid recordings for ${questionId}`);
-                        console.log(`📋 Recording URLs:`, validRecordings.map(r => r.cloudUrl));
-                    } else {
-                        console.log(`[${questionId}] No valid uploaded recordings found. ${questionRecordings.length} total recordings but none meet criteria (uploadStatus='uploaded' && cloudUrl exists)`);
-                        
-                        // Check if we have local blob recordings as fallback
-                        const localRecordings = questionRecordings.filter(rec => rec.audio);
-                        if (localRecordings.length > 0) {
-                            console.log(`[${questionId}] Found ${localRecordings.length} local blob recordings as fallback`);
-                            // For now, we'll alert the user that they need to wait for uploads
-                            // TODO: Implement local blob processing
-                        }
-                    }
-                }
-            } catch (error) {
-                console.warn(`Error loading recordings for ${questionId}:`, error);
-            }
-        }
+    if (!targetCollection) {
+        console.warn('Could not find collection element, falling back to alphabetical sort');
+        return questionIds.sort();
     }
     
-    // If no recordings found from DOM, try to discover what question IDs exist in the database
-    if (Object.keys(recordings).length === 0) {
-        console.log('No recordings found from DOM elements, trying database discovery...');
-        
-        // Use IndexedDB to discover what question IDs actually exist for this world/lmid combination
-        try {
-            const discoveredQuestionIds = await discoverQuestionIdsFromDB(world, lmid);
-            console.log(`Discovered question IDs from database:`, discoveredQuestionIds);
-            
-            for (const questionId of discoveredQuestionIds) {
-                try {
-                    const questionRecordings = await loadRecordingsFromDB(questionId, world, lmid);
-                    
-                    if (questionRecordings.length > 0) {
-                        console.log(`[${questionId}] Raw recordings from DB (discovered):`, questionRecordings.map(r => ({
-                            id: r.id,
-                            uploadStatus: r.uploadStatus,
-                            hasCloudUrl: !!r.cloudUrl,
-                            hasAudio: !!r.audio
-                        })));
-                        
-                        // Filter only recordings that have been successfully uploaded to cloud
-                        const validRecordings = questionRecordings
-                            .filter(rec => rec.uploadStatus === 'uploaded' && rec.cloudUrl);
-                        
-                        if (validRecordings.length > 0) {
-                            recordings[questionId] = validRecordings;
-                            console.log(`Found ${validRecordings.length} valid recordings for ${questionId} (discovered)`);
-                        } else {
-                            console.log(`[${questionId}] No valid uploaded recordings found (discovered). ${questionRecordings.length} total recordings but none meet criteria (uploadStatus='uploaded' && cloudUrl exists)`);
-                            
-                            // Check if we have local blob recordings as fallback
-                            const localRecordings = questionRecordings.filter(rec => rec.audio);
-                            if (localRecordings.length > 0) {
-                                console.log(`[${questionId}] Found ${localRecordings.length} local blob recordings as fallback (discovered)`);
-                                // For now, we'll alert the user that they need to wait for uploads
-                                // TODO: Implement local blob processing
-                            }
-                        }
-                    }
-                } catch (error) {
-                    console.warn(`Could not load recordings for ${questionId}:`, error);
-                }
-            }
-        } catch (error) {
-            console.warn('Database discovery failed:', error);
-        }
-    }
+    const recorderWrappers = targetCollection.querySelectorAll('.faq1_accordion.lm');
+    const domOrder = [];
     
-    return recordings;
+    // Extract question IDs in DOM order
+    recorderWrappers.forEach(wrapper => {
+        const questionId = wrapper.dataset.questionId;
+        if (questionId && questionIds.includes(questionId)) {
+            domOrder.push(questionId);
+        }
+    });
+    
+    // Add any missing question IDs at the end (fallback)
+    questionIds.forEach(qid => {
+        if (!domOrder.includes(qid)) {
+            domOrder.push(qid);
+        }
+    });
+    
+    console.log('📋 DOM order detected:', domOrder);
+    return domOrder;
 }
 
 /**
@@ -1615,6 +1564,7 @@ function showRadioProgramSuccess(audioUrl, world, lmid, questionCount, totalReco
     
     // Create success modal
     const overlay = document.createElement('div');
+    overlay.id = 'radio-success-modal';
     overlay.style.cssText = `
         position: fixed;
         top: 0;
@@ -1655,23 +1605,9 @@ function showRadioProgramSuccess(audioUrl, world, lmid, questionCount, totalReco
                 <source src="${audioUrl}" type="audio/mp3">
                 Your browser does not support the audio element.
             </audio>
-            <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-                <a href="${audioUrl}" download="radio-program-${lmid}-${world}.mp3" 
-                   style="background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-size: 14px;">
-                    📥 Download
-                </a>
-                <button onclick="generateRadioProgram('${world}', '${lmid}')" 
-                        style="background: #6c757d; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">
-                    🔄 Regenerate
-                </button>
-                <a href="${audioUrl}" target="_blank"
-                   style="background: #28a745; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-size: 14px;">
-                    🎵 Open in New Tab
-                </a>
-            </div>
         </div>
         
-        <button onclick="this.closest('[style*=\"position: fixed\"]').remove()" 
+        <button id="close-radio-modal" 
                 style="background: #28a745; color: white; padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 16px;">
             ✓ Close
         </button>
@@ -1680,12 +1616,131 @@ function showRadioProgramSuccess(audioUrl, world, lmid, questionCount, totalReco
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
     
+    // Add close button event listener
+    const closeButton = modal.querySelector('#close-radio-modal');
+    closeButton.addEventListener('click', () => {
+        overlay.remove();
+    });
+    
     // Auto-close modal when clicking outside
     overlay.addEventListener('click', (e) => {
         if (e.target === overlay) {
             overlay.remove();
         }
     });
+}
+
+/**
+ * Collect all recordings for radio program, grouped by question
+ * @param {string} world - The world slug
+ * @param {string} lmid - The LMID
+ */
+async function collectRecordingsForRadioProgram(world, lmid) {
+    const recordings = {};
+    
+    console.log(`🔍 Collecting FRESH recordings for ${world}/${lmid} (cache-busted)`);
+    
+    // First, try to find recordings from DOM elements
+    const targetCollectionId = `collection-${world}`;
+    const targetCollection = document.getElementById(targetCollectionId);
+    
+    if (targetCollection) {
+        const recorderWrappers = targetCollection.querySelectorAll('.faq1_accordion.lm');
+        
+        for (const wrapper of recorderWrappers) {
+            const questionId = wrapper.dataset.questionId;
+            if (!questionId) continue;
+            
+            try {
+                // Force fresh database query (no caching)
+                const questionRecordings = await loadRecordingsFromDB(questionId, world, lmid);
+                
+                if (questionRecordings.length > 0) {
+                    console.log(`[${questionId}] Raw recordings from DB (FRESH):`, questionRecordings.map(r => ({
+                        id: r.id,
+                        uploadStatus: r.uploadStatus,
+                        hasCloudUrl: !!r.cloudUrl,
+                        hasAudio: !!r.audio,
+                        timestamp: r.timestamp,
+                        cloudUrl: r.cloudUrl ? r.cloudUrl.substring(0, 50) + '...' : 'none'
+                    })));
+                    
+                    // Filter only recordings that have been successfully uploaded to cloud
+                    const validRecordings = questionRecordings
+                        .filter(rec => rec.uploadStatus === 'uploaded' && rec.cloudUrl);
+                    
+                    if (validRecordings.length > 0) {
+                        recordings[questionId] = validRecordings;
+                        console.log(`✅ Found ${validRecordings.length} FRESH valid recordings for ${questionId}`);
+                        console.log(`📋 Recording URLs:`, validRecordings.map(r => r.cloudUrl));
+                    } else {
+                        console.log(`[${questionId}] No valid uploaded recordings found. ${questionRecordings.length} total recordings but none meet criteria (uploadStatus='uploaded' && cloudUrl exists)`);
+                        
+                        // Check if we have local blob recordings as fallback
+                        const localRecordings = questionRecordings.filter(rec => rec.audio);
+                        if (localRecordings.length > 0) {
+                            console.log(`[${questionId}] Found ${localRecordings.length} local blob recordings as fallback`);
+                            // For now, we'll alert the user that they need to wait for uploads
+                            // TODO: Implement local blob processing
+                        }
+                    }
+                }
+            } catch (error) {
+                console.warn(`Error loading recordings for ${questionId}:`, error);
+            }
+        }
+    }
+    
+    // If no recordings found from DOM, try to discover what question IDs exist in the database
+    if (Object.keys(recordings).length === 0) {
+        console.log('No recordings found from DOM elements, trying database discovery...');
+        
+        // Use IndexedDB to discover what question IDs actually exist for this world/lmid combination
+        try {
+            const discoveredQuestionIds = await discoverQuestionIdsFromDB(world, lmid);
+            console.log(`Discovered question IDs from database:`, discoveredQuestionIds);
+            
+            for (const questionId of discoveredQuestionIds) {
+                try {
+                    const questionRecordings = await loadRecordingsFromDB(questionId, world, lmid);
+                    
+                    if (questionRecordings.length > 0) {
+                        console.log(`[${questionId}] Raw recordings from DB (discovered):`, questionRecordings.map(r => ({
+                            id: r.id,
+                            uploadStatus: r.uploadStatus,
+                            hasCloudUrl: !!r.cloudUrl,
+                            hasAudio: !!r.audio
+                        })));
+                        
+                        // Filter only recordings that have been successfully uploaded to cloud
+                        const validRecordings = questionRecordings
+                            .filter(rec => rec.uploadStatus === 'uploaded' && rec.cloudUrl);
+                        
+                        if (validRecordings.length > 0) {
+                            recordings[questionId] = validRecordings;
+                            console.log(`Found ${validRecordings.length} valid recordings for ${questionId} (discovered)`);
+                        } else {
+                            console.log(`[${questionId}] No valid uploaded recordings found (discovered). ${questionRecordings.length} total recordings but none meet criteria (uploadStatus='uploaded' && cloudUrl exists)`);
+                            
+                            // Check if we have local blob recordings as fallback
+                            const localRecordings = questionRecordings.filter(rec => rec.audio);
+                            if (localRecordings.length > 0) {
+                                console.log(`[${questionId}] Found ${localRecordings.length} local blob recordings as fallback (discovered)`);
+                                // For now, we'll alert the user that they need to wait for uploads
+                                // TODO: Implement local blob processing
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.warn(`Could not load recordings for ${questionId}:`, error);
+                }
+            }
+        } catch (error) {
+            console.warn('Database discovery failed:', error);
+        }
+    }
+    
+    return recordings;
 }
 
 /**

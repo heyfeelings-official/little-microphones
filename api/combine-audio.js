@@ -84,33 +84,33 @@ export default async function handler(req, res) {
 
         // Audio processing parameters for classroom environment
         const audioParams = {
-            // User recordings (classroom environment)
+            // User recordings (default settings)
             userRecordings: {
-                noiseReduction: 20,        // Aggressive noise reduction
-                volumeBoost: 2.5,          // Boost quiet voices
-                highpass: 80,              // Remove low-frequency noise
-                lowpass: 8000,             // Remove high-frequency noise
-                dynamicNormalization: 0.9  // Normalize volume levels
+                noiseReduction: 5,         // Light noise reduction
+                volumeBoost: 1.2,          // Slight volume boost
+                highpass: 60,              // Light low-frequency filter
+                lowpass: 12000,            // Light high-frequency filter
+                dynamicNormalization: 0.7  // Moderate normalization
             },
             // Background music
             backgroundMusic: {
-                volume: 0.15,              // Low background volume
-                highpass: 100,             // EQ for background
-                lowpass: 6000,             // Reduce high frequencies
-                fadeIn: 0.5,               // Fade in duration
-                fadeOut: 0.5               // Fade out duration
+                volume: 0.25,              // Background volume
+                highpass: 80,              // EQ for background
+                lowpass: 8000,             // Reduce high frequencies
+                fadeIn: 0.3,               // Fade in duration
+                fadeOut: 0.3               // Fade out duration
             },
             // Question prompts and system audio
             systemAudio: {
-                volume: 1.2,               // Clear and prominent
-                dynamicNormalization: 0.7  // Moderate normalization
+                volume: 1.0,               // Normal volume
+                dynamicNormalization: 0.6  // Light normalization
             },
             // Final master settings
             master: {
-                volume: 0.9,               // Overall volume
-                highpass: 60,              // Remove very low frequencies
-                lowpass: 12000,            // Remove very high frequencies
-                dynamicNormalization: 0.8  // Final normalization
+                volume: 1.0,               // Normal overall volume
+                highpass: 40,              // Remove very low frequencies
+                lowpass: 15000,            // Keep most frequencies
+                dynamicNormalization: 0.7  // Light final normalization
             }
         };
 
