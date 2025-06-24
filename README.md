@@ -1,42 +1,209 @@
-# Little Microphones 🎵
+# Little Microphones 🎙️
 
-A comprehensive audio recording and radio program generation system designed for children's programs. Create personalized radio shows by recording answers to themed questions and automatically combining them into professional radio programs.
+**Audio recording platform for educational environments**
+
+[![Version](https://img.shields.io/badge/version-3.1.0-blue.svg)](https://github.com/heyfeelings-official/little-microphones)
+[![Status](https://img.shields.io/badge/status-production%20ready-green.svg)](https://little-microphones.vercel.app)
+[![Platform](https://img.shields.io/badge/platform-Vercel-black.svg)](https://vercel.com)
+
+## 🎯 Overview
+
+Little Microphones is a web-based audio recording platform that allows users to record responses to questions and generate combined radio programs. The system integrates with Webflow CMS for content management and uses Bunny.net CDN for audio storage and delivery.
+
+## ✨ Key Features
+
+### 🎵 Audio Recording
+- **Real-time Waveform**: Visual feedback during recording
+- **Multi-format Support**: Automatic best format selection per browser
+- **Cloud Backup**: Automatic upload to Bunny.net CDN
+- **Recording Limits**: 30 recordings max per question
+
+### 🎙️ Radio Program Generation
+- **Immediate Start**: No fake delays, processing begins instantly
+- **Numeric Ordering**: Simple 1-2-3-4-5-6 question order from CMS
+- **Fun Status Messages**: Entertaining messages during actual FFmpeg work
+  - "Teaching monkeys to sing"
+  - "Sprinkling audio fairy dust"
+  - "Consulting with audio wizards"
+- **Professional Quality**: FFmpeg-based audio processing
+
+### 🚀 Performance
+- **Clean Logging**: 135+ lines of verbose logging removed (v3.1.0)
+- **Streamlined UX**: Collect (5%) → Process (15%) → Complete (95-100%)
+- **Cache-Busting**: Timestamp-based versioning prevents old audio
+
+## 🏗️ Technical Architecture
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│     Frontend    │    │   Serverless    │    │  Cloud Storage  │
+│                 │    │    Functions    │    │                 │
+│ • Webflow Host  │◄──►│ • Vercel APIs   │◄──►│ • Bunny.net CDN │
+│ • JS Assets     │    │ • Node.js 18+   │    │ • Audio Files   │
+│ • User Auth     │    │ • FFmpeg Proc   │    │ • Static Assets │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+```
+
+### Core Components
+- **Frontend**: `recording.js`, `lm.js`, `rp.js`
+- **Backend**: `api/upload-audio.js`, `api/delete-audio.js`, `api/combine-audio.js`
+- **Storage**: IndexedDB (local), Bunny.net CDN (cloud)
+- **Auth**: Memberstack integration
+
+## 🚀 Quick Start
+
+### 1. Clone Repository
+```bash
+git clone https://github.com/heyfeelings-official/little-microphones.git
+cd little-microphones
+```
+
+### 2. Install Dependencies
+```bash
+npm install
+```
+
+### 3. Environment Setup
+```bash
+# Create .env file with:
+BUNNY_API_KEY=your_storage_api_key
+BUNNY_STORAGE_ZONE=your_storage_zone_name
+BUNNY_CDN_URL=https://your-zone.b-cdn.net
+```
+
+### 4. Deploy to Vercel
+```bash
+vercel --prod
+```
+
+## 📊 File Structure
+
+```
+Little Microphones/
+├── api/                    # Serverless functions
+│   ├── upload-audio.js     # Audio file upload
+│   ├── delete-audio.js     # Audio file deletion
+│   └── combine-audio.js    # Radio program generation
+├── documentation/          # Complete system documentation
+│   ├── PRD-little-microphones.md
+│   ├── api-documentation.md
+│   ├── recording.js.md
+│   ├── deployment.md
+│   ├── rp.js.md
+│   └── lm.js.md
+├── lm.js                  # Main dashboard script
+├── recording.js           # Recording system
+├── rp.js                  # Recording page auth
+├── package.json           # Dependencies
+└── vercel.json           # Deployment config
+```
+
+## 🎵 Audio Processing Pipeline
+
+### Question File Naming
+```
+Static Files (CDN):
+audio/spookyland/spookyland-QID1.mp3  // Question 1
+audio/spookyland/spookyland-QID2.mp3  // Question 2
+
+User Recordings:
+/{lmid}/{world}/kids-world_{world}-lmid_{lmid}-question_{number}-tm_{timestamp}.mp3
+```
+
+### Radio Program Structure
+```
+intro.mp3 →
+  spookyland-QID1.mp3 → [user recordings Q1] → monkeys.mp3 →
+  spookyland-QID2.mp3 → [user recordings Q2] → monkeys.mp3 →
+  ... →
+outro.mp3
+```
+
+## 🔧 API Endpoints
+
+### Upload Audio
+```http
+POST /api/upload-audio
+Content-Type: application/json
+
+{
+  "audioData": "base64_encoded_mp3_data",
+  "filename": "kids-world_spookyland-lmid_32-question_1-tm_timestamp.mp3",
+  "world": "spookyland",
+  "lmid": "32",
+  "questionId": "1"
+}
+```
+
+### Combine Audio
+```http
+POST /api/combine-audio
+Content-Type: application/json
+
+{
+  "world": "spookyland",
+  "lmid": "32",
+  "audioSegments": [
+    {
+      "type": "single",
+      "url": "https://little-microphones.b-cdn.net/audio/other/intro.mp3"
+    },
+    {
+      "type": "combine_with_background",
+      "answerUrls": ["https://..."],
+      "backgroundUrl": "https://little-microphones.b-cdn.net/audio/other/monkeys.mp3",
+      "questionId": "1"
+    }
+  ]
+}
+```
+
+## 📈 Recent Updates (v3.1.0)
+
+### 🎯 Major Improvements
+- **Simplified Question Ordering**: Direct use of CMS "Little Microphones Order" field
+- **Immediate Radio Generation**: No fake delays, instant processing start
+- **Console Logging Cleanup**: Removed 135+ lines of verbose logging
+- **Fixed Audio File URLs**: Correct QID format for static files
+
+### 🔧 Technical Changes
+- Replaced complex QID normalization with direct numeric ordering
+- Implemented immediate audio processing start
+- Added entertaining status messages during real FFmpeg work
+- Proper cleanup of intervals and status messages
+
+## 🛡️ Security & Performance
+
+### Security Features
+- API key protection via Vercel environment variables
+- User-specific file isolation
+- Memberstack authentication integration
+- Input validation on all endpoints
+
+### Performance Optimizations
+- Serverless architecture scales automatically
+- Global CDN delivery via Bunny.net
+- Efficient IndexedDB local storage
+- Clean console logging reduces overhead
 
 ## 📚 Documentation
 
-For complete system documentation, please refer to the comprehensive documentation in the `/documentation` folder:
+Complete documentation is available in the `/documentation` folder:
 
-### 🎯 Start Here
-- **[📋 Product Requirements Document](./documentation/PRD-little-microphones.md)** - Complete system overview, architecture, and product vision
+- **[PRD](./documentation/PRD-little-microphones.md)** - Product requirements and features
+- **[API Docs](./documentation/api-documentation.md)** - Complete API reference
+- **[Recording System](./documentation/recording.js.md)** - Audio recording documentation
+- **[Deployment](./documentation/deployment.md)** - Infrastructure and deployment guide
+- **[Radio Player](./documentation/rp.js.md)** - Recording page documentation
+- **[Dashboard](./documentation/lm.js.md)** - Main dashboard documentation
 
-### 📁 File Documentation
-- **[🔐 lm.js](./documentation/lm.js.md)** - Main authentication & LMID management system
-- **[🎵 recording.js](./documentation/recording.js.md)** - Multi-question audio recording system
-- **[🛡️ rp.js](./documentation/rp.js.md)** - Recording page authorization & world management
+## 🚀 Deployment
 
-### 🌐 API Documentation
-- **[⚡ API Functions](./documentation/api-documentation.md)** - Complete serverless API reference
-  - `/api/upload-audio` - Audio file upload service
-  - `/api/delete-audio` - Audio file deletion service  
-  - `/api/combine-audio` - Radio program generation service
-
-### 🚀 Infrastructure
-- **[📦 Deployment Guide](./documentation/deployment.md)** - Vercel deployment, Bunny.net CDN, and infrastructure setup
-
-## 🏗️ Quick Start
-
-### System Requirements
-- **Frontend**: Webflow hosting with custom JavaScript
-- **Backend**: Vercel serverless functions (Node.js 18+)
-- **Storage**: Bunny.net CDN for audio files
-- **Authentication**: Memberstack for user management
-
-### Key Dependencies
-```json
-{
-  "@ffmpeg-installer/ffmpeg": "^1.1.0",
-  "fluent-ffmpeg": "^2.1.3"
-}
+### Vercel (Recommended)
+```bash
+# Connect GitHub repository to Vercel
+# Set environment variables in Vercel dashboard
+# Push to main branch for automatic deployment
 ```
 
 ### Environment Variables
@@ -46,49 +213,37 @@ BUNNY_STORAGE_ZONE=your_storage_zone_name
 BUNNY_CDN_URL=https://your-zone.b-cdn.net
 ```
 
-## 🎯 Core Features
+## 🐛 Troubleshooting
 
-- **🎤 Multi-Question Recording**: Independent audio recorders per question
-- **☁️ Cloud Storage**: Automatic backup to Bunny.net CDN
-- **📻 Radio Program Generation**: Automated audio combination with FFmpeg
-- **🔒 Secure Authentication**: Memberstack-based user management
-- **🌍 Themed Worlds**: Multiple content themes (Spookyland, Shopping Spree, etc.)
-- **📱 Real-time Feedback**: Waveform visualization and upload progress
+### Common Issues
+1. **Missing audio files**: Ensure QID format naming (spookyland-QID1.mp3)
+2. **Upload failures**: Check Bunny.net API credentials
+3. **Processing timeouts**: Verify FFmpeg availability
+4. **Authentication issues**: Validate Memberstack configuration
 
-## 🔄 Development Workflow
+### Debug Mode
+Enable detailed logging in browser console to troubleshoot issues.
 
-1. **Make Changes**: Edit files locally
-2. **Commit & Push**: `git add . && git commit -m "Description" && git push origin main`
-3. **Auto Deploy**: Vercel automatically deploys changes
-4. **Verify**: Test functionality in production environment
+## 🤝 Contributing
 
-## 🌟 Architecture Overview
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Commit changes: `git commit -m 'Add amazing feature'`
+4. Push to branch: `git push origin feature/amazing-feature`
+5. Open a Pull Request
 
-```
-User → Webflow Frontend → JavaScript (lm.js/recording.js/rp.js) → 
-Vercel APIs → Bunny.net Storage → CDN Delivery → User Experience
-```
+## 📝 License
 
-## 🎵 Audio Pipeline
+This project is proprietary software owned by Hey Feelings.
 
-```
-WebRTC Recording (WebM) → Local Storage (IndexedDB) → 
-Cloud Upload (MP3) → Radio Program Generation → Final Output
-```
+## 🔗 Links
 
-## 🛠️ Technical Stack
-
-- **Frontend**: Vanilla JavaScript, WebRTC, IndexedDB, Canvas API
-- **Backend**: Node.js serverless functions, FFmpeg audio processing
-- **Storage**: Bunny.net CDN with organized file structure
-- **Authentication**: Memberstack with metadata-driven authorization
-- **Deployment**: Vercel with GitHub integration
-- **Automation**: Make.com webhooks for user management
-
-## 📞 Support
-
-For technical questions or system-specific issues, refer to the detailed documentation in the `/documentation` folder. Each file contains comprehensive information about its purpose, implementation, and integration points.
+- **Live Demo**: [little-microphones.vercel.app](https://little-microphones.vercel.app)
+- **Documentation**: [/documentation](./documentation)
+- **Issues**: [GitHub Issues](https://github.com/heyfeelings-official/little-microphones/issues)
 
 ---
 
-**🎵 Little Microphones** - Empowering children's voices through technology 
+**Last Updated**: June 24, 2025  
+**Version**: 3.1.0  
+**Status**: Production Ready ✅ 
