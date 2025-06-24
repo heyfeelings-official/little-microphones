@@ -480,7 +480,7 @@ function getFFmpegSetupSuggestions() {
             cons: ["More complex setup", "AWS costs", "Cross-platform complexity"]
         },
         recommended: "option1",
-        currentIssue: "FFmpeg packages are installed but execution failed. Check Vercel logs for details.",
+        currentIssue: "Audio processing failed. This may be due to missing audio files or network issues.",
         implementation: {
             packages: [
                 "@ffmpeg-installer/ffmpeg",
