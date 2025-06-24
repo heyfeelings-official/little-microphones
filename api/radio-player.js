@@ -1,160 +1,45 @@
 export default async function handler(req, res) {
-    // Set CORS headers
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-    // Handle preflight OPTIONS request
-    if (req.method === 'OPTIONS') {
-        res.status(200).end();
-        return;
-    }
-
-    // Debug environment variables
-    console.log('Environment check:', {
-        hasApiKey: !!process.env.BUNNY_API_KEY,
-        hasStorageZone: !!process.env.BUNNY_STORAGE_ZONE,
-        hasCdnUrl: !!process.env.BUNNY_CDN_URL,
-        storageZone: process.env.BUNNY_STORAGE_ZONE ? 'SET' : 'NOT SET',
-        cdnUrl: process.env.BUNNY_CDN_URL ? 'SET' : 'NOT SET'
-    });
-
-    // Only allow POST requests
-    if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Method not allowed' });
-    }
-
-    // Check for required environment variables
-    if (!process.env.BUNNY_API_KEY || !process.env.BUNNY_STORAGE_ZONE || !process.env.BUNNY_CDN_URL) {
-        console.error('Missing required environment variables');
-        return res.status(500).json({
-            success: false,
-            error: 'Server configuration error - missing environment variables',
-            details: 'BUNNY_API_KEY, BUNNY_STORAGE_ZONE, and BUNNY_CDN_URL must be configured'
-        });
-    }
-
-    const startTime = Date.now();
-
     try {
-        const { lmid, world, recordings } = req.body;
+        const { lmid, world, t } = req.query;
 
-        // Validation
-        if (!lmid || !world || !recordings) {
-            return res.status(400).json({ 
-                error: 'Missing required fields: lmid, world, and recordings' 
-            });
+        if (!lmid || !world) {
+            return res.status(400).send('Missing lmid or world parameter');
         }
 
-        // Validate recordings structure
-        if (typeof recordings !== 'object' || Object.keys(recordings).length === 0) {
-            return res.status(400).json({ 
-                error: 'Invalid recordings format. Expected object with question keys.' 
-            });
-        }
+        // Build the playlist (this is a simplified version - in production you'd store this)
+        const baseUrl = `https://little-microphones.b-cdn.net`;
+        const worldName = world.charAt(0).toUpperCase() + world.slice(1).replace(/-/g, ' ');
 
-        // Check environment variables
-        if (!process.env.BUNNY_API_KEY || !process.env.BUNNY_STORAGE_ZONE || !process.env.BUNNY_CDN_URL) {
-            console.error('Missing Bunny.net configuration');
-            return res.status(500).json({ error: 'Server configuration error' });
-        }
-
-        console.log(`Starting simplified radio program generation for LMID ${lmid}, World ${world}`);
-        console.log(`Recordings structure:`, Object.keys(recordings).map(q => `${q}: ${recordings[q].length} files`));
-        console.log(`Full recordings data:`, JSON.stringify(recordings, null, 2));
-
-        // Create a simple playlist/manifest instead of actually combining files
-        const baseUrl = `https://${process.env.BUNNY_CDN_URL}`;
-        const playlist = [];
-        
-        // Add intro if available
-        playlist.push({
-            type: 'intro',
-            url: `${baseUrl}/audio/other/intro.mp3`,
-            title: 'Introduction'
-        });
-
-        // Add each question block
-        for (const [questionKey, questionRecordings] of Object.entries(recordings)) {
-            if (questionRecordings && questionRecordings.length > 0) {
-                const questionId = questionKey.replace(/^Q/, '');
-                
-                // Add question prompt
-                playlist.push({
-                    type: 'question',
-                    url: `${baseUrl}/audio/${world}/${world}-Q${questionId}.mp3`,
-                    title: `Question ${questionId}`,
-                    questionId: questionId
-                });
-
-                // Add all answers for this question
-                questionRecordings.forEach((recordingFilename, index) => {
-                    playlist.push({
-                        type: 'answer',
-                        url: `${baseUrl}/${lmid}/${world}/${recordingFilename}`,
-                        title: `Answer ${index + 1} for Question ${questionId}`,
-                        questionId: questionId,
-                        answerIndex: index + 1
-                    });
-                });
-
-                // Add background music between questions
-                if (Object.keys(recordings).indexOf(questionKey) < Object.keys(recordings).length - 1) {
-                    playlist.push({
-                        type: 'transition',
-                        url: `${baseUrl}/audio/other/monkeys.mp3`,
-                        title: 'Transition Music',
-                        duration: 5 // 5 seconds
-                    });
-                }
+        // For now, create a basic playlist - this would normally be stored/retrieved
+        const playlist = [
+            {
+                title: `Welcome to ${worldName} Radio`,
+                type: 'intro',
+                url: `${baseUrl}/intro.mp3`
+            },
+            {
+                title: 'Question 1',
+                type: 'question',
+                url: `${baseUrl}/Q-ID%209.mp3`
+            },
+            {
+                title: 'Your Recordings',
+                type: 'answer',
+                url: `${baseUrl}/${lmid}/${world}/recording_1.webm`
+            },
+            {
+                title: 'Musical Transition',
+                type: 'transition',
+                url: `${baseUrl}/monkeys.mp3`
+            },
+            {
+                title: 'Thank you for listening!',
+                type: 'outro',
+                url: `${baseUrl}/outro.mp3`
             }
-        }
+        ];
 
-        // Add outro
-        playlist.push({
-            type: 'outro',
-            url: `${baseUrl}/audio/other/outro.mp3`,
-            title: 'Outro'
-        });
-
-        // Create a simple HTML audio player page for the radio program
-        console.log('Generating radio player HTML...');
-        const radioHtml = generateRadioPlayerHtml(playlist, world, lmid);
-        console.log('HTML generated, length:', radioHtml.length);
-        
-        // Upload the HTML player to Bunny.net
-        console.log('Starting upload to Bunny.net...');
-        const uploadResult = await uploadRadioPlayer(radioHtml, lmid, world);
-        console.log('Upload completed:', uploadResult);
-
-        const processingTime = Date.now() - startTime;
-        console.log(`Simplified radio program generated in ${processingTime}ms`);
-
-        res.json({
-            success: true,
-            url: uploadResult.url,
-            playlistUrl: uploadResult.playlistUrl,
-            processingTime: processingTime,
-            questionCount: Object.keys(recordings).length,
-            totalRecordings: Object.values(recordings).flat().length,
-            type: 'playlist' // Indicates this is a playlist-based solution
-        });
-
-    } catch (error) {
-        console.error('Radio program generation error:', error);
-
-        res.status(500).json({
-            success: false,
-            error: 'Radio program generation failed',
-            details: error.message
-        });
-    }
-}
-
-function generateRadioPlayerHtml(playlist, world, lmid) {
-    const worldName = world.charAt(0).toUpperCase() + world.slice(1).replace(/-/g, ' ');
-    
-    return `
+        const html = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -390,41 +275,24 @@ function generateRadioPlayerHtml(playlist, world, lmid) {
     </script>
 </body>
 </html>`;
+
+        // Set content type to HTML
+        res.setHeader('Content-Type', 'text/html');
+        res.send(html);
+
+    } catch (error) {
+        console.error('Radio player error:', error);
+        res.status(500).send(`Error generating radio player: ${error.message}`);
+    }
 }
 
-async function uploadRadioPlayer(htmlContent, lmid, world) {
-    try {
-        const filename = `radio-program-${lmid}-${world}.html`;
-        const uploadPath = `${lmid}/${world}/${filename}`;
-        const uploadUrl = `https://storage.bunnycdn.com/${process.env.BUNNY_STORAGE_ZONE}/${uploadPath}`;
-        
-        console.log(`Uploading radio player: ${filename}`);
-        
-        const response = await fetch(uploadUrl, {
-            method: 'PUT',
-            headers: {
-                'AccessKey': process.env.BUNNY_API_KEY,
-                'Content-Type': 'text/html'
-            },
-            body: htmlContent
-        });
-
-        if (!response.ok) {
-            throw new Error(`Upload failed: ${response.status}`);
-        }
-
-        const playUrl = `https://${process.env.BUNNY_CDN_URL}/${uploadPath}`;
-        
-        console.log(`Radio player uploaded successfully: ${playUrl}`);
-        
-        return {
-            url: playUrl,
-            playlistUrl: playUrl,
-            filename: filename
-        };
-        
-    } catch (error) {
-        console.error('Upload error:', error);
-        throw error;
-    }
+function getItemIcon(type) {
+    const icons = {
+        intro: '🎵',
+        question: '❓', 
+        answer: '💬',
+        transition: '🎶',
+        outro: '🎵'
+    };
+    return icons[type] || '🔊';
 } 

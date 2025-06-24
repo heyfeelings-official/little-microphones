@@ -1201,7 +1201,7 @@ async function generateRadioProgram(world, lmid) {
         // Step 2: Send to API for processing (using simplified version for now)
         updateRadioProgramProgress('Creating radio playlist...', 20);
         
-        const response = await fetch('https://little-microphones.vercel.app/api/test-radio', {
+        const response = await fetch('https://little-microphones.vercel.app/api/radio-direct', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
