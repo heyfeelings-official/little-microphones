@@ -1,1 +1,25 @@
- 
+{
+  "name": "little-microphones",
+  "version": "1.0.0",
+  "description": "Audio recording and processing application",
+  "main": "lm.js",
+  "scripts": {
+    "start": "node lm.js",
+    "dev": "node lm.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "multer": "^1.4.5-lts.1",
+    "cors": "^2.8.5"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sebatian/little-microphones.git"
+  },
+  "keywords": ["audio", "recording", "microphones", "web"],
+  "author": "Sebastian",
+  "license": "MIT"
+} 
