@@ -62,7 +62,7 @@ export default async function handler(req, res) {
             method: 'PUT',
             headers: {
                 'AccessKey': process.env.BUNNY_API_KEY,
-                'Content-Type': 'audio/webm'
+                'Content-Type': 'audio/mpeg'
             },
             body: audioBuffer
         });

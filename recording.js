@@ -249,13 +249,13 @@ function updateUploadStatusUI(statusElement, recordingData) {
  */
 async function deleteFromBunny(recordingData, world, lmid, questionId) {
     if (!recordingData.cloudUrl) {
-        console.log(`[Q-ID ${questionId}] No cloud URL, skipping cloud deletion`);
+        console.log(`[${questionId}] No cloud URL, skipping deletion`);
         return true;
     }
 
     try {
-        const filename = `${recordingData.id}.webm`;
-        console.log(`[Q-ID ${questionId}] Deleting from Bunny.net: ${filename}`);
+        const filename = `${recordingData.id}.mp3`;
+        console.log(`[${questionId}] Deleting: ${filename}`);
 
         const response = await fetch('https://little-microphones.vercel.app/api/delete-audio', {
             method: 'DELETE',
@@ -271,14 +271,14 @@ async function deleteFromBunny(recordingData, world, lmid, questionId) {
         const result = await response.json();
 
         if (result.success) {
-            console.log(`[Q-ID ${questionId}] Successfully deleted from cloud: ${filename}`);
+            console.log(`[${questionId}] Deleted from cloud: ${filename}`);
             return true;
         } else {
             throw new Error(result.error || 'Delete failed');
         }
 
     } catch (error) {
-        console.error(`[Q-ID ${questionId}] Cloud deletion failed:`, error);
+        console.error(`[${questionId}] Cloud deletion failed:`, error);
         return false; // Don't block local deletion if cloud deletion fails
     }
 }
@@ -340,26 +340,29 @@ async function deleteRecording(recordingId, questionId, elementToRemove) {
  * @param {HTMLElement} recorderWrapper - The main container element for this recorder.
  */
 function initializeAudioRecorder(recorderWrapper) {
-    const questionId = recorderWrapper.dataset.questionId;
+    let questionId = recorderWrapper.dataset.questionId;
     if (!questionId) {
         console.warn('No questionId found for recorder wrapper, skipping initialization');
         return;
     }
     
+    // Normalize questionId to QID format immediately
+    questionId = normalizeQuestionId(questionId);
+    
     // Prevent double initialization
     if (recorderWrapper.dataset.recordingInitialized === 'true') {
-        console.log(`[Q-ID ${questionId}] Already initialized, skipping.`);
+        console.log(`[${questionId}] Already initialized`);
         return;
     }
     
     // Mark as initialized
     recorderWrapper.dataset.recordingInitialized = 'true';
-    console.log(`[Q-ID ${questionId}] Initializing audio recorder...`);
+    console.log(`[${questionId}] Initializing audio recorder`);
 
     // --- Step 1: Find ONLY the button initially ---
     const recordButton = recorderWrapper.querySelector('.record-button');
     if (!recordButton) {
-        console.error(`[Q-ID ${questionId}] Critical element .record-button not found. Skipping.`);
+        console.error(`[${questionId}] No record button found, skipping`);
         return;
     }
     
@@ -394,7 +397,7 @@ function initializeAudioRecorder(recorderWrapper) {
             if (recordings.length > 0) {
                 const cleanedCount = await cleanupOrphanedRecordings(questionId, world, lmid);
                 if (cleanedCount > 0) {
-                    console.log(`[Q-ID ${questionId}] Cleaned up ${cleanedCount} orphaned recordings. Reloading...`);
+                    console.log(`[${questionId}] Cleaned ${cleanedCount} orphaned recordings, reloading`);
                     // Reload the recordings list after cleanup
                     const updatedRecordings = await loadRecordingsFromDB(questionId, world, lmid);
                     recordingsListUI.innerHTML = '';
@@ -406,7 +409,7 @@ function initializeAudioRecorder(recorderWrapper) {
                 }
             }
         }).catch(error => {
-            console.error(`[Q-ID ${questionId}] Error loading recordings:`, error);
+            console.error(`[${questionId}] Error loading recordings:`, error);
             recordingsLoaded = false; // Reset flag on error
         });
     }
@@ -421,7 +424,7 @@ function initializeAudioRecorder(recorderWrapper) {
         } else {
             // Check if saving is already in progress for this question
             if (savingLocks.has(questionId)) {
-                console.warn(`Recording for Q-ID ${questionId} is already being processed, please wait.`);
+                console.warn(`[${questionId}] Recording already in progress, please wait`);
                 return;
             }
             
@@ -453,10 +456,10 @@ function initializeAudioRecorder(recorderWrapper) {
             const recordings = await loadRecordingsFromDB(questionId, world, lmid);
             const currentCount = recordings.length;
             
-            console.log(`[Q-ID ${questionId}] Current recordings: ${currentCount}/30`);
+            console.log(`[${questionId}] Recordings: ${currentCount}/30`);
             return currentCount < 30;
         } catch (error) {
-            console.error(`[Q-ID ${questionId}] Error checking recording limit:`, error);
+            console.error(`[${questionId}] Error checking limit:`, error);
             return true; // Allow recording if check fails
         }
     }
@@ -467,7 +470,7 @@ function initializeAudioRecorder(recorderWrapper) {
     function showRecordingLimitMessage() {
         // Use native browser alert for better accessibility and simplicity
         alert('Maximum 30 recordings per question. Delete an old recording to record a new one.');
-        console.log(`[Q-ID ${questionId}] Recording limit reached (30/30)`);
+        console.log(`[${questionId}] Recording limit reached (30/30)`);
     }
 
     async function startActualRecording() {
@@ -548,7 +551,7 @@ function initializeAudioRecorder(recorderWrapper) {
                     // --- Use timestamp for unique ID ---
                     const timestamp = Date.now();
                     const newId = `kids-world_${world}-lmid_${lmid}-question_${questionId}-tm_${timestamp}`;
-                    console.log(`[Q-ID ${questionId}] Generated unique ID with timestamp: ${newId}`);
+                    console.log(`[${questionId}] Generated ID: ${newId}`);
 
                     const recordingData = {
                         id: newId,
@@ -597,7 +600,7 @@ function initializeAudioRecorder(recorderWrapper) {
             // SECURITY: Auto-stop recording after 10 minutes
             setTimeout(() => {
                 if (mediaRecorder && mediaRecorder.state === "recording") {
-                    console.log(`[Q-ID ${questionId}] Auto-stopping recording after 10 minutes`);
+                    console.log(`[${questionId}] Auto-stopping after 10 minutes`);
                     if (statusDisplay) statusDisplay.textContent = "Maximum recording time reached...";
                     mediaRecorder.stop();
                 }
@@ -718,7 +721,7 @@ function initializeAudioRecorder(recorderWrapper) {
      */
     async function uploadToBunny(recordingData, world, lmid) {
         try {
-            console.log(`[Q-ID ${questionId}] Starting upload to Bunny.net: ${recordingData.id}`);
+            console.log(`[${questionId}] Uploading: ${recordingData.id}`);
             
             // Update status to uploading
             recordingData.uploadStatus = 'uploading';
@@ -738,7 +741,7 @@ function initializeAudioRecorder(recorderWrapper) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     audioData: base64Audio,
-                    filename: `${recordingData.id}.webm`,
+                    filename: `${recordingData.id}.mp3`,
                     world: world,
                     lmid: lmid,
                     questionId: questionId
@@ -759,22 +762,21 @@ function initializeAudioRecorder(recorderWrapper) {
                     // Remove the blob to save local storage space since we now have cloud backup
                     recordingData.audio = null;
                     
-                    console.log(`[Q-ID ${questionId}] Successfully uploaded: ${result.url}`);
-                    console.log(`[Q-ID ${questionId}] Local blob removed to save storage space`);
+                                    console.log(`[${questionId}] Upload complete: ${result.url}`);
                 } else {
                     throw new Error(result.error || 'Upload failed');
                 }
             } else {
                 // Handle non-JSON error responses (like HTML error pages)
                 const errorText = await response.text();
-                console.error(`[Q-ID ${questionId}] Upload API error: ${response.status} - ${errorText}`);
+                console.error(`[${questionId}] Upload failed: ${response.status} - ${errorText}`);
                 throw new Error(`Upload API error: ${response.status}`);
             }
 
         } catch (error) {
             recordingData.uploadStatus = 'failed';
             recordingData.uploadProgress = 0;
-            console.error(`[Q-ID ${questionId}] Upload failed:`, error);
+            console.error(`[${questionId}] Upload error:`, error);
         }
 
         await updateRecordingInDB(recordingData);
@@ -860,7 +862,7 @@ function initializeAudioRecorder(recorderWrapper) {
         const rect = liveWaveformCanvas.getBoundingClientRect();
 
         if (rect.width === 0 || rect.height === 0) {
-            console.warn(`[Q-ID "${questionId}"] Canvas is not visible. Sizing deferred.`);
+            console.warn(`[${questionId}] Canvas not visible, sizing deferred`);
             return;
         }
 
@@ -869,7 +871,7 @@ function initializeAudioRecorder(recorderWrapper) {
         
         canvasCtx.scale(dpr, dpr);
         canvasSized = true;
-        console.log(`[Q-ID "${questionId}"] Canvas sized to:`, rect.width, 'x', rect.height);
+        console.log(`[${questionId}] Canvas sized: ${rect.width}x${rect.height}`);
     }
     
     resetRecordingState();
@@ -997,11 +999,11 @@ function loadRecordingsFromDB(questionId, world, lmid) {
                     return rec.questionId === questionId && 
                            rec.id.includes(`kids-world_${world}-lmid_${lmid}-`);
                 });
-                console.log(`[Q-ID ${questionId}] [${world}/${lmid}] Loaded ${filteredRecordings.length} recordings from DB.`);
+                console.log(`[${questionId}] Loaded ${filteredRecordings.length} recordings from DB`);
                 resolve(filteredRecordings);
             };
             request.onerror = () => {
-                console.error(`[Q-ID ${questionId}] [${world}/${lmid}] Error loading recordings.`);
+                console.error(`[${questionId}] Error loading recordings from DB`);
                 resolve([]); // Return empty array on error
             };
         });
@@ -1046,8 +1048,9 @@ function initializeRecordersForWorld(world) {
     
     // Initialize each recorder
     recorderWrappers.forEach((wrapper, index) => {
-        const questionId = wrapper.dataset.questionId;
-        console.log(`Initializing wrapper ${index + 1}: questionId="${questionId}"`);
+        let questionId = wrapper.dataset.questionId;
+        questionId = normalizeQuestionId(questionId);
+        console.log(`Initializing wrapper ${index + 1}: ${questionId}`);
         initializeAudioRecorder(wrapper);
     });
     
@@ -1077,7 +1080,7 @@ async function cleanupOrphanedRecordings(questionId, world, lmid) {
         );
         
         if (orphanedRecordings.length > 0) {
-            console.log(`[Q-ID ${questionId}] Found ${orphanedRecordings.length} orphaned recordings, cleaning up...`);
+            console.log(`[${questionId}] Found ${orphanedRecordings.length} orphaned recordings, cleaning up`);
             
             for (const orphaned of orphanedRecordings) {
                 await withDB(db => {
@@ -1086,7 +1089,7 @@ async function cleanupOrphanedRecordings(questionId, world, lmid) {
                         const store = transaction.objectStore("audioRecordings");
                         const request = store.delete(orphaned.id);
                         transaction.oncomplete = () => {
-                            console.log(`[Q-ID ${questionId}] Cleaned up orphaned recording: ${orphaned.id}`);
+                            console.log(`[${questionId}] Cleaned up orphaned: ${orphaned.id}`);
                             resolve();
                         };
                         transaction.onerror = (event) => {
@@ -1102,7 +1105,7 @@ async function cleanupOrphanedRecordings(questionId, world, lmid) {
         
         return 0;
     } catch (error) {
-        console.error(`[Q-ID ${questionId}] Error during cleanup:`, error);
+        console.error(`[${questionId}] Cleanup error:`, error);
         return 0;
     }
 }
@@ -1174,6 +1177,31 @@ async function cleanupAllOrphanedRecordings() {
 window.cleanupAllOrphanedRecordings = cleanupAllOrphanedRecordings;
 
 /**
+ * Normalize question ID to consistent QID format
+ * @param {string} questionId - Raw question ID from DOM
+ * @returns {string} - Normalized QID format (e.g., "QID2", "QID9")
+ */
+function normalizeQuestionId(questionId) {
+    if (!questionId) return '';
+    
+    const cleanId = questionId.toString().trim();
+    
+    // If already in QID format, return as-is
+    if (cleanId.startsWith('QID')) {
+        return cleanId.replace(/[\s\-]/g, ''); // Remove any spaces or dashes
+    }
+    
+    // If it's just a number, convert to QID format
+    if (/^\d+$/.test(cleanId)) {
+        return `QID${cleanId}`;
+    }
+    
+    // If it has other format, clean and prefix with QID
+    const numericPart = cleanId.replace(/[^\d]/g, '');
+    return numericPart ? `QID${numericPart}` : `QID${cleanId}`;
+}
+
+/**
  * Generate Radio Program for current world and LMID
  * @param {string} world - The world slug
  * @param {string} lmid - The LMID
@@ -1216,7 +1244,7 @@ async function generateRadioProgram(world, lmid) {
             
             // Add each file with metadata
             files.forEach(filename => {
-                // Extract timestamp from filename (kids-world_spookyland-lmid_32-question_9-tm_1750614299968.webm)
+                // Extract timestamp from filename (kids-world_spookyland-lmid_32-question_9-tm_1750614299968.mp3)
                 const timestampMatch = filename.match(/tm_(\d+)/);
                 const timestamp = timestampMatch ? timestampMatch[1] : Date.now().toString();
                 
@@ -1302,7 +1330,7 @@ async function collectRecordingsForRadioProgram(world, lmid) {
                     // Filter only recordings that have been successfully uploaded to cloud
                     const validRecordings = questionRecordings
                         .filter(rec => rec.uploadStatus === 'uploaded' && rec.cloudUrl)
-                        .map(rec => `${rec.id}.webm`); // Extract filename for API
+                        .map(rec => `${rec.id}.mp3`); // Extract filename for API
                     
                     if (validRecordings.length > 0) {
                         recordings[questionId] = validRecordings;
@@ -1332,7 +1360,7 @@ async function collectRecordingsForRadioProgram(world, lmid) {
                         // Filter only recordings that have been successfully uploaded to cloud
                         const validRecordings = questionRecordings
                             .filter(rec => rec.uploadStatus === 'uploaded' && rec.cloudUrl)
-                            .map(rec => `${rec.id}.webm`); // Extract filename for API
+                            .map(rec => `${rec.id}.mp3`); // Extract filename for API
                         
                         if (validRecordings.length > 0) {
                             recordings[questionId] = validRecordings;

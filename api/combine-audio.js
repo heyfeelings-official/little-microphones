@@ -203,9 +203,9 @@ function getQuestionPromptUrl(world, questionId) {
  * Get user recording URL using correct format
  */
 function getUserRecordingUrl(lmid, world, questionId, timestamp) {
-    // Format: https://little-microphones.b-cdn.net/32/spookyland/kids-world_spookyland-lmid_32-question_2-tm_1750763211231.webm
-    const questionNumber = questionId.replace('QID', ''); // Extract number from QID2 -> 2
-    return `https://little-microphones.b-cdn.net/${lmid}/${world}/kids-world_${world}-lmid_${lmid}-question_${questionNumber}-tm_${timestamp}.webm`;
+  // Format: https://little-microphones.b-cdn.net/32/spookyland/kids-world_spookyland-lmid_32-question_2-tm_1750763211231.mp3
+  const questionNumber = questionId.replace('QID', ''); // Extract number from QID2 -> 2
+  return `https://little-microphones.b-cdn.net/${lmid}/${world}/kids-world_${world}-lmid_${lmid}-question_${questionNumber}-tm_${timestamp}.mp3`;
 }
 
 /**
@@ -298,7 +298,7 @@ async function downloadAudioFiles(audioPlan, tempDir) {
     
     for (let i = 0; i < audioPlan.length; i++) {
         const segment = audioPlan[i];
-        const fileName = `${String(i).padStart(3, '0')}-${segment.type}-${segment.file || segment.questionId || 'recording'}.${segment.url.endsWith('.webm') ? 'webm' : 'mp3'}`;
+        const fileName = `${String(i).padStart(3, '0')}-${segment.type}-${segment.file || segment.questionId || 'recording'}.mp3`;
         const filePath = path.join(tempDir, fileName);
         
         console.log(`📥 Downloading: ${segment.url}`);

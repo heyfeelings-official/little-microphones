@@ -211,7 +211,32 @@ function setupExistingRadioProgramButton(world, lmid) {
     }
   });
   
-  console.log(`Generate-program button setup complete for ${world}`);
+      console.log(`Generate-program button setup complete for ${world}`);
+}
+
+/**
+ * Normalize question ID to consistent QID format
+ * @param {string} questionId - Raw question ID from DOM
+ * @returns {string} - Normalized QID format (e.g., "QID2", "QID9")
+ */
+function normalizeQuestionId(questionId) {
+    if (!questionId) return '';
+    
+    const cleanId = questionId.toString().trim();
+    
+    // If already in QID format, return as-is
+    if (cleanId.startsWith('QID')) {
+        return cleanId.replace(/[\s\-]/g, ''); // Remove any spaces or dashes
+    }
+    
+    // If it's just a number, convert to QID format
+    if (/^\d+$/.test(cleanId)) {
+        return `QID${cleanId}`;
+    }
+    
+    // If it has other format, clean and prefix with QID
+    const numericPart = cleanId.replace(/[^\d]/g, '');
+    return numericPart ? `QID${numericPart}` : `QID${cleanId}`;
 }
 
 /**
@@ -237,9 +262,12 @@ async function checkIfUserHasRecordings(world, lmid) {
     if (targetCollection) {
       const recorderWrappers = targetCollection.querySelectorAll('.faq1_accordion.lm');
       
-      for (const wrapper of recorderWrappers) {
-        const questionId = wrapper.dataset.questionId;
-        if (!questionId) continue;
+              for (const wrapper of recorderWrappers) {
+            let questionId = wrapper.dataset.questionId;
+            if (!questionId) continue;
+            
+            // Normalize questionId to QID format
+            questionId = normalizeQuestionId(questionId);
         
         try {
           const recordings = await loadRecordingsFromDB(questionId, world, lmid);
