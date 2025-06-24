@@ -1620,13 +1620,26 @@ async function discoverQuestionIdsFromDB(world, lmid) {
                     const allRecordings = request.result;
                     const questionIds = new Set();
                     
+                    console.log(`[Discovery] Found ${allRecordings.length} total recordings in DB`);
+                    
                     // Filter recordings for this world/lmid and extract unique question IDs
+                    // ID format: kids-world_spookyland-lmid_33-question_9-tm_1750614299968
+                    const targetPattern = `kids-world_${world}-lmid_${lmid}-`;
+                    
                     allRecordings.forEach(recording => {
-                        if (recording.world === world && recording.lmid === lmid) {
+                        console.log(`[Discovery] Checking recording:`, {
+                            id: recording.id,
+                            questionId: recording.questionId,
+                            matchesPattern: recording.id.includes(targetPattern)
+                        });
+                        
+                        if (recording.id && recording.id.includes(targetPattern)) {
                             questionIds.add(recording.questionId);
+                            console.log(`[Discovery] Added questionId: ${recording.questionId}`);
                         }
                     });
                     
+                    console.log(`[Discovery] Final discovered question IDs:`, Array.from(questionIds));
                     resolve(Array.from(questionIds));
                 };
                 
@@ -1656,9 +1669,12 @@ async function getAllRecordingsForWorldLmid(world, lmid) {
                 
                 request.onsuccess = () => {
                     const allRecordings = request.result;
+                    // Filter by ID pattern instead of separate world/lmid properties
+                    const targetPattern = `kids-world_${world}-lmid_${lmid}-`;
                     const filteredRecordings = allRecordings.filter(recording => 
-                        recording.world === world && recording.lmid === lmid
+                        recording.id && recording.id.includes(targetPattern)
                     );
+                    console.log(`[getAllRecordings] Found ${filteredRecordings.length} recordings for ${world}/${lmid}`);
                     resolve(filteredRecordings);
                 };
                 
