@@ -1016,7 +1016,6 @@ function loadRecordingsFromDB(questionId, world, lmid) {
                     return rec.questionId === questionId && 
                            rec.id.includes(`kids-world_${world}-lmid_${lmid}-`);
                 });
-                console.log(`[${questionId}] Loaded ${filteredRecordings.length} recordings from DB`);
                 resolve(filteredRecordings);
             };
             request.onerror = () => {
@@ -1223,19 +1222,9 @@ async function generateRadioProgram(world, lmid) {
         // Step 1: Show initial modal
         showRadioProgramModal('Initializing radio program generation...', 0);
         
-        // Add fake progress messages
-        const fakeProgressSteps = [
-            { message: 'Gathering the questions...', progress: 5, detail: 'Scanning question database' },
-            { message: 'Looking for answers...', progress: 10, detail: 'Searching for recorded responses' },
-            { message: 'Analyzing recordings...', progress: 15, detail: 'Checking audio quality' },
-            { message: 'Organizing content...', progress: 20, detail: 'Sorting by question order' }
-        ];
-        
-        // Show fake progress
-        for (const step of fakeProgressSteps) {
-            updateRadioProgramProgress(step.message, step.progress, step.detail);
-            await new Promise(resolve => setTimeout(resolve, 800));
-        }
+        // Show simplified initial progress
+        updateRadioProgramProgress('Gathering recordings...', 10, 'Scanning question database');
+        await new Promise(resolve => setTimeout(resolve, 500));
         
         // Step 2: Collect recordings (keep this real)
         const recordings = await collectRecordingsForRadioProgram(world, lmid);
@@ -1254,73 +1243,45 @@ async function generateRadioProgram(world, lmid) {
         await new Promise(resolve => setTimeout(resolve, 500));
         
         console.log(`Found ${totalRecordings} recordings across ${questionIds.length} questions`);
-        console.log('🎵 BUILDING FRESH AUDIO PLAN WITH LATEST RECORDINGS:');
         
-        // More fake progress messages
-        const moreFakeSteps = [
-            { message: 'Combining answers for questions...', progress: 30, detail: 'Processing audio segments' },
-            { message: 'Adding background sound...', progress: 35, detail: 'Mixing background music' },
-            { message: 'Putting things together...', progress: 40, detail: 'Assembling audio timeline' },
-            { message: 'Sprinkling some fun...', progress: 45, detail: 'Adding creative elements' },
-            { message: 'Fun added!', progress: 50, detail: 'Creative processing complete' },
-            { message: 'Hmm let\'s add even more fun...', progress: 55, detail: 'Extra fun processing' },
-            { message: 'Adding magical touches...', progress: 60, detail: 'Enhancing audio experience' },
-            { message: 'Almost there...', progress: 65, detail: 'Final preparations' }
-        ];
+        // Show simplified progress
+        updateRadioProgramProgress('Organizing content...', 25, 'Sorting by question order');
+        await new Promise(resolve => setTimeout(resolve, 500));
         
-        // Show more fake progress
-        for (const step of moreFakeSteps) {
-            updateRadioProgramProgress(step.message, step.progress, step.detail);
-            await new Promise(resolve => setTimeout(resolve, 600));
-        }
-        
-        // Sort question IDs by DOM order instead of alphabetical
+        // Sort question IDs by numeric order  
         const sortedQuestionIds = sortQuestionIdsByDOMOrder(questionIds, world);
-        console.log('📋 Question order (numeric):', sortedQuestionIds);
-        
-        // Verify that we have the correct DOM sequence
-        console.log('🎯 Building audio segments in numeric order:');
-        console.log(`   Total questions to process: ${sortedQuestionIds.length}`);
-        console.log(`   Question sequence:`, sortedQuestionIds.map((qid, i) => `${i + 1}. Question ${qid}`));
+        console.log('📋 Question order:', sortedQuestionIds.join(', '));
         
         // Build audio segments in correct order
         const audioSegments = [];
         
-        // 1. Add intro with cache-busting
+        // 1. Add intro
         const introTimestamp = Date.now();
         const introUrl = `https://little-microphones.b-cdn.net/audio/other/intro.mp3?t=${introTimestamp}`;
         audioSegments.push({
             type: 'single',
             url: introUrl
         });
-        console.log('📁 Added intro (segment 1)');
         
-        // 2. Add questions and answers in DOM order
+        // 2. Add questions and answers in numeric order
         for (let i = 0; i < sortedQuestionIds.length; i++) {
             const questionId = sortedQuestionIds[i];
             const questionRecordings = recordings[questionId];
-            const questionNumber = i + 1;
-            const segmentNumber = (i * 2) + 2; // Each question creates 2 segments (prompt + answers)
-            
-            console.log(`🎵 Processing question ${questionNumber}/${sortedQuestionIds.length}: Question ${questionId}`);
             
             // Add question prompt with cache-busting
             const cacheBustTimestamp = Date.now();
-            const questionUrl = `https://little-microphones.b-cdn.net/audio/${world}/${world}-${questionId}.mp3?t=${cacheBustTimestamp}`;
+            const questionUrl = `https://little-microphones.b-cdn.net/audio/${world}/${world}-QID${questionId}.mp3?t=${cacheBustTimestamp}`;
             audioSegments.push({
                 type: 'single',
                 url: questionUrl
             });
-            console.log(`📁 Added question prompt (segment ${segmentNumber}): Question ${questionId}`);
+            console.log(`📁 Question ${questionId} prompt added`);
             
             // Sort answers by timestamp (first recorded = first played)
             const sortedAnswers = questionRecordings.sort((a, b) => a.timestamp - b.timestamp);
             const answerUrls = sortedAnswers.map(recording => recording.cloudUrl);
             
-            console.log(`🎤 Adding ${answerUrls.length} answers for Question ${questionId} (segment ${segmentNumber + 1}):`);
-            answerUrls.forEach((url, index) => {
-                console.log(`   Answer ${index + 1}: ${url.substring(url.lastIndexOf('/') + 1)}`);
-            });
+            console.log(`🎤 Question ${questionId}: ${answerUrls.length} answers`);
             
             // Combine answers with background music (cache-busted)
             const backgroundTimestamp = Date.now() + Math.random(); // Unique timestamp per question
@@ -1331,36 +1292,19 @@ async function generateRadioProgram(world, lmid) {
                 backgroundUrl: backgroundUrl,
                 questionId: questionId
             });
-            console.log(`🐒 Added answers with background (segment ${segmentNumber + 1}): Question ${questionId}`);
         }
         
-        // 3. Add outro with cache-busting
-        const outroTimestamp = Date.now() + 1; // Slightly different timestamp
+        // 3. Add outro
+        const outroTimestamp = Date.now() + 1;
         const outroUrl = `https://little-microphones.b-cdn.net/audio/other/outro.mp3?t=${outroTimestamp}`;
         audioSegments.push({
             type: 'single',
             url: outroUrl
         });
-        console.log(`📁 Added outro (segment ${audioSegments.length})`);
         
-        // Final verification of audio sequence
-        console.log(`🎼 FINAL AUDIO PLAN: ${audioSegments.length} segments total`);
-        console.log('📋 Complete radio program sequence (numeric order):');
-        audioSegments.forEach((segment, index) => {
-            if (segment.type === 'single') {
-                const fileName = segment.url.split('/').pop().split('?')[0];
-                console.log(`   ${index + 1}. [SINGLE] ${fileName}`);
-            } else if (segment.type === 'combine_with_background') {
-                console.log(`   ${index + 1}. [COMBINED] Question ${segment.questionId} (${segment.answerUrls.length} answers + background)`);
-            }
-        });
-        
-        console.log('📋 Full audio plan details:', audioSegments);
+        console.log(`🎼 Audio plan complete: ${audioSegments.length} segments`);
         
         updateRadioProgramProgress('Sending to audio processor...', 70, `Processing ${questionIds.length} questions with combined answers`);
-        
-        // Start fake status messages for entertainment (independent of real progress)
-        startFakeStatusMessages();
         
         // Step 3: Send the structured audio plan to API
         const response = await fetch('https://little-microphones.vercel.app/api/combine-audio', {
@@ -1373,8 +1317,6 @@ async function generateRadioProgram(world, lmid) {
             })
         });
         
-        // Stop fake messages when real processing is done
-        stopFakeStatusMessages();
         updateRadioProgramProgress('Processing complete!', 95, 'Audio processing finished successfully');
         
         const result = await response.json();
@@ -1426,16 +1368,10 @@ async function generateRadioProgram(world, lmid) {
  * @returns {string[]} Sorted question IDs in numeric order
  */
 function sortQuestionIdsByDOMOrder(questionIds, world) {
-    console.log(`🔍 Sorting questions using numeric order`);
-    console.log(`📋 Input question IDs:`, questionIds);
-    
     // Simple numeric sort - convert to numbers, sort, then back to strings
     const sortedIds = questionIds
         .map(id => normalizeQuestionId(id))
         .sort((a, b) => parseInt(a) - parseInt(b));
-    
-    console.log('📋 Final numeric order:', sortedIds);
-    console.log(`🔄 Order mapping:`, sortedIds.map((qid, index) => `${index + 1}. Question ${qid}`));
     
     return sortedIds;
 }
@@ -1531,50 +1467,6 @@ function updateRadioProgramProgress(message, progress, details = '') {
 }
 
 /**
- * Start fake status messages for user engagement (independent of real progress)
- */
-function startFakeStatusMessages() {
-    const fakeMessages = [
-        'Downloading audio files from CDN',
-        'Applying noise reduction to recordings',
-        'Normalizing volume levels',
-        'Combining audio segments',
-        'Adding background music',
-        'Mixing audio tracks',
-        'Applying audio filters',
-        'Balancing sound levels',
-        'Processing audio effects',
-        'Optimizing audio quality',
-        'Rendering final audio',
-        'Applying final touches'
-    ];
-    
-    let messageIndex = 0;
-    
-    // Update fake status every 1.2 seconds
-    window.fakeStatusInterval = setInterval(() => {
-        const detailsEl = document.getElementById('radio-details');
-        if (detailsEl && window.fakeStatusInterval) {
-            const spinner = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
-            const spinnerChar = spinner[Math.floor(Date.now() / 100) % spinner.length];
-            const message = fakeMessages[messageIndex % fakeMessages.length];
-            detailsEl.textContent = `${spinnerChar} ${message}`;
-            messageIndex++;
-        }
-    }, 1200);
-}
-
-/**
- * Stop fake status messages
- */
-function stopFakeStatusMessages() {
-    if (window.fakeStatusInterval) {
-        clearInterval(window.fakeStatusInterval);
-        window.fakeStatusInterval = null;
-    }
-}
-
-/**
  * Hide radio program modal
  */
 function hideRadioProgramModal() {
@@ -1588,9 +1480,6 @@ function hideRadioProgramModal() {
         window.radioProgressIntervals.forEach(interval => clearInterval(interval));
         window.radioProgressIntervals = [];
     }
-    
-    // Clean up fake status messages
-    stopFakeStatusMessages();
 }
 
 /**
@@ -1689,7 +1578,6 @@ async function collectRecordingsForRadioProgram(world, lmid) {
     
     if (targetCollection) {
         const recorderWrappers = targetCollection.querySelectorAll('.faq1_accordion.lm');
-        console.log(`📋 Found ${recorderWrappers.length} question elements in DOM`);
         
         for (const wrapper of recorderWrappers) {
             const rawQuestionId = wrapper.dataset.questionId;
@@ -1700,7 +1588,6 @@ async function collectRecordingsForRadioProgram(world, lmid) {
             
             // Skip if already processed
             if (processedQuestionIds.has(questionId)) {
-                console.log(`⚠️ Skipping duplicate question ID: ${questionId}`);
                 continue;
             }
             
@@ -1710,20 +1597,14 @@ async function collectRecordingsForRadioProgram(world, lmid) {
                 const questionRecordings = await loadRecordingsFromDB(questionId, world, lmid);
                 
                 if (questionRecordings.length > 0) {
-                    console.log(`[${questionId}] Found ${questionRecordings.length} recordings in DB`);
-                    
                     // Filter only recordings that have been successfully uploaded to cloud
                     const validRecordings = questionRecordings
                         .filter(rec => rec.uploadStatus === 'uploaded' && rec.cloudUrl);
                     
                     if (validRecordings.length > 0) {
                         recordings[questionId] = validRecordings;
-                        console.log(`✅ Added ${validRecordings.length} valid recordings for question ${questionId}`);
-                    } else {
-                        console.log(`[${questionId}] No valid uploaded recordings (${questionRecordings.length} total, but none uploaded to cloud)`);
+                        console.log(`✅ Question ${questionId}: ${validRecordings.length} recordings`);
                     }
-                } else {
-                    console.log(`[${questionId}] No recordings found in DB`);
                 }
             } catch (error) {
                 console.warn(`Error loading recordings for question ${questionId}:`, error);
@@ -1735,16 +1616,14 @@ async function collectRecordingsForRadioProgram(world, lmid) {
     
     // Method 2: Database discovery as fallback (only if no DOM elements found)
     if (Object.keys(recordings).length === 0) {
-        console.log('📋 No recordings found from DOM elements, trying database discovery...');
+        console.log('📋 No recordings found from DOM, trying database discovery...');
         
         try {
             const discoveredQuestionIds = await discoverQuestionIdsFromDB(world, lmid);
-            console.log(`🔍 Discovered question IDs from database:`, discoveredQuestionIds);
             
             for (const questionId of discoveredQuestionIds) {
                 // Skip if already processed
                 if (processedQuestionIds.has(questionId)) {
-                    console.log(`⚠️ Skipping already processed question ID: ${questionId}`);
                     continue;
                 }
                 
@@ -1759,7 +1638,7 @@ async function collectRecordingsForRadioProgram(world, lmid) {
                         
                         if (validRecordings.length > 0) {
                             recordings[questionId] = validRecordings;
-                            console.log(`✅ Added ${validRecordings.length} valid recordings for question ${questionId} (discovered)`);
+                            console.log(`✅ Question ${questionId}: ${validRecordings.length} recordings (discovered)`);
                         }
                     }
                 } catch (error) {
@@ -1771,12 +1650,9 @@ async function collectRecordingsForRadioProgram(world, lmid) {
         }
     }
     
-    console.log(`📊 Final collection summary:`);
-    console.log(`   Questions with recordings: ${Object.keys(recordings).length}`);
-    console.log(`   Total processed questions: ${processedQuestionIds.size}`);
-    Object.entries(recordings).forEach(([qid, recs]) => {
-        console.log(`   Question ${qid}: ${recs.length} recordings`);
-    });
+    const totalQuestions = Object.keys(recordings).length;
+    const totalRecordings = Object.values(recordings).reduce((sum, recs) => sum + recs.length, 0);
+    console.log(`📊 Summary: ${totalQuestions} questions, ${totalRecordings} recordings`);
     
     return recordings;
 }
@@ -1799,26 +1675,15 @@ async function discoverQuestionIdsFromDB(world, lmid) {
                     const allRecordings = request.result;
                     const questionIds = new Set();
                     
-                    console.log(`[Discovery] Found ${allRecordings.length} total recordings in DB`);
-                    
                     // Filter recordings for this world/lmid and extract unique question IDs
-                    // ID format: kids-world_spookyland-lmid_33-question_9-tm_1750614299968
                     const targetPattern = `kids-world_${world}-lmid_${lmid}-`;
                     
                     allRecordings.forEach(recording => {
-                        console.log(`[Discovery] Checking recording:`, {
-                            id: recording.id,
-                            questionId: recording.questionId,
-                            matchesPattern: recording.id.includes(targetPattern)
-                        });
-                        
                         if (recording.id && recording.id.includes(targetPattern)) {
                             questionIds.add(recording.questionId);
-                            console.log(`[Discovery] Added questionId: ${recording.questionId}`);
                         }
                     });
                     
-                    console.log(`[Discovery] Final discovered question IDs:`, Array.from(questionIds));
                     resolve(Array.from(questionIds));
                 };
                 
