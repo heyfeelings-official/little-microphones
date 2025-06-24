@@ -19,12 +19,13 @@
  */
 
 // Import required modules at the top
-const ffmpeg = require('fluent-ffmpeg');
-const fs = require('fs').promises;
-const path = require('path');
-const os = require('os');
-const https = require('https');
-const http = require('http');
+import ffmpeg from 'fluent-ffmpeg';
+import { promises as fs, createWriteStream } from 'fs';
+import path from 'path';
+import os from 'os';
+import https from 'https';
+import http from 'http';
+import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
 
 // Static file URLs
 const STATIC_FILES = {
@@ -234,11 +235,11 @@ function getUserRecordingUrl(lmid, world, questionId, timestamp) {
 async function combineAudioWithFFmpeg(audioPlan, world, lmid) {
     // Check if FFmpeg is available
     try {
-        const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
-        const ffmpeg = require('fluent-ffmpeg');
+        const ffmpegPath = ffmpegInstaller.path;
         ffmpeg.setFfmpegPath(ffmpegPath);
         
-        console.log('📦 FFmpeg found, starting audio combination...');
+        console.log('📦 FFmpeg found at:', ffmpegPath);
+        console.log('📦 Starting audio combination...');
         
         // Create temp directory
         const tempDir = path.join(os.tmpdir(), `radio-${world}-${lmid}-${Date.now()}`);
@@ -352,7 +353,7 @@ function downloadFile(url, filePath) {
                 return;
             }
             
-            const fileStream = require('fs').createWriteStream(filePath);
+            const fileStream = createWriteStream(filePath);
             response.pipe(fileStream);
             
             fileStream.on('finish', () => {
