@@ -1339,7 +1339,8 @@ async function generateRadioProgram(world, lmid) {
         console.log(`🎙️ Starting radio program generation for ${world}/${lmid}`);
         
         // Step 1: Show initial modal and start immediately
-        showRadioProgramModal('Collecting recordings...', 5);
+        // Update persistent section with progress
+        showRadioProgramModal('', 5);
         
         // Step 2: Collect recordings immediately
         const recordings = await collectRecordingsForRadioProgram(world, lmid);
@@ -1412,7 +1413,7 @@ async function generateRadioProgram(world, lmid) {
         console.log(`🎼 Audio plan complete: ${audioSegments.length} segments`);
         
         // Step 3: Start actual audio processing immediately
-        updateRadioProgramProgress('Starting audio processing...', 15, 'Initializing FFmpeg audio processor');
+        updateRadioProgramProgress('', 15, 'Starting audio processing - initializing FFmpeg audio processor');
         
         // Start fun status messages during actual processing
         startFunStatusMessages();
@@ -1430,14 +1431,14 @@ async function generateRadioProgram(world, lmid) {
         
         // Stop fun messages when processing is done
         stopFunStatusMessages();
-        updateRadioProgramProgress('Processing complete!', 95, 'Audio processing finished successfully');
+        updateRadioProgramProgress('', 95, 'Processing complete - audio processing finished successfully');
         
         const result = await response.json();
         
-        updateRadioProgramProgress('Finalizing...', 98, 'Uploading final radio program to CDN');
+        updateRadioProgramProgress('', 98, 'Finalizing - uploading final radio program to CDN');
         
         if (result.success) {
-            updateRadioProgramProgress('Complete!', 100);
+            updateRadioProgramProgress('', 100);
             
             // Show success with player
             setTimeout(() => {
@@ -1447,9 +1448,7 @@ async function generateRadioProgram(world, lmid) {
             console.log(`Radio program generated successfully: ${result.url}`);
             
         } else {
-            // Handle audio processing errors
-            hideRadioProgramModal();
-            
+            // Handle audio processing errors - but keep section visible with error state
             const errorMessage = result.error || 'Radio program generation failed';
             
             if (result.missingFiles && result.missingFiles.length > 0) {
@@ -1469,7 +1468,8 @@ async function generateRadioProgram(world, lmid) {
         
     } catch (error) {
         console.error('Radio program generation error:', error);
-        hideRadioProgramModal();
+        // Don't hide the section, just show error state
+        updateRadioProgramProgress('', 0, `Error: ${error.message}`);
         alert(`Failed to generate radio program: ${error.message}`);
     }
 }
@@ -1633,6 +1633,110 @@ function showRadioProgramSuccess(audioUrl, world, lmid, questionCount, totalReco
     }
     
     console.log(`🎉 Radio program ready and loaded into player for ${world}`);
+}
+
+/**
+ * Inject CSS for radio program section
+ */
+function injectRadioProgramCSS() {
+    // Check if CSS is already injected
+    if (document.getElementById('radio-program-css')) {
+        return;
+    }
+    
+    const css = `
+        #radio-program-section {
+            width: 100%;
+            padding: 40px 20px;
+            margin: 20px 0;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border: 1px solid #e9ecef;
+            display: block;
+        }
+        
+        #radio-program-content {
+            max-width: 600px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        
+        #radio-program-title {
+            margin-bottom: 20px;
+            color: #333;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        #radio-progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            margin: 20px 0;
+            transition: background 0.3s ease;
+        }
+        
+        #radio-details {
+            font-family: monospace;
+            font-size: 12px;
+            color: #888;
+            min-height: 16px;
+            margin: 10px 0;
+        }
+        
+        #radio-progress-info {
+            font-size: 14px;
+            color: #666;
+            margin: 20px 0;
+        }
+        
+        #radio-audio-player {
+            width: 100%;
+            margin: 20px 0;
+        }
+        
+        #no-radio-programs-msg {
+            padding: 20px;
+            text-align: center;
+            color: #6c757d;
+            font-style: italic;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+            margin: 20px 0;
+        }
+        
+        /* Responsive design */
+        @media (max-width: 768px) {
+            #radio-program-section {
+                padding: 30px 15px;
+                margin: 15px 0;
+            }
+            
+            #radio-program-title {
+                font-size: 20px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            #radio-program-section {
+                padding: 20px 10px;
+                margin: 10px 0;
+            }
+            
+            #radio-program-title {
+                font-size: 18px;
+            }
+        }
+    `;
+    
+    const style = document.createElement('style');
+    style.id = 'radio-program-css';
+    style.textContent = css;
+    document.head.appendChild(style);
+    
+    console.log('📱 Radio program CSS injected');
 }
 
 /**
@@ -1948,6 +2052,30 @@ window.showRadioProgramSuccess = showRadioProgramSuccess;
 window.initializeRadioProgramSection = initializeRadioProgramSection;
 
 // --- Script ready event - MUST be at the very end ---
+// Auto-initialize radio program section when script loads
+document.addEventListener('DOMContentLoaded', function() {
+    // Inject CSS for radio program section
+    injectRadioProgramCSS();
+    
+    // Initialize the section if it exists
+    if (document.getElementById('radio-program-section')) {
+        initializeRadioProgramSection();
+    }
+});
+
+// Also initialize if DOM is already loaded
+if (document.readyState === 'loading') {
+    // DOM hasn't finished loading yet
+} else {
+    // DOM is already loaded
+    setTimeout(() => {
+        injectRadioProgramCSS();
+        if (document.getElementById('radio-program-section')) {
+            initializeRadioProgramSection();
+        }
+    }, 100);
+}
+
 window.isRecordingScriptReady = true;
 document.dispatchEvent(new CustomEvent('recording-script-ready'));
 console.log('✅ recording.js script fully loaded and ready.');
