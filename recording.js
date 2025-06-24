@@ -1256,41 +1256,52 @@ async function generateRadioProgram(world, lmid) {
         updateRadioProgramProgress('Building audio plan...', 20, `Found ${totalRecordings} recordings across ${Object.keys(recordings).length} questions`);
         
         // Step 2: Build direct CDN URLs for all audio files
-        const audioUrls = [];
+        const audioSegments = [];
         
         // 1. Add intro
-        audioUrls.push('https://little-microphones.b-cdn.net/audio/other/intro.mp3');
+        audioSegments.push({
+            type: 'single',
+            url: 'https://little-microphones.b-cdn.net/audio/other/intro.mp3'
+        });
         
-        // 2. For each question: question prompt → all answers → monkeys background
+        // 2. For each question: question prompt → combine all answers with monkeys background
         const questionIds = Object.keys(recordings).sort();
         
         for (const questionId of questionIds) {
             // Add question prompt
-            audioUrls.push(`https://little-microphones.b-cdn.net/audio/${world}/${world}-${questionId}.mp3`);
+            audioSegments.push({
+                type: 'single',
+                url: `https://little-microphones.b-cdn.net/audio/${world}/${world}-${questionId}.mp3`
+            });
             
-            // Add all user recordings for this question (using their direct cloudUrl)
+            // Combine all user recordings for this question WITH monkeys background
             const questionRecordings = recordings[questionId];
-            for (const recording of questionRecordings) {
-                audioUrls.push(recording.cloudUrl);
-            }
+            const answerUrls = questionRecordings.map(recording => recording.cloudUrl);
             
-            // Add monkeys background after each question
-            audioUrls.push('https://little-microphones.b-cdn.net/audio/other/monkeys.mp3');
+            audioSegments.push({
+                type: 'combine_with_background',
+                answerUrls: answerUrls,
+                backgroundUrl: 'https://little-microphones.b-cdn.net/audio/other/monkeys.mp3',
+                questionId: questionId
+            });
         }
         
         // 3. Add outro
-        audioUrls.push('https://little-microphones.b-cdn.net/audio/other/outro.mp3');
+        audioSegments.push({
+            type: 'single',
+            url: 'https://little-microphones.b-cdn.net/audio/other/outro.mp3'
+        });
         
-        updateRadioProgramProgress('Sending to audio processor...', 30, `Sending ${audioUrls.length} audio files for processing`);
+        updateRadioProgramProgress('Sending to audio processor...', 30, `Processing ${questionIds.length} questions with combined answers`);
         
-        // Step 3: Send ONLY the URLs to the API (much faster!)
+        // Step 3: Send the structured audio plan to API
         const response = await fetch('https://little-microphones.vercel.app/api/combine-audio', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 world: world,
                 lmid: lmid,
-                audioUrls: audioUrls  // Send direct URLs instead of recording objects
+                audioSegments: audioSegments  // Send structured segments instead of flat URLs
             })
         });
         
