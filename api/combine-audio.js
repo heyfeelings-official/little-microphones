@@ -238,15 +238,30 @@ async function combineAudioWithFFmpeg(audioPlan, world, lmid) {
         const ffmpegPath = ffmpegInstaller.path;
         ffmpeg.setFfmpegPath(ffmpegPath);
         
-        console.log('📦 FFmpeg found at:', ffmpegPath);
+        console.log('📦 FFmpeg installer path:', ffmpegPath);
+        console.log('📦 FFmpeg installer object:', ffmpegInstaller);
+        
+        // Test if FFmpeg binary actually exists
+        const fs = await import('fs');
+        try {
+            await fs.promises.access(ffmpegPath);
+            console.log('✅ FFmpeg binary found and accessible');
+        } catch (accessError) {
+            console.error('❌ FFmpeg binary not accessible:', accessError);
+            throw new Error(`FFmpeg binary not found at path: ${ffmpegPath}`);
+        }
+        
         console.log('📦 Starting audio combination...');
         
         // Create temp directory
         const tempDir = path.join(os.tmpdir(), `radio-${world}-${lmid}-${Date.now()}`);
+        console.log('📁 Creating temp directory:', tempDir);
         await fs.mkdir(tempDir, { recursive: true });
         
         // Download all audio files
+        console.log('📥 Starting audio file downloads...');
         const downloadedFiles = await downloadAudioFiles(audioPlan, tempDir);
+        console.log('✅ All audio files downloaded successfully');
         
         // Combine audio files
         const outputPath = path.join(tempDir, `radio-program-${world}-${lmid}.mp3`);
@@ -306,8 +321,8 @@ async function combineAudioWithFFmpeg(audioPlan, world, lmid) {
         });
         
     } catch (error) {
-        console.error('❌ FFmpeg not available:', error);
-        throw new Error('FFmpeg not installed or configured properly');
+        console.error('❌ FFmpeg error:', error);
+        throw new Error(`FFmpeg error: ${error.message}`);
     }
 }
 
@@ -460,7 +475,7 @@ function getFFmpegSetupSuggestions() {
             cons: ["More complex setup", "AWS costs", "Cross-platform complexity"]
         },
         recommended: "option1",
-        currentIssue: "FFmpeg not installed - run: npm install @ffmpeg-installer/ffmpeg fluent-ffmpeg",
+        currentIssue: "FFmpeg packages are installed but execution failed. Check Vercel logs for details.",
         implementation: {
             packages: [
                 "@ffmpeg-installer/ffmpeg",
