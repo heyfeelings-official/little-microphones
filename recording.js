@@ -1316,13 +1316,19 @@ async function generateRadioProgram(world, lmid) {
             // Handle audio processing errors
             hideRadioProgramModal();
             
-            let errorMessage = result.error || 'Radio program generation failed';
+            const errorMessage = result.error || 'Radio program generation failed';
             
-            // Check if it's a file download error (404)
-            if (errorMessage.includes('Failed to download') && errorMessage.includes('404')) {
-                alert(`Audio processing failed: Some required audio files are missing.\n\nThis usually means:\n• Question audio files haven't been uploaded yet\n• User recordings are still being processed\n\nPlease try again in a few minutes or contact support if the issue persists.`);
+            // NEW: More specific error handling for 404 Not Found
+            if (errorMessage.includes('404')) {
+                // Extract the missing file URL from the error message for better debugging
+                const missingFileMatch = errorMessage.match(/https:\/\/[^:]+/);
+                const missingFile = missingFileMatch ? missingFileMatch[0] : 'a required audio file';
+
+                console.error(`Audio processing failed because a file was not found: ${missingFile}`);
+                alert(`Could not create the radio program because a required audio file is missing.\n\nMissing file: ${missingFile}\n\nPlease make sure all question prompts and user recordings have been fully uploaded and processed before trying again.`);
             } else {
-                // Generic error for other issues
+                // Generic error for other FFmpeg or server issues
+                console.error(`Generic audio processing error: ${errorMessage}`);
                 alert(`Failed to generate radio program: ${errorMessage}\n\nPlease try again or contact support if the issue persists.`);
             }
         }
