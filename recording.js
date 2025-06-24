@@ -1236,7 +1236,20 @@ async function generateRadioProgram(world, lmid) {
         
         if (Object.keys(recordings).length === 0) {
             hideRadioProgramModal();
-            alert('No recordings found for this world. Please record some answers first.');
+            
+            // Check if there are any recordings at all (including local ones)
+            const allRecordings = await getAllRecordingsForWorldLmid(world, lmid);
+            if (allRecordings.length === 0) {
+                alert('No recordings found for this world. Please record some answers first.');
+            } else {
+                const uploadedCount = allRecordings.filter(r => r.uploadStatus === 'uploaded' && r.cloudUrl).length;
+                const localCount = allRecordings.filter(r => r.audio).length;
+                
+                alert(`Found ${allRecordings.length} recordings, but none are ready for radio program generation.\n\n` +
+                      `• ${uploadedCount} uploaded to cloud\n` +
+                      `• ${localCount} stored locally\n\n` +
+                      `Please wait for uploads to complete or check your recordings.`);
+            }
             return;
         }
         
@@ -1344,6 +1357,13 @@ async function collectRecordingsForRadioProgram(world, lmid) {
                 const questionRecordings = await loadRecordingsFromDB(questionId, world, lmid);
                 
                 if (questionRecordings.length > 0) {
+                    console.log(`[${questionId}] Raw recordings from DB:`, questionRecordings.map(r => ({
+                        id: r.id,
+                        uploadStatus: r.uploadStatus,
+                        hasCloudUrl: !!r.cloudUrl,
+                        hasAudio: !!r.audio
+                    })));
+                    
                     // Filter only recordings that have been successfully uploaded to cloud
                     const validRecordings = questionRecordings
                         .filter(rec => rec.uploadStatus === 'uploaded' && rec.cloudUrl)
@@ -1352,6 +1372,16 @@ async function collectRecordingsForRadioProgram(world, lmid) {
                     if (validRecordings.length > 0) {
                         recordings[questionId] = validRecordings;
                         console.log(`Found ${validRecordings.length} valid recordings for ${questionId}`);
+                    } else {
+                        console.log(`[${questionId}] No valid uploaded recordings found. ${questionRecordings.length} total recordings but none meet criteria (uploadStatus='uploaded' && cloudUrl exists)`);
+                        
+                        // Check if we have local blob recordings as fallback
+                        const localRecordings = questionRecordings.filter(rec => rec.audio);
+                        if (localRecordings.length > 0) {
+                            console.log(`[${questionId}] Found ${localRecordings.length} local blob recordings as fallback`);
+                            // For now, we'll alert the user that they need to wait for uploads
+                            // TODO: Implement local blob processing
+                        }
                     }
                 }
             } catch (error) {
@@ -1374,6 +1404,13 @@ async function collectRecordingsForRadioProgram(world, lmid) {
                     const questionRecordings = await loadRecordingsFromDB(questionId, world, lmid);
                     
                     if (questionRecordings.length > 0) {
+                        console.log(`[${questionId}] Raw recordings from DB (discovered):`, questionRecordings.map(r => ({
+                            id: r.id,
+                            uploadStatus: r.uploadStatus,
+                            hasCloudUrl: !!r.cloudUrl,
+                            hasAudio: !!r.audio
+                        })));
+                        
                         // Filter only recordings that have been successfully uploaded to cloud
                         const validRecordings = questionRecordings
                             .filter(rec => rec.uploadStatus === 'uploaded' && rec.cloudUrl)
@@ -1382,6 +1419,16 @@ async function collectRecordingsForRadioProgram(world, lmid) {
                         if (validRecordings.length > 0) {
                             recordings[questionId] = validRecordings;
                             console.log(`Found ${validRecordings.length} valid recordings for ${questionId} (discovered)`);
+                        } else {
+                            console.log(`[${questionId}] No valid uploaded recordings found (discovered). ${questionRecordings.length} total recordings but none meet criteria (uploadStatus='uploaded' && cloudUrl exists)`);
+                            
+                            // Check if we have local blob recordings as fallback
+                            const localRecordings = questionRecordings.filter(rec => rec.audio);
+                            if (localRecordings.length > 0) {
+                                console.log(`[${questionId}] Found ${localRecordings.length} local blob recordings as fallback (discovered)`);
+                                // For now, we'll alert the user that they need to wait for uploads
+                                // TODO: Implement local blob processing
+                            }
                         }
                     }
                 } catch (error) {
