@@ -153,9 +153,17 @@ async function createRecordingElement(recordingData, questionId) {
         box-sizing: border-box;
     `;
 
-    // Question number circle (moved to top-left, smaller)
-    const questionCircle = document.createElement('div');
-    questionCircle.style.cssText = `
+    // Hidden audio element for functionality
+    const audio = document.createElement('audio');
+    audio.src = audioURL;
+    audio.preload = 'metadata';
+    audio.style.display = 'none';
+    audio.load();
+    li.appendChild(audio);
+
+    // Recording number badge (aligned to left edge of container)
+    const recordingBadge = document.createElement('div');
+    recordingBadge.style.cssText = `
         width: 16px;
         height: 16px;
         background: #FFAC4C;
@@ -168,16 +176,16 @@ async function createRecordingElement(recordingData, questionId) {
         font-family: Arial, sans-serif;
         font-weight: 400;
         position: absolute;
-        top: -8px;
-        left: 8px;
+        top: 0px;
+        left: 0px;
         z-index: 10;
     `;
     
-    // Use recording number instead of questionId
-    const recordingNumber = getRecordingNumber(recordingData.id, questionId);
-    questionCircle.textContent = recordingNumber;
+    // Get the answer number for this question (1, 2, 3, 4, 5...)
+    const answerNumber = getAnswerNumber(recordingData.id, questionId);
+    recordingBadge.textContent = answerNumber;
 
-    // Play/Pause button container (centered)
+    // Play/Pause button container
     const playButtonContainer = document.createElement('div');
     playButtonContainer.style.cssText = `
         width: 32px;
@@ -208,34 +216,44 @@ async function createRecordingElement(recordingData, questionId) {
     playButtonContainer.appendChild(playIcon);
     playButtonContainer.appendChild(pauseIcon);
 
-    // Create hidden audio element for functionality
-    const audio = document.createElement('audio');
-    audio.src = audioURL;
-    audio.preload = 'metadata';
-    audio.style.display = 'none';
-    
-    // Force audio to load metadata to get proper duration
-    audio.load();
+    // Time display
+    const timeDisplay = document.createElement('div');
+    timeDisplay.style.cssText = `
+        opacity: 0.4;
+        text-align: center;
+        color: black;
+        font-size: 11px;
+        font-family: Arial, sans-serif;
+        font-weight: 400;
+        line-height: 16px;
+        flex-shrink: 0;
+        margin-right: 12px;
+        min-width: 60px;
+    `;
+    timeDisplay.textContent = '0:00 / 0:00';
 
-    // Native audio scrubber (only the progress rail)
-    const audioScrubber = document.createElement('audio');
-    audioScrubber.src = audioURL;
-    audioScrubber.controls = true;
-    audioScrubber.preload = 'metadata';
-    audioScrubber.style.cssText = `
+    // Custom progress bar container
+    const progressContainer = document.createElement('div');
+    progressContainer.style.cssText = `
         flex: 1;
-        height: 32px;
+        height: 4px;
+        background: rgba(0, 0, 0, 0.1);
+        border-radius: 2px;
+        position: relative;
+        cursor: pointer;
         margin-right: 12px;
     `;
-    
-    // Sync the scrubber with the hidden audio element
-    audio.addEventListener('timeupdate', () => {
-        audioScrubber.currentTime = audio.currentTime;
-    });
-    
-    audioScrubber.addEventListener('seeked', () => {
-        audio.currentTime = audioScrubber.currentTime;
-    });
+
+    // Progress bar
+    const progressBar = document.createElement('div');
+    progressBar.style.cssText = `
+        width: 0%;
+        height: 100%;
+        background: #007AF7;
+        border-radius: 2px;
+        transition: width 0.1s ease;
+    `;
+    progressContainer.appendChild(progressBar);
 
     // Upload status icon (conditionally shown)
     const uploadIcon = document.createElement('div');
@@ -275,10 +293,10 @@ async function createRecordingElement(recordingData, questionId) {
 </svg>`;
 
     // Assemble the player
-    playerContainer.appendChild(questionCircle);
+    playerContainer.appendChild(recordingBadge);
     playerContainer.appendChild(playButtonContainer);
-    playerContainer.appendChild(audio); // Hidden audio for functionality
-    playerContainer.appendChild(audioScrubber); // Visible scrubber
+    playerContainer.appendChild(timeDisplay);
+    playerContainer.appendChild(progressContainer);
     playerContainer.appendChild(uploadIcon);
     playerContainer.appendChild(deleteButton);
 
@@ -288,41 +306,64 @@ async function createRecordingElement(recordingData, questionId) {
     let isPlaying = false;
     let uploadBlinkInterval = null;
 
-    // Play/Pause functionality (controls the hidden audio)
+    // Format time helper
+    function formatTime(seconds) {
+        const m = Math.floor(seconds / 60);
+        const s = Math.floor(seconds % 60);
+        return `${m}:${String(s).padStart(2, '0')}`;
+    }
+
+    // Play/Pause functionality
     playButtonContainer.addEventListener('click', () => {
         if (isPlaying) {
             audio.pause();
-            audioScrubber.pause();
             playIcon.style.display = 'block';
             pauseIcon.style.display = 'none';
             isPlaying = false;
         } else {
             audio.play();
-            audioScrubber.play();
             playIcon.style.display = 'none';
             pauseIcon.style.display = 'block';
             isPlaying = true;
         }
     });
 
-    // Sync with audio events
-    audio.addEventListener('play', () => {
-        playIcon.style.display = 'none';
-        pauseIcon.style.display = 'block';
-        isPlaying = true;
+    // Progress bar click-to-seek
+    progressContainer.addEventListener('click', (e) => {
+        if (audio.duration) {
+            const rect = progressContainer.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const percentage = clickX / rect.width;
+            audio.currentTime = percentage * audio.duration;
+        }
     });
 
-    audio.addEventListener('pause', () => {
-        playIcon.style.display = 'block';
-        pauseIcon.style.display = 'none';
-        isPlaying = false;
+    // Update progress and time
+    audio.addEventListener('timeupdate', () => {
+        if (audio.duration) {
+            const percentage = (audio.currentTime / audio.duration) * 100;
+            progressBar.style.width = percentage + '%';
+            
+            const currentTimeFormatted = formatTime(audio.currentTime);
+            const durationFormatted = formatTime(audio.duration);
+            timeDisplay.textContent = `${currentTimeFormatted} / ${durationFormatted}`;
+        }
     });
 
+    // Reset when audio ends
     audio.addEventListener('ended', () => {
         playIcon.style.display = 'block';
         pauseIcon.style.display = 'none';
+        progressBar.style.width = '0%';
         isPlaying = false;
-        audioScrubber.pause();
+    });
+
+    // Set duration when metadata loads
+    audio.addEventListener('loadedmetadata', () => {
+        if (audio.duration) {
+            const durationFormatted = formatTime(audio.duration);
+            timeDisplay.textContent = `0:00 / ${durationFormatted}`;
+        }
     });
 
     // Delete functionality
@@ -351,12 +392,11 @@ async function createRecordingElement(recordingData, questionId) {
     return li;
 }
 
-// Helper function to get recording number
-function getRecordingNumber(recordingId, questionId) {
-    // Extract recording number from the recording ID or use a counter
-    // Recording IDs are typically in format: recording-{questionId}-{timestamp}
-    const recordings = document.querySelectorAll(`[data-recording-id*="recording-${questionId}-"]`);
-    return recordings.length + 1;
+// Helper function to get answer number (1, 2, 3, 4, 5...)
+function getAnswerNumber(recordingId, questionId) {
+    // Count existing recordings for this question to determine answer number
+    const existingRecordings = document.querySelectorAll(`[data-recording-id*="question_${questionId}-"]`);
+    return existingRecordings.length + 1;
 }
 
 /**
@@ -930,9 +970,24 @@ function initializeAudioRecorder(recorderWrapper) {
     function updateRecordingUI(recordingData) {
         const recordingElement = document.querySelector(`[data-recording-id="${recordingData.id}"]`);
         if (recordingElement) {
-            const uploadStatus = recordingElement.querySelector('.upload-status');
-            if (uploadStatus) {
-                updateUploadStatusUI(uploadStatus, recordingData);
+            const uploadIcon = recordingElement.querySelector('.upload-status');
+            // Find delete button by looking for the element with the delete SVG
+            const deleteButton = recordingElement.querySelector('div[style*="color: #F25444"]');
+            
+            if (uploadIcon && deleteButton) {
+                // Ensure recordingData has uploadStatus
+                if (!recordingData.uploadStatus) {
+                    recordingData.uploadStatus = 'uploaded';
+                }
+                
+                // Clear any existing interval
+                if (recordingElement.uploadBlinkInterval) {
+                    clearInterval(recordingElement.uploadBlinkInterval);
+                }
+                
+                // Update with correct parameters
+                const newInterval = updateUploadStatusUI(uploadIcon, deleteButton, recordingData, null);
+                recordingElement.uploadBlinkInterval = newInterval;
             }
         }
     }
