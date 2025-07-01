@@ -1987,7 +1987,7 @@ function createRecordingPlaceholder(questionId) {
         border-radius: 122px;
         display: flex;
         align-items: center;
-        padding: 0 16px;
+        padding: 0;
         box-sizing: border-box;
     `;
 
