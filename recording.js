@@ -208,19 +208,34 @@ async function createRecordingElement(recordingData, questionId) {
     playButtonContainer.appendChild(playIcon);
     playButtonContainer.appendChild(pauseIcon);
 
-    // HTML5 Audio element with default controls (styled to fit design)
+    // Create hidden audio element for functionality
     const audio = document.createElement('audio');
     audio.src = audioURL;
-    audio.controls = true;
     audio.preload = 'metadata';
-    audio.style.cssText = `
+    audio.style.display = 'none';
+    
+    // Force audio to load metadata to get proper duration
+    audio.load();
+
+    // Native audio scrubber (only the progress rail)
+    const audioScrubber = document.createElement('audio');
+    audioScrubber.src = audioURL;
+    audioScrubber.controls = true;
+    audioScrubber.preload = 'metadata';
+    audioScrubber.style.cssText = `
         flex: 1;
         height: 32px;
         margin-right: 12px;
     `;
-
-    // Force audio to load metadata to get proper duration
-    audio.load();
+    
+    // Sync the scrubber with the hidden audio element
+    audio.addEventListener('timeupdate', () => {
+        audioScrubber.currentTime = audio.currentTime;
+    });
+    
+    audioScrubber.addEventListener('seeked', () => {
+        audio.currentTime = audioScrubber.currentTime;
+    });
 
     // Upload status icon (conditionally shown)
     const uploadIcon = document.createElement('div');
@@ -262,7 +277,8 @@ async function createRecordingElement(recordingData, questionId) {
     // Assemble the player
     playerContainer.appendChild(questionCircle);
     playerContainer.appendChild(playButtonContainer);
-    playerContainer.appendChild(audio);
+    playerContainer.appendChild(audio); // Hidden audio for functionality
+    playerContainer.appendChild(audioScrubber); // Visible scrubber
     playerContainer.appendChild(uploadIcon);
     playerContainer.appendChild(deleteButton);
 
@@ -272,15 +288,17 @@ async function createRecordingElement(recordingData, questionId) {
     let isPlaying = false;
     let uploadBlinkInterval = null;
 
-    // Play/Pause functionality (override default audio controls)
+    // Play/Pause functionality (controls the hidden audio)
     playButtonContainer.addEventListener('click', () => {
         if (isPlaying) {
             audio.pause();
+            audioScrubber.pause();
             playIcon.style.display = 'block';
             pauseIcon.style.display = 'none';
             isPlaying = false;
         } else {
             audio.play();
+            audioScrubber.play();
             playIcon.style.display = 'none';
             pauseIcon.style.display = 'block';
             isPlaying = true;
@@ -304,6 +322,7 @@ async function createRecordingElement(recordingData, questionId) {
         playIcon.style.display = 'block';
         pauseIcon.style.display = 'none';
         isPlaying = false;
+        audioScrubber.pause();
     });
 
     // Delete functionality
@@ -317,6 +336,11 @@ async function createRecordingElement(recordingData, questionId) {
             deleteRecording(recordingData.id, questionId, li);
         }
     });
+
+    // Ensure recordingData has uploadStatus property with default value
+    if (!recordingData.uploadStatus) {
+        recordingData.uploadStatus = 'uploaded'; // Default for existing recordings
+    }
 
     // Update upload status and icon visibility
     uploadBlinkInterval = updateUploadStatusUI(uploadIcon, deleteButton, recordingData, uploadBlinkInterval);
@@ -386,7 +410,10 @@ function updateUploadStatusUI(uploadElement, deleteElement, recordingData, uploa
         uploadBlinkInterval = null;
     }
 
-    switch(recordingData.uploadStatus) {
+    // Ensure uploadStatus exists with safe default
+    const uploadStatus = recordingData.uploadStatus || 'uploaded';
+
+    switch(uploadStatus) {
         case 'pending':
         case 'uploading':
             // Show upload icon, hide delete icon during upload process
@@ -400,7 +427,7 @@ function updateUploadStatusUI(uploadElement, deleteElement, recordingData, uploa
                 isLight = !isLight;
             }, 600); // Blink every 600ms
             
-            uploadElement.title = recordingData.uploadStatus === 'pending' 
+            uploadElement.title = uploadStatus === 'pending' 
                 ? 'Queued for backup' 
                 : `Backing up... ${recordingData.uploadProgress || 0}%`;
             break;
