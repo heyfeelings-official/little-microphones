@@ -384,10 +384,8 @@ function initializeAudioRecorder(recorderWrapper) {
     }
     
     // --- Instance variables (shared across functions in this scope) ---
-    let placeholderEl, statusDisplay, timerDisplay, recordingsListUI, liveWaveformCanvas, canvasCtx;
+    let placeholderEl, statusDisplay, timerDisplay, recordingsListUI;
     let mediaRecorder, audioChunks = [], timerInterval, seconds = 0, stream;
-    let audioContext, analyser, sourceNode, dataArray, animationFrameId;
-    let canvasSized = false;
     let recordingsLoaded = false; // Flag to prevent duplicate loading
 
     // --- Initial DB load to show previous recordings ---
@@ -433,10 +431,6 @@ function initializeAudioRecorder(recorderWrapper) {
             // SECURITY: Check recording limit before starting
             checkRecordingLimit().then(canRecord => {
                 if (canRecord) {
-                    // --- Step 2: Find all other elements ON-DEMAND when user clicks ---
-                    liveWaveformCanvas = recorderWrapper.querySelector('.live-waveform-canvas');
-                    
-                    // No longer finding status/timer here, they are created dynamically.
                     startActualRecording();
                 } else {
                     // Show limit message
@@ -495,28 +489,7 @@ function initializeAudioRecorder(recorderWrapper) {
                 recordingsListUI.prepend(placeholderEl);
             }
 
-            // --- Waveform visualization is now optional and properly checked ---
-            if (liveWaveformCanvas && typeof liveWaveformCanvas.getContext === 'function') {
-                if (!canvasCtx) {
-                    canvasCtx = liveWaveformCanvas.getContext('2d');
-                }
-                sizeCanvas(); 
-            }
-            
             stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            
-            // Only set up the analyser and visualiser if the canvas context was successfully created
-            if (canvasCtx) {
-                if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                analyser = audioContext.createAnalyser();
-                analyser.fftSize = 256;
-                const bufferLength = analyser.frequencyBinCount;
-                dataArray = new Uint8Array(bufferLength);
-                
-                sourceNode = audioContext.createMediaStreamSource(stream);
-                sourceNode.connect(analyser);
-                drawLiveWaveform();
-            }
 
             if(statusDisplay) statusDisplay.textContent = "Status: Recording...";
             setButtonText(recordButton, 'Stop');
@@ -620,12 +593,9 @@ function initializeAudioRecorder(recorderWrapper) {
     }
     
     function cleanupAfterRecording(streamToStop) {
-        if (animationFrameId) cancelAnimationFrame(animationFrameId);
-        if (sourceNode) sourceNode.disconnect(); // sourceNode only exists if canvas does
         if (streamToStop) streamToStop.getTracks().forEach(track => track.stop());
         
         mediaRecorder = null;
-        animationFrameId = null;
         // placeholderEl is now handled safely in mediaRecorder.onstop
         resetRecordingState();
     }
@@ -636,33 +606,7 @@ function initializeAudioRecorder(recorderWrapper) {
         if (statusDisplay) statusDisplay.textContent = "Status: Idle";
     }
     
-    function drawLiveWaveform() {
-        animationFrameId = requestAnimationFrame(drawLiveWaveform);
-        if (!analyser || !canvasCtx) return;
 
-        analyser.getByteFrequencyData(dataArray);
-
-        const canvasWidth = liveWaveformCanvas.width;
-        const canvasHeight = liveWaveformCanvas.height;
-    
-        if (canvasWidth === 0 || canvasHeight === 0) return;
-
-        canvasCtx.fillStyle = '#FFFFFF';
-        canvasCtx.fillRect(0, 0, canvasWidth, canvasHeight);
-
-        const bufferLength = analyser.frequencyBinCount;
-        const barWidth = 3;
-        const barSpacing = 2;
-        const totalBarAreaWidth = bufferLength * (barWidth + barSpacing);
-        let x = (canvasWidth - totalBarAreaWidth) / 2;
-
-        for (let i = 0; i < bufferLength; i++) {
-            const barHeight = (dataArray[i] / 255) * canvasHeight;
-            canvasCtx.fillStyle = '#D9D9D9';
-            canvasCtx.fillRect(x, (canvasHeight - barHeight) / 2, barWidth, barHeight);
-            x += barWidth + barSpacing;
-        }
-    }
 
     function renderRecordingsList() {
         if (!recordingsListUI) return;
@@ -857,24 +801,7 @@ function initializeAudioRecorder(recorderWrapper) {
         return `${String(m).padStart(2, '0')}:${String(rs).padStart(2, '0')}`;
     }
     
-    function sizeCanvas() {
-        if (canvasSized || !liveWaveformCanvas) return;
-        
-        const dpr = window.devicePixelRatio || 1;
-        const rect = liveWaveformCanvas.getBoundingClientRect();
 
-        if (rect.width === 0 || rect.height === 0) {
-            console.warn(`[${questionId}] Canvas not visible, sizing deferred`);
-            return;
-        }
-
-        liveWaveformCanvas.width = rect.width * dpr;
-        liveWaveformCanvas.height = rect.height * dpr;
-        
-        canvasCtx.scale(dpr, dpr);
-        canvasSized = true;
-        console.log(`[${questionId}] Canvas sized: ${rect.width}x${rect.height}`);
-    }
     
     resetRecordingState();
 }
