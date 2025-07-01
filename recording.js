@@ -1975,7 +1975,8 @@ async function loadRecordingsFromCloud(questionId, world, lmid) {
 function createRecordingPlaceholder(questionId) {
     const li = document.createElement('li');
     li.dataset.recordingId = `placeholder-${questionId}`;
-    li.style.cssText = 'list-style: none; margin-bottom: 0;';
+    // Remove all padding from the <li> element
+    li.style.cssText = 'list-style: none; margin-bottom: 0; margin: 0; padding: 0; width: 100%;';
 
     // Create recording placeholder container
     const placeholderContainer = document.createElement('div');
@@ -1993,9 +1994,6 @@ function createRecordingPlaceholder(questionId) {
 
     // No badge for the placeholder
     placeholderContainer.style.width = '100%';
-    li.style.margin = '0';
-    li.style.padding = '0';
-    li.style.width = '100%';
 
     // Status text
     const statusText = document.createElement('div');
