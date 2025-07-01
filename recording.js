@@ -721,8 +721,8 @@ function initializeAudioRecorder(recorderWrapper) {
                 placeholderContainer.appendChild(statusContainer);
                 placeholderEl.appendChild(placeholderContainer);
 
-                // Ensure placeholder is at the bottom of the list
-                recordingsListUI.appendChild(placeholderEl);
+                // Ensure placeholder is at the top of the list
+                recordingsListUI.prepend(placeholderEl);
             }
 
             stream = await navigator.mediaDevices.getUserMedia({ audio: true });
