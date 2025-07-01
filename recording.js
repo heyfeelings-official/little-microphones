@@ -325,16 +325,16 @@ async function createRecordingElement(recordingData, questionId) {
     return li;
 }
 
-// Helper function to get answer number (newest = #1, then #2, #3...)
+// Helper function to get answer number (oldest = highest, newest = 1)
 function getAnswerNumber(recordingId, questionId) {
     const allRecordings = Array.from(document.querySelectorAll(`[data-recording-id*="question_${questionId}-"]`));
     allRecordings.sort((a, b) => {
         const timestampA = parseInt(a.dataset.recordingId.split('-tm_')[1]) || 0;
         const timestampB = parseInt(b.dataset.recordingId.split('-tm_')[1]) || 0;
-        return timestampB - timestampA;
+        return timestampA - timestampB;
     });
     const currentIndex = allRecordings.findIndex(el => el.dataset.recordingId === recordingId);
-    return currentIndex >= 0 ? currentIndex + 1 : allRecordings.length + 1;
+    return currentIndex >= 0 ? allRecordings.length - currentIndex : 1;
 }
 
 /**
