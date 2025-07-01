@@ -648,7 +648,7 @@ function initializeAudioRecorder(recorderWrapper) {
             if (recordingsListUI) {
                 placeholderEl = document.createElement('li');
                 placeholderEl.className = 'recording-placeholder new-recording-fade-in';
-                placeholderEl.style.cssText = 'list-style: none; margin-bottom: 1rem; padding: 0 1rem;';
+                placeholderEl.style.cssText = 'list-style: none; margin-bottom: 1rem; padding: 0 0;';
 
                 // Create placeholder container matching the design
                 const placeholderContainer = document.createElement('div');
