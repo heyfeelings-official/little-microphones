@@ -310,38 +310,42 @@ async function deleteRecording(recordingId, questionId, elementToRemove) {
     console.log(`Deleting recording ${recordingId} for question ${questionId}`);
     
     try {
-        // First, get the recording data to check if it has a cloud URL
-        const recordingData = await getRecordingFromDB(recordingId);
+        // Get world and lmid for cloud deletion
+        const urlParams = new URLSearchParams(window.location.search);
+        const world = window.currentRecordingParams?.world || urlParams.get('world') || 'unknown-world';
+        const lmid = window.currentRecordingParams?.lmid || urlParams.get('lmid') || 'unknown-lmid';
         
-        if (recordingData) {
-            // Get world and lmid for cloud deletion
-            const urlParams = new URLSearchParams(window.location.search);
-            const world = window.currentRecordingParams?.world || urlParams.get('world') || 'unknown-world';
-            const lmid = window.currentRecordingParams?.lmid || urlParams.get('lmid') || 'unknown-lmid';
-            
-            // Delete from cloud storage if it exists
-            if (recordingData.cloudUrl) {
-                console.log(`Deleting from cloud: ${recordingData.cloudUrl}`);
-                await deleteFromBunny(recordingData, world, lmid, questionId);
-            }
-        }
+        // For cloud-first approach, always try to delete from cloud storage
+        // Create a minimal recording object for cloud deletion
+        const recordingData = {
+            id: recordingId,
+            cloudUrl: `https://little-microphones.b-cdn.net/${lmid}/${world}/${recordingId}.mp3`
+        };
         
-        // Delete from local database
-        await withDB(db => {
-            return new Promise((resolve, reject) => {
-                const transaction = db.transaction("audioRecordings", "readwrite");
-                const store = transaction.objectStore("audioRecordings");
-                const request = store.delete(recordingId);
-                transaction.oncomplete = () => {
-                    console.log(`Recording ${recordingId} deleted from DB.`);
-                    resolve();
-                };
-                transaction.onerror = (event) => {
-                    console.error(`Error deleting recording ${recordingId} from DB:`, event.target.error);
-                    reject(event.target.error);
-                };
+        console.log(`Deleting from cloud: ${recordingData.cloudUrl}`);
+        await deleteFromBunny(recordingData, world, lmid, questionId);
+        
+        // Also try to delete from local database (if it exists locally)
+        try {
+            await withDB(db => {
+                return new Promise((resolve, reject) => {
+                    const transaction = db.transaction("audioRecordings", "readwrite");
+                    const store = transaction.objectStore("audioRecordings");
+                    const request = store.delete(recordingId);
+                    transaction.oncomplete = () => {
+                        console.log(`Recording ${recordingId} deleted from local DB.`);
+                        resolve();
+                    };
+                    transaction.onerror = (event) => {
+                        // Don't fail if local deletion fails - cloud deletion is what matters
+                        console.warn(`Local DB deletion failed (not critical):`, event.target.error);
+                        resolve();
+                    };
+                });
             });
-        });
+        } catch (localError) {
+            console.warn(`Local deletion failed (not critical):`, localError);
+        }
         
         elementToRemove.remove();
         
