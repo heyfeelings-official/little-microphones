@@ -125,7 +125,7 @@ function injectGlobalStyles() {
 async function createRecordingElement(recordingData, questionId) {
     const li = document.createElement('li');
     li.dataset.recordingId = recordingData.id;
-    li.style.cssText = 'list-style: none; margin-bottom: 1rem;';
+    li.style.cssText = 'list-style: none; margin-bottom: 1rem; padding: 0 1rem;';
 
     // Get audio source (now async to verify cloud URLs)
     const audioURL = await getAudioSource(recordingData);
@@ -158,7 +158,6 @@ async function createRecordingElement(recordingData, questionId) {
     audio.src = audioURL;
     audio.preload = 'metadata';
     audio.style.display = 'none';
-    audio.load();
     li.appendChild(audio);
 
     // Recording number badge (aligned to left edge of container)
@@ -181,11 +180,11 @@ async function createRecordingElement(recordingData, questionId) {
         z-index: 10;
     `;
     
-    // Get the answer number for this question (1, 2, 3, 4, 5...)
+    // Get the answer number for this question (higher numbers first)
     const answerNumber = getAnswerNumber(recordingData.id, questionId);
     recordingBadge.textContent = answerNumber;
 
-    // Play/Pause button container
+    // Play/Pause button container (properly centered)
     const playButtonContainer = document.createElement('div');
     playButtonContainer.style.cssText = `
         width: 32px;
@@ -197,17 +196,31 @@ async function createRecordingElement(recordingData, questionId) {
         display: flex;
         align-items: center;
         justify-content: center;
+        position: relative;
     `;
 
-    // Play icon (initially visible)
+    // Play icon (initially visible, properly centered)
     const playIcon = document.createElement('div');
+    playIcon.style.cssText = `
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+    `;
     playIcon.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
 <path fill-rule="evenodd" clip-rule="evenodd" d="M4.85645 12.6432L5.28359 13.6691C5.14824 13.7254 5.00307 13.7545 4.85645 13.7545C4.18653 13.7545 3.89506 13.2237 3.85947 13.1588L3.85907 13.1581C3.78166 13.0172 3.74738 12.8861 3.73332 12.8287C3.70064 12.6951 3.68408 12.5531 3.67377 12.4423C3.65164 12.2043 3.63976 11.8891 3.63344 11.5387C3.62063 10.8288 3.62924 9.86918 3.64584 8.85249C3.65921 8.03337 3.67765 7.17867 3.69502 6.37386C3.72132 5.15476 3.74516 4.0501 3.74515 3.35692C3.74515 3.00747 3.90952 2.67837 4.18889 2.46846C4.46827 2.25854 4.83011 2.19227 5.16575 2.28953C5.42645 2.36507 5.80059 2.52845 6.16439 2.69694C6.55447 2.87761 7.01599 3.1039 7.4884 3.34236C8.43233 3.81885 9.44857 4.35857 10.0737 4.70931C11.242 5.36486 12.116 5.93809 12.7094 6.37485C13.0039 6.59168 13.2417 6.784 13.416 6.9434C13.5004 7.02067 13.5894 7.10785 13.6662 7.19864C13.7032 7.24231 13.7576 7.31053 13.809 7.3963C13.809 7.3963 13.8103 7.39852 13.8111 7.39982C13.8408 7.44908 13.9794 7.67926 13.9794 8.00004C13.9794 8.25261 13.8902 8.44571 13.8754 8.47777C13.8747 8.47914 13.8739 8.48099 13.8739 8.48099C13.8433 8.54903 13.8105 8.60616 13.7861 8.64615C13.7355 8.72909 13.676 8.8114 13.615 8.88884C13.4903 9.04705 13.3199 9.23469 13.1014 9.44149C12.6622 9.85722 12.0059 10.3722 11.0826 10.8996C9.92065 11.5634 8.4641 12.2575 7.3165 12.7789C6.73888 13.0413 6.23215 13.2632 5.86951 13.4196C5.6881 13.4979 5.54251 13.5599 5.44186 13.6025C5.39153 13.6238 5.35242 13.6403 5.32566 13.6515L5.29494 13.6644L5.28359 13.6691C5.28359 13.6691 5.28359 13.6691 4.85645 12.6432Z" fill="currentcolor"/>
 </svg>`;
 
-    // Pause icon (initially hidden)
+    // Pause icon (initially hidden, properly centered)
     const pauseIcon = document.createElement('div');
-    pauseIcon.style.display = 'none';
+    pauseIcon.style.cssText = `
+        display: none;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+    `;
     pauseIcon.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
 <path d="M5.16556 12.7285C4.83372 12.3548 4.85285 5.2131 5.16556 3.27148C6.002 5.16913 5.90348 9.82086 6.0012 11.1599C6.07938 12.2311 5.68793 12.428 5.16556 12.7285Z" stroke="currentColor" stroke-width="3" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M10.4647 3.27148C11.0697 6.30696 11.4684 12.0378 10.4647 12.7285C10.187 12.1354 10.0339 11.2892 10.0072 9.54915C9.9776 7.62566 10.1585 6.08748 10.4647 3.27148Z" stroke="currentColor" stroke-width="3" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
@@ -308,29 +321,49 @@ async function createRecordingElement(recordingData, questionId) {
 
     // Format time helper
     function formatTime(seconds) {
+        if (!seconds || !isFinite(seconds)) return '0:00';
         const m = Math.floor(seconds / 60);
         const s = Math.floor(seconds % 60);
         return `${m}:${String(s).padStart(2, '0')}`;
     }
 
+    // Force load metadata and set initial duration
+    const setInitialDuration = () => {
+        if (audio.duration && isFinite(audio.duration)) {
+            const durationFormatted = formatTime(audio.duration);
+            timeDisplay.textContent = `0:00 / ${durationFormatted}`;
+        } else {
+            // Retry after a short delay
+            setTimeout(setInitialDuration, 100);
+        }
+    };
+
+    // Load metadata
+    audio.addEventListener('loadedmetadata', setInitialDuration);
+    audio.addEventListener('canplay', setInitialDuration);
+    audio.load();
+    
+    // Try to set duration immediately if already loaded
+    setTimeout(setInitialDuration, 50);
+
     // Play/Pause functionality
     playButtonContainer.addEventListener('click', () => {
         if (isPlaying) {
             audio.pause();
-            playIcon.style.display = 'block';
+            playIcon.style.display = 'flex';
             pauseIcon.style.display = 'none';
             isPlaying = false;
         } else {
             audio.play();
             playIcon.style.display = 'none';
-            pauseIcon.style.display = 'block';
+            pauseIcon.style.display = 'flex';
             isPlaying = true;
         }
     });
 
     // Progress bar click-to-seek
     progressContainer.addEventListener('click', (e) => {
-        if (audio.duration) {
+        if (audio.duration && isFinite(audio.duration)) {
             const rect = progressContainer.getBoundingClientRect();
             const clickX = e.clientX - rect.left;
             const percentage = clickX / rect.width;
@@ -340,7 +373,7 @@ async function createRecordingElement(recordingData, questionId) {
 
     // Update progress and time
     audio.addEventListener('timeupdate', () => {
-        if (audio.duration) {
+        if (audio.duration && isFinite(audio.duration)) {
             const percentage = (audio.currentTime / audio.duration) * 100;
             progressBar.style.width = percentage + '%';
             
@@ -352,18 +385,10 @@ async function createRecordingElement(recordingData, questionId) {
 
     // Reset when audio ends
     audio.addEventListener('ended', () => {
-        playIcon.style.display = 'block';
+        playIcon.style.display = 'flex';
         pauseIcon.style.display = 'none';
         progressBar.style.width = '0%';
         isPlaying = false;
-    });
-
-    // Set duration when metadata loads
-    audio.addEventListener('loadedmetadata', () => {
-        if (audio.duration) {
-            const durationFormatted = formatTime(audio.duration);
-            timeDisplay.textContent = `0:00 / ${durationFormatted}`;
-        }
     });
 
     // Delete functionality
@@ -392,11 +417,14 @@ async function createRecordingElement(recordingData, questionId) {
     return li;
 }
 
-// Helper function to get answer number (1, 2, 3, 4, 5...)
+// Helper function to get answer number (higher numbers first - newest at top)
 function getAnswerNumber(recordingId, questionId) {
-    // Count existing recordings for this question to determine answer number
-    const existingRecordings = document.querySelectorAll(`[data-recording-id*="question_${questionId}-"]`);
-    return existingRecordings.length + 1;
+    // Count all recordings for this question
+    const allRecordings = document.querySelectorAll(`[data-recording-id*="question_${questionId}-"]`);
+    const totalCount = allRecordings.length;
+    
+    // Since we add new recordings at the top, the newest should have the highest number
+    return totalCount + 1;
 }
 
 /**
@@ -710,17 +738,84 @@ function initializeAudioRecorder(recorderWrapper) {
             if (recordingsListUI) {
                 placeholderEl = document.createElement('li');
                 placeholderEl.className = 'recording-placeholder new-recording-fade-in';
+                placeholderEl.style.cssText = 'list-style: none; margin-bottom: 1rem; padding: 0 1rem;';
+
+                // Create placeholder container matching the design
+                const placeholderContainer = document.createElement('div');
+                placeholderContainer.style.cssText = `
+                    width: 100%;
+                    height: 48px;
+                    position: relative;
+                    background: #F25444;
+                    border-radius: 122px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 0 16px;
+                    box-sizing: border-box;
+                `;
+
+                // Recording badge (higher number for new recording)
+                const recordingBadge = document.createElement('div');
+                recordingBadge.style.cssText = `
+                    width: 16px;
+                    height: 16px;
+                    background: #FFAC4C;
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: white;
+                    font-size: 8px;
+                    font-family: Arial, sans-serif;
+                    font-weight: 400;
+                    position: absolute;
+                    top: 0px;
+                    left: 0px;
+                    z-index: 10;
+                `;
+                
+                // Get next answer number
+                const allRecordings = document.querySelectorAll(`[data-recording-id*="question_${questionId}-"]`);
+                const nextNumber = allRecordings.length + 1;
+                recordingBadge.textContent = nextNumber;
+
+                // Status and timer container
+                const statusContainer = document.createElement('div');
+                statusContainer.style.cssText = `
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: white;
+                    font-family: Arial, sans-serif;
+                    font-weight: 400;
+                    gap: 12px;
+                `;
 
                 statusDisplay = document.createElement('span');
                 statusDisplay.className = 'placeholder-status';
+                statusDisplay.style.cssText = `
+                    font-size: 16px;
+                    color: white;
+                `;
                 statusDisplay.textContent = 'Recording...';
 
                 timerDisplay = document.createElement('span');
                 timerDisplay.className = 'placeholder-timer';
+                timerDisplay.style.cssText = `
+                    font-size: 16px;
+                    color: white;
+                    font-weight: 500;
+                `;
                 timerDisplay.textContent = '0:00';
 
-                placeholderEl.appendChild(statusDisplay);
-                placeholderEl.appendChild(timerDisplay);
+                statusContainer.appendChild(statusDisplay);
+                statusContainer.appendChild(timerDisplay);
+
+                placeholderContainer.appendChild(recordingBadge);
+                placeholderContainer.appendChild(statusContainer);
+                placeholderEl.appendChild(placeholderContainer);
+
                 recordingsListUI.prepend(placeholderEl);
             }
 
