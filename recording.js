@@ -125,73 +125,250 @@ function injectGlobalStyles() {
 async function createRecordingElement(recordingData, questionId) {
     const li = document.createElement('li');
     li.dataset.recordingId = recordingData.id;
+    li.style.cssText = 'list-style: none; margin-bottom: 12px;';
 
     // Get audio source (now async to verify cloud URLs)
     const audioURL = await getAudioSource(recordingData);
     
-    if (audioURL) {
-        const audio = new Audio(audioURL);
-        audio.controls = true;
-        audio.style.width = '100%';
-        li.appendChild(audio);
-    } else {
+    if (!audioURL) {
         // Show a message if no audio is available
         const noAudioMsg = document.createElement('div');
         noAudioMsg.textContent = 'Audio no longer available';
         noAudioMsg.style.cssText = 'padding: 10px; background: #f5f5f5; border-radius: 8px; color: #666; text-align: center;';
         li.appendChild(noAudioMsg);
+        return li;
     }
 
-    const timestamp = new Date(recordingData.timestamp);
-    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    const day = timestamp.getDate();
-    const month = monthNames[timestamp.getMonth()];
-    const year = String(timestamp.getFullYear()).slice(-2);
-    const hours = String(timestamp.getHours()).padStart(2, '0');
-    const minutes = String(timestamp.getMinutes()).padStart(2, '0');
-    const formattedDate = `${day} ${month} ${year} / ${hours}:${minutes}`;
-    
-    const infoContainer = document.createElement('div');
-    infoContainer.style.display = 'flex';
-    infoContainer.style.justifyContent = 'center';
-    infoContainer.style.alignItems = 'center';
-    infoContainer.style.marginTop = '4px';
-    infoContainer.style.gap = '16px';
+    // Create hidden HTML5 audio element
+    const audio = document.createElement('audio');
+    audio.src = audioURL;
+    audio.preload = 'metadata';
+    audio.style.display = 'none';
+    li.appendChild(audio);
 
-    const timestampEl = document.createElement('div');
-    timestampEl.textContent = formattedDate;
-    timestampEl.style.fontSize = '12px';
-    timestampEl.style.color = '#888';
-    timestampEl.style.whiteSpace = 'nowrap';
+    // Create custom audio player container
+    const playerContainer = document.createElement('div');
+    playerContainer.style.cssText = `
+        width: 100%;
+        height: 48px;
+        position: relative;
+        background: white;
+        border-radius: 122px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        display: flex;
+        align-items: center;
+        padding: 0 16px;
+        box-sizing: border-box;
+    `;
 
-    // Add upload status indicator
-    const uploadStatus = document.createElement('div');
-    uploadStatus.className = 'upload-status';
-    uploadStatus.style.fontSize = '12px';
-    uploadStatus.style.whiteSpace = 'nowrap';
-    updateUploadStatusUI(uploadStatus, recordingData);
+    // Question number circle
+    const questionCircle = document.createElement('div');
+    questionCircle.style.cssText = `
+        width: 32px;
+        height: 32px;
+        background: #FFAC4C;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 12px;
+        font-family: Arial, sans-serif;
+        font-weight: 400;
+        flex-shrink: 0;
+        margin-right: 10px;
+    `;
+    questionCircle.textContent = questionId;
 
-    const deleteButton = document.createElement('button');
-    deleteButton.textContent = 'Delete';
-    deleteButton.style.background = 'none';
-    deleteButton.style.border = 'none';
-    deleteButton.style.color = '#ff4d4d';
-    deleteButton.style.cursor = 'pointer';
-    deleteButton.style.padding = '0';
-    deleteButton.style.fontSize = '12px';
-    deleteButton.style.whiteSpace = 'nowrap';
+    // Play/Pause button container
+    const playButtonContainer = document.createElement('div');
+    playButtonContainer.style.cssText = `
+        width: 16px;
+        height: 16px;
+        cursor: pointer;
+        color: #007AF7;
+        flex-shrink: 0;
+        margin-right: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    `;
 
-    deleteButton.onclick = () => {
+    // Play icon (initially visible)
+    const playIcon = document.createElement('div');
+    playIcon.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M4.85645 12.6432L5.28359 13.6691C5.14824 13.7254 5.00307 13.7545 4.85645 13.7545C4.18653 13.7545 3.89506 13.2237 3.85947 13.1588L3.85907 13.1581C3.78166 13.0172 3.74738 12.8861 3.73332 12.8287C3.70064 12.6951 3.68408 12.5531 3.67377 12.4423C3.65164 12.2043 3.63976 11.8891 3.63344 11.5387C3.62063 10.8288 3.62924 9.86918 3.64584 8.85249C3.65921 8.03337 3.67765 7.17867 3.69502 6.37386C3.72132 5.15476 3.74516 4.0501 3.74515 3.35692C3.74515 3.00747 3.90952 2.67837 4.18889 2.46846C4.46827 2.25854 4.83011 2.19227 5.16575 2.28953C5.42645 2.36507 5.80059 2.52845 6.16439 2.69694C6.55447 2.87761 7.01599 3.1039 7.4884 3.34236C8.43233 3.81885 9.44857 4.35857 10.0737 4.70931C11.242 5.36486 12.116 5.93809 12.7094 6.37485C13.0039 6.59168 13.2417 6.784 13.416 6.9434C13.5004 7.02067 13.5894 7.10785 13.6662 7.19864C13.7032 7.24231 13.7576 7.31053 13.809 7.3963C13.809 7.3963 13.8103 7.39852 13.8111 7.39982C13.8408 7.44908 13.9794 7.67926 13.9794 8.00004C13.9794 8.25261 13.8902 8.44571 13.8754 8.47777C13.8747 8.47914 13.8739 8.48099 13.8739 8.48099C13.8433 8.54903 13.8105 8.60616 13.7861 8.64615C13.7355 8.72909 13.676 8.8114 13.615 8.88884C13.4903 9.04705 13.3199 9.23469 13.1014 9.44149C12.6622 9.85722 12.0059 10.3722 11.0826 10.8996C9.92065 11.5634 8.4641 12.2575 7.3165 12.7789C6.73888 13.0413 6.23215 13.2632 5.86951 13.4196C5.6881 13.4979 5.54251 13.5599 5.44186 13.6025C5.39153 13.6238 5.35242 13.6403 5.32566 13.6515L5.29494 13.6644L5.28359 13.6691C5.28359 13.6691 5.28359 13.6691 4.85645 12.6432Z" fill="currentcolor"/>
+</svg>`;
+
+    // Pause icon (initially hidden)
+    const pauseIcon = document.createElement('div');
+    pauseIcon.style.display = 'none';
+    pauseIcon.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M5.16556 12.7285C4.83372 12.3548 4.85285 5.2131 5.16556 3.27148C6.002 5.16913 5.90348 9.82086 6.0012 11.1599C6.07938 12.2311 5.68793 12.428 5.16556 12.7285Z" stroke="currentColor" stroke-width="3" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M10.4647 3.27148C11.0697 6.30696 11.4684 12.0378 10.4647 12.7285C10.187 12.1354 10.0339 11.2892 10.0072 9.54915C9.9776 7.62566 10.1585 6.08748 10.4647 3.27148Z" stroke="currentColor" stroke-width="3" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`;
+
+    playButtonContainer.appendChild(playIcon);
+    playButtonContainer.appendChild(pauseIcon);
+
+    // Time display
+    const timeDisplay = document.createElement('div');
+    timeDisplay.style.cssText = `
+        opacity: 0.4;
+        text-align: center;
+        color: black;
+        font-size: 11px;
+        font-family: Arial, sans-serif;
+        font-weight: 400;
+        line-height: 16px;
+        flex-shrink: 0;
+        margin-right: 12px;
+        min-width: 60px;
+    `;
+    timeDisplay.textContent = '0:00 / 0:00';
+
+    // Progress bar container
+    const progressContainer = document.createElement('div');
+    progressContainer.style.cssText = `
+        flex: 1;
+        height: 4px;
+        background: rgba(0, 0, 0, 0.1);
+        border-radius: 2px;
+        position: relative;
+        cursor: pointer;
+        margin-right: 12px;
+    `;
+
+    // Progress bar
+    const progressBar = document.createElement('div');
+    progressBar.style.cssText = `
+        width: 0%;
+        height: 100%;
+        background: #007AF7;
+        border-radius: 2px;
+        transition: width 0.1s ease;
+    `;
+    progressContainer.appendChild(progressBar);
+
+    // Upload status icon
+    const uploadIcon = document.createElement('div');
+    uploadIcon.className = 'upload-status';
+    uploadIcon.style.cssText = `
+        width: 16px;
+        height: 16px;
+        margin-right: 8px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #666;
+    `;
+    uploadIcon.innerHTML = `<svg width="23" height="18" viewBox="0 0 23 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M10.3603 4.12978C9.95632 2.81456 9.32134 1.71611 7.29446 1.71606C5.26758 1.71602 2.50257 3.6029 2.0119 5.78503C1.52123 7.96715 1.64731 9.52137 2.33889 10.5311C3.03048 11.5409 3.8667 11.4586 3.8667 11.4586C3.24843 11.0722 2.14031 10.1959 2.0119 8.10803C1.8835 6.02011 3.6876 2.71348 6.99176 2.1403C7.72561 2.013 9.8515 2.04725 10.3603 4.12978ZM10.3603 4.12978C11.4039 3.08984 12.877 2.74676 13.6571 3.21481C14.6322 3.79988 14.9775 5.19823 14.7589 6.21232C15.6096 5.65986 18.118 5.78503 19.087 6.21232M19.087 6.21232C20.056 6.63961 20.8327 7.14886 20.6145 9.60375C20.3963 12.0586 18.256 12.7801 17.5595 12.5496C20.9795 12.8104 21.085 9.82754 20.9839 8.41147C20.8827 6.9954 19.6968 6.40592 19.087 6.21232Z" stroke="currentColor" stroke-width="3" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M6.32078 11.691C6.25957 11.5144 6.1836 11.0235 6.49943 10.6511C7.34534 9.65366 9.3446 8.30582 10.4205 7.76125C10.9193 7.50877 11.1085 7.45005 11.5252 7.85738C11.8269 8.15223 12.5363 8.56445 13.1214 9.09835C13.7206 9.64506 15.104 10.4108 15.2078 10.9869C15.3117 11.563 15.1942 12.3164 14.6398 12.3174C13.8646 12.3189 12.6507 12.3174 12.6507 12.3174L9.39941 12.2017C8.4158 12.2457 6.47611 12.1391 6.32078 11.691Z" fill="currentColor"/>
+<path d="M10.7537 10.7094C10.8037 11.9505 10.9624 15.3393 11.1919 16.1365C11.5198 15.7539 11.3383 12.119 11.2072 10.7031L10.7537 10.7094Z" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`;
+
+    // Delete button
+    const deleteButton = document.createElement('div');
+    deleteButton.style.cssText = `
+        width: 16px;
+        height: 16px;
+        cursor: pointer;
+        color: #F25444;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    `;
+    deleteButton.innerHTML = `<svg width="16" height="20" viewBox="0 0 16 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M4.22363 9.09265C4.3737 10.4226 4.74708 15.7266 5.19781 16.6576M5.19781 16.6576C5.64853 17.5886 10.0571 17.8989 10.9588 16.9236C11.8606 15.9483 12.4617 9.83049 12.5118 9.29851H12.899C12.5484 11.6777 11.5249 16.6567 11.2845 17.0468C10.9839 17.5345 7.65271 18.6525 5.19781 16.6576Z" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M8.01309 5.78625C5.84908 5.6567 3.63876 5.47262 2.79102 5.20837C3.87956 5.46873 13.8741 5.64946 14.1423 5.67009C14.3569 5.6866 14.1509 5.90362 14.0211 6.01007C13.4657 6.03019 10.1771 5.9158 8.01309 5.78625Z" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M6.04834 4.92596L6.87336 1.86548L10.6295 2.09035L10.7637 5.20825" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`;
+
+    // Assemble the player
+    playerContainer.appendChild(questionCircle);
+    playerContainer.appendChild(playButtonContainer);
+    playerContainer.appendChild(timeDisplay);
+    playerContainer.appendChild(progressContainer);
+    playerContainer.appendChild(uploadIcon);
+    playerContainer.appendChild(deleteButton);
+
+    li.appendChild(playerContainer);
+
+    // Audio functionality
+    let isPlaying = false;
+
+    // Format time helper
+    function formatTime(seconds) {
+        const m = Math.floor(seconds / 60);
+        const s = Math.floor(seconds % 60);
+        return `${m}:${String(s).padStart(2, '0')}`;
+    }
+
+    // Play/Pause functionality
+    playButtonContainer.addEventListener('click', () => {
+        if (isPlaying) {
+            audio.pause();
+            playIcon.style.display = 'block';
+            pauseIcon.style.display = 'none';
+            isPlaying = false;
+        } else {
+            audio.play();
+            playIcon.style.display = 'none';
+            pauseIcon.style.display = 'block';
+            isPlaying = true;
+        }
+    });
+
+    // Progress bar click-to-seek
+    progressContainer.addEventListener('click', (e) => {
+        if (audio.duration) {
+            const rect = progressContainer.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const percentage = clickX / rect.width;
+            audio.currentTime = percentage * audio.duration;
+        }
+    });
+
+    // Update progress and time
+    audio.addEventListener('timeupdate', () => {
+        if (audio.duration) {
+            const percentage = (audio.currentTime / audio.duration) * 100;
+            progressBar.style.width = percentage + '%';
+            
+            const currentTimeFormatted = formatTime(audio.currentTime);
+            const durationFormatted = formatTime(audio.duration);
+            timeDisplay.textContent = `${currentTimeFormatted} / ${durationFormatted}`;
+        }
+    });
+
+    // Reset when audio ends
+    audio.addEventListener('ended', () => {
+        playIcon.style.display = 'block';
+        pauseIcon.style.display = 'none';
+        progressBar.style.width = '0%';
+        isPlaying = false;
+    });
+
+    // Set duration when metadata loads
+    audio.addEventListener('loadedmetadata', () => {
+        if (audio.duration) {
+            const durationFormatted = formatTime(audio.duration);
+            timeDisplay.textContent = `0:00 / ${durationFormatted}`;
+        }
+    });
+
+    // Delete functionality
+    deleteButton.addEventListener('click', () => {
         if (confirm("Are you sure you want to delete this recording?")) {
             deleteRecording(recordingData.id, questionId, li);
         }
-    };
+    });
 
-    infoContainer.appendChild(timestampEl);
-    infoContainer.appendChild(uploadStatus);
-    infoContainer.appendChild(deleteButton);
-
-    li.appendChild(infoContainer);
+    // Update upload status
+    updateUploadStatusUI(uploadIcon, recordingData);
 
     return li;
 }
@@ -243,21 +420,24 @@ async function getAudioSource(recordingData) {
 function updateUploadStatusUI(statusElement, recordingData) {
     switch(recordingData.uploadStatus) {
         case 'pending':
-            statusElement.innerHTML = '⏳ Queued for backup';
             statusElement.style.color = '#888';
+            statusElement.title = 'Queued for backup';
             break;
         case 'uploading':
-            statusElement.innerHTML = `⬆️ Backing up... ${recordingData.uploadProgress}%`;
             statusElement.style.color = '#007bff';
+            statusElement.title = `Backing up... ${recordingData.uploadProgress}%`;
             break;
         case 'uploaded':
-            statusElement.innerHTML = '☁️ Backed up';
             statusElement.style.color = '#28a745';
+            statusElement.title = 'Backed up to cloud';
             break;
         case 'failed':
-            statusElement.innerHTML = '⚠️ Backup failed';
             statusElement.style.color = '#dc3545';
+            statusElement.title = 'Backup failed';
             break;
+        default:
+            statusElement.style.color = '#666';
+            statusElement.title = 'Upload status unknown';
     }
 }
 
