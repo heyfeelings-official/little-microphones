@@ -1066,33 +1066,40 @@ function initializeAudioRecorder(recorderWrapper) {
     /**
      * Update recording UI elements with current status
      */
-    async function updateRecordingUI(recordingId) {
-        try {
-            // Fetch the LATEST state from the DB to avoid race conditions
-            const latestRecordingData = await getRecordingFromDB(recordingId);
-            if (!latestRecordingData) {
-                console.warn(`[updateRecordingUI] Could not find recording ${recordingId} in DB`);
-                return;
-            }
+    function updateRecordingUI(recordingData, retryCount = 0) {
+        const MAX_RETRIES = 15;
+        const RETRY_DELAY = 200; // ms
 
-            const recordingElement = document.querySelector(`[data-recording-id="${latestRecordingData.id}"]`);
-            if (recordingElement) {
-                const uploadIcon = recordingElement.querySelector('.upload-status');
-                const deleteButton = recordingElement.querySelector('div[style*="color: #F25444"]');
-                
-                if (uploadIcon && deleteButton) {
-                    // Clear any existing interval
-                    if (recordingElement.uploadBlinkInterval) {
-                        clearInterval(recordingElement.uploadBlinkInterval);
-                    }
-                    
-                    // Update UI with the LATEST data
-                    const newInterval = updateUploadStatusUI(uploadIcon, deleteButton, latestRecordingData, null);
-                    recordingElement.uploadBlinkInterval = newInterval;
+        const recordingElement = document.querySelector(`[data-recording-id="${recordingData.id}"]`);
+
+        if (recordingElement) {
+            // Element found, proceed with update
+            const uploadIcon = recordingElement.querySelector('.upload-status');
+            const deleteButton = recordingElement.querySelector('div[style*="color: #F25444"]');
+            
+            if (uploadIcon && deleteButton) {
+                // Ensure recordingData has uploadStatus
+                if (!recordingData.uploadStatus) {
+                    recordingData.uploadStatus = 'uploaded';
                 }
+                
+                // Clear any existing interval
+                if (recordingElement.uploadBlinkInterval) {
+                    clearInterval(recordingElement.uploadBlinkInterval);
+                    recordingElement.uploadBlinkInterval = null; // Important to clear reference
+                }
+                
+                // Update with correct parameters
+                const newInterval = updateUploadStatusUI(uploadIcon, deleteButton, recordingData, null);
+                recordingElement.uploadBlinkInterval = newInterval;
             }
-        } catch (error) {
-            console.error(`[updateRecordingUI] Error updating UI for ${recordingId}:`, error);
+        } else if (retryCount < MAX_RETRIES) {
+            // Element not found, retry after a delay
+            setTimeout(() => {
+                updateRecordingUI(recordingData, retryCount + 1);
+            }, RETRY_DELAY);
+        } else {
+            console.error(`[updateRecordingUI] Could not find element for ${recordingData.id} after ${MAX_RETRIES} retries.`);
         }
     }
 
