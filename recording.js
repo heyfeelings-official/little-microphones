@@ -1007,13 +1007,13 @@ function initializeAudioRecorder(recorderWrapper) {
             recordingData.uploadStatus = 'uploading';
             recordingData.uploadProgress = 10;
             await updateRecordingInDB(recordingData);
-            updateRecordingUI(recordingData);
+            updateRecordingUI(recordingData.id);
 
             // Convert blob to base64
             const base64Audio = await blobToBase64(recordingData.audio);
             recordingData.uploadProgress = 30;
             await updateRecordingInDB(recordingData);
-            updateRecordingUI(recordingData);
+            updateRecordingUI(recordingData.id);
 
             // Upload via API route
             const response = await fetch('https://little-microphones.vercel.app/api/upload-audio', {
@@ -1030,7 +1030,7 @@ function initializeAudioRecorder(recorderWrapper) {
 
             recordingData.uploadProgress = 80;
             await updateRecordingInDB(recordingData);
-            updateRecordingUI(recordingData);
+            updateRecordingUI(recordingData.id);
 
             if (response.ok) {
                 const result = await response.json();
@@ -1060,34 +1060,39 @@ function initializeAudioRecorder(recorderWrapper) {
         }
 
         await updateRecordingInDB(recordingData);
-        updateRecordingUI(recordingData);
+        updateRecordingUI(recordingData.id);
     }
 
     /**
      * Update recording UI elements with current status
      */
-    function updateRecordingUI(recordingData) {
-        const recordingElement = document.querySelector(`[data-recording-id="${recordingData.id}"]`);
-        if (recordingElement) {
-            const uploadIcon = recordingElement.querySelector('.upload-status');
-            // Find delete button by looking for the element with the delete SVG
-            const deleteButton = recordingElement.querySelector('div[style*="color: #F25444"]');
-            
-            if (uploadIcon && deleteButton) {
-                // Ensure recordingData has uploadStatus
-                if (!recordingData.uploadStatus) {
-                    recordingData.uploadStatus = 'uploaded';
-                }
-                
-                // Clear any existing interval
-                if (recordingElement.uploadBlinkInterval) {
-                    clearInterval(recordingElement.uploadBlinkInterval);
-                }
-                
-                // Update with correct parameters
-                const newInterval = updateUploadStatusUI(uploadIcon, deleteButton, recordingData, null);
-                recordingElement.uploadBlinkInterval = newInterval;
+    async function updateRecordingUI(recordingId) {
+        try {
+            // Fetch the LATEST state from the DB to avoid race conditions
+            const latestRecordingData = await getRecordingFromDB(recordingId);
+            if (!latestRecordingData) {
+                console.warn(`[updateRecordingUI] Could not find recording ${recordingId} in DB`);
+                return;
             }
+
+            const recordingElement = document.querySelector(`[data-recording-id="${latestRecordingData.id}"]`);
+            if (recordingElement) {
+                const uploadIcon = recordingElement.querySelector('.upload-status');
+                const deleteButton = recordingElement.querySelector('div[style*="color: #F25444"]');
+                
+                if (uploadIcon && deleteButton) {
+                    // Clear any existing interval
+                    if (recordingElement.uploadBlinkInterval) {
+                        clearInterval(recordingElement.uploadBlinkInterval);
+                    }
+                    
+                    // Update UI with the LATEST data
+                    const newInterval = updateUploadStatusUI(uploadIcon, deleteButton, latestRecordingData, null);
+                    recordingElement.uploadBlinkInterval = newInterval;
+                }
+            }
+        } catch (error) {
+            console.error(`[updateRecordingUI] Error updating UI for ${recordingId}:`, error);
         }
     }
 
