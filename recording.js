@@ -400,7 +400,7 @@ function initializeAudioRecorder(recorderWrapper) {
         const world = window.currentRecordingParams?.world || urlParams.get('world') || 'unknown-world';
         const lmid = window.currentRecordingParams?.lmid || urlParams.get('lmid') || 'unknown-lmid';
         
-        loadRecordingsFromDB(questionId, world, lmid).then(async recordings => {
+        loadRecordingsFromCloudAndSync(questionId, world, lmid).then(async recordings => {
             recordingsListUI.innerHTML = ''; // Clear previous
             recordings.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
             
@@ -415,8 +415,8 @@ function initializeAudioRecorder(recorderWrapper) {
                 const cleanedCount = await cleanupOrphanedRecordings(questionId, world, lmid);
                 if (cleanedCount > 0) {
                     console.log(`[${questionId}] Cleaned ${cleanedCount} orphaned recordings, reloading`);
-                    // Reload the recordings list after cleanup
-                    const updatedRecordings = await loadRecordingsFromDB(questionId, world, lmid);
+                    // Reload the recordings list after cleanup using cloud sync
+                    const updatedRecordings = await loadRecordingsFromCloudAndSync(questionId, world, lmid);
                     recordingsListUI.innerHTML = '';
                     updatedRecordings.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
                     for (const rec of updatedRecordings) {
@@ -470,7 +470,7 @@ function initializeAudioRecorder(recorderWrapper) {
             const world = window.currentRecordingParams?.world || urlParams.get('world') || 'unknown-world';
             const lmid = window.currentRecordingParams?.lmid || urlParams.get('lmid') || 'unknown-lmid';
             
-            const recordings = await loadRecordingsFromDB(questionId, world, lmid);
+            const recordings = await loadRecordingsFromCloudAndSync(questionId, world, lmid);
             const currentCount = recordings.length;
             
             console.log(`[${questionId}] Recordings: ${currentCount}/30`);
@@ -1082,13 +1082,14 @@ window.Webflow.push(function() {
 // Export functions globally
 window.initializeAudioRecorder = initializeAudioRecorder;
 window.initializeRecordersForWorld = initializeRecordersForWorld;
+window.loadRecordingsFromCloudAndSync = loadRecordingsFromCloudAndSync;
 
 /**
  * Clean up orphaned recordings (no cloud URL and no local blob)
  */
 async function cleanupOrphanedRecordings(questionId, world, lmid) {
     try {
-        const recordings = await loadRecordingsFromDB(questionId, world, lmid);
+        const recordings = await loadRecordingsFromCloudAndSync(questionId, world, lmid);
         
         // Only consider recordings truly orphaned if they have failed upload AND no local blob
         const orphanedRecordings = recordings.filter(rec => 
@@ -1591,7 +1592,7 @@ async function collectRecordingsForRadioProgram(world, lmid) {
             processedQuestionIds.add(questionId);
             
             try {
-                const questionRecordings = await loadRecordingsFromDB(questionId, world, lmid);
+                const questionRecordings = await loadRecordingsFromCloudAndSync(questionId, world, lmid);
                 
                 if (questionRecordings.length > 0) {
                     // Filter only recordings that have been successfully uploaded to cloud
@@ -1792,5 +1793,84 @@ function stopFunStatusMessages() {
     if (window.funStatusInterval) {
         clearInterval(window.funStatusInterval);
         window.funStatusInterval = null;
+    }
+}
+
+/**
+ * Load recordings from cloud storage and sync with local IndexedDB
+ * This ensures recordings are available across all devices for the same user
+ * @param {string} questionId - The question ID
+ * @param {string} world - The world slug
+ * @param {string} lmid - The LMID
+ * @returns {Promise<Array>} Array of recording objects
+ */
+async function loadRecordingsFromCloudAndSync(questionId, world, lmid) {
+    try {
+        console.log(`[${questionId}] Loading recordings from cloud for ${world}/${lmid}`);
+        
+        // First, get local recordings
+        const localRecordings = await loadRecordingsFromDB(questionId, world, lmid);
+        console.log(`[${questionId}] Found ${localRecordings.length} local recordings`);
+        
+        // Then, fetch from cloud API to get complete list
+        const response = await fetch(`https://little-microphones.vercel.app/api/list-recordings?world=${world}&lmid=${lmid}&questionId=${questionId}`);
+        
+        if (!response.ok) {
+            console.warn(`[${questionId}] Cloud sync failed, using local recordings only`);
+            return localRecordings;
+        }
+        
+        const cloudData = await response.json();
+        const cloudRecordings = cloudData.recordings || [];
+        console.log(`[${questionId}] Found ${cloudRecordings.length} cloud recordings`);
+        
+        // Create a map of local recordings by filename for quick lookup
+        const localRecordingMap = new Map();
+        localRecordings.forEach(rec => {
+            const filename = `${rec.id}.mp3`;
+            localRecordingMap.set(filename, rec);
+        });
+        
+        // Sync cloud recordings to local database
+        const syncedRecordings = [];
+        for (const cloudRec of cloudRecordings) {
+            const localRec = localRecordingMap.get(cloudRec.filename);
+            
+            if (localRec) {
+                // Update local recording with cloud URL if needed
+                if (!localRec.cloudUrl && cloudRec.url) {
+                    localRec.cloudUrl = cloudRec.url;
+                    localRec.uploadStatus = 'uploaded';
+                    await updateRecordingInDB(localRec);
+                    console.log(`[${questionId}] Updated local recording with cloud URL: ${cloudRec.filename}`);
+                }
+                syncedRecordings.push(localRec);
+            } else {
+                // Create local entry for cloud-only recording
+                const recordingId = cloudRec.filename.replace('.mp3', '');
+                const cloudOnlyRecording = {
+                    id: recordingId,
+                    questionId: questionId,
+                    timestamp: cloudRec.lastModified || Date.now(),
+                    cloudUrl: cloudRec.url,
+                    uploadStatus: 'uploaded',
+                    duration: 0, // Will be set when audio loads
+                    audio: null // No local blob for cloud-only recordings
+                };
+                
+                // Save to local database for future reference
+                await saveRecordingToDB(cloudOnlyRecording);
+                syncedRecordings.push(cloudOnlyRecording);
+                console.log(`[${questionId}] Synced cloud recording to local: ${cloudRec.filename}`);
+            }
+        }
+        
+        console.log(`[${questionId}] Sync complete: ${syncedRecordings.length} total recordings`);
+        return syncedRecordings;
+        
+    } catch (error) {
+        console.error(`[${questionId}] Cloud sync error:`, error);
+        // Fallback to local recordings if cloud sync fails
+        return await loadRecordingsFromDB(questionId, world, lmid);
     }
 } 
