@@ -158,7 +158,7 @@ async function createRecordingElement(recordingData, questionId) {
     // --- Create all UI parts ---
     const recordingBadge = document.createElement('div');
     recordingBadge.style.cssText = `width: 16px; height: 16px; background: #F25444; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 8px; font-family: Arial, sans-serif; font-weight: 400; position: absolute; top: 0px; left: 0px; z-index: 10;`;
-    recordingBadge.textContent = getAnswerNumber(recordingData.id, questionId);
+    recordingBadge.textContent = getAnswerNumber(recordingData.id, questionId, Array.from(document.querySelectorAll(`[data-recording-id*="question_${questionId}-"]`)));
 
     const playButtonContainer = document.createElement('div');
     playButtonContainer.style.cssText = `width: 32px; height: 32px; cursor: pointer; color: #007AF7; flex-shrink: 0; margin-right: 12px; display: flex; align-items: center; justify-content: center; position: relative;`;
@@ -326,14 +326,23 @@ async function createRecordingElement(recordingData, questionId) {
 }
 
 // Helper function to get answer number (oldest = highest, newest = 1)
-function getAnswerNumber(recordingId, questionId) {
-    const allRecordings = Array.from(document.querySelectorAll(`[data-recording-id*="question_${questionId}-"]`));
+// Accepts an optional allRecordings array for correct context
+function getAnswerNumber(recordingId, questionId, allRecordingsArr) {
+    let allRecordings = allRecordingsArr;
+    if (!allRecordings) {
+        allRecordings = Array.from(document.querySelectorAll(`[data-recording-id*="question_${questionId}-"]`));
+    }
+    // If passed as DOM nodes, convert to IDs
+    if (allRecordings.length && allRecordings[0].dataset) {
+        allRecordings = allRecordings.map(el => el.dataset.recordingId);
+    }
+    // Sort by timestamp ascending (oldest first)
     allRecordings.sort((a, b) => {
-        const timestampA = parseInt(a.dataset.recordingId.split('-tm_')[1]) || 0;
-        const timestampB = parseInt(b.dataset.recordingId.split('-tm_')[1]) || 0;
+        const timestampA = parseInt(a.split('-tm_')[1]) || 0;
+        const timestampB = parseInt(b.split('-tm_')[1]) || 0;
         return timestampA - timestampB;
     });
-    const currentIndex = allRecordings.findIndex(el => el.dataset.recordingId === recordingId);
+    const currentIndex = allRecordings.findIndex(id => id === recordingId);
     return currentIndex >= 0 ? allRecordings.length - currentIndex : 1;
 }
 
