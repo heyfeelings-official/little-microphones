@@ -288,7 +288,7 @@ async function checkIfUserHasRecordings(world, lmid) {
         questionId = normalizeQuestionId(questionId);
         
         try {
-          const recordings = await loadRecordingsFromCloudAndSync(questionId, world, lmid);
+          const recordings = await loadRecordingsFromDB(questionId, world, lmid);
           if (recordings && recordings.length > 0) {
             console.log(`Found ${recordings.length} recordings for Question ${questionId}`);
             return true;
