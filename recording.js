@@ -400,8 +400,8 @@ function initializeAudioRecorder(recorderWrapper) {
         const world = window.currentRecordingParams?.world || urlParams.get('world') || 'unknown-world';
         const lmid = window.currentRecordingParams?.lmid || urlParams.get('lmid') || 'unknown-lmid';
         
-        // Temporarily use local DB only until cloud sync is fixed
-        loadRecordingsFromDB(questionId, world, lmid).then(async recordings => {
+        // Load recordings from cloud for cross-device sync
+        loadRecordingsFromCloud(questionId, world, lmid).then(async recordings => {
             recordingsListUI.innerHTML = ''; // Clear previous
             recordings.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
             
@@ -455,7 +455,7 @@ function initializeAudioRecorder(recorderWrapper) {
             const world = window.currentRecordingParams?.world || urlParams.get('world') || 'unknown-world';
             const lmid = window.currentRecordingParams?.lmid || urlParams.get('lmid') || 'unknown-lmid';
             
-            const recordings = await loadRecordingsFromDB(questionId, world, lmid);
+            const recordings = await loadRecordingsFromCloud(questionId, world, lmid);
             const currentCount = recordings.length;
             
             console.log(`[${questionId}] Recordings: ${currentCount}/30`);
@@ -1577,7 +1577,7 @@ async function collectRecordingsForRadioProgram(world, lmid) {
             processedQuestionIds.add(questionId);
             
             try {
-                const questionRecordings = await loadRecordingsFromDB(questionId, world, lmid);
+                const questionRecordings = await loadRecordingsFromCloud(questionId, world, lmid);
                 
                 if (questionRecordings.length > 0) {
                     // Filter only recordings that have been successfully uploaded to cloud
@@ -1613,7 +1613,7 @@ async function collectRecordingsForRadioProgram(world, lmid) {
                 processedQuestionIds.add(questionId);
                 
                 try {
-                    const questionRecordings = await loadRecordingsFromDB(questionId, world, lmid);
+                    const questionRecordings = await loadRecordingsFromCloud(questionId, world, lmid);
                     
                     if (questionRecordings.length > 0) {
                         const validRecordings = questionRecordings

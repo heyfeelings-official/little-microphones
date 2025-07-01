@@ -28,18 +28,18 @@ export default async function handler(req, res) {
             });
         }
 
-        // Construct the folder path where recordings are stored
-        const folderPath = `kids-world_${world}-lmid_${lmid}/`;
+        // Construct the folder path where recordings are stored (matching upload API structure)
+        const folderPath = `${lmid}/${world}/`;
         
         console.log(`Listing recordings for ${world}/${lmid}/Q${questionId} in folder: ${folderPath}`);
 
         // List files from Bunny.net
-        const listUrl = `https://storage.bunnycdn.com/little-microphones/${folderPath}`;
+        const listUrl = `https://storage.bunnycdn.com/${process.env.BUNNY_STORAGE_ZONE}/${folderPath}`;
         
         const response = await fetch(listUrl, {
             method: 'GET',
             headers: {
-                'AccessKey': process.env.BUNNY_STORAGE_PASSWORD,
+                'AccessKey': process.env.BUNNY_API_KEY,
                 'Accept': 'application/json'
             }
         });
@@ -54,8 +54,8 @@ export default async function handler(req, res) {
 
         const fileList = await response.json();
         
-        // Filter files for the specific question ID
-        const questionPattern = new RegExp(`-QID${questionId}-\\d+\\.mp3$`);
+        // Filter files for the specific question ID (matching upload filename format)
+        const questionPattern = new RegExp(`kids-world_${world}-lmid_${lmid}-question_${questionId}-.*\\.mp3$`);
         const matchingFiles = fileList.filter(file => 
             file.IsDirectory === false && 
             questionPattern.test(file.ObjectName)
@@ -66,7 +66,7 @@ export default async function handler(req, res) {
         // Transform file list to recording objects
         const recordings = matchingFiles.map(file => ({
             filename: file.ObjectName,
-            url: `https://little-microphones.b-cdn.net/${folderPath}${file.ObjectName}`,
+            url: `https://${process.env.BUNNY_CDN_URL}/${folderPath}${file.ObjectName}`,
             size: file.Length,
             lastModified: new Date(file.LastChanged).getTime(),
             questionId: questionId
