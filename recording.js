@@ -139,13 +139,6 @@ async function createRecordingElement(recordingData, questionId) {
         return li;
     }
 
-    // Create hidden HTML5 audio element
-    const audio = document.createElement('audio');
-    audio.src = audioURL;
-    audio.preload = 'metadata';
-    audio.style.display = 'none';
-    li.appendChild(audio);
-
     // Create custom audio player container
     const playerContainer = document.createElement('div');
     playerContainer.style.cssText = `
@@ -154,7 +147,6 @@ async function createRecordingElement(recordingData, questionId) {
         position: relative;
         background: white;
         border-radius: 122px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         display: flex;
         align-items: center;
         padding: 0 16px;
@@ -180,11 +172,11 @@ async function createRecordingElement(recordingData, questionId) {
     `;
     questionCircle.textContent = questionId;
 
-    // Play/Pause button container
+    // Play/Pause button container (centered)
     const playButtonContainer = document.createElement('div');
     playButtonContainer.style.cssText = `
-        width: 16px;
-        height: 16px;
+        width: 32px;
+        height: 32px;
         cursor: pointer;
         color: #007AF7;
         flex-shrink: 0;
@@ -211,46 +203,18 @@ async function createRecordingElement(recordingData, questionId) {
     playButtonContainer.appendChild(playIcon);
     playButtonContainer.appendChild(pauseIcon);
 
-    // Time display
-    const timeDisplay = document.createElement('div');
-    timeDisplay.style.cssText = `
-        opacity: 0.4;
-        text-align: center;
-        color: black;
-        font-size: 11px;
-        font-family: Arial, sans-serif;
-        font-weight: 400;
-        line-height: 16px;
-        flex-shrink: 0;
-        margin-right: 12px;
-        min-width: 60px;
-    `;
-    timeDisplay.textContent = '0:00 / 0:00';
-
-    // Progress bar container
-    const progressContainer = document.createElement('div');
-    progressContainer.style.cssText = `
+    // HTML5 Audio element with default controls (styled to fit design)
+    const audio = document.createElement('audio');
+    audio.src = audioURL;
+    audio.controls = true;
+    audio.preload = 'metadata';
+    audio.style.cssText = `
         flex: 1;
-        height: 4px;
-        background: rgba(0, 0, 0, 0.1);
-        border-radius: 2px;
-        position: relative;
-        cursor: pointer;
+        height: 32px;
         margin-right: 12px;
     `;
 
-    // Progress bar
-    const progressBar = document.createElement('div');
-    progressBar.style.cssText = `
-        width: 0%;
-        height: 100%;
-        background: #007AF7;
-        border-radius: 2px;
-        transition: width 0.1s ease;
-    `;
-    progressContainer.appendChild(progressBar);
-
-    // Upload status icon
+    // Upload status icon (conditionally shown)
     const uploadIcon = document.createElement('div');
     uploadIcon.className = 'upload-status';
     uploadIcon.style.cssText = `
@@ -269,7 +233,7 @@ async function createRecordingElement(recordingData, questionId) {
 <path d="M10.7537 10.7094C10.8037 11.9505 10.9624 15.3393 11.1919 16.1365C11.5198 15.7539 11.3383 12.119 11.2072 10.7031L10.7537 10.7094Z" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>`;
 
-    // Delete button
+    // Delete button (conditionally shown)
     const deleteButton = document.createElement('div');
     deleteButton.style.cssText = `
         width: 16px;
@@ -290,8 +254,7 @@ async function createRecordingElement(recordingData, questionId) {
     // Assemble the player
     playerContainer.appendChild(questionCircle);
     playerContainer.appendChild(playButtonContainer);
-    playerContainer.appendChild(timeDisplay);
-    playerContainer.appendChild(progressContainer);
+    playerContainer.appendChild(audio);
     playerContainer.appendChild(uploadIcon);
     playerContainer.appendChild(deleteButton);
 
@@ -300,14 +263,7 @@ async function createRecordingElement(recordingData, questionId) {
     // Audio functionality
     let isPlaying = false;
 
-    // Format time helper
-    function formatTime(seconds) {
-        const m = Math.floor(seconds / 60);
-        const s = Math.floor(seconds % 60);
-        return `${m}:${String(s).padStart(2, '0')}`;
-    }
-
-    // Play/Pause functionality
+    // Play/Pause functionality (override default audio controls)
     playButtonContainer.addEventListener('click', () => {
         if (isPlaying) {
             audio.pause();
@@ -322,42 +278,23 @@ async function createRecordingElement(recordingData, questionId) {
         }
     });
 
-    // Progress bar click-to-seek
-    progressContainer.addEventListener('click', (e) => {
-        if (audio.duration) {
-            const rect = progressContainer.getBoundingClientRect();
-            const clickX = e.clientX - rect.left;
-            const percentage = clickX / rect.width;
-            audio.currentTime = percentage * audio.duration;
-        }
+    // Sync with audio events
+    audio.addEventListener('play', () => {
+        playIcon.style.display = 'none';
+        pauseIcon.style.display = 'block';
+        isPlaying = true;
     });
 
-    // Update progress and time
-    audio.addEventListener('timeupdate', () => {
-        if (audio.duration) {
-            const percentage = (audio.currentTime / audio.duration) * 100;
-            progressBar.style.width = percentage + '%';
-            
-            const currentTimeFormatted = formatTime(audio.currentTime);
-            const durationFormatted = formatTime(audio.duration);
-            timeDisplay.textContent = `${currentTimeFormatted} / ${durationFormatted}`;
-        }
-    });
-
-    // Reset when audio ends
-    audio.addEventListener('ended', () => {
+    audio.addEventListener('pause', () => {
         playIcon.style.display = 'block';
         pauseIcon.style.display = 'none';
-        progressBar.style.width = '0%';
         isPlaying = false;
     });
 
-    // Set duration when metadata loads
-    audio.addEventListener('loadedmetadata', () => {
-        if (audio.duration) {
-            const durationFormatted = formatTime(audio.duration);
-            timeDisplay.textContent = `0:00 / ${durationFormatted}`;
-        }
+    audio.addEventListener('ended', () => {
+        playIcon.style.display = 'block';
+        pauseIcon.style.display = 'none';
+        isPlaying = false;
     });
 
     // Delete functionality
@@ -367,8 +304,8 @@ async function createRecordingElement(recordingData, questionId) {
         }
     });
 
-    // Update upload status
-    updateUploadStatusUI(uploadIcon, recordingData);
+    // Update upload status and icon visibility
+    updateUploadStatusUI(uploadIcon, deleteButton, recordingData);
 
     return li;
 }
@@ -415,29 +352,36 @@ async function getAudioSource(recordingData) {
 }
 
 /**
- * Update upload status UI element
+ * Update upload status UI element and control icon visibility
  */
-function updateUploadStatusUI(statusElement, recordingData) {
+function updateUploadStatusUI(uploadElement, deleteElement, recordingData) {
     switch(recordingData.uploadStatus) {
         case 'pending':
-            statusElement.style.color = '#888';
-            statusElement.title = 'Queued for backup';
-            break;
         case 'uploading':
-            statusElement.style.color = '#007bff';
-            statusElement.title = `Backing up... ${recordingData.uploadProgress}%`;
+            // Show upload icon, hide delete icon during upload process
+            uploadElement.style.display = 'flex';
+            deleteElement.style.display = 'none';
+            uploadElement.style.color = recordingData.uploadStatus === 'pending' ? '#888' : '#007bff';
+            uploadElement.title = recordingData.uploadStatus === 'pending' 
+                ? 'Queued for backup' 
+                : `Backing up... ${recordingData.uploadProgress || 0}%`;
             break;
         case 'uploaded':
-            statusElement.style.color = '#28a745';
-            statusElement.title = 'Backed up to cloud';
+            // Hide upload icon, show delete icon when upload is complete
+            uploadElement.style.display = 'none';
+            deleteElement.style.display = 'flex';
             break;
         case 'failed':
-            statusElement.style.color = '#dc3545';
-            statusElement.title = 'Backup failed';
+            // Show upload icon in error state, show delete icon
+            uploadElement.style.display = 'flex';
+            deleteElement.style.display = 'flex';
+            uploadElement.style.color = '#dc3545';
+            uploadElement.title = 'Backup failed';
             break;
         default:
-            statusElement.style.color = '#666';
-            statusElement.title = 'Upload status unknown';
+            // Default state - hide upload, show delete
+            uploadElement.style.display = 'none';
+            deleteElement.style.display = 'flex';
     }
 }
 
