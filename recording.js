@@ -133,7 +133,7 @@ function injectGlobalStyles() {
  * @param {string} questionId - The ID of the question this recording belongs to.
  * @returns {HTMLLIElement} The created list item element.
  */
-async function createRecordingElement(recordingData, questionId) {
+async function createRecordingElement(recordingData, questionId, allIds) {
     const li = document.createElement('li');
     li.dataset.recordingId = recordingData.id;
     li.style.cssText = 'list-style: none; margin-bottom: 0;';
@@ -158,7 +158,7 @@ async function createRecordingElement(recordingData, questionId) {
     // --- Create all UI parts ---
     const recordingBadge = document.createElement('div');
     recordingBadge.style.cssText = `width: 16px; height: 16px; background: #F25444; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 8px; font-family: Arial, sans-serif; font-weight: 400; position: absolute; top: 0px; left: 0px; z-index: 10;`;
-    recordingBadge.textContent = getAnswerNumber(recordingData.id, questionId, Array.from(document.querySelectorAll(`[data-recording-id*="question_${questionId}-"]`)));
+    recordingBadge.textContent = getAnswerNumber(recordingData.id, questionId, allIds);
 
     const playButtonContainer = document.createElement('div');
     playButtonContainer.style.cssText = `width: 32px; height: 32px; cursor: pointer; color: #007AF7; flex-shrink: 0; margin-right: 12px; display: flex; align-items: center; justify-content: center; position: relative;`;
@@ -581,8 +581,9 @@ function initializeAudioRecorder(recorderWrapper) {
             recordings.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)); // NEWEST FIRST
             
             // Process recordings sequentially to handle async createRecordingElement
+            const allIds = recordings.map(r => r.id);
             for (const rec of recordings) {
-                const recElement = await createRecordingElement(rec, questionId);
+                const recElement = await createRecordingElement(rec, questionId, allIds);
                 recordingsListUI.appendChild(recElement);
             }
         }).catch(error => {
@@ -790,7 +791,7 @@ function initializeAudioRecorder(recorderWrapper) {
                     uploadToBunny(recordingData, world, lmid);
 
                     // Create the final UI element
-                    const newRecordingElement = await createRecordingElement(recordingData, questionId);
+                    const newRecordingElement = await createRecordingElement(recordingData, questionId, allIds);
                     newRecordingElement.classList.add('new-recording-fade-in');
 
                     // Find and replace the placeholder
