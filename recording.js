@@ -760,7 +760,7 @@ function initializeAudioRecorder(recorderWrapper) {
                     uploadToBunny(recordingData, world, lmid);
 
                     // Create the final UI element
-                    const newRecordingElement = await createRecordingElement(recordingData, questionId, Array.isArray(allIds) ? allIds : undefined);
+                    const newRecordingElement = await createRecordingElement(recordingData, questionId);
                     newRecordingElement.classList.add('new-recording-fade-in');
 
                     // Find and replace the placeholder
