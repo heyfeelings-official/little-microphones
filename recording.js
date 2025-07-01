@@ -125,7 +125,7 @@ function injectGlobalStyles() {
 async function createRecordingElement(recordingData, questionId) {
     const li = document.createElement('li');
     li.dataset.recordingId = recordingData.id;
-    li.style.cssText = 'list-style: none; margin-bottom: 1rem; padding: 0 1rem;';
+    li.style.cssText = 'list-style: none; margin-bottom: 0;';
 
     // Get audio source (now async to verify cloud URLs)
     const audioURL = await getAudioSource(recordingData);
@@ -165,7 +165,7 @@ async function createRecordingElement(recordingData, questionId) {
     recordingBadge.style.cssText = `
         width: 16px;
         height: 16px;
-        background: #FFAC4C;
+        background: #F25444;
         border-radius: 50%;
         display: flex;
         align-items: center;
@@ -180,7 +180,7 @@ async function createRecordingElement(recordingData, questionId) {
         z-index: 10;
     `;
     
-    // Get the answer number for this question (higher numbers first)
+    // Get the answer number for this question (newest = #1, then #2, #3...)
     const answerNumber = getAnswerNumber(recordingData.id, questionId);
     recordingBadge.textContent = answerNumber;
 
@@ -254,7 +254,7 @@ async function createRecordingElement(recordingData, questionId) {
         border-radius: 2px;
         position: relative;
         cursor: pointer;
-        margin-right: 12px;
+        margin-right: 1rem;
     `;
 
     // Progress bar
@@ -276,7 +276,7 @@ async function createRecordingElement(recordingData, questionId) {
         height: 16px;
         margin-right: 8px;
         flex-shrink: 0;
-        display: flex;
+        display: none;
         align-items: center;
         justify-content: center;
         color: #666;
@@ -417,14 +417,23 @@ async function createRecordingElement(recordingData, questionId) {
     return li;
 }
 
-// Helper function to get answer number (higher numbers first - newest at top)
+// Helper function to get answer number (newest = #1, then #2, #3...)
 function getAnswerNumber(recordingId, questionId) {
-    // Count all recordings for this question
-    const allRecordings = document.querySelectorAll(`[data-recording-id*="question_${questionId}-"]`);
-    const totalCount = allRecordings.length;
+    // Get all existing recordings for this question sorted by timestamp (newest first)
+    const allRecordings = Array.from(document.querySelectorAll(`[data-recording-id*="question_${questionId}-"]`));
     
-    // Since we add new recordings at the top, the newest should have the highest number
-    return totalCount + 1;
+    // Sort by timestamp in recording ID (newest first)
+    allRecordings.sort((a, b) => {
+        const timestampA = parseInt(a.dataset.recordingId.split('-tm_')[1]) || 0;
+        const timestampB = parseInt(b.dataset.recordingId.split('-tm_')[1]) || 0;
+        return timestampB - timestampA;
+    });
+    
+    // Find the index of current recording
+    const currentIndex = allRecordings.findIndex(el => el.dataset.recordingId === recordingId);
+    
+    // Return position (1-based, newest = #1)
+    return currentIndex >= 0 ? currentIndex + 1 : allRecordings.length + 1;
 }
 
 /**
@@ -471,53 +480,48 @@ async function getAudioSource(recordingData) {
 /**
  * Update upload status UI element and control icon visibility
  */
-function updateUploadStatusUI(uploadElement, deleteElement, recordingData, uploadBlinkInterval) {
-    // Clear any existing blink interval
-    if (uploadBlinkInterval) {
-        clearInterval(uploadBlinkInterval);
-        uploadBlinkInterval = null;
+function updateUploadStatusUI(uploadElement, deleteElement, recordingData, currentInterval) {
+    // Clear any existing interval
+    if (currentInterval) {
+        clearInterval(currentInterval);
+        currentInterval = null;
     }
 
-    // Ensure uploadStatus exists with safe default
+    // Ensure uploadStatus exists with safe defaults
     const uploadStatus = recordingData.uploadStatus || 'uploaded';
-
-    switch(uploadStatus) {
-        case 'pending':
-        case 'uploading':
-            // Show upload icon, hide delete icon during upload process
-            uploadElement.style.display = 'flex';
-            deleteElement.style.display = 'none';
-            
-            // Start blinking animation for upload status
-            let isLight = true;
-            uploadBlinkInterval = setInterval(() => {
-                uploadElement.style.color = isLight ? '#ccc' : '#007bff';
-                isLight = !isLight;
-            }, 600); // Blink every 600ms
-            
-            uploadElement.title = uploadStatus === 'pending' 
-                ? 'Queued for backup' 
-                : `Backing up... ${recordingData.uploadProgress || 0}%`;
-            break;
-        case 'uploaded':
-            // Hide upload icon, show delete icon when upload is complete
-            uploadElement.style.display = 'none';
-            deleteElement.style.display = 'flex';
-            break;
-        case 'failed':
-            // Show upload icon in error state, show delete icon
-            uploadElement.style.display = 'flex';
-            deleteElement.style.display = 'flex';
-            uploadElement.style.color = '#dc3545';
-            uploadElement.title = 'Backup failed';
-            break;
-        default:
-            // Default state - hide upload, show delete
-            uploadElement.style.display = 'none';
-            deleteElement.style.display = 'flex';
+    
+    if (uploadStatus === 'uploading') {
+        // Show upload icon with blinking animation, hide delete button
+        uploadElement.style.display = 'flex';
+        deleteElement.style.display = 'none';
+        
+        // Start blinking animation
+        let opacity = 0.3;
+        let increasing = true;
+        
+        currentInterval = setInterval(() => {
+            if (increasing) {
+                opacity += 0.1;
+                if (opacity >= 1) {
+                    increasing = false;
+                }
+            } else {
+                opacity -= 0.1;
+                if (opacity <= 0.3) {
+                    increasing = true;
+                }
+            }
+            uploadElement.style.opacity = opacity;
+        }, 100);
+        
+    } else {
+        // Upload complete - hide upload icon, show delete button
+        uploadElement.style.display = 'none';
+        deleteElement.style.display = 'flex';
+        uploadElement.style.opacity = '1'; // Reset opacity
     }
     
-    return uploadBlinkInterval;
+    return currentInterval;
 }
 
 /**
@@ -760,7 +764,7 @@ function initializeAudioRecorder(recorderWrapper) {
                 recordingBadge.style.cssText = `
                     width: 16px;
                     height: 16px;
-                    background: #FFAC4C;
+                    background: #F25444;
                     border-radius: 50%;
                     display: flex;
                     align-items: center;
@@ -2095,3 +2099,78 @@ async function loadRecordingsFromCloud(questionId, world, lmid) {
         return [];
     }
 } 
+
+function createRecordingPlaceholder(questionId) {
+    const li = document.createElement('li');
+    li.dataset.recordingId = `placeholder-${questionId}`;
+    li.style.cssText = 'list-style: none; margin-bottom: 0;';
+
+    // Create recording placeholder container
+    const placeholderContainer = document.createElement('div');
+    placeholderContainer.style.cssText = `
+        width: 100%;
+        height: 48px;
+        position: relative;
+        background: #F25444;
+        border-radius: 122px;
+        display: flex;
+        align-items: center;
+        padding: 0 16px;
+        box-sizing: border-box;
+    `;
+
+    // Recording number badge (positioned at left edge)
+    const recordingBadge = document.createElement('div');
+    recordingBadge.style.cssText = `
+        width: 16px;
+        height: 16px;
+        background: #F25444;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 8px;
+        font-family: Arial, sans-serif;
+        font-weight: 400;
+        position: absolute;
+        top: 0px;
+        left: 0px;
+        z-index: 10;
+        border: 2px solid white;
+    `;
+    
+    // Get next answer number (newest will be #1)
+    const nextAnswerNumber = getNextAnswerNumber(questionId);
+    recordingBadge.textContent = nextAnswerNumber;
+
+    // Status text
+    const statusText = document.createElement('div');
+    statusText.style.cssText = `
+        color: white;
+        font-size: 16px;
+        font-family: Arial, sans-serif;
+        font-weight: 400;
+        line-height: 24px;
+        text-align: center;
+        flex: 1;
+        margin-left: 20px;
+    `;
+    statusText.textContent = 'Status: Recording... 00:02';
+
+    // Assemble the placeholder
+    placeholderContainer.appendChild(recordingBadge);
+    placeholderContainer.appendChild(statusText);
+    
+    li.appendChild(placeholderContainer);
+
+    return li;
+}
+
+// Helper function to get next answer number for placeholder
+function getNextAnswerNumber(questionId) {
+    // Get all existing recordings for this question
+    const allRecordings = document.querySelectorAll(`[data-recording-id*="question_${questionId}-"]`);
+    // Next recording will be #1 (since newest = #1)
+    return 1;
+}
