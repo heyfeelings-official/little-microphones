@@ -156,10 +156,6 @@ async function createRecordingElement(recordingData, questionId, allIds) {
     li.appendChild(audio);
 
     // --- Create all UI parts ---
-    const recordingBadge = document.createElement('div');
-    recordingBadge.style.cssText = `width: 16px; height: 16px; background: #F25444; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 8px; font-family: Arial, sans-serif; font-weight: 400; position: absolute; top: 0px; left: 0px; z-index: 10;`;
-    recordingBadge.textContent = getAnswerNumber(recordingData.id, questionId, allIds);
-
     const playButtonContainer = document.createElement('div');
     playButtonContainer.style.cssText = `width: 32px; height: 32px; cursor: pointer; color: #007AF7; flex-shrink: 0; margin-right: 12px; display: flex; align-items: center; justify-content: center; position: relative;`;
     const playIcon = document.createElement('div');
@@ -191,7 +187,6 @@ async function createRecordingElement(recordingData, questionId, allIds) {
     deleteButton.innerHTML = `<svg width="16" height="20" viewBox="0 0 16 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4.22363 9.09265C4.3737 10.4226 4.74708 15.7266 5.19781 16.6576M5.19781 16.6576C5.64853 17.5886 10.0571 17.8989 10.9588 16.9236C11.8606 15.9483 12.4617 9.83049 12.5118 9.29851H12.899C12.5484 11.6777 11.5249 16.6567 11.2845 17.0468C10.9839 17.5345 7.65271 18.6525 5.19781 16.6576Z" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.01309 5.78625C5.84908 5.6567 3.63876 5.47262 2.79102 5.20837C3.87956 5.46873 13.8741 5.64946 14.1423 5.67009C14.3569 5.6866 14.1509 5.90362 14.0211 6.01007C13.4657 6.03019 10.1771 5.9158 8.01309 5.78625Z" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.04834 4.92596L6.87336 1.86548L10.6295 2.09035L10.7637 5.20825" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
     // --- Assemble Player ---
-    playerContainer.appendChild(recordingBadge);
     playerContainer.appendChild(playButtonContainer);
     playerContainer.appendChild(timeDisplay);
     playerContainer.appendChild(progressContainer);
@@ -670,31 +665,6 @@ function initializeAudioRecorder(recorderWrapper) {
                     box-sizing: border-box;
                 `;
 
-                // Recording badge (higher number for new recording)
-                const recordingBadge = document.createElement('div');
-                recordingBadge.style.cssText = `
-                    width: 16px;
-                    height: 16px;
-                    background: #F25444;
-                    border-radius: 50%;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    color: white;
-                    font-size: 8px;
-                    font-family: Arial, sans-serif;
-                    font-weight: 400;
-                    position: absolute;
-                    top: 0px;
-                    left: 0px;
-                    z-index: 10;
-                `;
-                
-                // Get next answer number
-                const allRecordings = document.querySelectorAll(`[data-recording-id*="question_${questionId}-"]`);
-                const nextNumber = allRecordings.length + 1;
-                recordingBadge.textContent = nextNumber;
-
                 // Status and timer container
                 const statusContainer = document.createElement('div');
                 statusContainer.style.cssText = `
@@ -727,7 +697,6 @@ function initializeAudioRecorder(recorderWrapper) {
                 statusContainer.appendChild(statusDisplay);
                 statusContainer.appendChild(timerDisplay);
 
-                placeholderContainer.appendChild(recordingBadge);
                 placeholderContainer.appendChild(statusContainer);
                 placeholderEl.appendChild(placeholderContainer);
 
@@ -2022,7 +1991,11 @@ function createRecordingPlaceholder(questionId) {
         box-sizing: border-box;
     `;
 
-    // DO NOT add a badge for the placeholder
+    // No badge for the placeholder
+    placeholderContainer.style.width = '100%';
+    li.style.margin = '0';
+    li.style.padding = '0';
+    li.style.width = '100%';
 
     // Status text
     const statusText = document.createElement('div');
