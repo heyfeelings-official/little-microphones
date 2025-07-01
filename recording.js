@@ -328,17 +328,12 @@ async function createRecordingElement(recordingData, questionId) {
 // Helper function to get answer number (newest = #1, then #2, #3...)
 function getAnswerNumber(recordingId, questionId) {
     const allRecordings = Array.from(document.querySelectorAll(`[data-recording-id*="question_${questionId}-"]`));
-
-    // Sort by timestamp in recording ID (newest first)
     allRecordings.sort((a, b) => {
         const timestampA = parseInt(a.dataset.recordingId.split('-tm_')[1]) || 0;
         const timestampB = parseInt(b.dataset.recordingId.split('-tm_')[1]) || 0;
         return timestampB - timestampA;
     });
-
     const currentIndex = allRecordings.findIndex(el => el.dataset.recordingId === recordingId);
-    
-    // Return 1-based index (newest = #1)
     return currentIndex >= 0 ? currentIndex + 1 : allRecordings.length + 1;
 }
 
@@ -574,7 +569,7 @@ function initializeAudioRecorder(recorderWrapper) {
         // Load recordings from cloud for cross-device sync
         loadRecordingsFromCloud(questionId, world, lmid).then(async recordings => {
             recordingsListUI.innerHTML = ''; // Clear previous
-            recordings.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)); // OLDEST FIRST
+            recordings.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)); // NEWEST FIRST
             
             // Process recordings sequentially to handle async createRecordingElement
             for (const rec of recordings) {
@@ -2041,6 +2036,10 @@ function createRecordingPlaceholder(questionId) {
     // Get next answer number (newest will be #1)
     const nextAnswerNumber = getNextAnswerNumber(questionId);
     recordingBadge.textContent = nextAnswerNumber;
+    // Also adjust style for non-numeric content if needed
+    if (isNaN(nextAnswerNumber)) {
+        recordingBadge.style.fontSize = '12px'; // Make symbol bigger
+    }
 
     // Status text
     const statusText = document.createElement('div');
@@ -2067,7 +2066,6 @@ function createRecordingPlaceholder(questionId) {
 
 // Helper function to get next answer number for placeholder
 function getNextAnswerNumber(questionId) {
-    // Newest is always #1
     return 1;
 }
 
