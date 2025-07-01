@@ -127,226 +127,69 @@ async function createRecordingElement(recordingData, questionId) {
     li.dataset.recordingId = recordingData.id;
     li.style.cssText = 'list-style: none; margin-bottom: 0;';
 
-    // Get audio source (now async to verify cloud URLs)
     const audioURL = await getAudioSource(recordingData);
-    
     if (!audioURL) {
-        // Show a message if no audio is available
-        const noAudioMsg = document.createElement('div');
-        noAudioMsg.textContent = 'Audio no longer available';
-        noAudioMsg.style.cssText = 'padding: 10px; background: #f5f5f5; border-radius: 8px; color: #666; text-align: center;';
-        li.appendChild(noAudioMsg);
-        return li;
+        console.warn(`Could not get audio source for ${recordingData.id}, skipping UI creation.`);
+        return li; 
     }
-
-    // Create custom audio player container
+    
+    // Main player container
     const playerContainer = document.createElement('div');
-    playerContainer.style.cssText = `
-        width: 100%;
-        height: 48px;
-        position: relative;
-        background: white;
-        border-radius: 122px;
-        display: flex;
-        align-items: center;
-        padding: 0 16px;
-        box-sizing: border-box;
-    `;
-
-    // Hidden audio element for functionality
+    playerContainer.style.cssText = `width: 100%; height: 48px; position: relative; background: white; border-radius: 122px; display: flex; align-items: center; padding: 0 16px; box-sizing: border-box;`;
+    
+    // Hidden audio element
     const audio = document.createElement('audio');
     audio.src = audioURL;
     audio.preload = 'metadata';
     audio.style.display = 'none';
     li.appendChild(audio);
 
-    // Recording number badge (aligned to left edge of container)
+    // --- Create all UI parts ---
     const recordingBadge = document.createElement('div');
-    recordingBadge.style.cssText = `
-        width: 16px;
-        height: 16px;
-        background: #F25444;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-size: 8px;
-        font-family: Arial, sans-serif;
-        font-weight: 400;
-        position: absolute;
-        top: 0px;
-        left: 0px;
-        z-index: 10;
-    `;
-    
-    // Get the answer number for this question (newest = #1, then #2, #3...)
-    const answerNumber = getAnswerNumber(recordingData.id, questionId);
-    recordingBadge.textContent = answerNumber;
+    recordingBadge.style.cssText = `width: 16px; height: 16px; background: #F25444; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 8px; font-family: Arial, sans-serif; font-weight: 400; position: absolute; top: 0px; left: 0px; z-index: 10;`;
+    recordingBadge.textContent = getAnswerNumber(recordingData.id, questionId);
 
-    // Play/Pause button container (properly centered)
     const playButtonContainer = document.createElement('div');
-    playButtonContainer.style.cssText = `
-        width: 32px;
-        height: 32px;
-        cursor: pointer;
-        color: #007AF7;
-        flex-shrink: 0;
-        margin-right: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        position: relative;
-    `;
-
-    // Play icon (initially visible, properly centered)
+    playButtonContainer.style.cssText = `width: 32px; height: 32px; cursor: pointer; color: #007AF7; flex-shrink: 0; margin-right: 12px; display: flex; align-items: center; justify-content: center; position: relative;`;
     const playIcon = document.createElement('div');
-    playIcon.style.cssText = `
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 100%;
-        height: 100%;
-    `;
-    playIcon.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-<path fill-rule="evenodd" clip-rule="evenodd" d="M4.85645 12.6432L5.28359 13.6691C5.14824 13.7254 5.00307 13.7545 4.85645 13.7545C4.18653 13.7545 3.89506 13.2237 3.85947 13.1588L3.85907 13.1581C3.78166 13.0172 3.74738 12.8861 3.73332 12.8287C3.70064 12.6951 3.68408 12.5531 3.67377 12.4423C3.65164 12.2043 3.63976 11.8891 3.63344 11.5387C3.62063 10.8288 3.62924 9.86918 3.64584 8.85249C3.65921 8.03337 3.67765 7.17867 3.69502 6.37386C3.72132 5.15476 3.74516 4.0501 3.74515 3.35692C3.74515 3.00747 3.90952 2.67837 4.18889 2.46846C4.46827 2.25854 4.83011 2.19227 5.16575 2.28953C5.42645 2.36507 5.80059 2.52845 6.16439 2.69694C6.55447 2.87761 7.01599 3.1039 7.4884 3.34236C8.43233 3.81885 9.44857 4.35857 10.0737 4.70931C11.242 5.36486 12.116 5.93809 12.7094 6.37485C13.0039 6.59168 13.2417 6.784 13.416 6.9434C13.5004 7.02067 13.5894 7.10785 13.6662 7.19864C13.7032 7.24231 13.7576 7.31053 13.809 7.3963C13.809 7.3963 13.8103 7.39852 13.8111 7.39982C13.8408 7.44908 13.9794 7.67926 13.9794 8.00004C13.9794 8.25261 13.8902 8.44571 13.8754 8.47777C13.8747 8.47914 13.8739 8.48099 13.8739 8.48099C13.8433 8.54903 13.8105 8.60616 13.7861 8.64615C13.7355 8.72909 13.676 8.8114 13.615 8.88884C13.4903 9.04705 13.3199 9.23469 13.1014 9.44149C12.6622 9.85722 12.0059 10.3722 11.0826 10.8996C9.92065 11.5634 8.4641 12.2575 7.3165 12.7789C6.73888 13.0413 6.23215 13.2632 5.86951 13.4196C5.6881 13.4979 5.54251 13.5599 5.44186 13.6025C5.39153 13.6238 5.35242 13.6403 5.32566 13.6515L5.29494 13.6644L5.28359 13.6691C5.28359 13.6691 5.28359 13.6691 4.85645 12.6432Z" fill="currentcolor"/>
-</svg>`;
-
-    // Pause icon (initially hidden, properly centered)
+    playIcon.style.cssText = `display: flex; align-items: center; justify-content: center; width: 100%; height: 100%;`;
+    playIcon.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M4.85645 12.6432L5.28359 13.6691C5.14824 13.7254 5.00307 13.7545 4.85645 13.7545C4.18653 13.7545 3.89506 13.2237 3.85947 13.1588L3.85907 13.1581C3.78166 13.0172 3.74738 12.8861 3.73332 12.8287C3.70064 12.6951 3.68408 12.5531 3.67377 12.4423C3.65164 12.2043 3.63976 11.8891 3.63344 11.5387C3.62063 10.8288 3.62924 9.86918 3.64584 8.85249C3.65921 8.03337 3.67765 7.17867 3.69502 6.37386C3.72132 5.15476 3.74516 4.0501 3.74515 3.35692C3.74515 3.00747 3.90952 2.67837 4.18889 2.46846C4.46827 2.25854 4.83011 2.19227 5.16575 2.28953C5.42645 2.36507 5.80059 2.52845 6.16439 2.69694C6.55447 2.87761 7.01599 3.1039 7.4884 3.34236C8.43233 3.81885 9.44857 4.35857 10.0737 4.70931C11.242 5.36486 12.116 5.93809 12.7094 6.37485C13.0039 6.59168 13.2417 6.784 13.416 6.9434C13.5004 7.02067 13.5894 7.10785 13.6662 7.19864C13.7032 7.24231 13.7576 7.31053 13.809 7.3963C13.809 7.3963 13.8103 7.39852 13.8111 7.39982C13.8408 7.44908 13.9794 7.67926 13.9794 8.00004C13.9794 8.25261 13.8902 8.44571 13.8754 8.47777C13.8747 8.47914 13.8739 8.48099 13.8739 8.48099C13.8433 8.54903 13.8105 8.60616 13.7861 8.64615C13.7355 8.72909 13.676 8.8114 13.615 8.88884C13.4903 9.04705 13.3199 9.23469 13.1014 9.44149C12.6622 9.85722 12.0059 10.3722 11.0826 10.8996C9.92065 11.5634 8.4641 12.2575 7.3165 12.7789C6.73888 13.0413 6.23215 13.2632 5.86951 13.4196C5.6881 13.4979 5.54251 13.5599 5.44186 13.6025C5.39153 13.6238 5.35242 13.6403 5.32566 13.6515L5.29494 13.6644L5.28359 13.6691C5.28359 13.6691 5.28359 13.6691 4.85645 12.6432Z" fill="currentcolor"/></svg>`;
     const pauseIcon = document.createElement('div');
-    pauseIcon.style.cssText = `
-        display: none;
-        align-items: center;
-        justify-content: center;
-        width: 100%;
-        height: 100%;
-    `;
-    pauseIcon.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-<path d="M5.16556 12.7285C4.83372 12.3548 4.85285 5.2131 5.16556 3.27148C6.002 5.16913 5.90348 9.82086 6.0012 11.1599C6.07938 12.2311 5.68793 12.428 5.16556 12.7285Z" stroke="currentColor" stroke-width="3" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M10.4647 3.27148C11.0697 6.30696 11.4684 12.0378 10.4647 12.7285C10.187 12.1354 10.0339 11.2892 10.0072 9.54915C9.9776 7.62566 10.1585 6.08748 10.4647 3.27148Z" stroke="currentColor" stroke-width="3" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>`;
-
+    pauseIcon.style.cssText = `display: none; align-items: center; justify-content: center; width: 100%; height: 100%;`;
+    pauseIcon.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5.16556 12.7285C4.83372 12.3548 4.85285 5.2131 5.16556 3.27148C6.002 5.16913 5.90348 9.82086 6.0012 11.1599C6.07938 12.2311 5.68793 12.428 5.16556 12.7285Z" stroke="currentColor" stroke-width="3" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.4647 3.27148C11.0697 6.30696 11.4684 12.0378 10.4647 12.7285C10.187 12.1354 10.0339 11.2892 10.0072 9.54915C9.9776 7.62566 10.1585 6.08748 10.4647 3.27148Z" stroke="currentColor" stroke-width="3" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
     playButtonContainer.appendChild(playIcon);
     playButtonContainer.appendChild(pauseIcon);
-
-    // Time display
+    
     const timeDisplay = document.createElement('div');
-    timeDisplay.style.cssText = `
-        opacity: 0.4;
-        text-align: center;
-        color: black;
-        font-size: 11px;
-        font-family: Arial, sans-serif;
-        font-weight: 400;
-        line-height: 16px;
-        flex-shrink: 0;
-        margin-right: 12px;
-        min-width: 60px;
-    `;
+    timeDisplay.style.cssText = `opacity: 0.4; text-align: center; color: black; font-size: 11px; font-family: Arial, sans-serif; font-weight: 400; line-height: 16px; flex-shrink: 0; margin-right: 12px; min-width: 60px;`;
     timeDisplay.textContent = '0:00 / 0:00';
-
-    // Custom progress bar container
+    
     const progressContainer = document.createElement('div');
-    progressContainer.style.cssText = `
-        flex: 1;
-        height: 4px;
-        background: rgba(0, 0, 0, 0.1);
-        border-radius: 2px;
-        position: relative;
-        cursor: pointer;
-        margin-right: 1rem;
-    `;
-
-    // Progress bar
+    progressContainer.style.cssText = `flex: 1; height: 4px; background: rgba(0, 0, 0, 0.1); border-radius: 2px; position: relative; cursor: pointer; margin-right: 1rem;`;
     const progressBar = document.createElement('div');
-    progressBar.style.cssText = `
-        width: 0%;
-        height: 100%;
-        background: #007AF7;
-        border-radius: 2px;
-        transition: width 0.1s ease;
-    `;
+    progressBar.style.cssText = `width: 0%; height: 100%; background: #007AF7; border-radius: 2px; transition: width 0.1s ease;`;
     progressContainer.appendChild(progressBar);
-
-    // Upload status icon (conditionally shown)
+    
     const uploadIcon = document.createElement('div');
     uploadIcon.className = 'upload-status';
-    uploadIcon.style.cssText = `
-        width: 16px;
-        height: 16px;
-        margin-right: 8px;
-        flex-shrink: 0;
-        display: none;
-        align-items: center;
-        justify-content: center;
-        color: #666;
-    `;
-    uploadIcon.innerHTML = `<svg width="23" height="18" viewBox="0 0 23 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-<path d="M10.3603 4.12978C9.95632 2.81456 9.32134 1.71611 7.29446 1.71606C5.26758 1.71602 2.50257 3.6029 2.0119 5.78503C1.52123 7.96715 1.64731 9.52137 2.33889 10.5311C3.03048 11.5409 3.8667 11.4586 3.8667 11.4586C3.24843 11.0722 2.14031 10.1959 2.0119 8.10803C1.8835 6.02011 3.6876 2.71348 6.99176 2.1403C7.72561 2.013 9.8515 2.04725 10.3603 4.12978ZM10.3603 4.12978C11.4039 3.08984 12.877 2.74676 13.6571 3.21481C14.6322 3.79988 14.9775 5.19823 14.7589 6.21232C15.6096 5.65986 18.118 5.78503 19.087 6.21232M19.087 6.21232C20.056 6.63961 20.8327 7.14886 20.6145 9.60375C20.3963 12.0586 18.256 12.7801 17.5595 12.5496C20.9795 12.8104 21.085 9.82754 20.9839 8.41147C20.8827 6.9954 19.6968 6.40592 19.087 6.21232Z" stroke="currentColor" stroke-width="3" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M6.32078 11.691C6.25957 11.5144 6.1836 11.0235 6.49943 10.6511C7.34534 9.65366 9.3446 8.30582 10.4205 7.76125C10.9193 7.50877 11.1085 7.45005 11.5252 7.85738C11.8269 8.15223 12.5363 8.56445 13.1214 9.09835C13.7206 9.64506 15.104 10.4108 15.2078 10.9869C15.3117 11.563 15.1942 12.3164 14.6398 12.3174C13.8646 12.3189 12.6507 12.3174 12.6507 12.3174L9.39941 12.2017C8.4158 12.2457 6.47611 12.1391 6.32078 11.691Z" fill="currentColor"/>
-<path d="M10.7537 10.7094C10.8037 11.9505 10.9624 15.3393 11.1919 16.1365C11.5198 15.7539 11.3383 12.119 11.2072 10.7031L10.7537 10.7094Z" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>`;
-
-    // Delete button (conditionally shown)
+    uploadIcon.style.cssText = `width: 16px; height: 16px; margin-right: 8px; flex-shrink: 0; display: none; align-items: center; justify-content: center; color: #666;`;
+    uploadIcon.innerHTML = `<svg width="23" height="18" viewBox="0 0 23 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10.3603 4.12978C9.95632 2.81456 9.32134 1.71611 7.29446 1.71606C5.26758 1.71602 2.50257 3.6029 2.0119 5.78503C1.52123 7.96715 1.64731 9.52137 2.33889 10.5311C3.03048 11.5409 3.8667 11.4586 3.8667 11.4586C3.24843 11.0722 2.14031 10.1959 2.0119 8.10803C1.8835 6.02011 3.6876 2.71348 6.99176 2.1403C7.72561 2.013 9.8515 2.04725 10.3603 4.12978ZM10.3603 4.12978C11.4039 3.08984 12.877 2.74676 13.6571 3.21481C14.6322 3.79988 14.9775 5.19823 14.7589 6.21232C15.6096 5.65986 18.118 5.78503 19.087 6.21232M19.087 6.21232C20.056 6.63961 20.8327 7.14886 20.6145 9.60375C20.3963 12.0586 18.256 12.7801 17.5595 12.5496C20.9795 12.8104 21.085 9.82754 20.9839 8.41147C20.8827 6.9954 19.6968 6.40592 19.087 6.21232Z" stroke="currentColor" stroke-width="3" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.32078 11.691C6.25957 11.5144 6.1836 11.0235 6.49943 10.6511C7.34534 9.65366 9.3446 8.30582 10.4205 7.76125C10.9193 7.50877 11.1085 7.45005 11.5252 7.85738C11.8269 8.15223 12.5363 8.56445 13.1214 9.09835C13.7206 9.64506 15.104 10.4108 15.2078 10.9869C15.3117 11.563 15.1942 12.3164 14.6398 12.3174C13.8646 12.3189 12.6507 12.3174 12.6507 12.3174L9.39941 12.2017C8.4158 12.2457 6.47611 12.1391 6.32078 11.691Z" fill="currentColor"/><path d="M10.7537 10.7094C10.8037 11.9505 10.9624 15.3393 11.1919 16.1365C11.5198 15.7539 11.3383 12.119 11.2072 10.7031L10.7537 10.7094Z" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    
     const deleteButton = document.createElement('div');
-    deleteButton.style.cssText = `
-        width: 16px;
-        height: 16px;
-        cursor: pointer;
-        color: #F25444;
-        flex-shrink: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    `;
-    deleteButton.innerHTML = `<svg width="16" height="20" viewBox="0 0 16 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-<path d="M4.22363 9.09265C4.3737 10.4226 4.74708 15.7266 5.19781 16.6576M5.19781 16.6576C5.64853 17.5886 10.0571 17.8989 10.9588 16.9236C11.8606 15.9483 12.4617 9.83049 12.5118 9.29851H12.899C12.5484 11.6777 11.5249 16.6567 11.2845 17.0468C10.9839 17.5345 7.65271 18.6525 5.19781 16.6576Z" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M8.01309 5.78625C5.84908 5.6567 3.63876 5.47262 2.79102 5.20837C3.87956 5.46873 13.8741 5.64946 14.1423 5.67009C14.3569 5.6866 14.1509 5.90362 14.0211 6.01007C13.4657 6.03019 10.1771 5.9158 8.01309 5.78625Z" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M6.04834 4.92596L6.87336 1.86548L10.6295 2.09035L10.7637 5.20825" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>`;
+    deleteButton.style.cssText = `width: 16px; height: 16px; cursor: pointer; color: #F25444; flex-shrink: 0; display: flex; align-items: center; justify-content: center;`;
+    deleteButton.innerHTML = `<svg width="16" height="20" viewBox="0 0 16 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4.22363 9.09265C4.3737 10.4226 4.74708 15.7266 5.19781 16.6576M5.19781 16.6576C5.64853 17.5886 10.0571 17.8989 10.9588 16.9236C11.8606 15.9483 12.4617 9.83049 12.5118 9.29851H12.899C12.5484 11.6777 11.5249 16.6567 11.2845 17.0468C10.9839 17.5345 7.65271 18.6525 5.19781 16.6576Z" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.01309 5.78625C5.84908 5.6567 3.63876 5.47262 2.79102 5.20837C3.87956 5.46873 13.8741 5.64946 14.1423 5.67009C14.3569 5.6866 14.1509 5.90362 14.0211 6.01007C13.4657 6.03019 10.1771 5.9158 8.01309 5.78625Z" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.04834 4.92596L6.87336 1.86548L10.6295 2.09035L10.7637 5.20825" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
-    // Assemble the player
+    // --- Assemble Player ---
     playerContainer.appendChild(recordingBadge);
     playerContainer.appendChild(playButtonContainer);
     playerContainer.appendChild(timeDisplay);
     playerContainer.appendChild(progressContainer);
     playerContainer.appendChild(uploadIcon);
     playerContainer.appendChild(deleteButton);
-
     li.appendChild(playerContainer);
 
-    // Audio functionality
+    // --- Add Event Listeners for Player Controls ---
     let isPlaying = false;
-    let uploadBlinkInterval = null;
-
-    // Format time helper
-    function formatTime(seconds) {
-        if (!seconds || !isFinite(seconds)) return '0:00';
-        const m = Math.floor(seconds / 60);
-        const s = Math.floor(seconds % 60);
-        return `${m}:${String(s).padStart(2, '0')}`;
-    }
-
-    // Force load metadata and set initial duration
-    const setInitialDuration = () => {
-        if (audio.duration && isFinite(audio.duration)) {
-            const durationFormatted = formatTime(audio.duration);
-            timeDisplay.textContent = `0:00 / ${durationFormatted}`;
-        } else {
-            // Retry after a short delay
-            setTimeout(setInitialDuration, 100);
-        }
-    };
-
-    // Load metadata
-    audio.addEventListener('loadedmetadata', setInitialDuration);
-    audio.addEventListener('canplay', setInitialDuration);
-    audio.load();
-    
-    // Try to set duration immediately if already loaded
-    setTimeout(setInitialDuration, 50);
-
-    // Play/Pause functionality
     playButtonContainer.addEventListener('click', () => {
         if (isPlaying) {
             audio.pause();
@@ -360,8 +203,6 @@ async function createRecordingElement(recordingData, questionId) {
             isPlaying = true;
         }
     });
-
-    // Progress bar click-to-seek
     progressContainer.addEventListener('click', (e) => {
         if (audio.duration && isFinite(audio.duration)) {
             const rect = progressContainer.getBoundingClientRect();
@@ -370,8 +211,6 @@ async function createRecordingElement(recordingData, questionId) {
             audio.currentTime = percentage * audio.duration;
         }
     });
-
-    // Update progress and time
     audio.addEventListener('timeupdate', () => {
         if (audio.duration && isFinite(audio.duration)) {
             const percentage = (audio.currentTime / audio.duration) * 100;
@@ -382,37 +221,95 @@ async function createRecordingElement(recordingData, questionId) {
             timeDisplay.textContent = `${currentTimeFormatted} / ${durationFormatted}`;
         }
     });
-
-    // Reset when audio ends
     audio.addEventListener('ended', () => {
         playIcon.style.display = 'flex';
         pauseIcon.style.display = 'none';
         progressBar.style.width = '0%';
         isPlaying = false;
     });
-
-    // Delete functionality
-    deleteButton.addEventListener('click', () => {
+    deleteButton.addEventListener('click', () => { 
         if (confirm("Are you sure you want to delete this recording?")) {
-            // Clear any upload blink interval before deletion
-            if (li.uploadBlinkInterval) {
-                clearInterval(li.uploadBlinkInterval);
-                li.uploadBlinkInterval = null;
-            }
+            // Clean up event listener before deleting
+            document.removeEventListener('recording-status-update', handleStatusUpdate);
             deleteRecording(recordingData.id, questionId, li);
         }
     });
+    
+    // --- Load Metadata and Set Initial Time ---
+    audio.addEventListener('loadedmetadata', () => {
+        if (audio.duration && isFinite(audio.duration)) {
+            timeDisplay.textContent = `0:00 / ${formatTime(audio.duration)}`;
+        }
+    });
+    audio.load(); // Explicitly load to trigger metadata
 
-    // Ensure recordingData has uploadStatus property with default value
-    if (!recordingData.uploadStatus) {
-        recordingData.uploadStatus = 'uploaded'; // Default for existing recordings
-    }
+    // --- CORE EVENT LISTENER LOGIC ---
+    let uploadBlinkInterval = null;
 
-    // Update upload status and icon visibility
-    uploadBlinkInterval = updateUploadStatusUI(uploadIcon, deleteButton, recordingData, uploadBlinkInterval);
+    // This is the function that reacts to status changes
+    const handleStatusUpdate = (event) => {
+        if (event.detail.recordingId !== recordingData.id) {
+            return; // Not for me
+        }
 
-    // Store interval reference for cleanup
-    li.uploadBlinkInterval = uploadBlinkInterval;
+        const status = event.detail.status;
+        console.log(`[UI Event] Recording ${recordingData.id} caught status update: ${status}`);
+
+        // Clear any previous blinking animation
+        if (uploadBlinkInterval) {
+            clearInterval(uploadBlinkInterval);
+            uploadBlinkInterval = null;
+        }
+
+        if (status === 'pending' || status === 'uploading') {
+            uploadIcon.style.display = 'flex';
+            deleteButton.style.display = 'none';
+            // Start blinking animation
+            let opacity = 0.3;
+            let increasing = true;
+            uploadBlinkInterval = setInterval(() => {
+                opacity = increasing ? opacity + 0.1 : opacity - 0.1;
+                if (opacity >= 1) increasing = false;
+                if (opacity <= 0.3) increasing = true;
+                uploadIcon.style.opacity = opacity;
+            }, 100);
+        } else { // 'uploaded', 'failed', or any other terminal state
+            uploadIcon.style.display = 'none';
+            deleteButton.style.display = 'flex';
+            uploadIcon.style.opacity = '1';
+        }
+    };
+
+    // Attach the master listener for this element
+    document.addEventListener('recording-status-update', handleStatusUpdate);
+
+    // Set initial state based on the data we have when creating the element
+    handleStatusUpdate({ detail: { recordingId: recordingData.id, status: recordingData.uploadStatus || 'uploaded' } });
+
+    // When the element is removed from the DOM, clean up its listener
+    const observer = new MutationObserver((mutationsList, obs) => {
+        for (const mutation of mutationsList) {
+            if (mutation.removedNodes) {
+                for (const removedNode of mutation.removedNodes) {
+                    if (removedNode.contains(li)) {
+                         console.log(`[UI Cleanup] Removing listener for ${recordingData.id}`);
+                         document.removeEventListener('recording-status-update', handleStatusUpdate);
+                         obs.disconnect(); // Stop observing
+                         return;
+                    }
+                }
+            }
+        }
+    });
+
+    // Start observing the list element for removal of this child.
+    // We need to wait for `li` to be added to its parent to observe it.
+    setTimeout(() => {
+        if (li.parentNode) {
+            observer.observe(li.parentNode, { childList: true });
+        }
+    }, 0);
+
 
     return li;
 }
@@ -1003,18 +900,14 @@ function initializeAudioRecorder(recorderWrapper) {
         try {
             console.log(`[${questionId}] Uploading: ${recordingData.id}`);
             
-            // Update status to uploading
+            // Update status to uploading and notify UI
             recordingData.uploadStatus = 'uploading';
-            recordingData.uploadProgress = 10;
             await updateRecordingInDB(recordingData);
-            updateRecordingUI(recordingData.id);
+            dispatchUploadStatusEvent(recordingData.id, 'uploading');
 
             // Convert blob to base64
             const base64Audio = await blobToBase64(recordingData.audio);
-            recordingData.uploadProgress = 30;
-            await updateRecordingInDB(recordingData);
-            updateRecordingUI(recordingData.id);
-
+           
             // Upload via API route
             const response = await fetch('https://little-microphones.vercel.app/api/upload-audio', {
                 method: 'POST',
@@ -1028,26 +921,17 @@ function initializeAudioRecorder(recorderWrapper) {
                 })
             });
 
-            recordingData.uploadProgress = 80;
-            await updateRecordingInDB(recordingData);
-            updateRecordingUI(recordingData.id);
-
             if (response.ok) {
                 const result = await response.json();
                 if (result.success) {
                     recordingData.cloudUrl = result.url;
                     recordingData.uploadStatus = 'uploaded';
-                    recordingData.uploadProgress = 100;
-                    
-                    // Remove the blob to save local storage space since we now have cloud backup
-                    recordingData.audio = null;
-                    
-                                    console.log(`[${questionId}] Upload complete: ${result.url}`);
+                    recordingData.audio = null; // Free up memory
+                    console.log(`[${questionId}] Upload complete: ${result.url}`);
                 } else {
                     throw new Error(result.error || 'Upload failed');
                 }
             } else {
-                // Handle non-JSON error responses (like HTML error pages)
                 const errorText = await response.text();
                 console.error(`[${questionId}] Upload failed: ${response.status} - ${errorText}`);
                 throw new Error(`Upload API error: ${response.status}`);
@@ -1055,12 +939,12 @@ function initializeAudioRecorder(recorderWrapper) {
 
         } catch (error) {
             recordingData.uploadStatus = 'failed';
-            recordingData.uploadProgress = 0;
             console.error(`[${questionId}] Upload error:`, error);
         }
 
+        // Save the final state to the DB and notify the UI
         await updateRecordingInDB(recordingData);
-        updateRecordingUI(recordingData.id);
+        dispatchUploadStatusEvent(recordingData.id, recordingData.uploadStatus);
     }
 
     /**
@@ -1156,10 +1040,11 @@ function initializeAudioRecorder(recorderWrapper) {
         // The timer display will be removed with the placeholder, so no need to clear it.
     }
 
-    function formatTime(s) {
-        const m = Math.floor(s / 60);
-        const rs = s % 60;
-        return `${String(m).padStart(2, '0')}:${String(rs).padStart(2, '0')}`;
+    function formatTime(seconds) {
+        if (!seconds || !isFinite(seconds)) return '0:00';
+        const m = Math.floor(seconds / 60);
+        const s = Math.floor(seconds % 60);
+        return `${m}:${String(s).padStart(2, '0')}`;
     }
     
 
@@ -2185,4 +2070,19 @@ function getNextAnswerNumber(questionId) {
     const allRecordings = document.querySelectorAll(`[data-recording-id*="question_${questionId}-"]`);
     // Next recording will be #1 (since newest = #1)
     return 1;
+}
+
+/**
+ * Dispatches a global event to notify all listeners about a change in upload status.
+ * @param {string} recordingId - The ID of the recording that was updated.
+ * @param {string} status - The new upload status (e.g., 'uploading', 'uploaded', 'failed').
+ */
+function dispatchUploadStatusEvent(recordingId, status) {
+    const event = new CustomEvent('recording-status-update', {
+        detail: {
+            recordingId: recordingId,
+            status: status
+        }
+    });
+    document.dispatchEvent(event);
 }
