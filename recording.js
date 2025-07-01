@@ -22,6 +22,17 @@ const savingLocks = new Set();
 // --- Global initialization tracking ---
 const initializedWorlds = new Set();
 
+// ------------------------------
+// --- GLOBAL HELPER FUNCTIONS ---
+// ------------------------------
+
+function formatTime(seconds) {
+    if (seconds === null || seconds === undefined || !isFinite(seconds)) return '0:00';
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
 /**
  * Injects the necessary CSS for animations into the document's head.
  * This function is called only once.
@@ -1036,17 +1047,8 @@ function initializeAudioRecorder(recorderWrapper) {
     function stopTimer() {
         clearInterval(timerInterval);
         seconds = 0;
-        // The timer display will be removed with the placeholder, so no need to clear it.
-    }
-
-    function formatTime(seconds) {
-        if (!seconds || !isFinite(seconds)) return '0:00';
-        const m = Math.floor(seconds / 60);
-        const s = Math.floor(seconds % 60);
-        return `${m}:${String(s).padStart(2, '0')}`;
     }
     
-
     
     resetRecordingState();
 }
