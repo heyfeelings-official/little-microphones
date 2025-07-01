@@ -2012,34 +2012,7 @@ function createRecordingPlaceholder(questionId) {
         box-sizing: border-box;
     `;
 
-    // Recording number badge (positioned at left edge)
-    const recordingBadge = document.createElement('div');
-    recordingBadge.style.cssText = `
-        width: 16px;
-        height: 16px;
-        background: #F25444;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-size: 8px;
-        font-family: Arial, sans-serif;
-        font-weight: 400;
-        position: absolute;
-        top: 0px;
-        left: 0px;
-        z-index: 10;
-        border: 2px solid white;
-    `;
-    
-    // Get next answer number (newest will be #1)
-    const nextAnswerNumber = getNextAnswerNumber(questionId);
-    recordingBadge.textContent = nextAnswerNumber;
-    // Also adjust style for non-numeric content if needed
-    if (isNaN(nextAnswerNumber)) {
-        recordingBadge.style.fontSize = '12px'; // Make symbol bigger
-    }
+    // DO NOT add a badge for the placeholder
 
     // Status text
     const statusText = document.createElement('div');
@@ -2056,18 +2029,14 @@ function createRecordingPlaceholder(questionId) {
     statusText.textContent = 'Status: Recording... 00:02';
 
     // Assemble the placeholder
-    placeholderContainer.appendChild(recordingBadge);
     placeholderContainer.appendChild(statusText);
-    
     li.appendChild(placeholderContainer);
 
     return li;
 }
 
-// Helper function to get next answer number for placeholder
-function getNextAnswerNumber(questionId) {
-    return 1;
-}
+// In startActualRecording, always use prepend:
+// recordingsListUI.prepend(placeholderEl);
 
 /**
  * Dispatches a global event to notify all listeners about a change in upload status.
