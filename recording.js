@@ -329,16 +329,16 @@ async function createRecordingElement(recordingData, questionId) {
 function getAnswerNumber(recordingId, questionId) {
     const allRecordings = Array.from(document.querySelectorAll(`[data-recording-id*="question_${questionId}-"]`));
 
-    // Sort by timestamp in recording ID (oldest first) to match visual order
+    // Sort by timestamp in recording ID (newest first)
     allRecordings.sort((a, b) => {
         const timestampA = parseInt(a.dataset.recordingId.split('-tm_')[1]) || 0;
         const timestampB = parseInt(b.dataset.recordingId.split('-tm_')[1]) || 0;
-        return timestampA - timestampB;
+        return timestampB - timestampA;
     });
 
     const currentIndex = allRecordings.findIndex(el => el.dataset.recordingId === recordingId);
     
-    // Return 1-based index (oldest = #1)
+    // Return 1-based index (newest = #1)
     return currentIndex >= 0 ? currentIndex + 1 : allRecordings.length + 1;
 }
 
@@ -2067,9 +2067,8 @@ function createRecordingPlaceholder(questionId) {
 
 // Helper function to get next answer number for placeholder
 function getNextAnswerNumber(questionId) {
-    // The next number is the current count + 1
-    const allRecordings = document.querySelectorAll(`[data-recording-id*="question_${questionId}-"]`);
-    return allRecordings.length + 1;
+    // Newest is always #1
+    return 1;
 }
 
 /**
