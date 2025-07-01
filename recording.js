@@ -490,7 +490,7 @@ function updateUploadStatusUI(uploadElement, deleteElement, recordingData, curre
     // Ensure uploadStatus exists with safe defaults
     const uploadStatus = recordingData.uploadStatus || 'uploaded';
     
-    if (uploadStatus === 'uploading') {
+    if (uploadStatus === 'pending' || uploadStatus === 'uploading') {
         // Show upload icon with blinking animation, hide delete button
         uploadElement.style.display = 'flex';
         deleteElement.style.display = 'none';
@@ -820,7 +820,7 @@ function initializeAudioRecorder(recorderWrapper) {
                 placeholderContainer.appendChild(statusContainer);
                 placeholderEl.appendChild(placeholderContainer);
 
-                recordingsListUI.prepend(placeholderEl);
+                recordingsListUI.appendChild(placeholderEl); // Changed from prepend to appendChild to show at bottom
             }
 
             stream = await navigator.mediaDevices.getUserMedia({ audio: true });
