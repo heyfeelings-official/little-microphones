@@ -316,20 +316,18 @@ async function createRecordingElement(recordingData, questionId) {
 
 // Helper function to get answer number (newest = #1, then #2, #3...)
 function getAnswerNumber(recordingId, questionId) {
-    // Get all existing recordings for this question sorted by timestamp (newest first)
     const allRecordings = Array.from(document.querySelectorAll(`[data-recording-id*="question_${questionId}-"]`));
-    
-    // Sort by timestamp in recording ID (newest first)
+
+    // Sort by timestamp in recording ID (oldest first) to match visual order
     allRecordings.sort((a, b) => {
         const timestampA = parseInt(a.dataset.recordingId.split('-tm_')[1]) || 0;
         const timestampB = parseInt(b.dataset.recordingId.split('-tm_')[1]) || 0;
-        return timestampB - timestampA;
+        return timestampA - timestampB;
     });
-    
-    // Find the index of current recording
+
     const currentIndex = allRecordings.findIndex(el => el.dataset.recordingId === recordingId);
     
-    // Return position (1-based, newest = #1)
+    // Return 1-based index (oldest = #1)
     return currentIndex >= 0 ? currentIndex + 1 : allRecordings.length + 1;
 }
 
@@ -565,7 +563,7 @@ function initializeAudioRecorder(recorderWrapper) {
         // Load recordings from cloud for cross-device sync
         loadRecordingsFromCloud(questionId, world, lmid).then(async recordings => {
             recordingsListUI.innerHTML = ''; // Clear previous
-            recordings.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            recordings.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)); // OLDEST FIRST
             
             // Process recordings sequentially to handle async createRecordingElement
             for (const rec of recordings) {
@@ -717,7 +715,8 @@ function initializeAudioRecorder(recorderWrapper) {
                 placeholderContainer.appendChild(statusContainer);
                 placeholderEl.appendChild(placeholderContainer);
 
-                recordingsListUI.appendChild(placeholderEl); // Changed from prepend to appendChild to show at bottom
+                // Ensure placeholder is at the bottom of the list
+                recordingsListUI.appendChild(placeholderEl);
             }
 
             stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -2066,10 +2065,9 @@ function createRecordingPlaceholder(questionId) {
 
 // Helper function to get next answer number for placeholder
 function getNextAnswerNumber(questionId) {
-    // Get all existing recordings for this question
+    // The next number is the current count + 1
     const allRecordings = document.querySelectorAll(`[data-recording-id*="question_${questionId}-"]`);
-    // Next recording will be #1 (since newest = #1)
-    return 1;
+    return allRecordings.length + 1;
 }
 
 /**
