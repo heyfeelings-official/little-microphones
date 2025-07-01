@@ -125,7 +125,7 @@ function injectGlobalStyles() {
 async function createRecordingElement(recordingData, questionId) {
     const li = document.createElement('li');
     li.dataset.recordingId = recordingData.id;
-    li.style.cssText = 'list-style: none; margin-bottom: 12px;';
+    li.style.cssText = 'list-style: none; margin-bottom: 1rem;';
 
     // Get audio source (now async to verify cloud URLs)
     const audioURL = await getAudioSource(recordingData);
@@ -153,24 +153,29 @@ async function createRecordingElement(recordingData, questionId) {
         box-sizing: border-box;
     `;
 
-    // Question number circle
+    // Question number circle (moved to top-left, smaller)
     const questionCircle = document.createElement('div');
     questionCircle.style.cssText = `
-        width: 32px;
-        height: 32px;
+        width: 16px;
+        height: 16px;
         background: #FFAC4C;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
         color: white;
-        font-size: 12px;
+        font-size: 8px;
         font-family: Arial, sans-serif;
         font-weight: 400;
-        flex-shrink: 0;
-        margin-right: 10px;
+        position: absolute;
+        top: -8px;
+        left: 8px;
+        z-index: 10;
     `;
-    questionCircle.textContent = questionId;
+    
+    // Use recording number instead of questionId
+    const recordingNumber = getRecordingNumber(recordingData.id, questionId);
+    questionCircle.textContent = recordingNumber;
 
     // Play/Pause button container (centered)
     const playButtonContainer = document.createElement('div');
@@ -213,6 +218,9 @@ async function createRecordingElement(recordingData, questionId) {
         height: 32px;
         margin-right: 12px;
     `;
+
+    // Force audio to load metadata to get proper duration
+    audio.load();
 
     // Upload status icon (conditionally shown)
     const uploadIcon = document.createElement('div');
@@ -262,6 +270,7 @@ async function createRecordingElement(recordingData, questionId) {
 
     // Audio functionality
     let isPlaying = false;
+    let uploadBlinkInterval = null;
 
     // Play/Pause functionality (override default audio controls)
     playButtonContainer.addEventListener('click', () => {
@@ -300,14 +309,30 @@ async function createRecordingElement(recordingData, questionId) {
     // Delete functionality
     deleteButton.addEventListener('click', () => {
         if (confirm("Are you sure you want to delete this recording?")) {
+            // Clear any upload blink interval before deletion
+            if (li.uploadBlinkInterval) {
+                clearInterval(li.uploadBlinkInterval);
+                li.uploadBlinkInterval = null;
+            }
             deleteRecording(recordingData.id, questionId, li);
         }
     });
 
     // Update upload status and icon visibility
-    updateUploadStatusUI(uploadIcon, deleteButton, recordingData);
+    uploadBlinkInterval = updateUploadStatusUI(uploadIcon, deleteButton, recordingData, uploadBlinkInterval);
+
+    // Store interval reference for cleanup
+    li.uploadBlinkInterval = uploadBlinkInterval;
 
     return li;
+}
+
+// Helper function to get recording number
+function getRecordingNumber(recordingId, questionId) {
+    // Extract recording number from the recording ID or use a counter
+    // Recording IDs are typically in format: recording-{questionId}-{timestamp}
+    const recordings = document.querySelectorAll(`[data-recording-id*="recording-${questionId}-"]`);
+    return recordings.length + 1;
 }
 
 /**
@@ -354,14 +379,27 @@ async function getAudioSource(recordingData) {
 /**
  * Update upload status UI element and control icon visibility
  */
-function updateUploadStatusUI(uploadElement, deleteElement, recordingData) {
+function updateUploadStatusUI(uploadElement, deleteElement, recordingData, uploadBlinkInterval) {
+    // Clear any existing blink interval
+    if (uploadBlinkInterval) {
+        clearInterval(uploadBlinkInterval);
+        uploadBlinkInterval = null;
+    }
+
     switch(recordingData.uploadStatus) {
         case 'pending':
         case 'uploading':
             // Show upload icon, hide delete icon during upload process
             uploadElement.style.display = 'flex';
             deleteElement.style.display = 'none';
-            uploadElement.style.color = recordingData.uploadStatus === 'pending' ? '#888' : '#007bff';
+            
+            // Start blinking animation for upload status
+            let isLight = true;
+            uploadBlinkInterval = setInterval(() => {
+                uploadElement.style.color = isLight ? '#ccc' : '#007bff';
+                isLight = !isLight;
+            }, 600); // Blink every 600ms
+            
             uploadElement.title = recordingData.uploadStatus === 'pending' 
                 ? 'Queued for backup' 
                 : `Backing up... ${recordingData.uploadProgress || 0}%`;
@@ -383,6 +421,8 @@ function updateUploadStatusUI(uploadElement, deleteElement, recordingData) {
             uploadElement.style.display = 'none';
             deleteElement.style.display = 'flex';
     }
+    
+    return uploadBlinkInterval;
 }
 
 /**
