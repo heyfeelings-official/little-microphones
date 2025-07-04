@@ -107,8 +107,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             await generateNewProgram();
         }
         
+        console.log('🔧 DEBUG: About to call updatePageContent with currentRadioData:', currentRadioData);
+        
         // Update page with program information AFTER content is loaded
-        updatePageContent(currentRadioData);
+        // Use setTimeout to ensure DOM is fully rendered
+        setTimeout(() => {
+            console.log('🔧 DEBUG: Calling updatePageContent after timeout');
+            updatePageContent(currentRadioData);
+        }, 100);
         
         // Setup registration functionality
         setupRegistrationFlow();
