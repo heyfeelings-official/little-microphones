@@ -1296,7 +1296,7 @@ function loadRecordingsFromDB(questionId, world, lmid) {
  */
 function initializeRecordersForWorld(world) {
     if (!world) {
-        log('warn', 'No world specified for recorder initialization');
+        log('error', 'No world specified for recorder initialization');
         return;
     }
     if (initializedWorlds.has(world)) return;
@@ -1306,12 +1306,11 @@ function initializeRecordersForWorld(world) {
     const targetCollectionId = `collection-${world}`;
     const targetCollection = document.getElementById(targetCollectionId);
     if (!targetCollection) {
-        log('warn', `Collection not found: ${targetCollectionId}`);
+        log('error', `Collection not found: ${targetCollectionId}`);
         initializedWorlds.delete(world);
         return;
     }
     const recorderWrappers = targetCollection.querySelectorAll('.faq1_accordion.lm');
-    log('info', `Found ${recorderWrappers.length} questions in ${world}`);
     recorderWrappers.forEach(wrapper => initializeAudioRecorder(wrapper));
     log('info', `✅ ${world} recorders ready`);
 }
