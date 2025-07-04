@@ -1,0 +1,737 @@
+<!-- ========================================= -->
+<!-- WEBFLOW RADIO PAGE - COMPLETE SOLUTION -->
+<!-- ========================================= -->
+
+<!-- STEP 1: COPY THIS HTML TO YOUR WEBFLOW PAGE BODY -->
+<div id="main-container" class="radio-main-container">
+    <!-- Loading State -->
+    <div id="loading-container" class="loading-container">
+        <div class="loading-content">
+            <h1>🎵 Little Microphones</h1>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill"></div>
+            </div>
+            <p id="loading-message">Loading radio program...</p>
+        </div>
+    </div>
+    
+    <!-- Program Header (hidden initially) -->
+    <div id="program-header" class="program-header" style="display: none;">
+        <h1 class="world-name" id="world-name">Loading...</h1>
+        <div id="program-info" class="program-info"></div>
+    </div>
+    
+    <!-- Audio Player Container (hidden initially) -->
+    <div id="audio-player-container" class="audio-player-container" style="display: none;"></div>
+    
+    <!-- Registration Container (hidden initially) -->
+    <div id="registration-container" class="registration-container" style="display: none;"></div>
+    
+    <!-- Error Container (hidden initially) -->
+    <div id="error-container" class="error-container" style="display: none;"></div>
+</div>
+
+<!-- ========================================= -->
+<!-- STEP 2: COPY THIS CSS TO WEBFLOW CUSTOM CODE -->
+<!-- Go to Page Settings → Custom Code → Head Code -->
+<!-- ========================================= -->
+
+<style>
+/* Complete Radio Page Styles - Ready for Production */
+.radio-main-container {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.loading-container {
+    text-align: center;
+    padding: 60px 20px;
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+    backdrop-filter: blur(10px);
+}
+
+.loading-content {
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.loading-container h1 {
+    color: #333;
+    margin-bottom: 20px;
+    font-size: 2.5em;
+    font-weight: 700;
+}
+
+.loading-container p {
+    color: #666;
+    font-size: 18px;
+    margin: 10px 0;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 20px;
+    background: #e9ecef;
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 20px 0;
+    position: relative;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+    width: 0%;
+    transition: width 0.3s ease;
+    border-radius: 10px;
+}
+
+.program-header {
+    text-align: center;
+    margin-bottom: 30px;
+    background: white;
+    padding: 30px;
+    border-radius: 20px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+}
+
+.world-name {
+    font-size: 3em;
+    font-weight: 800;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 10px;
+}
+
+.program-info {
+    color: #666;
+    font-size: 1.2em;
+    margin: 10px 0;
+}
+
+.audio-player-container {
+    margin: 30px 0;
+}
+
+.radio-player {
+    background: white;
+    border-radius: 20px;
+    padding: 40px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+    text-align: center;
+}
+
+.player-header h3 {
+    margin: 0 0 10px 0;
+    color: #333;
+    font-size: 28px;
+    font-weight: 700;
+}
+
+.player-header p {
+    margin: 0 0 30px 0;
+    color: #666;
+    font-size: 18px;
+}
+
+.player-controls {
+    margin: 30px 0;
+}
+
+.player-controls audio {
+    width: 100%;
+    height: 60px;
+    border-radius: 30px;
+    outline: none;
+}
+
+.player-actions {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 30px;
+}
+
+.action-btn {
+    padding: 15px 25px;
+    border: none;
+    border-radius: 50px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.action-btn.secondary {
+    background: linear-gradient(135deg, #6c757d, #495057);
+    box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+}
+
+.action-btn.secondary:hover {
+    box-shadow: 0 6px 20px rgba(108, 117, 125, 0.4);
+}
+
+.registration-container {
+    margin: 30px 0;
+}
+
+.registration-card {
+    background: white;
+    border-radius: 20px;
+    padding: 40px;
+    text-align: center;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+    border: 3px solid #e9ecef;
+}
+
+.registration-card h3 {
+    margin: 0 0 15px 0;
+    color: #495057;
+    font-size: 24px;
+    font-weight: 700;
+}
+
+.registration-card p {
+    margin: 0 0 25px 0;
+    color: #6c757d;
+    line-height: 1.6;
+    font-size: 16px;
+}
+
+.register-btn {
+    padding: 15px 30px;
+    border: none;
+    border-radius: 50px;
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+    cursor: pointer;
+    font-size: 18px;
+    font-weight: 700;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+}
+
+.register-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+}
+
+.error-container {
+    background: white;
+    border-radius: 20px;
+    padding: 40px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+    border-left: 6px solid #dc3545;
+    text-align: center;
+}
+
+.error-container h2 {
+    color: #dc3545;
+    margin-bottom: 15px;
+    font-size: 24px;
+}
+
+.error-container p {
+    color: #721c24;
+    line-height: 1.6;
+    margin-bottom: 20px;
+}
+
+.success-message {
+    background: white;
+    border: 3px solid #28a745;
+    border-radius: 15px;
+    padding: 20px;
+    color: #155724;
+    text-align: center;
+    margin: 20px 0;
+    font-weight: 600;
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .radio-main-container {
+        padding: 10px;
+    }
+    
+    .world-name {
+        font-size: 2.2em;
+    }
+    
+    .loading-container {
+        padding: 40px 15px;
+    }
+    
+    .loading-container h1 {
+        font-size: 2em;
+    }
+    
+    .radio-player, .program-header, .registration-card {
+        padding: 25px;
+        margin: 15px 0;
+    }
+    
+    .player-actions {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .action-btn {
+        width: 200px;
+    }
+}
+
+@media (max-width: 480px) {
+    .world-name {
+        font-size: 1.8em;
+    }
+    
+    .player-header h3 {
+        font-size: 22px;
+    }
+    
+    .radio-player, .program-header, .registration-card {
+        padding: 20px;
+    }
+}
+</style>
+
+<!-- ========================================= -->
+<!-- STEP 3: COPY THESE SCRIPTS TO WEBFLOW -->
+<!-- Go to Page Settings → Custom Code → Before </body> tag -->
+<!-- ========================================= -->
+
+<!-- Load the unified radio generator -->
+<script src="https://little-microphones.vercel.app/radio-generator.js"></script>
+
+<!-- Main radio page functionality -->
+<script>
+/**
+ * Complete Radio Page Script for Webflow
+ * Uses the unified radio-generator.js for all functionality
+ */
+
+// Global state
+let currentShareId = null;
+let isGenerating = false;
+
+// Initialize when DOM is ready
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('🎵 Radio page initializing...');
+    
+    try {
+        // Extract ShareID from URL
+        currentShareId = getShareIdFromUrl();
+        console.log(`📻 ShareID extracted: ${currentShareId}`);
+        
+        if (!currentShareId) {
+            showError('Invalid Link', 'This radio program link is missing required information.');
+            return;
+        }
+        
+        console.log(`📻 Loading radio data for ShareID: ${currentShareId}`);
+        showLoadingState('Loading radio program...');
+        
+        // Wait for RadioGenerator to be available
+        if (typeof window.RadioGenerator === 'undefined') {
+            console.log('⏳ Waiting for RadioGenerator to load...');
+            await waitForRadioGenerator();
+        }
+        
+        // Generate program using unified radio generator
+        const result = await window.RadioGenerator.generateFromShareId(currentShareId, {
+            onProgress: (message, percentage) => {
+                updateProgress(message, percentage);
+            }
+        });
+        
+        if (result.success) {
+            console.log('✅ Radio program ready');
+            showRadioProgram(result);
+            setupRegistrationFlow();
+        } else {
+            showError('Generation Failed', result.error);
+        }
+        
+    } catch (error) {
+        console.error('❌ Radio page initialization failed:', error);
+        showError('Loading Error', 'Failed to load the radio program. Please try refreshing the page.');
+    }
+});
+
+/**
+ * Wait for RadioGenerator to be available
+ */
+function waitForRadioGenerator() {
+    return new Promise((resolve) => {
+        const checkInterval = setInterval(() => {
+            if (typeof window.RadioGenerator !== 'undefined') {
+                clearInterval(checkInterval);
+                resolve();
+            }
+        }, 100);
+        
+        // Timeout after 10 seconds
+        setTimeout(() => {
+            clearInterval(checkInterval);
+            resolve();
+        }, 10000);
+    });
+}
+
+/**
+ * Extract ShareID from URL
+ */
+function getShareIdFromUrl() {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('ID');
+}
+
+/**
+ * Show loading state
+ */
+function showLoadingState(message) {
+    const loadingContainer = document.getElementById('loading-container');
+    const loadingMessage = document.getElementById('loading-message');
+    
+    if (loadingMessage) {
+        loadingMessage.textContent = message;
+    }
+    
+    if (loadingContainer) {
+        loadingContainer.style.display = 'block';
+    }
+    
+    hideOtherContainers();
+}
+
+/**
+ * Update progress
+ */
+function updateProgress(message, percentage) {
+    const progressFill = document.getElementById('progress-fill');
+    const loadingMessage = document.getElementById('loading-message');
+    
+    if (progressFill) {
+        progressFill.style.width = `${percentage}%`;
+    }
+    
+    if (loadingMessage) {
+        loadingMessage.textContent = message;
+    }
+}
+
+/**
+ * Show the radio program
+ */
+function showRadioProgram(result) {
+    hideLoadingState();
+    
+    // Show program header
+    const programHeader = document.getElementById('program-header');
+    const worldName = document.getElementById('world-name');
+    
+    if (programHeader && worldName) {
+        worldName.textContent = result.world ? result.world.charAt(0).toUpperCase() + result.world.slice(1) : 'Radio Program';
+        programHeader.style.display = 'block';
+    }
+    
+    // Show audio player
+    const playerContainer = document.getElementById('audio-player-container');
+    if (playerContainer) {
+        playerContainer.innerHTML = `
+            <div class="radio-player">
+                <div class="player-header">
+                    <h3>🎵 Your Radio Program is Ready!</h3>
+                    <p>Listen to your personalized radio show</p>
+                </div>
+                <div class="player-controls">
+                    <audio id="radio-audio" controls preload="metadata">
+                        <source src="${result.url}" type="audio/mpeg">
+                        Your browser does not support the audio element.
+                    </audio>
+                </div>
+                <div class="player-actions">
+                    <button onclick="downloadAudio('${result.url}')" class="action-btn">📥 Download</button>
+                    <button onclick="shareProgram()" class="action-btn">🔗 Share Link</button>
+                    <button onclick="regenerateProgram()" class="action-btn secondary">🔄 Update Program</button>
+                </div>
+            </div>
+        `;
+        playerContainer.style.display = 'block';
+    }
+    
+    console.log('✅ Loading complete');
+}
+
+/**
+ * Setup registration flow
+ */
+function setupRegistrationFlow() {
+    // Check if user is logged in
+    const memberstack = window.$memberstackDom;
+    
+    if (!memberstack) {
+        showRegistrationOption();
+        return;
+    }
+    
+    memberstack.getCurrentMember()
+        .then(({ data: memberData }) => {
+            if (memberData) {
+                console.log('👤 User is logged in - hiding registration option');
+                hideRegistrationOption();
+            } else {
+                console.log('📝 User not logged in - showing registration option');
+                showRegistrationOption();
+            }
+        })
+        .catch(() => {
+            showRegistrationOption();
+        });
+}
+
+/**
+ * Show registration option
+ */
+function showRegistrationOption() {
+    const registrationContainer = document.getElementById('registration-container');
+    if (!registrationContainer) return;
+    
+    registrationContainer.innerHTML = `
+        <div class="registration-card">
+            <h3>🎤 Want to add your own recordings?</h3>
+            <p>Register to create your own version of this radio program with your family's recordings!</p>
+            <button onclick="handleRegistration()" class="register-btn">
+                📝 Register to Record
+            </button>
+        </div>
+    `;
+    
+    registrationContainer.style.display = 'block';
+}
+
+/**
+ * Hide registration option
+ */
+function hideRegistrationOption() {
+    const registrationContainer = document.getElementById('registration-container');
+    if (registrationContainer) {
+        registrationContainer.style.display = 'none';
+    }
+}
+
+/**
+ * Handle registration
+ */
+function handleRegistration() {
+    const memberstack = window.$memberstackDom;
+    
+    if (!memberstack) {
+        showError('Registration Error', 'Registration system is not available.');
+        return;
+    }
+    
+    try {
+        memberstack.openModal('signup', {
+            metadata: {
+                originating_share_id: currentShareId
+            }
+        });
+        
+        console.log(`📝 Registration started with ShareID: ${currentShareId}`);
+        
+    } catch (error) {
+        console.error('Registration error:', error);
+        showError('Registration Error', 'Failed to start registration. Please try again.');
+    }
+}
+
+/**
+ * Download audio file
+ */
+function downloadAudio(audioUrl) {
+    const link = document.createElement('a');
+    link.href = audioUrl;
+    link.download = `radio-program-${Date.now()}.mp3`;
+    link.click();
+}
+
+/**
+ * Share program
+ */
+function shareProgram() {
+    const shareUrl = window.location.href;
+    if (navigator.share) {
+        navigator.share({
+            title: 'Little Microphones Radio Program',
+            url: shareUrl
+        });
+    } else {
+        navigator.clipboard.writeText(shareUrl).then(() => {
+            showSuccessMessage('Link copied to clipboard!');
+        });
+    }
+}
+
+/**
+ * Regenerate program
+ */
+async function regenerateProgram() {
+    if (isGenerating) return;
+    
+    if (!confirm('Generate a new version with the latest recordings?')) return;
+    
+    isGenerating = true;
+    
+    try {
+        showLoadingState('Generating updated program...');
+        
+        const result = await window.RadioGenerator.generateFromShareId(currentShareId, {
+            onProgress: (message, percentage) => {
+                updateProgress(message, percentage);
+            },
+            forceRegenerate: true
+        });
+        
+        if (result.success) {
+            showRadioProgram(result);
+            showSuccessMessage('Program updated with latest recordings!');
+        } else {
+            showError('Update Failed', result.error);
+        }
+        
+    } catch (error) {
+        showError('Update Failed', error.message);
+    } finally {
+        isGenerating = false;
+    }
+}
+
+/**
+ * Hide loading state
+ */
+function hideLoadingState() {
+    const loadingContainer = document.getElementById('loading-container');
+    if (loadingContainer) {
+        loadingContainer.style.display = 'none';
+    }
+}
+
+/**
+ * Hide other containers
+ */
+function hideOtherContainers() {
+    const containers = ['program-header', 'audio-player-container', 'registration-container', 'error-container'];
+    containers.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.style.display = 'none';
+        }
+    });
+}
+
+/**
+ * Show error
+ */
+function showError(title, message) {
+    const errorContainer = document.getElementById('error-container');
+    if (!errorContainer) return;
+    
+    errorContainer.innerHTML = `
+        <h2>❌ ${title}</h2>
+        <p>${message}</p>
+        <button onclick="window.location.reload()" style="margin-top: 15px; padding: 15px 25px; border: none; background: #dc3545; color: white; border-radius: 50px; cursor: pointer; font-weight: 600;">
+            🔄 Try Again
+        </button>
+    `;
+    
+    hideOtherContainers();
+    document.getElementById('loading-container').style.display = 'none';
+    errorContainer.style.display = 'block';
+}
+
+/**
+ * Show success message
+ */
+function showSuccessMessage(message) {
+    const successDiv = document.createElement('div');
+    successDiv.className = 'success-message';
+    successDiv.textContent = message;
+    
+    const mainContainer = document.getElementById('main-container');
+    if (mainContainer) {
+        mainContainer.appendChild(successDiv);
+    }
+    
+    setTimeout(() => {
+        if (successDiv.parentNode) {
+            successDiv.parentNode.removeChild(successDiv);
+        }
+    }, 3000);
+}
+
+console.log('📻 Radio page script loaded and ready');
+</script>
+
+<!-- ========================================= -->
+<!-- INSTRUCTIONS FOR WEBFLOW SETUP -->
+<!-- ========================================= -->
+
+<!--
+COMPLETE WEBFLOW SETUP INSTRUCTIONS:
+
+1. COPY THE HTML (lines 7-29):
+   - Go to your Webflow radio page
+   - Add an HTML Embed element
+   - Paste the HTML from lines 7-29
+
+2. COPY THE CSS (lines 35-233):
+   - Go to Page Settings → Custom Code → Head Code
+   - Paste the entire CSS block
+
+3. COPY THE SCRIPTS (lines 239-end):
+   - Go to Page Settings → Custom Code → Before </body> tag
+   - Paste both script blocks
+
+4. REMOVE OLD SCRIPTS:
+   - Remove any existing radio.js or recording.js script references
+   - Keep only the new radio-generator.js script
+
+5. PUBLISH YOUR WEBFLOW SITE
+
+Your radio page will now:
+- ✅ Load ShareID from URL automatically
+- ✅ Generate radio programs using the unified system
+- ✅ Show beautiful loading states with progress
+- ✅ Display audio player with download/share buttons
+- ✅ Handle user registration with Memberstack
+- ✅ Work on all devices (responsive design)
+- ✅ Use the latest simplified audio processing
+
+The system is now unified and will work perfectly!
+--> 
