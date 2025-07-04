@@ -93,9 +93,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
         
-        // Update page with program information
-        updatePageContent(currentRadioData);
-        
         // Determine if we need to generate a new program
         console.log(`🔍 Checking program status: needsNewProgram=${currentRadioData.needsNewProgram}, hasManifest=${!!currentRadioData.lastManifest}`);
         
@@ -109,6 +106,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.log('📝 No existing program found - generating initial program...');
             await generateNewProgram();
         }
+        
+        // Update page with program information AFTER content is loaded
+        updatePageContent(currentRadioData);
         
         // Setup registration functionality
         setupRegistrationFlow();
