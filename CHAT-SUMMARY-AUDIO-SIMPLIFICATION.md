@@ -303,4 +303,59 @@ If continuing in a new chat window:
 - `webflow-complete-radio-page.html` - Complete Webflow solution
 - `documentation/` - Architecture and migration guides
 
-**System Status**: ✅ **COMPLETE AND OPERATIONAL** 
+---
+
+## 🔧 **ADDITIONAL FIX: Intelligent Program Generation (Latest Update)**
+
+**Date**: January 2025  
+**Issue Identified**: Radio programs were regenerating on every page refresh instead of only when files changed
+
+### **Problem**
+- **Complex filename comparison logic** was prone to bugs and edge cases
+- **Programs regenerating unnecessarily** on each page refresh
+- **User experience degradation** due to unnecessary wait times
+- **Resource waste** from redundant audio processing
+
+### **Solution Implemented**
+1. **Simplified File Comparison**: Replaced complex filename filtering with simple count comparison
+2. **Enhanced Manifest**: Added `recordingCount` field to manifest for easier comparison
+3. **Backward Compatibility**: Legacy manifests without `recordingCount` still work
+4. **Better Logging**: Enhanced debugging throughout the system
+5. **Test Endpoint**: Added `/api/test-file-check` for debugging file comparison logic
+
+### **Technical Changes**
+- **`api/get-radio-data.js`**: Simplified `needsNewProgram()` function to compare recording counts
+- **`api/combine-audio.js`**: Added `recordingCount` to manifest data (version 4.1.0)
+- **`radio-generator.js`**: Enhanced logging to show decision-making process
+- **NEW: `api/test-file-check.js`**: Test endpoint for debugging file comparison
+
+### **New Logic Flow**
+```javascript
+// OLD: Complex filename comparison
+const newFiles = currentFilenames.filter(filename => !manifestUserFiles.includes(filename));
+const deletedFiles = manifestUserFiles.filter(filename => !currentFilenames.includes(filename));
+
+// NEW: Simple count comparison
+const currentFileCount = currentRecordings.length;
+const previousFileCount = manifest.recordingCount || legacyCount;
+const needsNewProgram = currentFileCount !== previousFileCount;
+```
+
+### **Results**
+- ✅ **Programs only regenerate when recording count changes**
+- ✅ **Existing programs display immediately when no changes detected**
+- ✅ **Much more reliable and predictable behavior**
+- ✅ **Better debugging capabilities with test endpoint**
+- ✅ **Improved user experience with faster loading**
+
+### **Testing**
+Use the new test endpoint to debug file comparison:
+```
+GET /api/test-file-check?shareId=your-share-id
+```
+
+Returns detailed information about current vs. previous file counts and the decision logic.
+
+---
+
+**System Status**: ✅ **COMPLETE AND OPERATIONAL** (Enhanced with Intelligent Generation Fix) 

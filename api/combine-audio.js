@@ -393,7 +393,37 @@ async function assembleFinalProgram(processedSegments, outputPath) {
 }
 
 /**
- * Download a file from URL
+ * Generate a silent MP3 placeholder for missing system files
+ * @param {string} filePath - Output file path
+ * @param {number} duration - Duration in seconds (default 3)
+ */
+async function generateSilentPlaceholder(filePath, duration = 3) {
+    return new Promise((resolve, reject) => {
+        const command = ffmpeg();
+        
+        command
+            .input('anullsrc=channel_layout=stereo:sample_rate=44100')
+            .inputOptions(['-f', 'lavfi'])
+            .duration(duration)
+            .audioCodec('libmp3lame')
+            .audioChannels(2)
+            .audioFrequency(44100)
+            .audioBitrate('128k')
+            .format('mp3')
+            .on('start', () => {
+                console.log(`🔧 Generating ${duration}s silent placeholder: ${path.basename(filePath)}`);
+            })
+            .on('end', () => {
+                console.log(`✅ Generated silent placeholder: ${path.basename(filePath)}`);
+                resolve();
+            })
+            .on('error', reject)
+            .save(filePath);
+    });
+}
+
+/**
+ * Download a file from URL with fallback to silent placeholder for missing system files
  */
 function downloadFile(url, filePath) {
     return new Promise((resolve, reject) => {
@@ -401,8 +431,32 @@ function downloadFile(url, filePath) {
         
         protocol.get(url, (response) => {
             if (response.statusCode !== 200) {
-                reject(new Error(`Failed to download ${url}: ${response.statusCode}`));
-                return;
+                // Check if this is a system file that we can replace with a placeholder
+                const isSystemFile = url.includes('/audio/other/') || url.includes('-QID');
+                
+                if (isSystemFile) {
+                    console.warn(`⚠️ System file missing (${response.statusCode}): ${url}`);
+                    console.log(`🔧 Generating silent placeholder instead...`);
+                    
+                    // Determine appropriate duration based on file type
+                    let duration = 3; // default
+                    if (url.includes('monkeys.mp3')) {
+                        duration = 30; // background music needs to be longer
+                    } else if (url.includes('-QID')) {
+                        duration = 5; // question prompts
+                    } else if (url.includes('intro.mp3') || url.includes('outro.mp3')) {
+                        duration = 3; // intro/outro
+                    }
+                    
+                    // Generate silent placeholder
+                    generateSilentPlaceholder(filePath, duration)
+                        .then(resolve)
+                        .catch(reject);
+                    return;
+                } else {
+                    reject(new Error(`Failed to download ${url}: ${response.statusCode}`));
+                    return;
+                }
             }
             
             const fileStream = createWriteStream(filePath);
