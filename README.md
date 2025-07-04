@@ -113,4 +113,4 @@ For technical questions or system-specific issues, refer to the detailed and com
 
 ---
 
-**🎵 Little Microphones** - Empowering children's voices through advanced technology 
+**🎵 Little Microphones** - Empowering children's voices through advanced technology # Testing environment variables
