@@ -98,56 +98,27 @@ async function fetchLastProgramManifest(world, lmid) {
 
 /**
  * Check if files have changed since last program generation
- * SIMPLIFIED: Just compare file counts instead of complex filename comparison
  * @param {Array} currentRecordings - Current recordings from cloud
  * @param {Object|null} manifest - Last program manifest
- * @returns {boolean} True if new program generation needed (different file count)
+ * @returns {boolean} True if new program generation needed (files added or deleted)
  */
 function needsNewProgram(currentRecordings, manifest) {
     // If no manifest exists, we definitely need a new program
-    if (!manifest) {
-        console.log('📝 No manifest found - new program needed');
+    if (!manifest || typeof manifest.recordingCount !== 'number') {
+        console.log('📝 No manifest or missing recordingCount - new program needed');
         return true;
     }
     
-    // Get current recording count
-    const currentFileCount = currentRecordings.length;
+    // Compare only the count of user recordings
+    const currentCount = currentRecordings.length;
+    const previousCount = manifest.recordingCount;
     
-    // Get previous recording count from manifest
-    // Check both recordingCount (new) and filesUsed length (legacy) for backward compatibility
-    let previousFileCount = 0;
-    
-    if (manifest.recordingCount !== undefined) {
-        // New simplified approach - use stored recording count
-        previousFileCount = manifest.recordingCount;
-    } else if (manifest.filesUsed) {
-        // Legacy approach - count user recordings from filesUsed array
-        const userFiles = manifest.filesUsed.filter(filename => {
-            // User recordings contain timestamp patterns like: kids-world_spookyland-lmid_38-question_1-20250103-123456.mp3
-            return filename.includes('-lmid_') && filename.match(/\d{8}-\d{6}\.mp3$/);
-        });
-        previousFileCount = userFiles.length;
-    }
-    
-    console.log(`🔍 SIMPLIFIED file count comparison:`);
-    console.log(`  Current recordings: ${currentFileCount} files`);
-    console.log(`  Previous generation: ${previousFileCount} files`);
-    console.log(`  Program URL exists: ${!!manifest.programUrl}`);
-    
-    // Check if program URL exists (basic sanity check)
-    if (!manifest.programUrl) {
-        console.log('📝 No program URL found in manifest - new program needed');
+    if (currentCount !== previousCount) {
+        console.log(`🔄 Recording count changed: was ${previousCount}, now ${currentCount}`);
         return true;
     }
     
-    // Simple comparison: if file counts are different, generate new program
-    if (currentFileCount !== previousFileCount) {
-        console.log(`📝 FILE COUNT CHANGED: ${previousFileCount} → ${currentFileCount} - new program needed`);
-        return true;
-    }
-    
-    // Same file count - no need to regenerate
-    console.log('✅ Same file count - no new program needed');
+    // No change in recording count, no need to regenerate
     return false;
 }
 

@@ -156,21 +156,17 @@ export default async function handler(req, res) {
                 }
             });
             
-            // Create and save last-program-manifest.json
+            // Create and save last-program-manifest.json (simplified)
             const manifestData = {
                 generatedAt: new Date().toISOString(),
                 world: world,
                 lmid: lmid,
                 programUrl: combinedAudioUrl,
-                totalSegments: audioSegments.length,
-                recordingCount: recordingCount, // NEW: Store actual user recording count for simple comparison
-                filesUsed: extractFilesUsed(audioSegments),
-                version: '4.1.0'
+                recordingCount: recordingCount,
+                version: '5.0.0'
             };
             
-            console.log(`📊 Manifest: ${recordingCount} user recordings in ${audioSegments.length} total segments`);
-            
-            await saveManifestToBunny(manifestData, world, lmid);
+            await uploadManifestToBunny(manifestData, world, lmid);
             
             return res.status(200).json({
                 success: true,
@@ -552,7 +548,7 @@ async function cleanupTempDirectory(tempDir) {
  * @param {string} world - World name
  * @param {string} lmid - LMID
  */
-async function saveManifestToBunny(manifestData, world, lmid) {
+async function uploadManifestToBunny(manifestData, world, lmid) {
     const manifestJson = JSON.stringify(manifestData, null, 2);
     const uploadPath = `/${lmid}/${world}/last-program-manifest.json`;
     
