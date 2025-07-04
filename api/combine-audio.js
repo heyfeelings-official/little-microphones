@@ -15,7 +15,7 @@
  * 
  * PROCESSING PIPELINE:
  * Recording Collection → Audio Plan Creation → File Download → FFmpeg Combination → 
- * Professional Audio Processing → Cloud Upload → CDN URL Response
+ * Professional Audio Processing → Cloud Upload → Manifest Creation → CDN URL Response
  * 
  * ADVANCED AUDIO PROCESSING:
  * - Multi-stage audio enhancement with noise reduction and normalization
@@ -65,9 +65,16 @@
  * - Detailed error logging for debugging
  * - Graceful degradation for missing dependencies
  * 
+ * MANIFEST SYSTEM:
+ * - Automatic creation of last-program-manifest.json after successful generation
+ * - Tracks all files used in program generation for intelligent comparison
+ * - Enables radio.js to determine if new program generation is needed
+ * - Stored in Bunny.net storage alongside audio files for consistency
+ * 
  * INTEGRATION POINTS:
  * - Bunny.net CDN: File storage and global content delivery
  * - recording.js: Audio segment collection and organization
+ * - radio.js: Manifest consumption for intelligent program generation
  * - Vercel Runtime: Serverless execution environment
  * - Client Progress: Real-time status updates and feedback
  * 
@@ -176,12 +183,27 @@ export default async function handler(req, res) {
         try {
             const combinedAudioUrl = await combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams);
             
+            // Create and save last-program-manifest.json
+            const manifestData = {
+                generatedAt: new Date().toISOString(),
+                world: world,
+                lmid: lmid,
+                programUrl: combinedAudioUrl,
+                totalSegments: audioSegments.length,
+                filesUsed: extractFilesUsed(audioSegments),
+                audioParams: audioParams,
+                version: '4.0.0'
+            };
+            
+            await saveManifestToBunny(manifestData, world, lmid);
+            
             return res.status(200).json({
                 success: true,
                 message: 'Radio program generated successfully',
                 url: combinedAudioUrl,
                 totalSegments: audioSegments.length,
-                audioParams: audioParams
+                audioParams: audioParams,
+                manifest: manifestData
             });
         } catch (ffmpegError) {
             console.error('FFmpeg processing failed:', ffmpegError);
@@ -508,6 +530,85 @@ async function cleanupTempDirectory(tempDir) {
     } catch (error) {
         console.warn(`⚠️ Failed to cleanup temp directory: ${error.message}`);
     }
+}
+
+/**
+ * Extract files used from audio segments for manifest tracking
+ * @param {Array} audioSegments - Array of audio segments
+ * @returns {Array} Array of filenames used in the program
+ */
+function extractFilesUsed(audioSegments) {
+    const filesUsed = [];
+    
+    audioSegments.forEach(segment => {
+        if (segment.type === 'single') {
+            // Extract filename from URL
+            const filename = segment.url.split('/').pop();
+            filesUsed.push(filename);
+        } else if (segment.type === 'combine_with_background') {
+            // Extract filenames from answer URLs
+            segment.answerUrls.forEach(url => {
+                const filename = url.split('/').pop();
+                filesUsed.push(filename);
+            });
+            
+            // Extract background filename
+            const backgroundFilename = segment.backgroundUrl.split('/').pop();
+            filesUsed.push(backgroundFilename);
+        }
+    });
+    
+    return filesUsed;
+}
+
+/**
+ * Save manifest data to Bunny.net storage
+ * @param {Object} manifestData - Manifest data to save
+ * @param {string} world - World name
+ * @param {string} lmid - LMID
+ */
+async function saveManifestToBunny(manifestData, world, lmid) {
+    const manifestJson = JSON.stringify(manifestData, null, 2);
+    const uploadPath = `/${lmid}/${world}/last-program-manifest.json`;
+    
+    console.log(`📄 Saving manifest to Bunny.net: ${uploadPath}`);
+    
+    return new Promise((resolve, reject) => {
+        const options = {
+            hostname: 'storage.bunnycdn.com',
+            port: 443,
+            path: `/${process.env.BUNNY_STORAGE_ZONE}${uploadPath}`,
+            method: 'PUT',
+            headers: {
+                'AccessKey': process.env.BUNNY_API_KEY,
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(manifestJson, 'utf8'),
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            }
+        };
+        
+        const req = https.request(options, (res) => {
+            if (res.statusCode === 200 || res.statusCode === 201) {
+                console.log(`✅ Manifest saved successfully: ${uploadPath}`);
+                resolve();
+            } else {
+                console.warn(`⚠️ Manifest save failed with status: ${res.statusCode}`);
+                // Don't reject - manifest save failure shouldn't fail the whole process
+                resolve();
+            }
+        });
+        
+        req.on('error', (error) => {
+            console.warn(`⚠️ Manifest save error: ${error.message}`);
+            // Don't reject - manifest save failure shouldn't fail the whole process
+            resolve();
+        });
+        
+        req.write(manifestJson);
+        req.end();
+    });
 }
 
 /**

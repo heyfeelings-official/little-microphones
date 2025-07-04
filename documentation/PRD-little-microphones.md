@@ -1,16 +1,17 @@
 # Little Microphones - Product Requirements Document (PRD)
 
 ## Project Overview
-Little Microphones is a comprehensive web-based audio recording platform that allows users to record responses to themed questions and generate professional radio programs. The system integrates with Webflow CMS for content management, uses Bunny.net CDN for audio storage and delivery, and features advanced FFmpeg audio processing for professional-quality output.
+Little Microphones is a comprehensive web-based audio recording platform that allows users to record responses to themed questions and generate professional radio programs. The system features a revolutionary sharing architecture that enables teachers to create secure, shareable radio program links while maintaining privacy and security. The platform integrates with Webflow CMS for content management, uses Bunny.net CDN for audio storage and delivery, and features advanced FFmpeg audio processing for professional-quality output.
 
 ## System Architecture
 
 ### Core Components
-- **Frontend JavaScript**: lm.js (dashboard), recording.js (recording system), rp.js (authorization)
-- **Backend APIs**: 4 serverless functions for upload, deletion, listing, and audio combination
+- **Frontend JavaScript**: lm.js (dashboard), recording.js (recording system), rp.js (teacher panel), radio.js (universal sharing page)
+- **Backend APIs**: 7 serverless functions for upload, deletion, listing, audio combination, sharing, and registration
 - **Storage**: Dual-layer with IndexedDB local storage and Bunny.net cloud CDN
-- **Authentication**: Memberstack integration with metadata-driven authorization
-- **Audio Processing**: FFmpeg-based professional audio mixing and mastering
+- **Authentication**: Memberstack integration with metadata-driven authorization and parent registration
+- **Audio Processing**: FFmpeg-based professional audio mixing and mastering with intelligent manifest tracking
+- **Sharing System**: ShareID-based secure program distribution with parent onboarding
 
 ### Technology Stack
 - **Client-Side**: Vanilla JavaScript, WebRTC, IndexedDB, Canvas API, HTML5 Audio
@@ -29,8 +30,17 @@ Little Microphones is a comprehensive web-based audio recording platform that al
 - **Professional Radio Program Generation**: Advanced FFmpeg processing with noise reduction, normalization, and background music mixing
 - **Real-time Progress Tracking**: Dynamic progress bar with detailed status messages and creative feedback
 - **Universal Cross-Platform Compatibility**: Optimized for desktop and mobile browsers with responsive design
+- **Revolutionary Sharing System**: ShareID-based secure program distribution with intelligent generation and parent onboarding
 
 ### Recent Fixes & Improvements (January 2025)
+
+#### Major Architecture Update: Radio Program Sharing System
+- **ShareID Implementation**: Secure, obfuscated identifiers replace world/lmid in URLs
+- **Universal Radio Page**: Single page handles all radio program playback and sharing
+- **Intelligent Generation**: Programs only regenerate when new recordings are detected
+- **Parent Registration**: Seamless parent onboarding with automatic LMID assignment
+- **Manifest Tracking**: last-program-manifest.json tracks used files for smart generation
+- **Webhook Integration**: Memberstack webhooks handle parent registration flow
 
 #### Audio Processing Overhaul
 - **Default Audio Parameters**: Reset to less aggressive, more natural settings
@@ -65,16 +75,22 @@ Little Microphones is a comprehensive web-based audio recording platform that al
 ### Frontend Components
 1. **recording.js** - Main recording interface and radio program generation
 2. **lm.js** - Webflow integration and initialization
-3. **rp.js** - Radio program player and controls
+3. **rp.js** - Teacher panel with share link generation
+4. **radio.js** - Universal radio page with intelligent generation and parent registration
 
 ### Backend Services
-1. **api/combine-audio.js** - FFmpeg-based audio processing
+1. **api/combine-audio.js** - FFmpeg-based audio processing with manifest creation
 2. **api/upload-audio.js** - Bunny.net upload handling
 3. **api/delete-audio.js** - Audio file cleanup
+4. **api/get-share-link.js** - ShareID generation and management
+5. **api/get-radio-data.js** - Radio program data fetching by ShareID
+6. **api/handle-new-member.js** - Parent registration webhook handler
+7. **api/list-recordings.js** - Enhanced recording listing with full support
 
 ### Storage Systems
 - **IndexedDB**: Local recording storage and metadata
 - **Bunny.net CDN**: Cloud audio file storage and delivery
+- **Supabase**: ShareID management and LMID assignment
 - **Webflow CMS**: Question content and world configuration
 
 ## Audio Processing Pipeline
@@ -129,12 +145,21 @@ master: {
 - **Background Music**: Automatically mixed with exact duration matching
 - **Progress Tracking**: Detailed progress with creative status messages
 - **Cache Prevention**: Timestamp-based versioning prevents old audio
+- **Manifest Creation**: Automatic last-program-manifest.json generation
+
+### Sharing System
+- **ShareID Generation**: Secure, obfuscated program identifiers
+- **Universal Radio Page**: Single page handles all program playback
+- **Intelligent Generation**: Only regenerates when recordings change
+- **Parent Registration**: Seamless signup with automatic LMID assignment
+- **Secure Distribution**: No world/lmid exposure in URLs
 
 ### Audio Player
 - **Multiple Sources**: MP3 format with fallback support
 - **CORS Headers**: Proper cross-origin resource sharing
 - **Responsive Design**: Works across all device sizes
 - **Error Recovery**: Graceful handling of playback issues
+- **Professional Controls**: Download, share, and regenerate options
 
 ## Quality Assurance
 
@@ -148,6 +173,12 @@ master: {
 - [x] Modal close functionality
 - [x] Question ordering accuracy
 - [x] Cache-busting effectiveness
+- [x] ShareID generation and validation
+- [x] Universal radio page functionality
+- [x] Intelligent program generation
+- [x] Parent registration flow
+- [x] Webhook integration
+- [x] Manifest tracking system
 
 ### Performance Metrics
 - **Recording Quality**: 44.1kHz, stereo, variable bitrate
@@ -164,6 +195,9 @@ master: {
 3. **Batch Processing**: Multiple radio program generation
 4. **Analytics**: Usage tracking and performance metrics
 5. **Accessibility**: Enhanced screen reader support
+6. **Email Notifications**: Automated parent welcome emails
+7. **Admin Dashboard**: Registration and usage analytics
+8. **Mobile App**: Dedicated mobile application
 
 ### Scalability Notes
 - Current system handles moderate concurrent users
@@ -177,11 +211,13 @@ master: {
 - [Recording.js Documentation](./recording.js.md)
 - [Radio Player Documentation](./rp.js.md)
 - [LM.js Documentation](./lm.js.md)
+- [Radio.js Documentation](./radio.js.md)
+- [Memberstack Webhook Setup](./memberstack-webhook-setup.md)
 
 ---
 
 **Last Updated**: January 24, 2025  
-**Version**: 2.4.0  
+**Version**: 4.0.0  
 **Status**: Production Ready ✅  
 
 **Documentation Status**: ✅ Comprehensive and Up-to-Date  
