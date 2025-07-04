@@ -282,6 +282,12 @@ function showExistingProgram(manifest) {
     console.log('🎵 Displaying existing radio program');
     showAudioPlayer(manifest.programUrl);
     hideLoadingState();
+    
+    // Update page content with world info after showing the program
+    console.log('🔧 DEBUG: Calling updatePageContent from showExistingProgram');
+    setTimeout(() => {
+        updatePageContent(currentRadioData);
+    }, 200);
 }
 
 /**
@@ -292,6 +298,12 @@ function showGeneratedProgram(audioUrl) {
     console.log('🎉 Displaying newly generated radio program');
     showAudioPlayer(audioUrl);
     hideLoadingState();
+    
+    // Update page content with world info after showing the program
+    console.log('🔧 DEBUG: Calling updatePageContent from showGeneratedProgram');
+    setTimeout(() => {
+        updatePageContent(currentRadioData);
+    }, 200);
     
     // Show success message
     showSuccessMessage('New radio program generated with latest recordings!');
