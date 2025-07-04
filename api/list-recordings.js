@@ -94,9 +94,9 @@ export default async function handler(req, res) {
     try {
         const { world, lmid, questionId } = req.query;
 
-        if (!world || !lmid || !questionId) {
+        if (!world || !lmid) {
             return res.status(400).json({ 
-                error: 'Missing required parameters: world, lmid, questionId' 
+                error: 'Missing required parameters: world, lmid' 
             });
         }
 
@@ -126,23 +126,43 @@ export default async function handler(req, res) {
 
         const fileList = await response.json();
         
-        // Filter files for the specific question ID (matching upload filename format)
-        const questionPattern = new RegExp(`kids-world_${world}-lmid_${lmid}-question_${questionId}-.*\\.mp3$`);
-        const matchingFiles = fileList.filter(file => 
-            file.IsDirectory === false && 
-            questionPattern.test(file.ObjectName)
-        );
-
-        console.log(`Found ${matchingFiles.length} recordings for question ${questionId}`);
+        // Filter files for the specific question ID or all questions if questionId not provided
+        let matchingFiles;
+        if (questionId) {
+            // Filter for specific question
+            const questionPattern = new RegExp(`kids-world_${world}-lmid_${lmid}-question_${questionId}-.*\\.mp3$`);
+            matchingFiles = fileList.filter(file => 
+                file.IsDirectory === false && 
+                questionPattern.test(file.ObjectName)
+            );
+            console.log(`Found ${matchingFiles.length} recordings for question ${questionId}`);
+        } else {
+            // Get all recordings for this world/lmid
+            const allPattern = new RegExp(`kids-world_${world}-lmid_${lmid}-question_.*\\.mp3$`);
+            matchingFiles = fileList.filter(file => 
+                file.IsDirectory === false && 
+                allPattern.test(file.ObjectName)
+            );
+            console.log(`Found ${matchingFiles.length} total recordings for ${world}/${lmid}`);
+        }
 
         // Transform file list to recording objects
-        const recordings = matchingFiles.map(file => ({
-            filename: file.ObjectName,
-            url: `https://${process.env.BUNNY_CDN_URL}/${folderPath}${file.ObjectName}`,
-            size: file.Length,
-            lastModified: new Date(file.LastChanged).getTime(),
-            questionId: questionId
-        }));
+        const recordings = matchingFiles.map(file => {
+            // Extract questionId from filename if not provided
+            let extractedQuestionId = questionId;
+            if (!questionId) {
+                const match = file.ObjectName.match(/question_(\d+)-/);
+                extractedQuestionId = match ? match[1] : 'unknown';
+            }
+            
+            return {
+                filename: file.ObjectName,
+                url: `https://${process.env.BUNNY_CDN_URL}/${folderPath}${file.ObjectName}`,
+                size: file.Length,
+                lastModified: new Date(file.LastChanged).getTime(),
+                questionId: extractedQuestionId
+            };
+        });
 
         // Sort by last modified (newest first)
         recordings.sort((a, b) => b.lastModified - a.lastModified);
@@ -151,7 +171,7 @@ export default async function handler(req, res) {
             success: true,
             world: world,
             lmid: lmid,
-            questionId: questionId,
+            questionId: questionId || 'all',
             count: recordings.length,
             recordings: recordings
         });
