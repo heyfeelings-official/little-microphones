@@ -107,15 +107,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             await generateNewProgram();
         }
         
-        console.log('🔧 DEBUG: About to call updatePageContent with currentRadioData:', currentRadioData);
-        
-        // Update page with program information AFTER content is loaded
-        // Use setTimeout to ensure DOM is fully rendered
-        setTimeout(() => {
-            console.log('🔧 DEBUG: Calling updatePageContent after timeout');
-            updatePageContent(currentRadioData);
-        }, 100);
-        
         // Setup registration functionality
         setupRegistrationFlow();
         
@@ -319,9 +310,14 @@ function showAudioPlayer(audioUrl) {
         console.error('Audio player container not found');
         return;
     }
+
+    const worldName = currentRadioData.world.charAt(0).toUpperCase() + currentRadioData.world.slice(1).replace(/-/g, ' ');
     
     // Create professional audio player
     playerContainer.innerHTML = `
+        <div class="program-header">
+            <h1 id="world-name" class="world-name">${worldName}</h1>
+        </div>
         <div class="radio-player">
             <div class="player-header">
                 <h3>🎵 Your Radio Program is Ready!</h3>
@@ -888,11 +884,22 @@ function updateProgress(message, percentage) {
 }
 
 /**
- * Hide loading state
+ * Hide loading state and reveal the main content structure
  */
 function hideLoadingState() {
-    // Loading state will be replaced by audio player content
-    console.log('✅ Loading complete');
+    const mainContainer = document.getElementById('main-container');
+    if (!mainContainer) return;
+
+    mainContainer.innerHTML = `
+        <div id="program-header" class="program-header">
+            <h1 id="world-name" class="world-name"></h1>
+            <div id="program-info" class="program-info"></div>
+        </div>
+        <div id="audio-player-container" class="audio-player-container"></div>
+        <div id="registration-container" class="registration-container"></div>
+        <div id="error-container" class="error-container" style="display: none;"></div>
+    `;
+    console.log('✅ Loading complete, main structure rendered.');
 }
 
 /**
