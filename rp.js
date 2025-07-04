@@ -86,7 +86,7 @@ function initializeRecordingForWorld(world) {
   // NEW: Robust, event-driven initialization
   // Check if the recording script is already ready
   if (window.isRecordingScriptReady) {
-    console.log(`Recording script is ready. Initializing for world: ${world}`);
+            // Removed recording script ready log
     initializeRecordersForWorld(world);
   } else {
     // If not, wait for the custom event
@@ -123,7 +123,7 @@ function showWorldCollection(world) {
   
   if (targetCollection) {
     targetCollection.style.display = 'block';
-    console.log(`Showing collection for world: ${world}`);
+    // Removed collection display log
     
     // Initialize recording functionality for this world only
     setTimeout(() => {

@@ -500,13 +500,13 @@ function updateUploadStatusUI(uploadElement, deleteElement, recordingData, curre
  */
 async function deleteFromBunny(recordingData, world, lmid, questionId) {
     if (!recordingData.cloudUrl) {
-        console.log(`[${questionId}] No cloud URL, skipping deletion`);
+        // Removed deletion skip log
         return true;
     }
 
     try {
         const filename = `${recordingData.id}.mp3`;
-        console.log(`[${questionId}] Deleting: ${filename}`);
+        // Removed deletion start log
 
         const response = await fetch('https://little-microphones.vercel.app/api/delete-audio', {
             method: 'DELETE',
@@ -522,7 +522,7 @@ async function deleteFromBunny(recordingData, world, lmid, questionId) {
         const result = await response.json();
 
         if (result.success) {
-            console.log(`[${questionId}] Deleted from cloud: ${filename}`);
+            // Removed cloud deletion log
             return true;
         } else {
             throw new Error(result.error || 'Delete failed');
@@ -541,7 +541,7 @@ async function deleteFromBunny(recordingData, world, lmid, questionId) {
  * @param {HTMLLIElement} elementToRemove - The element to remove from the DOM.
  */
 async function deleteRecording(recordingId, questionId, elementToRemove) {
-    console.log(`Deleting recording ${recordingId} for question ${questionId}`);
+    // Removed deletion start log
     
     try {
         // Get world and lmid for cloud deletion
@@ -556,7 +556,7 @@ async function deleteRecording(recordingId, questionId, elementToRemove) {
             cloudUrl: `https://little-microphones.b-cdn.net/${lmid}/${world}/${recordingId}.mp3`
         };
         
-        console.log(`Deleting from cloud: ${recordingData.cloudUrl}`);
+                    // Removed cloud deletion log
         await deleteFromBunny(recordingData, world, lmid, questionId);
         
         // Also try to delete from local database (if it exists locally)
@@ -567,7 +567,7 @@ async function deleteRecording(recordingId, questionId, elementToRemove) {
                     const store = transaction.objectStore("audioRecordings");
                     const request = store.delete(recordingId);
                     transaction.oncomplete = () => {
-                        console.log(`Recording ${recordingId} deleted from local DB.`);
+                        // Removed DB deletion log
                         resolve();
                     };
                     transaction.onerror = (event) => {
@@ -754,7 +754,7 @@ function initializeAudioRecorder(recorderWrapper) {
             const recordings = await loadRecordingsFromCloud(questionId, world, lmid);
             const currentCount = recordings.length;
             
-            console.log(`[${questionId}] Recordings: ${currentCount}/30`);
+            // Removed recording count log
             return currentCount < 30;
         } catch (error) {
             console.error(`[${questionId}] Error checking limit:`, error);
@@ -768,7 +768,7 @@ function initializeAudioRecorder(recorderWrapper) {
     function showRecordingLimitMessage() {
         // Use native browser alert for better accessibility and simplicity
         alert('Maximum 30 recordings per question. Delete an old recording to record a new one.');
-        console.log(`[${questionId}] Recording limit reached (30/30)`);
+        // Removed recording limit log
     }
 
     async function startActualRecording() {
@@ -870,7 +870,7 @@ function initializeAudioRecorder(recorderWrapper) {
                     // --- Use timestamp for unique ID ---
                     const timestamp = Date.now();
                     const newId = `kids-world_${world}-lmid_${lmid}-question_${questionId}-tm_${timestamp}`;
-                    console.log(`[${questionId}] Generated ID: ${newId}`);
+                    // Removed ID generation log
 
                     const recordingData = {
                         id: newId,
@@ -919,7 +919,7 @@ function initializeAudioRecorder(recorderWrapper) {
             // SECURITY: Auto-stop recording after 10 minutes
             setTimeout(() => {
                 if (mediaRecorder && mediaRecorder.state === "recording") {
-                    console.log(`[${questionId}] Auto-stopping after 10 minutes`);
+                    // Removed auto-stop log
                     if (statusDisplay) statusDisplay.textContent = "Maximum recording time reached...";
                     mediaRecorder.stop();
                 }
@@ -1011,7 +1011,7 @@ function initializeAudioRecorder(recorderWrapper) {
      */
     async function uploadToBunny(recordingData, world, lmid) {
         try {
-            console.log(`[${questionId}] Uploading: ${recordingData.id}`);
+            // Removed upload start log
             
             // Update status to uploading and notify UI
             recordingData.uploadStatus = 'uploading';
@@ -1040,7 +1040,7 @@ function initializeAudioRecorder(recorderWrapper) {
                     recordingData.cloudUrl = result.url;
                     recordingData.uploadStatus = 'uploaded';
                     recordingData.audio = null; // Free up memory
-                    console.log(`[${questionId}] Upload complete: ${result.url}`);
+                    // Removed upload complete log
                 } else {
                     throw new Error(result.error || 'Upload failed');
                 }
@@ -1110,7 +1110,7 @@ function initializeAudioRecorder(recorderWrapper) {
                 const store = transaction.objectStore("audioRecordings");
                 const request = store.add(recordingData);
                 transaction.oncomplete = () => {
-                    console.log(`Recording ${recordingData.id} saved to DB.`);
+                    // Removed DB save log
                     resolve();
                 };
                 transaction.onerror = (event) => {
@@ -1317,7 +1317,7 @@ function initializeRecordersForWorld(world) {
 
 window.Webflow = window.Webflow || [];
 window.Webflow.push(function() {
-    console.log("Webflow ready. Waiting for world information...");
+    // Removed Webflow ready log
     // Don't initialize anything yet - wait for world info from rp.js
 });
 
@@ -2004,7 +2004,7 @@ async function getAllRecordingsForWorldLmid(world, lmid) {
                     const filteredRecordings = allRecordings.filter(recording => 
                         recording.id && recording.id.includes(targetPattern)
                     );
-                    console.log(`[getAllRecordings] Found ${filteredRecordings.length} recordings for ${world}/${lmid}`);
+                    // Removed getAllRecordings log
                     resolve(filteredRecordings);
                 };
                 
