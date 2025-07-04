@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radio Generator Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .result {
+            background: #f8f9fa;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+        }
+        .success {
+            border-left-color: #28a745;
+            background: #d4edda;
+        }
+        .error {
+            border-left-color: #dc3545;
+            background: #f8d7da;
+        }
+        #progress {
+            width: 100%;
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        #progress-bar {
+            height: 100%;
+            background: #007bff;
+            width: 0%;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎵 Radio Generator Test Page</h1>
+    
+    <div class="test-section">
+        <h2>1. Script Loading Test</h2>
+        <p>Testing if radio-generator.js loads correctly...</p>
+        <div id="script-test-result" class="result">
+            Checking...
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>2. API Availability Test</h2>
+        <p>Testing if RadioGenerator functions are available...</p>
+        <button onclick="testAPIAvailability()">Test API Functions</button>
+        <div id="api-test-result" class="result" style="display: none;"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>3. ShareID Status Check Test</h2>
+        <p>Test checking program status with a known ShareID...</p>
+        <input type="text" id="shareId" placeholder="Enter ShareID (e.g., rtlyqncj)" value="rtlyqncj" style="padding: 8px; margin: 5px; width: 200px;">
+        <button onclick="testStatusCheck()">Check Status</button>
+        <div id="status-test-result" class="result" style="display: none;"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>4. Program Generation Test</h2>
+        <p>Test generating a radio program from ShareID...</p>
+        <input type="text" id="generateShareId" placeholder="Enter ShareID" value="rtlyqncj" style="padding: 8px; margin: 5px; width: 200px;">
+        <button onclick="testProgramGeneration()">Generate Program</button>
+        
+        <div id="progress" style="display: none;">
+            <div id="progress-bar"></div>
+            <div id="progress-text">0%</div>
+        </div>
+        
+        <div id="generation-test-result" class="result" style="display: none;"></div>
+    </div>
+
+    <!-- Load the radio generator script -->
+    <script src="https://little-microphones.vercel.app/radio-generator.js"></script>
+    
+    <script>
+        // Test 1: Check if script loaded
+        window.addEventListener('load', () => {
+            const resultDiv = document.getElementById('script-test-result');
+            
+            if (typeof window.RadioGenerator !== 'undefined') {
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = `
+                    ✅ <strong>Success!</strong> RadioGenerator loaded successfully<br>
+                    📦 Version: ${window.RadioGenerator.version}<br>
+                    🔧 Available functions: ${Object.keys(window.RadioGenerator).join(', ')}
+                `;
+            } else {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = '❌ <strong>Error!</strong> RadioGenerator not found. Script may have failed to load.';
+            }
+        });
+        
+        // Test 2: API Availability
+        function testAPIAvailability() {
+            const resultDiv = document.getElementById('api-test-result');
+            resultDiv.style.display = 'block';
+            
+            const requiredFunctions = [
+                'generateProgram',
+                'generateFromShareId', 
+                'checkStatus',
+                'convertRecordingsToAudioSegments'
+            ];
+            
+            const missing = requiredFunctions.filter(func => typeof window.RadioGenerator[func] !== 'function');
+            
+            if (missing.length === 0) {
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = '✅ <strong>All API functions available!</strong><br>' + 
+                    requiredFunctions.map(func => `• ${func}()`).join('<br>');
+            } else {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = '❌ <strong>Missing functions:</strong><br>' + 
+                    missing.map(func => `• ${func}()`).join('<br>');
+            }
+        }
+        
+        // Test 3: Status Check
+        async function testStatusCheck() {
+            const shareId = document.getElementById('shareId').value;
+            const resultDiv = document.getElementById('status-test-result');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result';
+            resultDiv.innerHTML = '🔍 Checking status...';
+            
+            try {
+                const result = await window.RadioGenerator.checkStatus(shareId);
+                
+                if (result.success) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `
+                        ✅ <strong>Status check successful!</strong><br>
+                        🆔 LMID: ${result.lmid}<br>
+                        🌍 World: ${result.world}<br>
+                        📼 Recordings: ${result.recordingCount}<br>
+                        🔄 Needs new program: ${result.needsNewProgram ? 'Yes' : 'No'}<br>
+                        📄 Has manifest: ${result.lastManifest ? 'Yes' : 'No'}
+                    `;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `❌ <strong>Status check failed:</strong><br>${result.error}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ <strong>Error:</strong><br>${error.message}`;
+            }
+        }
+        
+        // Test 4: Program Generation
+        async function testProgramGeneration() {
+            const shareId = document.getElementById('generateShareId').value;
+            const resultDiv = document.getElementById('generation-test-result');
+            const progressDiv = document.getElementById('progress');
+            const progressBar = document.getElementById('progress-bar');
+            const progressText = document.getElementById('progress-text');
+            
+            resultDiv.style.display = 'block';
+            progressDiv.style.display = 'block';
+            resultDiv.className = 'result';
+            resultDiv.innerHTML = '🎵 Starting generation...';
+            
+            try {
+                const result = await window.RadioGenerator.generateFromShareId(shareId, {
+                    onProgress: (message, percentage) => {
+                        progressBar.style.width = percentage + '%';
+                        progressText.textContent = `${percentage}%: ${message}`;
+                    }
+                });
+                
+                progressDiv.style.display = 'none';
+                
+                if (result.success) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `
+                        ✅ <strong>Generation successful!</strong><br>
+                        🎵 Program URL: <a href="${result.url}" target="_blank">Listen Here</a><br>
+                        📦 From cache: ${result.fromCache ? 'Yes' : 'No'}<br>
+                        🔧 Total segments: ${result.totalSegments || 'N/A'}<br>
+                        <br>
+                        <audio controls style="width: 100%; margin-top: 10px;">
+                            <source src="${result.url}" type="audio/mpeg">
+                            Your browser does not support the audio element.
+                        </audio>
+                    `;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `❌ <strong>Generation failed:</strong><br>${result.error}`;
+                }
+            } catch (error) {
+                progressDiv.style.display = 'none';
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ <strong>Error:</strong><br>${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html> 
