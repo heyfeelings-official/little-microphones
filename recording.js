@@ -71,6 +71,23 @@ const savingLocks = new Set();
 // --- Global initialization tracking ---
 const initializedWorlds = new Set();
 
+// --- SIMPLIFIED LOGGING SYSTEM ---
+const LOG_CONFIG = {
+    ENABLED: true,
+    PRODUCTION_MODE: typeof window !== 'undefined' && window.location && window.location.hostname !== 'localhost',
+    ICONS: { error: '❌', warn: '⚠️', info: '✅', debug: '🔍' }
+};
+function log(level, message, data = null) {
+    if (!LOG_CONFIG.ENABLED) return;
+    if (LOG_CONFIG.PRODUCTION_MODE && level === 'debug') return;
+    const icon = LOG_CONFIG.ICONS[level] || '📝';
+    if (data) {
+        console.log(`${icon} ${message}`, data);
+    } else {
+        console.log(`${icon} ${message}`);
+    }
+}
+
 // ------------------------------
 // --- GLOBAL HELPER FUNCTIONS ---
 // ------------------------------
@@ -1279,43 +1296,24 @@ function loadRecordingsFromDB(questionId, world, lmid) {
  */
 function initializeRecordersForWorld(world) {
     if (!world) {
-        console.warn('No world specified, skipping recorder initialization');
+        log('warn', 'No world specified for recorder initialization');
         return;
     }
-    
-    // Prevent multiple initializations for the same world
-    if (initializedWorlds.has(world)) {
-        console.log(`Recorders for world "${world}" already initialized, skipping.`);
-        return;
-    }
-    
+    if (initializedWorlds.has(world)) return;
     initializedWorlds.add(world);
-    console.log(`Initializing recorders for world: ${world}`);
+    log('info', `🎵 Initializing recorders for ${world}`);
     injectGlobalStyles();
-    
-    // Target only the collection for the current world
     const targetCollectionId = `collection-${world}`;
     const targetCollection = document.getElementById(targetCollectionId);
-    
     if (!targetCollection) {
-        console.warn(`Collection not found: ${targetCollectionId}`);
-        initializedWorlds.delete(world); // Remove from set if collection not found
+        log('warn', `Collection not found: ${targetCollectionId}`);
+        initializedWorlds.delete(world);
         return;
     }
-    
-    // Find recorders only within the target collection
     const recorderWrappers = targetCollection.querySelectorAll('.faq1_accordion.lm');
-    console.log(`Found ${recorderWrappers.length} recorder wrappers in ${targetCollectionId}`);
-    
-    // Initialize each recorder
-    recorderWrappers.forEach((wrapper, index) => {
-        let questionId = wrapper.dataset.questionId;
-        questionId = normalizeQuestionId(questionId);
-        console.log(`Initializing wrapper ${index + 1}: ${questionId}`);
-        initializeAudioRecorder(wrapper);
-    });
-    
-    console.log(`Recorder initialization complete for world: ${world}`);
+    log('info', `Found ${recorderWrappers.length} questions in ${world}`);
+    recorderWrappers.forEach(wrapper => initializeAudioRecorder(wrapper));
+    log('info', `✅ ${world} recorders ready`);
 }
 
 window.Webflow = window.Webflow || [];
