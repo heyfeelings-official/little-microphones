@@ -80,6 +80,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
         
+        console.log(`📻 ShareID extracted: ${currentShareId}`);
+        
         console.log(`📻 Loading radio data for ShareID: ${currentShareId}`);
         showLoadingState('Loading radio program...');
         
@@ -95,12 +97,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         updatePageContent(currentRadioData);
         
         // Determine if we need to generate a new program
+        console.log(`🔍 Checking program status: needsNewProgram=${currentRadioData.needsNewProgram}, hasManifest=${!!currentRadioData.lastManifest}`);
+        
         if (currentRadioData.needsNewProgram) {
             console.log('🔄 New recordings detected - generating updated program...');
             await generateNewProgram();
-        } else {
+        } else if (currentRadioData.lastManifest && currentRadioData.lastManifest.programUrl) {
             console.log('✅ Program is up to date - displaying existing program');
             showExistingProgram(currentRadioData.lastManifest);
+        } else {
+            console.log('📝 No existing program found - generating initial program...');
+            await generateNewProgram();
         }
         
         // Setup registration functionality

@@ -185,6 +185,12 @@ document.addEventListener("DOMContentLoaded", () => {
     showWorldCollection(worldFromUrl);
   }
 
+  // Check if this is a radio page - if so, don't run rp.js
+  if (window.location.pathname.includes('/radio')) {
+    console.log('📻 Radio page detected - skipping rp.js initialization');
+    return;
+  }
+
   if (!lmidFromUrl || !worldFromUrl) {
     console.error("Authorization failed: Missing 'lmid' or 'world' in the URL.");
     alert("This page is missing required information. You will be returned to the previous page.");
