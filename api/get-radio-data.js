@@ -70,7 +70,8 @@ async function fetchAllRecordingsFromCloud(world, lmid) {
  */
 async function fetchLastProgramManifest(world, lmid) {
     return new Promise((resolve) => {
-        const manifestUrl = `https://little-microphones.b-cdn.net/${lmid}/${world}/last-program-manifest.json`;
+        // Add cache-busting query parameter
+        const manifestUrl = `https://little-microphones.b-cdn.net/${lmid}/${world}/last-program-manifest.json?v=${Date.now()}`;
         
         https.get(manifestUrl, (response) => {
             if (response.statusCode === 200) {
