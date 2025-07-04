@@ -97,34 +97,51 @@ async function fetchLastProgramManifest(world, lmid) {
 }
 
 /**
- * Compare current recordings with manifest to determine if new program needed
+ * Check if files have changed since last program generation
  * @param {Array} currentRecordings - Current recordings from cloud
  * @param {Object|null} manifest - Last program manifest
- * @returns {boolean} True if new program generation needed
+ * @returns {boolean} True if new program generation needed (files added or deleted)
  */
 function needsNewProgram(currentRecordings, manifest) {
     // If no manifest exists, we definitely need a new program
     if (!manifest || !manifest.filesUsed) {
+        console.log('📝 No manifest found - new program needed');
         return true;
     }
     
-    // Create arrays of filenames for comparison
-    const currentFilenames = currentRecordings.map(rec => rec.filename).sort();
-    const manifestFilenames = manifest.filesUsed.sort();
+    // Get current filenames
+    const currentFilenames = currentRecordings.map(rec => rec.filename);
     
-    // If different number of files, we need new program
-    if (currentFilenames.length !== manifestFilenames.length) {
+    // Filter manifest files to only include user recordings (exclude system files)
+    const manifestUserFiles = manifest.filesUsed.filter(filename => {
+        // User recordings contain timestamp patterns like: kids-world_spookyland-lmid_38-question_1-20250103-123456.mp3
+        return filename.includes('-lmid_') && filename.match(/\d{8}-\d{6}\.mp3$/);
+    });
+    
+    // Check for NEW files (files that exist now but weren't in last generation)
+    const newFiles = currentFilenames.filter(filename => !manifestUserFiles.includes(filename));
+    
+    // Check for DELETED files (files that were in last generation but don't exist now)
+    const deletedFiles = manifestUserFiles.filter(filename => !currentFilenames.includes(filename));
+    
+    console.log(`🔍 Checking for file changes:`);
+    console.log(`  Current recordings: ${currentFilenames.length} files`);
+    console.log(`  Last generation had: ${manifestUserFiles.length} files`);
+    console.log(`  New files: ${newFiles.length}`);
+    console.log(`  Deleted files: ${deletedFiles.length}`);
+    
+    if (newFiles.length > 0) {
+        console.log(`📝 NEW FILES DETECTED: [${newFiles.join(', ')}] - new program needed`);
         return true;
     }
     
-    // If any filename is different, we need new program
-    for (let i = 0; i < currentFilenames.length; i++) {
-        if (currentFilenames[i] !== manifestFilenames[i]) {
-            return true;
-        }
+    if (deletedFiles.length > 0) {
+        console.log(`📝 DELETED FILES DETECTED: [${deletedFiles.join(', ')}] - new program needed`);
+        return true;
     }
     
-    // All files match - no new program needed
+    // No changes - no need to regenerate
+    console.log('✅ No file changes since last generation - no new program needed');
     return false;
 }
 

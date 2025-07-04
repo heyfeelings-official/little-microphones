@@ -91,13 +91,7 @@ import os from 'os';
 import https from 'https';
 import http from 'http';
 import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
-
-// Static file URLs
-const STATIC_FILES = {
-  intro: 'https://little-microphones.b-cdn.net/audio/other/intro.mp3',
-  outro: 'https://little-microphones.b-cdn.net/audio/other/outro.mp3',
-  monkeys: 'https://little-microphones.b-cdn.net/audio/other/monkeys.mp3'
-};
+import { extractFilesUsed, STATIC_FILES } from './audio-utils.js';
 
 export default async function handler(req, res) {
     // Set CORS headers
@@ -147,37 +141,8 @@ export default async function handler(req, res) {
         console.log(`🎵 Starting radio program generation for ${world}/${lmid}`);
         console.log(`📊 Processing ${audioSegments.length} audio segments`);
 
-        // Audio processing parameters for classroom environment
-        const audioParams = {
-            // User recordings (default settings)
-            userRecordings: {
-                noiseReduction: 5,         // Light noise reduction
-                volumeBoost: 1.2,          // Slight volume boost
-                highpass: 60,              // Light low-frequency filter
-                lowpass: 12000,            // Light high-frequency filter
-                dynamicNormalization: 0.7  // Moderate normalization
-            },
-            // Background music
-            backgroundMusic: {
-                volume: 0.25,              // Background volume
-                highpass: 80,              // EQ for background
-                lowpass: 8000,             // Reduce high frequencies
-                fadeIn: 0.3,               // Fade in duration
-                fadeOut: 0.3               // Fade out duration
-            },
-            // Question prompts and system audio
-            systemAudio: {
-                volume: 1.0,               // Normal volume
-                dynamicNormalization: 0.6  // Light normalization
-            },
-            // Final master settings
-            master: {
-                volume: 1.0,               // Normal overall volume
-                highpass: 40,              // Remove very low frequencies
-                lowpass: 15000,            // Keep most frequencies
-                dynamicNormalization: 0.7  // Light final normalization
-            }
-        };
+        // No audio processing - just basic concatenation
+        const audioParams = null;
 
         // Try to combine audio using FFmpeg
         try {
@@ -191,7 +156,6 @@ export default async function handler(req, res) {
                 programUrl: combinedAudioUrl,
                 totalSegments: audioSegments.length,
                 filesUsed: extractFilesUsed(audioSegments),
-                audioParams: audioParams,
                 version: '4.0.0'
             };
             
@@ -202,7 +166,6 @@ export default async function handler(req, res) {
                 message: 'Radio program generated successfully',
                 url: combinedAudioUrl,
                 totalSegments: audioSegments.length,
-                audioParams: audioParams,
                 manifest: manifestData
             });
         } catch (ffmpegError) {
@@ -291,9 +254,9 @@ async function combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams) {
                 console.log(`📥 Downloading background: ${segment.backgroundUrl}`);
                 await downloadFile(segment.backgroundUrl, backgroundPath);
                 
-                // Combine answers with background
+                // Combine answers with background (no processing)
                 const combinedPath = path.join(tempDir, `segment-${String(i).padStart(3, '0')}-combined.mp3`);
-                await combineAnswersWithBackground(answerPaths, backgroundPath, combinedPath, audioParams);
+                await combineAnswersWithBackground(answerPaths, backgroundPath, combinedPath);
                 
                 processedSegments.push({
                     path: combinedPath,
@@ -315,7 +278,7 @@ async function combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams) {
         // Final assembly of all segments IN ORDER
         console.log('🎼 Assembling final radio program in correct order...');
         const outputPath = path.join(tempDir, `radio-program-${world}-${lmid}.mp3`);
-        await assembleFinalProgram(processedSegments, outputPath, audioParams);
+        await assembleFinalProgram(processedSegments, outputPath);
         
         // Upload to Bunny.net
         const uploadUrl = await uploadToBunny(outputPath, world, lmid);
@@ -333,9 +296,9 @@ async function combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams) {
 }
 
 /**
- * Combine multiple answer recordings with background music
+ * Combine multiple answer recordings with background music (no processing)
  */
-async function combineAnswersWithBackground(answerPaths, backgroundPath, outputPath, audioParams) {
+async function combineAnswersWithBackground(answerPaths, backgroundPath, outputPath) {
     return new Promise((resolve, reject) => {
         const command = ffmpeg();
         
@@ -347,20 +310,15 @@ async function combineAnswersWithBackground(answerPaths, backgroundPath, outputP
         
         const filters = [];
         
-        // Process each answer with noise reduction and volume boost
-        answerPaths.forEach((path, index) => {
-            filters.push(`[${index}:a]highpass=${audioParams.userRecordings.highpass},lowpass=${audioParams.userRecordings.lowpass},volume=${audioParams.userRecordings.volumeBoost},dynaudnorm=p=${audioParams.userRecordings.dynamicNormalization}:s=5,afftdn=nr=${audioParams.userRecordings.noiseReduction}:nf=-25[answer${index}]`);
-        });
-        
-        // Concatenate all answers
-        const answerStreams = answerPaths.map((_, index) => `[answer${index}]`).join('');
+        // Simple concatenation of answers (no processing)
+        const answerStreams = answerPaths.map((_, index) => `[${index}:a]`).join('');
         filters.push(`${answerStreams}concat=n=${answerPaths.length}:v=0:a=1[answers_combined]`);
         
-        // Process background music - make it loop/trim to match answers duration
+        // Simple background music loop (no processing)
         const bgIndex = answerPaths.length;
-        filters.push(`[${bgIndex}:a]volume=${audioParams.backgroundMusic.volume},highpass=f=${audioParams.backgroundMusic.highpass},lowpass=f=${audioParams.backgroundMusic.lowpass},aloop=loop=-1:size=2e+09[background_loop]`);
+        filters.push(`[${bgIndex}:a]aloop=loop=-1:size=2e+09[background_loop]`);
         
-        // Mix answers with background - background will be trimmed to match answers duration
+        // Simple mix answers with background (no processing)
         filters.push(`[answers_combined][background_loop]amix=inputs=2:duration=shortest:dropout_transition=0[mixed]`);
         
         command
@@ -369,7 +327,7 @@ async function combineAnswersWithBackground(answerPaths, backgroundPath, outputP
             .format('mp3')
             .audioCodec('libmp3lame')
             .on('start', (commandLine) => {
-                console.log(`🎵 Combining answers with background: ${commandLine}`);
+                console.log(`🎵 Combining answers with background (no processing): ${commandLine}`);
             })
             .on('progress', (progress) => {
                 console.log(`⏳ Combining progress: ${Math.round(progress.percent || 0)}%`);
@@ -384,37 +342,21 @@ async function combineAnswersWithBackground(answerPaths, backgroundPath, outputP
 }
 
 /**
- * Assemble final program from processed segments
+ * Assemble final program from processed segments (no processing)
  */
-async function assembleFinalProgram(processedSegments, outputPath, audioParams) {
+async function assembleFinalProgram(processedSegments, outputPath) {
     return new Promise((resolve, reject) => {
         const command = ffmpeg();
         
         // Add all processed segments as inputs
         processedSegments.forEach(segment => command.input(segment.path));
         
-        const filters = [];
-        
-        // Apply final processing to each segment
-        processedSegments.forEach((segment, index) => {
-            if (segment.type === 'single') {
-                // System audio (intro, outro, questions)
-                filters.push(`[${index}:a]volume=${audioParams.systemAudio.volume},dynaudnorm=p=${audioParams.systemAudio.dynamicNormalization}:s=3[seg${index}]`);
-            } else {
-                // Already processed combined segments
-                filters.push(`[${index}:a]anull[seg${index}]`);
-            }
-        });
-        
-        // Concatenate all segments
-        const segmentStreams = processedSegments.map((_, index) => `[seg${index}]`).join('');
-        filters.push(`${segmentStreams}concat=n=${processedSegments.length}:v=0:a=1[temp]`);
-        
-        // Final master processing
-        filters.push(`[temp]dynaudnorm=p=${audioParams.master.dynamicNormalization}:s=5,volume=${audioParams.master.volume},highpass=f=${audioParams.master.highpass},lowpass=f=${audioParams.master.lowpass}[outa]`);
+        // Simple concatenation of all segments (no processing)
+        const segmentStreams = processedSegments.map((_, index) => `[${index}:a]`).join('');
+        const filter = `${segmentStreams}concat=n=${processedSegments.length}:v=0:a=1[outa]`;
         
         command
-            .complexFilter(filters)
+            .complexFilter([filter])
             .outputOptions([
                 '-map', '[outa]',
                 '-ar', '44100',
@@ -425,7 +367,7 @@ async function assembleFinalProgram(processedSegments, outputPath, audioParams) 
             .format('mp3')
             .audioCodec('libmp3lame')
             .on('start', (commandLine) => {
-                console.log('🎵 Final assembly command:', commandLine);
+                console.log('🎵 Final assembly command (no processing):', commandLine);
             })
             .on('progress', (progress) => {
                 console.log(`⏳ Final assembly: ${Math.round(progress.percent || 0)}% done`);
@@ -532,34 +474,7 @@ async function cleanupTempDirectory(tempDir) {
     }
 }
 
-/**
- * Extract files used from audio segments for manifest tracking
- * @param {Array} audioSegments - Array of audio segments
- * @returns {Array} Array of filenames used in the program
- */
-function extractFilesUsed(audioSegments) {
-    const filesUsed = [];
-    
-    audioSegments.forEach(segment => {
-        if (segment.type === 'single') {
-            // Extract filename from URL
-            const filename = segment.url.split('/').pop();
-            filesUsed.push(filename);
-        } else if (segment.type === 'combine_with_background') {
-            // Extract filenames from answer URLs
-            segment.answerUrls.forEach(url => {
-                const filename = url.split('/').pop();
-                filesUsed.push(filename);
-            });
-            
-            // Extract background filename
-            const backgroundFilename = segment.backgroundUrl.split('/').pop();
-            filesUsed.push(backgroundFilename);
-        }
-    });
-    
-    return filesUsed;
-}
+// extractFilesUsed function now imported from audio-utils.js
 
 /**
  * Save manifest data to Bunny.net storage
