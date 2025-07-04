@@ -148,6 +148,14 @@ export default async function handler(req, res) {
         try {
             const combinedAudioUrl = await combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams);
             
+            // Count actual user recordings (not system files like intro/outro)
+            let recordingCount = 0;
+            audioSegments.forEach(segment => {
+                if (segment.type === 'combine_with_background' && segment.answerUrls) {
+                    recordingCount += segment.answerUrls.length;
+                }
+            });
+            
             // Create and save last-program-manifest.json
             const manifestData = {
                 generatedAt: new Date().toISOString(),
@@ -155,9 +163,12 @@ export default async function handler(req, res) {
                 lmid: lmid,
                 programUrl: combinedAudioUrl,
                 totalSegments: audioSegments.length,
+                recordingCount: recordingCount, // NEW: Store actual user recording count for simple comparison
                 filesUsed: extractFilesUsed(audioSegments),
-                version: '4.0.0'
+                version: '4.1.0'
             };
+            
+            console.log(`📊 Manifest: ${recordingCount} user recordings in ${audioSegments.length} total segments`);
             
             await saveManifestToBunny(manifestData, world, lmid);
             

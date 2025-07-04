@@ -231,8 +231,11 @@
             }
             
             // Check if we need a new program
+        console.log(`🔍 RadioGenerator: Checking program status - needsNewProgram: ${radioData.needsNewProgram}, hasManifest: ${!!radioData.lastManifest}, hasURL: ${!!(radioData.lastManifest?.programUrl)}`);
+        
                          if (!radioData.needsNewProgram && radioData.lastManifest && radioData.lastManifest.programUrl) {
                  console.log('✅ RadioGenerator: Program is up to date - returning existing program');
+                console.log(`🎵 Using cached program: ${radioData.lastManifest.programUrl}`);
                 return {
                     success: true,
                     url: radioData.lastManifest.programUrl,
@@ -240,6 +243,8 @@
                     fromCache: true
                 };
             }
+            
+            console.log('🔄 RadioGenerator: Generating new program - files have changed or no existing program found');
             
             // Generate new program
             return await generateRadioProgram(
