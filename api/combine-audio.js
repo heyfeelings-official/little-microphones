@@ -148,13 +148,17 @@ export default async function handler(req, res) {
         try {
             const combinedAudioUrl = await combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams);
             
-            // Fetch all user recordings from Bunny.net for this world/lmid
+            // Fetch all user recordings from Bunny.net for this world/lmid, excluding the manifest file
             let recordingCount = 0;
             try {
                 const response = await fetch(`https://little-microphones.vercel.app/api/list-recordings?world=${world}&lmid=${lmid}`);
                 if (response.ok) {
                     const data = await response.json();
-                    recordingCount = data.count || 0;
+                    // Exclude last-program-manifest.json from the count
+                    const userFiles = (data.recordings || []).filter(
+                        file => file.filename !== 'last-program-manifest.json'
+                    );
+                    recordingCount = userFiles.length;
                 } else {
                     console.warn(`Failed to fetch recording count for manifest: ${response.status}`);
                 }
@@ -169,7 +173,7 @@ export default async function handler(req, res) {
                 lmid: lmid,
                 programUrl: combinedAudioUrl,
                 recordingCount: recordingCount,
-                version: '5.1.0'
+                version: '5.2.0'
             };
             
             await uploadManifestToBunny(manifestData, world, lmid);

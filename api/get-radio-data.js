@@ -103,6 +103,10 @@ async function fetchLastProgramManifest(world, lmid) {
  * @returns {boolean} True if new program generation needed (files added or deleted)
  */
 function needsNewProgram(currentRecordings, manifest) {
+    // Exclude last-program-manifest.json from the count
+    const filteredRecordings = currentRecordings.filter(
+        file => file.filename !== 'last-program-manifest.json'
+    );
     // If no manifest exists, we definitely need a new program
     if (!manifest || typeof manifest.recordingCount !== 'number') {
         console.log('📝 No manifest or missing recordingCount - new program needed');
@@ -110,7 +114,7 @@ function needsNewProgram(currentRecordings, manifest) {
     }
     
     // Compare only the count of user recordings
-    const currentCount = currentRecordings.length;
+    const currentCount = filteredRecordings.length;
     const previousCount = manifest.recordingCount;
     
     if (currentCount !== previousCount) {
