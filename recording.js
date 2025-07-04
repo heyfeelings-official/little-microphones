@@ -325,7 +325,7 @@ async function createRecordingElement(recordingData, questionId, allIds) {
         }
 
         const status = event.detail.status;
-        console.log(`[UI Event] Recording ${recordingData.id} caught status update: ${status}`);
+        // Removed UI event log
 
         // Clear any previous blinking animation
         if (uploadBlinkInterval) {
@@ -364,7 +364,7 @@ async function createRecordingElement(recordingData, questionId, allIds) {
             if (mutation.removedNodes) {
                 for (const removedNode of mutation.removedNodes) {
                     if (removedNode.contains(li)) {
-                         console.log(`[UI Cleanup] Removing listener for ${recordingData.id}`);
+                         // Removed UI cleanup log
                          document.removeEventListener('recording-status-update', handleStatusUpdate);
                          obs.disconnect(); // Stop observing
                          return;
@@ -669,13 +669,13 @@ function initializeAudioRecorder(recorderWrapper) {
     
     // Prevent double initialization
     if (recorderWrapper.dataset.recordingInitialized === 'true') {
-        console.log(`[${questionId}] Already initialized`);
+        // Removed initialization log
         return;
     }
     
     // Mark as initialized
     recorderWrapper.dataset.recordingInitialized = 'true';
-    console.log(`[${questionId}] Initializing audio recorder`);
+    // Removed per-recorder initialization log
 
     // --- Step 1: Find ONLY the button initially ---
     const recordButton = recorderWrapper.querySelector('.record-button');
@@ -1856,7 +1856,7 @@ async function collectRecordingsForRadioProgram(world, lmid) {
     const recordings = {};
     const processedQuestionIds = new Set(); // Track processed IDs to prevent duplicates
     
-    console.log(`🔍 Collecting recordings for ${world}/${lmid}`);
+    // Removed collection start log
     
     // Method 1: Try to find recordings from DOM elements first
     const targetCollectionId = `collection-${world}`;
@@ -1889,7 +1889,7 @@ async function collectRecordingsForRadioProgram(world, lmid) {
                     
                     if (validRecordings.length > 0) {
                         recordings[questionId] = validRecordings;
-                        console.log(`✅ Question ${questionId}: ${validRecordings.length} recordings`);
+                        // Removed per-question log
                     }
                 }
             } catch (error) {
@@ -1902,7 +1902,7 @@ async function collectRecordingsForRadioProgram(world, lmid) {
     
     // Method 2: Database discovery as fallback (only if no DOM elements found)
     if (Object.keys(recordings).length === 0) {
-        console.log('📋 No recordings found from DOM, trying database discovery...');
+        // Removed database discovery log
         
         try {
             const discoveredQuestionIds = await discoverQuestionIdsFromDB(world, lmid);
@@ -1924,7 +1924,7 @@ async function collectRecordingsForRadioProgram(world, lmid) {
                         
                         if (validRecordings.length > 0) {
                             recordings[questionId] = validRecordings;
-                            console.log(`✅ Question ${questionId}: ${validRecordings.length} recordings (discovered)`);
+                            // Removed per-question discovered log
                         }
                     }
                 } catch (error) {
@@ -1938,7 +1938,7 @@ async function collectRecordingsForRadioProgram(world, lmid) {
     
     const totalQuestions = Object.keys(recordings).length;
     const totalRecordings = Object.values(recordings).reduce((sum, recs) => sum + recs.length, 0);
-    console.log(`📊 Summary: ${totalQuestions} questions, ${totalRecordings} recordings`);
+    log('info', `☁️ Loaded ${totalRecordings} recordings from ${totalQuestions} questions for ${world}/${lmid}`);
     
     return recordings;
 }
@@ -2031,7 +2031,7 @@ window.cleanupAllOrphanedRecordings = cleanupAllOrphanedRecordings;
 // --- Script ready event - MUST be at the very end ---
 window.isRecordingScriptReady = true;
 document.dispatchEvent(new CustomEvent('recording-script-ready'));
-console.log('✅ recording.js script fully loaded and ready.');
+log('info', '✅ recording.js script fully loaded and ready.');
 
 /**
  * Start fun status messages during actual audio processing
@@ -2094,7 +2094,7 @@ function stopFunStatusMessages() {
  */
 async function loadRecordingsFromCloud(questionId, world, lmid) {
     try {
-        console.log(`[${questionId}] Loading recordings from cloud for ${world}/${lmid}`);
+        // Removed per-question cloud loading log
         
         // Fetch from cloud API
         const response = await fetch(`https://little-microphones.vercel.app/api/list-recordings?world=${world}&lmid=${lmid}&questionId=${questionId}`);
@@ -2106,7 +2106,7 @@ async function loadRecordingsFromCloud(questionId, world, lmid) {
         
         const cloudData = await response.json();
         const cloudRecordings = cloudData.recordings || [];
-        console.log(`[${questionId}] Found ${cloudRecordings.length} cloud recordings`);
+        // Removed per-question cloud count log
         
         // Transform cloud recordings to our format
         const recordings = cloudRecordings.map(cloudRec => ({
