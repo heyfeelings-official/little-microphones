@@ -283,7 +283,7 @@ function setupExistingRadioProgramButton(world, lmid) {
       }
       
       // Open the radio page in a new tab with the ShareID
-      const radioUrl = `/radio?ID=${result.shareId}`;
+                  const radioUrl = `/members/radio?ID=${result.shareId}`;
       window.open(radioUrl, '_blank');
       
       console.log(`Share link generated: ${result.url}`);

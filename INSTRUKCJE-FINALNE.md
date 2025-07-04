@@ -25,11 +25,11 @@ SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSI
 5. Kliknij "Save"
 6. Poczekaj na redeploy (automatyczny)
 
-### KROK 2: Stworzenie strony /radio w Webflow
+### KROK 2: Stworzenie strony /members/radio w Webflow
 **Czas: 5 minut**
 
 1. Idź do Webflow Designer
-2. Stwórz nową stronę `/radio`
+2. Stwórz nową stronę `/members/radio`
 3. Skopiuj CAŁĄ zawartość z pliku `radio-page-complete.html`
 4. Wklej do HTML Embed w Webflow
 5. Gotowe! (Memberstack jest już załadowany globalnie w Webflow)

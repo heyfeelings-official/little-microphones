@@ -1,7 +1,7 @@
 # Webflow Integration Guide - Radio Page Setup
 
 ## Overview
-This guide provides step-by-step instructions for creating and configuring the `/radio` page in Webflow to integrate with the Little Microphones radio program sharing system.
+This guide provides step-by-step instructions for creating and configuring the `/members/radio` page in Webflow to integrate with the Little Microphones radio program sharing system.
 
 ## Prerequisites
 - Webflow account with Designer access
@@ -227,8 +227,8 @@ Add this CSS to Page Settings > Custom Code > "Inside <head> tag":
 
 ### 5.1 Test URL Structure
 The radio page should be accessible at:
-- `https://your-domain.com/radio`
-- `https://your-domain.com/radio?ID=shareId123`
+- `https://your-domain.com/members/radio`
+- `https://your-domain.com/members/radio?ID=shareId123`
 
 ### 5.2 Test Parameters
 Create test URLs with different scenarios:
