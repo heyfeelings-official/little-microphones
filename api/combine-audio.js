@@ -154,6 +154,7 @@ export default async function handler(req, res) {
                 const response = await fetch(`https://little-microphones.vercel.app/api/list-recordings?world=${world}&lmid=${lmid}`);
                 if (response.ok) {
                     const data = await response.json();
+                    console.log('DEBUG: list-recordings response', data); // Debug log
                     // Exclude last-program-manifest.json from the count
                     const userFiles = (data.recordings || []).filter(
                         file => file.filename !== 'last-program-manifest.json'
@@ -173,7 +174,7 @@ export default async function handler(req, res) {
                 lmid: lmid,
                 programUrl: combinedAudioUrl,
                 recordingCount: recordingCount,
-                version: '5.2.0'
+                version: '5.2.1'
             };
             
             await uploadManifestToBunny(manifestData, world, lmid);
