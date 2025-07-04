@@ -14,7 +14,7 @@
  * - LMID ownership validation against user metadata with fail-safe redirection
  * - World-specific collection display management with theme coordination
  * - Recording system initialization and seamless integration
- * - Radio program generation button setup with recording validation
+ * - Share link generation button setup for radio program access
  * - Question ID normalization and recording count verification
  * 
  * SECURITY FEATURES:
@@ -32,16 +32,16 @@
  * - Collection-specific recorder initialization
  * 
  * RADIO PROGRAM INTEGRATION:
- * - Existing button hijacking for radio program generation
- * - Pre-generation recording validation with user feedback
- * - Progress tracking and error handling during generation
+ * - Existing button hijacking for share link generation
+ * - ShareID generation and secure link creation
+ * - New tab opening for radio program page
  * - Button state management with loading indicators
  * - Success/failure feedback with appropriate user messaging
  * 
  * RECORDING SYSTEM COORDINATION:
  * - Event-driven initialization waiting for recording.js readiness
  * - Question ID discovery from DOM elements with normalization
- * - Recording count validation before radio program generation
+ * - ShareID generation for radio program access
  * - Fallback database scanning for recording discovery
  * - Cross-device recording synchronization support
  * 
@@ -129,7 +129,7 @@ function showWorldCollection(world) {
     setTimeout(() => {
       initializeRecordingForWorld(world);
       
-      // Hook into existing generate-program button instead of creating a new one
+      // Hook into existing generate-program button and convert to share link functionality
       setupExistingRadioProgramButton(world, window.currentLmid);
     }, 100);
   } else {
@@ -234,7 +234,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 /**
- * Hook into existing "generate-program" button instead of creating a new one
+ * Hook into existing "generate-program" button and convert it to "Get Share Link" functionality
  * @param {string} world - The world slug
  * @param {string} lmid - The LMID
  */
@@ -247,26 +247,18 @@ function setupExistingRadioProgramButton(world, lmid) {
     return;
   }
   
-  console.log(`Setting up existing generate-program button for ${world}/${lmid}`);
+  console.log(`Setting up share link button for ${world}/${lmid}`);
   
   // Remove any existing event listeners by cloning the button
   const newButton = existingButton.cloneNode(true);
   existingButton.parentNode.replaceChild(newButton, existingButton);
   
-  // Add click handler to the existing button
+  // Add click handler to the existing button - NEW: Get ShareID and open radio page
   newButton.addEventListener('click', async (event) => {
     event.preventDefault();
     event.stopPropagation();
     
-    console.log(`Generate program button clicked for ${world}/${lmid}`);
-    
-    // Check if user has any recordings first
-    const hasRecordings = await checkIfUserHasRecordings(world, lmid);
-    
-    if (!hasRecordings) {
-      alert('You need to record some answers first before creating a radio program!');
-      return;
-    }
+    console.log(`Get Share Link button clicked for ${world}/${lmid}`);
     
     // Store original button state
     const originalText = newButton.textContent;
@@ -274,14 +266,31 @@ function setupExistingRadioProgramButton(world, lmid) {
     
     // Disable button during processing
     newButton.disabled = true;
-    newButton.textContent = 'Creating Radio Program...';
+    newButton.textContent = 'Getting Share Link...';
     
     try {
-      // Call the radio program generation function
-      await window.generateRadioProgram(world, lmid);
+      // Call the new get-share-link API
+      const response = await fetch(`https://little-microphones.vercel.app/api/get-share-link?lmid=${lmid}`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to get share link: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to generate share link');
+      }
+      
+      // Open the radio page in a new tab with the ShareID
+      const radioUrl = `/radio?ID=${result.shareId}`;
+      window.open(radioUrl, '_blank');
+      
+      console.log(`Share link generated: ${result.url}`);
+      
     } catch (error) {
-      console.error('Radio program generation failed:', error);
-      alert('Failed to generate radio program. Please try again.');
+      console.error('Failed to get share link:', error);
+      alert('Failed to get share link. Please try again.');
     } finally {
       // Re-enable button
       newButton.disabled = originalDisabled;
@@ -289,7 +298,7 @@ function setupExistingRadioProgramButton(world, lmid) {
     }
   });
   
-      console.log(`Generate-program button setup complete for ${world}`);
+      console.log(`Share link button setup complete for ${world}`);
 }
 
 /**
