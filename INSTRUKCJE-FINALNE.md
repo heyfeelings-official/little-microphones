@@ -26,16 +26,13 @@ SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSI
 6. Poczekaj na redeploy (automatyczny)
 
 ### KROK 2: Stworzenie strony /radio w Webflow
-**Czas: 10 minut**
+**Czas: 5 minut**
 
 1. Idź do Webflow Designer
 2. Stwórz nową stronę `/radio`
 3. Skopiuj CAŁĄ zawartość z pliku `radio-page-complete.html`
 4. Wklej do HTML Embed w Webflow
-5. Zmień linię 366 na twój prawdziwy Memberstack ID:
-   ```html
-   <script src="https://api.memberstack.com/static/memberstack.js" data-memberstack-id="TWÓJ-MEMBERSTACK-ID"></script>
-   ```
+5. Gotowe! (Memberstack jest już załadowany globalnie w Webflow)
 
 ### KROK 3: Konfiguracja Memberstack Webhook
 **Czas: 5 minut**
@@ -59,7 +56,7 @@ SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSI
 
 ## 🎉 GOTOWE!
 
-Po wykonaniu tych 4 kroków system będzie w 100% działał:
+Po wykonaniu tych 4 kroków (łącznie 17 minut) system będzie w 100% działał:
 - Nauczyciele będą mogli generować linki
 - Rodzice będą mogli słuchać programów
 - Rejestracja będzie działać automatycznie
