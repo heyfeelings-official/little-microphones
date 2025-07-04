@@ -103,10 +103,11 @@ async function fetchLastProgramManifest(world, lmid) {
  * @param {Object|null} manifest - Last program manifest
  * @returns {boolean} True if new program generation needed (files added or deleted)
  */
-function needsNewProgram(currentRecordings, manifest) {
-    // Exclude last-program-manifest.json from the count
+function needsNewProgram(currentRecordings, manifest, world, lmid) {
+    // Only count files matching the user answer pattern
+    const userAnswerPattern = new RegExp(`^kids-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.mp3$`);
     const filteredRecordings = currentRecordings.filter(
-        file => file.filename !== 'last-program-manifest.json'
+        file => userAnswerPattern.test(file.filename)
     );
     // If no manifest exists, we definitely need a new program
     if (!manifest || typeof manifest.recordingCount !== 'number') {
@@ -203,7 +204,7 @@ export default async function handler(req, res) {
         const lastManifest = await fetchLastProgramManifest(world, lmid);
         
         // Determine if new program generation is needed
-        const needsNew = needsNewProgram(currentRecordings, lastManifest);
+        const needsNew = needsNewProgram(currentRecordings, lastManifest, world, lmid);
 
         return res.status(200).json({
             success: true,
