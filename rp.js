@@ -138,6 +138,12 @@ function showWorldCollection(world) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  // Check if this is a radio page - if so, don't run rp.js
+  if (window.location.pathname.includes('/radio')) {
+    console.log('📻 Radio page detected - skipping rp.js initialization');
+    return;
+  }
+
   const memberstack = window.$memberstackDom;
 
   if (!memberstack) {
