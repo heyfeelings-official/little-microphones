@@ -1,20 +1,79 @@
 /**
- * api/delete-audio.js - Audio File Deletion Service
+ * api/delete-audio.js - Comprehensive Audio File Deletion Service
  * 
- * PURPOSE: Serverless function for deleting individual files or entire LMID folders from Bunny.net storage
- * DEPENDENCIES: Bunny.net Storage API, HTTPS module for API requests
+ * PURPOSE: Serverless function for deleting individual files or entire LMID folders from Bunny.net storage with comprehensive cleanup
+ * DEPENDENCIES: Bunny.net Storage API, HTTPS module for API requests, Recursive deletion algorithms
  * DOCUMENTATION: See /documentation/api-documentation.md for complete API overview
  * 
  * REQUEST FORMATS:
- * DELETE /api/delete-audio
- * Single File: { filename: "audio.mp3", world: "world", lmid: "32", questionId: "QID9" }
- * Folder Delete: { deleteLmidFolder: true, lmid: "32" }
+ * Single File: DELETE /api/delete-audio { filename: "audio.mp3", world: "world", lmid: "32", questionId: "9" }
+ * Folder Delete: DELETE /api/delete-audio { deleteLmidFolder: true, lmid: "32" }
  * 
  * PROCESSING MODES:
- * 1. Single File Deletion → Direct file removal from storage
- * 2. LMID Folder Deletion → List folder contents → Batch delete all files
+ * 1. Single File Deletion → Direct file removal with path validation
+ * 2. LMID Folder Deletion → Recursive folder listing → Batch delete all files → Folder cleanup
  * 
- * DELETION STRATEGY: Comprehensive cleanup with error resilience and progress tracking
+ * DELETION STRATEGY:
+ * - Comprehensive cleanup with error resilience and progress tracking
+ * - Hierarchical deletion: Files → World folders → LMID folder
+ * - Empty folder detection and automatic cleanup
+ * - Orphaned file discovery and removal
+ * 
+ * SECURITY FEATURES:
+ * - Filename format validation to prevent unauthorized deletions
+ * - Path traversal protection with strict pattern matching
+ * - API key authentication with secure environment storage
+ * - CORS configuration for authorized cross-origin requests
+ * - Error sanitization to prevent information disclosure
+ * 
+ * RECURSIVE DELETION ALGORITHM:
+ * 1. List all contents in target LMID folder
+ * 2. Iterate through world subfolders and files
+ * 3. Delete all files within each world folder
+ * 4. Remove empty world folders after file cleanup
+ * 5. Delete LMID folder once all contents removed
+ * 6. Report comprehensive deletion results
+ * 
+ * ERROR HANDLING:
+ * - 404 handling for already-deleted files (considered success)
+ * - Network failure recovery with continued processing
+ * - Partial deletion success reporting with detailed logs
+ * - Individual file failure isolation to continue batch operations
+ * - Comprehensive error logging for debugging and monitoring
+ * 
+ * CLEANUP FEATURES:
+ * - Automatic empty folder detection and removal
+ * - Orphaned file identification and cleanup
+ * - Storage optimization through intelligent folder management
+ * - Hierarchical cleanup ensuring no empty directories remain
+ * 
+ * PERFORMANCE OPTIMIZATIONS:
+ * - Parallel file deletion for faster batch operations
+ * - Efficient folder listing with minimal API calls
+ * - Progress tracking for large deletion operations
+ * - Memory-efficient processing for extensive file lists
+ * 
+ * INTEGRATION POINTS:
+ * - lm.js: LMID deletion trigger from dashboard
+ * - recording.js: Individual recording deletion requests
+ * - Bunny.net CDN: Direct storage API communication
+ * - Vercel Runtime: Serverless execution environment
+ * 
+ * MONITORING & REPORTING:
+ * - Detailed deletion logs with file counts and sizes
+ * - Success/failure tracking for individual operations
+ * - Performance metrics for large batch deletions
+ * - Error analysis for troubleshooting and optimization
+ * 
+ * RESPONSE FORMATS:
+ * - Success confirmations with deletion summaries
+ * - Partial success reports for mixed results
+ * - Detailed error messages with recovery suggestions
+ * - File count and size reporting for monitoring
+ * 
+ * LAST UPDATED: January 2025
+ * VERSION: 2.4.0
+ * STATUS: Production Ready ✅
  */
 
 export default async function handler(req, res) {

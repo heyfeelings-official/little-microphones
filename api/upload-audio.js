@@ -1,19 +1,74 @@
 /**
- * api/upload-audio.js - Audio File Upload Service
+ * api/upload-audio.js - Secure Audio File Upload Service
  * 
- * PURPOSE: Serverless function for uploading recorded audio files to Bunny.net CDN storage
- * DEPENDENCIES: Bunny.net Storage API, Node.js Buffer handling
+ * PURPOSE: Serverless function for uploading recorded audio files to Bunny.net CDN with validation and organization
+ * DEPENDENCIES: Bunny.net Storage API, Node.js Buffer handling, Base64 processing
  * DOCUMENTATION: See /documentation/api-documentation.md for complete API overview
  * 
  * REQUEST FORMAT:
  * POST /api/upload-audio
- * Body: { audio: "base64_mp3", world: "spookyland", lmid: "32", questionId: "QID9", timestamp: 1234567890 }
+ * Body: { audioData: "base64_mp3", filename: "kids-world_...", world: "spookyland", lmid: "32", questionId: "9" }
  * 
  * PROCESSING PIPELINE:
- * Base64 Audio → Buffer Conversion → Filename Generation → Bunny.net Upload → CDN URL Response
+ * Base64 Audio → Buffer Conversion → Filename Validation → Bunny.net Upload → CDN URL Response
  * 
- * FILE NAMING: kids-world_{world}-lmid_{lmid}-question_{number}-tm_{timestamp}.mp3
- * STORAGE PATH: /{lmid}/{world}/{filename}
+ * FILE ORGANIZATION:
+ * - Naming Convention: kids-world_{world}-lmid_{lmid}-question_{number}-tm_{timestamp}.mp3
+ * - Storage Path: /{lmid}/{world}/{filename}
+ * - CDN Access: https://little-microphones.b-cdn.net/{lmid}/{world}/{filename}
+ * 
+ * SECURITY FEATURES:
+ * - Comprehensive input validation for all required parameters
+ * - Filename format verification to prevent unauthorized uploads
+ * - Base64 data validation with error handling for malformed audio
+ * - Environment variable protection for API keys and credentials
+ * - CORS configuration for secure cross-origin requests
+ * 
+ * AUDIO PROCESSING:
+ * - Base64 to binary buffer conversion with error recovery
+ * - Data URL prefix removal for clean audio data extraction
+ * - File size tracking and reporting for monitoring
+ * - MIME type enforcement for audio/mpeg consistency
+ * 
+ * BUNNY.NET INTEGRATION:
+ * - Secure API key authentication with protected storage
+ * - Organized folder structure for user and world isolation
+ * - Direct CDN upload with immediate URL generation
+ * - Error handling for network failures and storage issues
+ * 
+ * RESPONSE HANDLING:
+ * - Success responses with CDN URLs and metadata
+ * - Detailed error reporting with specific failure reasons
+ * - File size and upload confirmation tracking
+ * - Network status monitoring with retry suggestions
+ * 
+ * ERROR RECOVERY:
+ * - Malformed audio data detection and reporting
+ * - Network timeout handling with clear error messages
+ * - Missing parameter validation with specific guidance
+ * - Configuration error detection with setup instructions
+ * 
+ * PERFORMANCE OPTIMIZATIONS:
+ * - Efficient buffer processing for large audio files
+ * - Direct CDN upload without intermediate storage
+ * - Minimal server processing for fast response times
+ * - Optimized error handling to prevent unnecessary retries
+ * 
+ * INTEGRATION POINTS:
+ * - recording.js: Client-side upload initiation and progress tracking
+ * - Bunny.net CDN: Global file storage and content delivery
+ * - Vercel Runtime: Serverless execution environment
+ * - IndexedDB: Local storage coordination for upload status
+ * 
+ * MONITORING & LOGGING:
+ * - Comprehensive upload logging with file metadata
+ * - Error tracking with detailed diagnostic information
+ * - Performance monitoring for upload speed optimization
+ * - Success rate tracking for system reliability metrics
+ * 
+ * LAST UPDATED: January 2025
+ * VERSION: 2.4.0
+ * STATUS: Production Ready ✅
  */
 
 export default async function handler(req, res) {

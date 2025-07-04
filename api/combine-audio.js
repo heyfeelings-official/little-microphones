@@ -1,21 +1,79 @@
 /**
- * api/combine-audio.js - Radio Program Generation Service
+ * api/combine-audio.js - Professional Radio Program Generation Service
  * 
- * PURPOSE: Serverless function for combining multiple audio recordings into a single radio program using FFmpeg
- * DEPENDENCIES: FFmpeg (with fluent-ffmpeg), Bunny.net Storage API, Node.js file system
+ * PURPOSE: Serverless function for combining multiple audio recordings into professional radio programs using FFmpeg
+ * DEPENDENCIES: FFmpeg (with fluent-ffmpeg), Bunny.net Storage API, Node.js file system, HTTPS requests
  * DOCUMENTATION: See /documentation/api-documentation.md for complete API overview
  * 
  * REQUEST FORMAT:
  * POST /api/combine-audio
- * Body: { world: "spookyland", lmid: "32", audioSegments: [{ type: "audio", url: "https://example.com/intro.mp3" }, { type: "audio", url: "https://example.com/question1.mp3" }, ...] }
+ * Body: { world: "spookyland", lmid: "32", audioSegments: [segments...] }
  * 
- * AUDIO SEQUENCE:
- * intro.mp3 → question1.mp3 → [user recordings Q1] → monkeys.mp3 → question2.mp3 → [user recordings Q2] → monkeys.mp3 → outro.mp3
+ * AUDIO SEQUENCE STRUCTURE:
+ * intro.mp3 → question1.mp3 → [user recordings Q1 + background] → monkeys.mp3 → 
+ * question2.mp3 → [user recordings Q2 + background] → monkeys.mp3 → ... → outro.mp3
  * 
  * PROCESSING PIPELINE:
- * Recording Collection → Audio Plan Creation → File Download → FFmpeg Combination → Cloud Upload → URL Response
+ * Recording Collection → Audio Plan Creation → File Download → FFmpeg Combination → 
+ * Professional Audio Processing → Cloud Upload → CDN URL Response
  * 
- * OUTPUT: Single MP3 file with all recordings combined in proper sequence
+ * ADVANCED AUDIO PROCESSING:
+ * - Multi-stage audio enhancement with noise reduction and normalization
+ * - Dynamic background music mixing with perfect duration matching
+ * - Professional mastering with EQ, compression, and volume optimization
+ * - Answer chronology preservation (first recorded = first played)
+ * - Seamless audio transitions with crossfading capabilities
+ * 
+ * FFMPEG FEATURES:
+ * - Complex filter graphs for advanced audio manipulation
+ * - Real-time progress tracking with detailed logging
+ * - Multiple format support with automatic conversion
+ * - Dynamic range compression for consistent volume levels
+ * - High-quality MP3 encoding with optimal settings
+ * 
+ * AUDIO PARAMETERS (Classroom-Optimized):
+ * - User Recordings: Light noise reduction, moderate volume boost, balanced EQ
+ * - Background Music: 25% volume, filtered frequency range, seamless looping
+ * - System Audio: Standard processing for intro/outro/questions
+ * - Master Output: Professional mastering with dynamic normalization
+ * 
+ * PERFORMANCE OPTIMIZATIONS:
+ * - Parallel file downloads for faster processing
+ * - Efficient temporary file management with automatic cleanup
+ * - Memory-optimized audio processing for large files
+ * - Progressive status updates for real-time feedback
+ * - Error recovery with detailed diagnostic information
+ * 
+ * SECURITY & VALIDATION:
+ * - Input validation for all audio segment parameters
+ * - Secure file download with URL verification
+ * - Protected environment variable access
+ * - Comprehensive error sanitization for safe responses
+ * - CORS configuration for cross-origin requests
+ * 
+ * OUTPUT FORMAT:
+ * - High-quality MP3 with stereo encoding
+ * - 44.1kHz sample rate for optimal compatibility
+ * - 128kbps bitrate for balance of quality and size
+ * - Cache-busting timestamps for fresh content delivery
+ * - CDN-optimized file organization
+ * 
+ * ERROR HANDLING:
+ * - FFmpeg availability detection with setup suggestions
+ * - Network failure recovery with retry mechanisms
+ * - Partial processing success reporting
+ * - Detailed error logging for debugging
+ * - Graceful degradation for missing dependencies
+ * 
+ * INTEGRATION POINTS:
+ * - Bunny.net CDN: File storage and global content delivery
+ * - recording.js: Audio segment collection and organization
+ * - Vercel Runtime: Serverless execution environment
+ * - Client Progress: Real-time status updates and feedback
+ * 
+ * LAST UPDATED: January 2025
+ * VERSION: 2.4.0
+ * STATUS: Production Ready ✅
  */
 
 // Import required modules at the top

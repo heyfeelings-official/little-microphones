@@ -1,20 +1,69 @@
 /**
- * recording.js - Multi-Question Audio Recording System
+ * recording.js - Multi-Question Audio Recording System with Radio Program Generation
  * 
  * PURPOSE: Comprehensive audio recording system with local storage, cloud backup, and radio program generation
- * DEPENDENCIES: MediaRecorder API, IndexedDB, Bunny.net Storage API
+ * DEPENDENCIES: MediaRecorder API, IndexedDB, Bunny.net Storage API, FFmpeg processing
  * DOCUMENTATION: See /documentation/recording.js.md for complete system overview
  * 
  * CORE FEATURES:
- * - Multi-question independent recording instances
- * - Local IndexedDB storage with cloud backup to Bunny.net
- * - Upload progress tracking and retry mechanisms
- * - Radio program generation from multiple recordings
- * - Question ID normalization and file organization
- * - Orphaned recording cleanup and maintenance
+ * - Multi-question independent recording instances with isolated state management
+ * - Local IndexedDB storage with automatic cloud backup to Bunny.net CDN
+ * - Upload progress tracking with retry mechanisms and error recovery
+ * - Radio program generation from multiple recordings with professional audio processing
+ * - Question ID normalization and organized file structure
+ * - Orphaned recording cleanup and maintenance routines
+ * - Real-time waveform visualization and audio feedback
+ * - Cross-device synchronization via cloud storage
  * 
  * AUDIO PIPELINE:
- * WebRTC Recording (WebM) → Local Storage (IndexedDB) → Cloud Upload (MP3) → CDN Delivery
+ * WebRTC Recording (WebM) → Local Storage (IndexedDB) → Cloud Upload (MP3) → CDN Delivery → Radio Program Generation
+ * 
+ * RECORDING WORKFLOW:
+ * User Click → Permission Request → MediaRecorder Start → Real-time UI Updates → 
+ * Stop & Process → Local Save → Background Upload → UI Status Updates → Playback Ready
+ * 
+ * RADIO PROGRAM GENERATION:
+ * Recording Collection → Audio Plan Creation → File Downloads → FFmpeg Processing → 
+ * Professional Audio Mixing → Cloud Upload → Success Modal with Player
+ * 
+ * DATA STORAGE:
+ * - Local: IndexedDB with recording metadata, blobs, and upload status tracking
+ * - Cloud: Bunny.net CDN with organized folder structure: /{lmid}/{world}/{filename}.mp3
+ * - File Naming: kids-world_{world}-lmid_{lmid}-question_{number}-tm_{timestamp}.mp3
+ * 
+ * SECURITY & LIMITS:
+ * - Recording limits: 30 recordings per question, 10-minute max duration per recording
+ * - User authorization: LMID ownership validation via Memberstack metadata
+ * - File cleanup: Automatic orphaned recording removal and storage optimization
+ * - Error resilience: Comprehensive error handling with graceful degradation
+ * 
+ * PERFORMANCE OPTIMIZATIONS:
+ * - Lazy loading of recordings with efficient DOM management
+ * - Background upload processing with non-blocking UI operations
+ * - Memory management with automatic blob cleanup after upload
+ * - CDN-based content delivery with cache-busting for fresh content
+ * 
+ * INTEGRATION POINTS:
+ * - rp.js: Receives world/lmid parameters and handles page authorization
+ * - lm.js: Provides user authentication and LMID management context
+ * - API Endpoints: upload-audio.js, delete-audio.js, combine-audio.js, list-recordings.js
+ * - External Services: Bunny.net CDN, Memberstack auth, Make.com webhooks
+ * 
+ * EVENT-DRIVEN ARCHITECTURE:
+ * - Custom events for upload status updates across multiple UI components
+ * - Global state management for recording locks and initialization tracking
+ * - Real-time progress updates with animated feedback systems
+ * 
+ * AUDIO PROCESSING FEATURES:
+ * - Multi-format recording support with browser-specific optimization
+ * - Professional audio mixing with background music integration
+ * - Question-based audio organization with chronological answer ordering
+ * - Dynamic radio program generation with intro/outro/transition audio
+ * - Cache-busting for real-time audio updates and fresh content delivery
+ * 
+ * LAST UPDATED: January 2025
+ * VERSION: 2.4.0
+ * STATUS: Production Ready ✅
  */
 
 const savingLocks = new Set();
@@ -525,8 +574,71 @@ async function deleteRecording(recordingId, questionId, elementToRemove) {
 }
 
 /**
- * Initializes a single audio recorder instance.
- * @param {HTMLElement} recorderWrapper - The main container element for this recorder.
+ * Initializes a single audio recorder instance with complete recording workflow
+ * 
+ * COMPREHENSIVE RECORDER INITIALIZATION PROCESS:
+ * 
+ * 1. SETUP & VALIDATION PHASE:
+ *    - Extracts and normalizes question ID from data attributes
+ *    - Prevents double initialization with tracking flags
+ *    - Locates record button and validates DOM structure
+ *    - Sets up instance variables for state management
+ * 
+ * 2. PREVIOUS RECORDINGS LOADING:
+ *    - Loads existing recordings from cloud storage (cross-device sync)
+ *    - Creates UI elements for each recording with audio players
+ *    - Displays upload status indicators and progress feedback
+ *    - Handles recording metadata and playback functionality
+ * 
+ * 3. RECORDING EVENT SETUP:
+ *    - Attaches click handler to record button with state management
+ *    - Implements recording limit validation (30 per question)
+ *    - Sets up security checks and user permission handling
+ *    - Prepares recording workflow with error recovery
+ * 
+ * 4. MEDIARECORDER WORKFLOW:
+ *    - Requests microphone permissions with user feedback
+ *    - Creates MediaRecorder with optimal format selection
+ *    - Implements real-time timer display and visual feedback
+ *    - Handles recording state transitions (start/stop/error)
+ * 
+ * 5. AUDIO PROCESSING PIPELINE:
+ *    - Processes recorded audio blobs into organized data structure
+ *    - Generates unique IDs with timestamp and metadata
+ *    - Saves to local IndexedDB for immediate availability
+ *    - Initiates background upload to Bunny.net CDN
+ * 
+ * 6. UI STATE MANAGEMENT:
+ *    - Real-time recording indicators with pulsing animation
+ *    - Processing placeholders with status updates
+ *    - Upload progress tracking with visual feedback
+ *    - Error state handling with recovery options
+ * 
+ * 7. BACKGROUND UPLOAD SYSTEM:
+ *    - Converts WebM to MP3 for cloud storage
+ *    - Uploads to organized CDN folder structure
+ *    - Updates UI status throughout upload process
+ *    - Handles upload failures with retry mechanisms
+ * 
+ * SECURITY FEATURES:
+ * - Recording duration limits (10 minutes max)
+ * - Microphone permission validation
+ * - Unique ID generation to prevent conflicts
+ * - Global lock system to prevent concurrent recordings
+ * 
+ * ERROR HANDLING:
+ * - Microphone access failures with user guidance
+ * - Network connectivity issues with offline support
+ * - Upload failures with retry and recovery options
+ * - MediaRecorder errors with graceful degradation
+ * 
+ * PERFORMANCE OPTIMIZATIONS:
+ * - Lazy loading of recordings for faster initialization
+ * - Background upload processing without blocking UI
+ * - Efficient DOM manipulation with minimal reflows
+ * - Memory management with automatic cleanup
+ * 
+ * @param {HTMLElement} recorderWrapper - The main container element for this recorder instance
  */
 function initializeAudioRecorder(recorderWrapper) {
     let questionId = recorderWrapper.dataset.questionId;
@@ -1346,8 +1458,54 @@ function normalizeQuestionId(questionId) {
 
 /**
  * Generate radio program from collected recordings
- * @param {string} world - The world slug
- * @param {string} lmid - The LMID
+ * 
+ * COMPREHENSIVE RADIO PROGRAM GENERATION WORKFLOW:
+ * 
+ * 1. RECORDING COLLECTION PHASE:
+ *    - Scans DOM elements to discover available questions
+ *    - Loads recordings from cloud storage for each question
+ *    - Validates recording availability and upload status
+ *    - Organizes recordings by question ID with chronological ordering
+ * 
+ * 2. AUDIO PLAN CREATION PHASE:
+ *    - Sorts questions by numeric order (DOM-based)
+ *    - Creates audio sequence: intro → question1 → answers1 + background → transition → question2 → answers2 + background → ... → outro
+ *    - Generates cache-busted URLs for all static audio files (intro, outro, monkeys, questions)
+ *    - Organizes user recordings with background music integration
+ * 
+ * 3. PROFESSIONAL AUDIO PROCESSING PHASE:
+ *    - Sends audio plan to combine-audio API for FFmpeg processing
+ *    - Applies professional audio enhancement: noise reduction, normalization, EQ
+ *    - Mixes background music at 25% volume with seamless duration matching
+ *    - Creates smooth transitions between audio segments
+ *    - Outputs high-quality MP3 (44.1kHz, 128kbps, stereo)
+ * 
+ * 4. PROGRESS FEEDBACK SYSTEM:
+ *    - Real-time modal with animated progress bar
+ *    - Creative status messages during processing ("Teaching monkeys to sing", etc.)
+ *    - Detailed technical progress for debugging
+ *    - Spinner animations and progress percentage updates
+ * 
+ * 5. SUCCESS HANDLING:
+ *    - Success modal with embedded audio player
+ *    - Statistics display (question count, recording count)
+ *    - CDN URL with cache-busting for immediate playback
+ *    - User-friendly completion feedback
+ * 
+ * SECURITY & VALIDATION:
+ * - Validates recording existence before processing
+ * - Checks upload status (only 'uploaded' recordings used)
+ * - Comprehensive error handling with user-friendly messages
+ * - Network failure recovery with detailed error reporting
+ * 
+ * PERFORMANCE OPTIMIZATIONS:
+ * - Parallel recording collection from multiple questions
+ * - Efficient cloud API calls with batch processing
+ * - Background processing with non-blocking UI updates
+ * - Memory-efficient handling of large recording collections
+ * 
+ * @param {string} world - The world slug (e.g., 'spookyland')
+ * @param {string} lmid - The LMID identifier
  */
 async function generateRadioProgram(world, lmid) {
     try {

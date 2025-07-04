@@ -6,11 +6,36 @@
  * DOCUMENTATION: See /documentation/lm.js.md for complete system overview
  * 
  * MAIN FUNCTIONS:
- * - User authentication via Memberstack
- * - LMID creation and deletion (max 5 per user)
- * - World navigation and routing
- * - File cleanup during LMID deletion
- * - Dynamic UI generation from templates
+ * - User authentication via Memberstack with real-time validation
+ * - LMID creation and deletion with 5-program limit enforcement
+ * - World navigation with parameter validation and routing
+ * - File cleanup during LMID deletion with cloud storage integration
+ * - Dynamic UI generation from templates with Webflow re-initialization
+ * - Secure webhook communication with Make.com automation
+ * 
+ * SECURITY FEATURES:
+ * - Metadata-based authorization (prevents URL manipulation)
+ * - Typed confirmation dialogs for destructive operations
+ * - Comprehensive error handling with user feedback
+ * - Protected member ID and email transmission
+ * 
+ * INTEGRATION POINTS:
+ * - Memberstack: User authentication and metadata management
+ * - Make.com: Webhook automation for LMID lifecycle operations
+ * - Bunny.net: Cloud storage cleanup during LMID deletion
+ * - Webflow: UI framework, template system, and interaction management
+ * 
+ * DATA FLOW:
+ * Page Load → Authentication Check → LMID Discovery → Template Cloning → UI Population → Event Setup
+ * 
+ * PERFORMANCE CONSIDERATIONS:
+ * - Efficient DOM manipulation with minimal Webflow re-initialization
+ * - Cached template cloning for multiple LMID display
+ * - Optimized event delegation for dynamic content
+ * 
+ * LAST UPDATED: January 2025
+ * VERSION: 2.4.0
+ * STATUS: Production Ready ✅
  */
 document.addEventListener("DOMContentLoaded", () => {
   const memberstack = window.$memberstackDom;
@@ -385,6 +410,57 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /**
    * Show custom delete confirmation modal with validation
+   * 
+   * COMPREHENSIVE SECURITY & UX CONFIRMATION SYSTEM:
+   * 
+   * 1. MODAL CREATION & STYLING:
+   *    - Creates full-screen overlay with professional styling
+   *    - Displays warning icon and clear deletion message
+   *    - Shows specific LMID and explains consequences
+   *    - Implements responsive design for all devices
+   * 
+   * 2. SECURITY VALIDATION FEATURES:
+   *    - Requires typing "delete" to confirm action
+   *    - Real-time input validation with visual feedback
+   *    - Button state management (disabled until valid)
+   *    - Prevents accidental clicks through typed confirmation
+   * 
+   * 3. USER EXPERIENCE OPTIMIZATIONS:
+   *    - Auto-focus on input field for immediate interaction
+   *    - Visual feedback with color-coded borders (red/green)
+   *    - Clear instructions and warning messages
+   *    - Keyboard shortcuts (Enter to confirm, Escape to cancel)
+   * 
+   * 4. MODAL INTERACTION HANDLING:
+   *    - Click outside modal to cancel
+   *    - Cancel button for explicit dismissal
+   *    - Confirm button with dynamic styling based on validation
+   *    - Keyboard navigation support for accessibility
+   * 
+   * 5. STATE MANAGEMENT:
+   *    - Promise-based return for async workflow integration
+   *    - Proper cleanup of event listeners and DOM elements
+   *    - Scroll position preservation during modal display
+   *    - Memory leak prevention with proper disposal
+   * 
+   * 6. VISUAL FEEDBACK SYSTEM:
+   *    - Input validation with real-time border color changes
+   *    - Button state transitions with hover effects
+   *    - Warning icons and typography for clear communication
+   *    - Professional styling that matches system design
+   * 
+   * SECURITY CONSIDERATIONS:
+   * - Prevents accidental deletions through typed confirmation
+   * - Clear consequence messaging about permanent data loss
+   * - Multiple dismissal options for user safety
+   * - Visual emphasis on destructive nature of action
+   * 
+   * ACCESSIBILITY FEATURES:
+   * - Keyboard navigation support
+   * - Focus management for screen readers
+   * - High contrast warning colors
+   * - Clear labeling and instructions
+   * 
    * @param {string} lmidToDelete - The LMID to delete
    * @returns {Promise<boolean>} - True if confirmed, false if cancelled
    */

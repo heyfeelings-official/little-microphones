@@ -1,7 +1,7 @@
 /**
- * rp.js - Recording Page Authorization & World Management
+ * rp.js - Recording Page Authorization & World Management System
  * 
- * PURPOSE: Secure authorization system for recording pages with world-specific content management
+ * PURPOSE: Secure authorization system for recording pages with world-specific content management and radio program integration
  * DEPENDENCIES: Memberstack DOM SDK, URL parameters, recording.js integration
  * DOCUMENTATION: See /documentation/rp.js.md for complete system overview
  * 
@@ -9,13 +9,69 @@
  * URL Parameters → Memberstack Auth → LMID Ownership Validation → World Content Display → Recording System Init
  * 
  * MAIN FUNCTIONS:
- * - URL parameter validation (world & lmid required)
- * - Memberstack authentication verification
- * - LMID ownership validation against user metadata
- * - World-specific collection display management
- * - Recording system initialization and integration
- * - Radio program generation button setup
- * - Question ID normalization and recording validation
+ * - URL parameter validation with security checks (world & lmid required)
+ * - Memberstack authentication verification with real-time session validation
+ * - LMID ownership validation against user metadata with fail-safe redirection
+ * - World-specific collection display management with theme coordination
+ * - Recording system initialization and seamless integration
+ * - Radio program generation button setup with recording validation
+ * - Question ID normalization and recording count verification
+ * 
+ * SECURITY FEATURES:
+ * - Mandatory URL parameter validation with immediate redirect on failure
+ * - Real-time Memberstack authentication with session verification
+ * - Metadata-driven LMID authorization preventing unauthorized access
+ * - Secure redirection using browser history for failed authorization
+ * - Protected global variable exposure for authorized recording operations
+ * 
+ * WORLD MANAGEMENT:
+ * - Dynamic collection visibility control (show only authorized world)
+ * - Supported worlds: spookyland, shopping-spree, amusement-park, big-city, waterpark, neighborhood
+ * - World name formatting and display optimization
+ * - Background theme management (optional feature)
+ * - Collection-specific recorder initialization
+ * 
+ * RADIO PROGRAM INTEGRATION:
+ * - Existing button hijacking for radio program generation
+ * - Pre-generation recording validation with user feedback
+ * - Progress tracking and error handling during generation
+ * - Button state management with loading indicators
+ * - Success/failure feedback with appropriate user messaging
+ * 
+ * RECORDING SYSTEM COORDINATION:
+ * - Event-driven initialization waiting for recording.js readiness
+ * - Question ID discovery from DOM elements with normalization
+ * - Recording count validation before radio program generation
+ * - Fallback database scanning for recording discovery
+ * - Cross-device recording synchronization support
+ * 
+ * INTEGRATION POINTS:
+ * - Memberstack: User authentication and metadata management
+ * - recording.js: Core recording functionality and radio program generation
+ * - URL Parameters: World and LMID specification from navigation
+ * - DOM Elements: World collections and recording wrapper management
+ * - Global State: Authorized parameters exposure for recording system
+ * 
+ * ERROR HANDLING:
+ * - Missing parameter detection with immediate user feedback
+ * - Authentication failure handling with secure redirection
+ * - Authorization failure management with appropriate messaging
+ * - Runtime error recovery with graceful degradation
+ * - Network failure resilience with local fallbacks
+ * 
+ * DATA FLOW:
+ * Page Load → Parameter Extraction → Auth Check → LMID Validation → 
+ * World Display → Recording Init → Radio Button Setup → Ready State
+ * 
+ * PERFORMANCE CONSIDERATIONS:
+ * - Delayed recording initialization for optimal DOM readiness
+ * - Efficient collection hiding/showing with minimal DOM manipulation
+ * - Event listener management with proper cleanup
+ * - Memory-efficient global variable management
+ * 
+ * LAST UPDATED: January 2025
+ * VERSION: 2.4.0
+ * STATUS: Production Ready ✅
  */
 
 /**
