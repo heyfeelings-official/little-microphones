@@ -172,6 +172,9 @@ function updatePageContent(radioData) {
         worldElement.textContent = worldName;
     }
     
+    // Set world-specific background image
+    setWorldBackground(radioData.world);
+    
     // Update program info
     const programInfoElement = document.getElementById('program-info');
     if (programInfoElement) {
@@ -781,6 +784,36 @@ function convertRecordingsToAudioSegments(recordings, world) {
 function extractTimestampFromFilename(filename) {
     const match = filename.match(/tm_(\d+)/);
     return match ? parseInt(match[1]) : 0;
+}
+
+/**
+ * Set world-specific background image
+ * @param {string} world - World name
+ */
+function setWorldBackground(world) {
+    const worldBackgrounds = {
+        'shopping-spree': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/67f506146fb421db045378af_cdcb9c23ac6f956cbb6f7f498c75cd11_worlds-Anxiety.avif',
+        'waterpark': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/67f50606d058c933cd554be8_2938a42d480503a33daf8a8334f53f0a_worlds-Empathy.avif',
+        'amusement-park': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/67f505fe412762bb8a01b03d_85fcbe125912ab0998bf679d2e8c6082_worlds-Love.avif',
+        'big-city': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/67f505f572e936f2b665af1f_7b989a3fe827622216294c6539607059_worlds-Anger.avif',
+        'spookyland': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/67f505ecd6f37624ef7affb8_587c997427b10cabcc31cc98d6e516f4_worlds-Fear.png',
+        'nieghborhood': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/683859c64fa8c3f50ead799a_worlds-boredom.avif'
+    };
+    
+    const bgUrl = worldBackgrounds[world];
+    if (bgUrl) {
+        const bgDiv = document.querySelector('.Im-world-wrapp');
+        if (bgDiv) {
+            bgDiv.style.backgroundImage = `url('${bgUrl}')`;
+            bgDiv.style.backgroundSize = 'cover';
+            bgDiv.style.backgroundPosition = 'center';
+            console.log(`🌍 Set background for world: ${world}`);
+        } else {
+            console.warn('Background container .Im-world-wrapp not found');
+        }
+    } else {
+        console.warn(`No background image defined for world: ${world}`);
+    }
 }
 
 /**
