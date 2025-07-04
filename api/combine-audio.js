@@ -479,14 +479,14 @@ function downloadFile(url, filePath) {
 
 /**
  * Upload combined audio to Bunny.net
+ * FIXED: Use consistent filename (no timestamp versioning) with heavy cache-busting instead
  */
 async function uploadToBunny(filePath, world, lmid) {
-    // Add timestamp for versioning to prevent caching issues
-    const timestamp = Date.now();
-    const fileName = `radio-program-${world}-${lmid}-v${timestamp}.mp3`;
+    // NO timestamp in filename - same program always gets same filename
+    const fileName = `radio-program-${world}-${lmid}.mp3`;
     const uploadPath = `/${lmid}/${world}/${fileName}`;
     
-    console.log(`📤 Uploading to Bunny.net: ${uploadPath}`);
+    console.log(`📤 Uploading to Bunny.net: ${uploadPath} (overwriting existing)`);
     
     const fileBuffer = await fs.readFile(filePath);
     
@@ -500,9 +500,13 @@ async function uploadToBunny(filePath, world, lmid) {
                 'AccessKey': process.env.BUNNY_API_KEY,
                 'Content-Type': 'audio/mpeg',
                 'Content-Length': fileBuffer.length,
-                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                // HEAVY cache-busting headers
+                'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
                 'Pragma': 'no-cache',
-                'Expires': '0'
+                'Expires': '0',
+                'Last-Modified': new Date().toUTCString(),
+                // Force CDN to treat as new content
+                'X-Cache-Control': 'no-cache'
             }
         };
         
@@ -511,9 +515,10 @@ async function uploadToBunny(filePath, world, lmid) {
                 const downloadUrl = `${process.env.BUNNY_CDN_URL}${uploadPath}`;
                 console.log(`✅ Upload successful: ${downloadUrl}`);
                 
-                // Ensure URL has proper protocol and add cache-busting parameter
+                // Ensure URL has proper protocol and add strong cache-busting parameter
                 const finalUrl = downloadUrl.startsWith('http') ? downloadUrl : `https://${downloadUrl}`;
-                const cacheBustUrl = `${finalUrl}?t=${timestamp}`;
+                const timestamp = Date.now();
+                const cacheBustUrl = `${finalUrl}?v=${timestamp}&cb=${Math.random().toString(36).substring(2)}`;
                 resolve(cacheBustUrl);
             } else {
                 reject(new Error(`Upload failed with status: ${res.statusCode}`));
