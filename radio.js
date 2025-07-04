@@ -271,8 +271,8 @@ function showExistingProgram(manifest) {
     }
     
     console.log('🎵 Displaying existing radio program');
-    showAudioPlayer(manifest.programUrl);
     hideLoadingState();
+    showAudioPlayer(manifest.programUrl);
     
     // Update page content with world info after showing the program
     console.log('🔧 DEBUG: Calling updatePageContent from showExistingProgram');
@@ -287,8 +287,8 @@ function showExistingProgram(manifest) {
  */
 function showGeneratedProgram(audioUrl) {
     console.log('🎉 Displaying newly generated radio program');
-    showAudioPlayer(audioUrl);
     hideLoadingState();
+    showAudioPlayer(audioUrl);
     
     // Update page content with world info after showing the program
     console.log('🔧 DEBUG: Calling updatePageContent from showGeneratedProgram');
