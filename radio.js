@@ -166,8 +166,8 @@ function updatePageContent(radioData) {
     document.title = `${worldName} Radio Program - Little Microphones`;
     
     // Update world name in UI
-    const worldElement = document.getElementById('world-name');
-    console.log('🔧 DEBUG: Looking for element with id="world-name", found:', worldElement);
+    const worldElement = document.getElementById('wrold-name'); // Corrected typo from 'world-name'
+    console.log('🔧 DEBUG: Looking for element with id="wrold-name", found:', worldElement);
     if (worldElement) {
         console.log('🔧 DEBUG: Setting world name to:', worldName);
         worldElement.textContent = worldName;
