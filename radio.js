@@ -170,8 +170,13 @@ function updatePageContent(radioData) {
     
     // Update world name in UI
     const worldElement = document.getElementById('world-name');
+    console.log('🔧 DEBUG: Looking for element with id="world-name", found:', worldElement);
     if (worldElement) {
+        console.log('🔧 DEBUG: Setting world name to:', worldName);
         worldElement.textContent = worldName;
+        console.log('🔧 DEBUG: Element text after setting:', worldElement.textContent);
+    } else {
+        console.warn('🔧 DEBUG: Element with id="world-name" not found in DOM');
     }
     
     console.log('🔧 DEBUG: About to call setWorldBackground with world:', radioData.world);
@@ -795,6 +800,8 @@ function extractTimestampFromFilename(filename) {
  * @param {string} world - World name
  */
 function setWorldBackground(world) {
+    console.log('🔧 DEBUG: setWorldBackground called with world:', world);
+    
     const worldBackgrounds = {
         'shopping-spree': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/67f506146fb421db045378af_cdcb9c23ac6f956cbb6f7f498c75cd11_worlds-Anxiety.avif',
         'waterpark': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/67f50606d058c933cd554be8_2938a42d480503a33daf8a8334f53f0a_worlds-Empathy.avif',
@@ -805,15 +812,21 @@ function setWorldBackground(world) {
     };
     
     const bgUrl = worldBackgrounds[world];
+    console.log('🔧 DEBUG: Background URL for world:', bgUrl);
+    
     if (bgUrl) {
         const bgDiv = document.querySelector('.lm-world-wrapper');
+        console.log('🔧 DEBUG: Looking for .lm-world-wrapper, found:', bgDiv);
+        
         if (bgDiv) {
             bgDiv.style.backgroundImage = `url('${bgUrl}')`;
             bgDiv.style.backgroundSize = 'cover';
             bgDiv.style.backgroundPosition = 'center';
             console.log(`🌍 Set background for world: ${world}`);
+            console.log('🔧 DEBUG: Applied styles:', bgDiv.style.backgroundImage);
         } else {
             console.warn('Background container .lm-world-wrapper not found');
+            console.log('🔧 DEBUG: Available elements with "world" in class:', document.querySelectorAll('[class*="world"]'));
         }
     } else {
         console.warn(`No background image defined for world: ${world}`);
