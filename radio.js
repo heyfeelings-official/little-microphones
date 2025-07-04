@@ -162,6 +162,8 @@ async function fetchRadioData(shareId) {
  * @param {Object} radioData - Radio data from API
  */
 function updatePageContent(radioData) {
+    console.log('🔧 DEBUG: updatePageContent called with radioData:', radioData);
+    
     // Update page title
     const worldName = radioData.world.charAt(0).toUpperCase() + radioData.world.slice(1).replace(/-/g, ' ');
     document.title = `${worldName} Radio Program - Little Microphones`;
@@ -171,6 +173,8 @@ function updatePageContent(radioData) {
     if (worldElement) {
         worldElement.textContent = worldName;
     }
+    
+    console.log('🔧 DEBUG: About to call setWorldBackground with world:', radioData.world);
     
     // Set world-specific background image
     setWorldBackground(radioData.world);
@@ -802,14 +806,14 @@ function setWorldBackground(world) {
     
     const bgUrl = worldBackgrounds[world];
     if (bgUrl) {
-        const bgDiv = document.querySelector('.Im-world-wrapp');
+        const bgDiv = document.querySelector('.lm-world-wrapper');
         if (bgDiv) {
             bgDiv.style.backgroundImage = `url('${bgUrl}')`;
             bgDiv.style.backgroundSize = 'cover';
             bgDiv.style.backgroundPosition = 'center';
             console.log(`🌍 Set background for world: ${world}`);
         } else {
-            console.warn('Background container .Im-world-wrapp not found');
+            console.warn('Background container .lm-world-wrapper not found');
         }
     } else {
         console.warn(`No background image defined for world: ${world}`);
