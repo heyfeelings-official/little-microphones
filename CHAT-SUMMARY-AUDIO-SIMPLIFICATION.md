@@ -358,4 +358,63 @@ Returns detailed information about current vs. previous file counts and the deci
 
 ---
 
-**System Status**: ✅ **COMPLETE AND OPERATIONAL** (Enhanced with Intelligent Generation Fix) 
+---
+
+## 🚨 **CRITICAL FIX: Missing System Audio Files (Latest Update)**
+
+**Date**: January 2025  
+**Issue Discovered**: Radio program generation failing due to missing system audio files on Bunny.net CDN
+
+### **Critical Problem Identified**
+- **Console logs revealed 500 errors** from combine-audio API
+- **Network errors showed 404s** for essential system audio files:
+  - ❌ `/audio/other/outro.mp3` - Program ending (404)
+  - ❌ `/audio/other/monkeys.mp3` - Background music (404)  
+  - ❌ `/audio/spookyland/spookyland-QID1.mp3` - Question prompts (404)
+  - ❌ `/audio/spookyland/spookyland-QID2.mp3` - Question prompts (404)
+  - ✅ `/audio/other/intro.mp3` - Working correctly (200)
+
+### **Immediate Solution Deployed**
+**Enhanced `api/combine-audio.js` with intelligent fallback system:**
+
+1. **Smart Error Detection**: System detects 404 errors for system files
+2. **Silent Placeholder Generation**: Auto-generates silent MP3 files when system files missing
+3. **Intelligent Duration Selection**:
+   - Intro/Outro: 3 seconds
+   - Question prompts (-QID files): 5 seconds
+   - Background music (monkeys.mp3): 30 seconds
+4. **Preserves User Experience**: Radio programs generate successfully without interruption
+
+### **Technical Implementation**
+```javascript
+// NEW: generateSilentPlaceholder() function
+async function generateSilentPlaceholder(filePath, duration = 3) {
+    // Uses FFmpeg to create properly formatted silent MP3 files
+    // Only applies to system files (/audio/other/ and -QID files)
+    // User recordings still require real files
+}
+
+// ENHANCED: downloadFile() with fallback
+function downloadFile(url, filePath) {
+    // Detects 404 errors for system files
+    // Automatically generates silent placeholders
+    // Logs which files were replaced
+}
+```
+
+### **Results**
+- ✅ **Radio programs now generate successfully** even with missing system files
+- ✅ **System logs clearly show** which files were replaced with placeholders
+- ✅ **No impact on existing functionality** - graceful degradation
+- ✅ **Preserves user experience** while we upload proper audio files
+- ✅ **Intelligent fallback** only applies to system files, not user recordings
+
+### **Next Steps**
+1. **Monitor logs** to identify which system files need real content
+2. **Upload proper audio files** to CDN to replace silent placeholders
+3. **Create content** for question prompts and background music
+4. **Test with real audio** once files are uploaded
+
+---
+
+**System Status**: ✅ **OPERATIONAL WITH INTELLIGENT FALLBACK** (Critical Fix Deployed) 
