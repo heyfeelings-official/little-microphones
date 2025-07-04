@@ -1301,7 +1301,6 @@ function initializeRecordersForWorld(world) {
     }
     if (initializedWorlds.has(world)) return;
     initializedWorlds.add(world);
-    log('info', `🎵 Initializing recorders for ${world}`);
     injectGlobalStyles();
     const targetCollectionId = `collection-${world}`;
     const targetCollection = document.getElementById(targetCollectionId);
@@ -1311,8 +1310,9 @@ function initializeRecordersForWorld(world) {
         return;
     }
     const recorderWrappers = targetCollection.querySelectorAll('.faq1_accordion.lm');
+    log('info', `🎵 Initializing ${recorderWrappers.length} audio recorders for ${world}...`);
     recorderWrappers.forEach(wrapper => initializeAudioRecorder(wrapper));
-    log('info', `✅ ${world} recorders ready`);
+    log('info', `✅ All recorders initialized and loaded for ${world}`);
 }
 
 window.Webflow = window.Webflow || [];
