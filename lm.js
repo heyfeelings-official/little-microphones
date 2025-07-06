@@ -348,11 +348,10 @@ document.addEventListener("DOMContentLoaded", () => {
         addButton.disabled = true;
         addButton.textContent = "Adding...";
 
-        const response = await fetch(unifiedWebhookUrl, {
+        const response = await fetch('/api/create-lmid', {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            action: 'add',
             memberId: memberId,
             memberEmail: memberEmail,
           }),
@@ -360,11 +359,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const result = await response.json();
 
-        if (!response.ok || result.status !== "success") {
-          throw new Error(result.message || "Could not add a new LMID at this time.");
+        if (!response.ok || !result.success) {
+          throw new Error(result.error || "Could not add a new LMID at this time.");
         }
 
         const newLmid = result.lmid;
+        console.log(`Created LMID ${newLmid} with ShareIDs:`, result.shareIds);
 
         // Dynamically create and add the new element to the page.
         const template = document.getElementById("lm-slot");

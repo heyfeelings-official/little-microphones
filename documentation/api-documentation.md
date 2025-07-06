@@ -407,3 +407,58 @@ NODE_ENV=production
 - **Deletion Integration**: `lm.js` - LMID cleanup operations
 - **Generation Integration**: `recording.js` - Radio program creation
 - **Configuration**: `vercel.json` - Deployment settings 
+
+## API Endpoints
+
+### 1. create-lmid.js
+**PURPOSE**: Creates a new LMID for teachers and automatically generates all 6 world-specific ShareIDs
+
+**METHOD**: POST `/api/create-lmid`
+
+**REQUEST BODY**:
+```json
+{
+  "memberId": "mem_123456789",
+  "memberEmail": "teacher@school.com"
+}
+```
+
+**RESPONSE**:
+```json
+{
+  "success": true,
+  "lmid": 123,
+  "shareIds": {
+    "spookyland": "abc12345",
+    "waterpark": "def67890",
+    "shopping-spree": "ghi13579",
+    "amusement-park": "jkl24680",
+    "big-city": "mno97531",
+    "neighborhood": "pqr86420"
+  },
+  "message": "LMID created successfully with all world ShareIDs"
+}
+```
+
+**FEATURES**:
+- Finds next available LMID from database
+- Generates 6 unique ShareIDs (one per world)
+- Validates ShareID uniqueness across all worlds
+- Assigns LMID to teacher with all metadata
+- Returns complete ShareID mapping
+
+**USED BY**: `lm.js` when teacher clicks "Create a new Program" button
+
+**DATABASE CHANGES**: Updates `lmids` table with:
+- `status`: 'used'
+- `assigned_to_member_id`: teacher's Memberstack ID
+- `assigned_to_member_email`: teacher's email
+- `assigned_at`: current timestamp
+- `share_id_spookyland`: generated ShareID
+- `share_id_waterpark`: generated ShareID
+- `share_id_shopping_spree`: generated ShareID
+- `share_id_amusement_park`: generated ShareID
+- `share_id_big_city`: generated ShareID
+- `share_id_neighborhood`: generated ShareID
+
+--- 
