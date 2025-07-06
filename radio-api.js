@@ -60,7 +60,7 @@
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
             
-            const apiUrl = `${window.LM_CONFIG?.API_BASE_URL || 'https://little-microphones.vercel.app'}/api/get-world-info?shareId=${shareId}`;
+            const apiUrl = `${window.LM_CONFIG?.API_BASE_URL || 'https://little-microphones.vercel.app'}/api/get-world-info?shareId=${shareId}&_t=${Date.now()}&_r=${Math.random()}`;
             
             console.log(`🌍 Fetching world info for ShareID: ${shareId}`);
             
@@ -68,7 +68,10 @@
                 signal: controller.signal,
                 headers: {
                     'Accept': 'application/json',
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
                 }
             });
             
@@ -123,6 +126,7 @@
             if (world) {
                 apiUrl += `&world=${encodeURIComponent(world)}`;
             }
+            apiUrl += `&_t=${Date.now()}&_r=${Math.random()}`;
             
             console.log(`📻 Fetching radio data for ShareID: ${shareId}${world ? ` (world: ${world})` : ''}`);
             
@@ -130,7 +134,10 @@
                 signal: controller.signal,
                 headers: {
                     'Accept': 'application/json',
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
                 }
             });
             
@@ -210,7 +217,7 @@
             }
             
             // Call the combine-audio API to generate new program
-            const apiUrl = `${window.LM_CONFIG?.API_BASE_URL || 'https://little-microphones.vercel.app'}/api/combine-audio`;
+            const apiUrl = `${window.LM_CONFIG?.API_BASE_URL || 'https://little-microphones.vercel.app'}/api/combine-audio?_t=${Date.now()}&_r=${Math.random()}`;
             
             const requestBody = {
                 world: radioData.world,
@@ -230,7 +237,10 @@
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Accept': 'application/json'
+                    'Accept': 'application/json',
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
                 },
                 body: JSON.stringify(requestBody),
                 signal: generationAbortController.signal

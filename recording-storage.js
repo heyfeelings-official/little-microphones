@@ -293,8 +293,18 @@
             if (questionId) {
                 params.append('questionId', questionId);
             }
+            // Aggressive cache busting
+            params.append('_t', Date.now());
+            params.append('_r', Math.random().toString(36));
             
-            const response = await fetch(`${window.LM_CONFIG?.API_BASE_URL || 'https://little-microphones.vercel.app'}/api/list-recordings?${params}`);
+            const response = await fetch(`${window.LM_CONFIG?.API_BASE_URL || 'https://little-microphones.vercel.app'}/api/list-recordings?${params}`, {
+                method: 'GET',
+                headers: {
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
+                }
+            });
 
             const result = await response.json();
             
@@ -322,9 +332,14 @@
             const base64Audio = await blobToBase64(recordingData.audio);
             const filename = `kids-world_${world}-lmid_${lmid}-question_${recordingData.questionId}-tm_${recordingData.timestamp}.mp3`;
 
-            const response = await fetch(`${window.LM_CONFIG?.API_BASE_URL || 'https://little-microphones.vercel.app'}/api/upload-audio`, {
+            const response = await fetch(`${window.LM_CONFIG?.API_BASE_URL || 'https://little-microphones.vercel.app'}/api/upload-audio?_t=${Date.now()}&_r=${Math.random()}`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
+                },
                 body: JSON.stringify({
                     world,
                     lmid,
@@ -368,9 +383,14 @@
                 return { success: true }; // Nothing to delete
             }
 
-            const response = await fetch(`${window.LM_CONFIG?.API_BASE_URL || 'https://little-microphones.vercel.app'}/api/delete-audio`, {
+            const response = await fetch(`${window.LM_CONFIG?.API_BASE_URL || 'https://little-microphones.vercel.app'}/api/delete-audio?_t=${Date.now()}&_r=${Math.random()}`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
+                },
                 body: JSON.stringify({
                     world,
                     lmid,

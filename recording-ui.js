@@ -167,9 +167,12 @@
         const playerContainer = document.createElement('div');
         playerContainer.style.cssText = `width: 100%; height: 48px; position: relative; background: white; border-radius: 122px; display: flex; align-items: center; padding: 0 16px; box-sizing: border-box;`;
         
-        // Hidden audio element
+        // Hidden audio element with cache busting
         const audio = document.createElement('audio');
-        audio.src = audioURL;
+        const cacheBustedURL = audioURL.includes('?') ? 
+            `${audioURL}&_cb=${Date.now()}&_r=${Math.random()}` : 
+            `${audioURL}?_cb=${Date.now()}&_r=${Math.random()}`;
+        audio.src = cacheBustedURL;
         audio.preload = 'metadata';
         audio.style.display = 'none';
         li.appendChild(audio);
@@ -681,7 +684,7 @@
             
             <div style="background: rgba(255,255,255,0.1); border-radius: 15px; padding: 20px; margin-bottom: 30px;">
                 <audio controls style="width: 100%; margin-bottom: 15px;" preload="metadata">
-                    <source src="${audioUrl}" type="audio/mpeg">
+                    <source src="${audioUrl}?_cb=${Date.now()}&_r=${Math.random()}" type="audio/mpeg">
                     Your browser does not support the audio element.
                 </audio>
                 

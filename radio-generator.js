@@ -66,7 +66,7 @@
         const introTimestamp = Date.now();
         audioSegments.push({
             type: 'single',
-            url: `${AUDIO_CDN_URL}/other/intro.mp3?t=${introTimestamp}`
+            url: `${AUDIO_CDN_URL}/other/intro.mp3?_t=${introTimestamp}&_r=${Math.random()}&_cb=${Date.now()}`
         });
         
         // 2. Add questions and answers in order
@@ -77,7 +77,7 @@
             const cacheBustTimestamp = Date.now() + Math.random();
             audioSegments.push({
                 type: 'single',
-                url: `${AUDIO_CDN_URL}/${world}/${world}-QID${questionId}.mp3?t=${cacheBustTimestamp}`
+                url: `${AUDIO_CDN_URL}/${world}/${world}-QID${questionId}.mp3?_t=${cacheBustTimestamp}&_r=${Math.random()}&_cb=${Date.now()}`
             });
             
             // Sort answers by filename timestamp (first recorded = first played)
@@ -91,8 +91,11 @@
             const backgroundTimestamp = Date.now() + Math.random();
             audioSegments.push({
                 type: 'combine_with_background',
-                answerUrls: sortedAnswers.map(recording => recording.url || recording.cloudUrl),
-                backgroundUrl: `${AUDIO_CDN_URL}/other/monkeys.mp3?t=${backgroundTimestamp}`,
+                answerUrls: sortedAnswers.map(recording => {
+                    const url = recording.url || recording.cloudUrl;
+                    return url.includes('?') ? `${url}&_cb=${Date.now()}&_r=${Math.random()}` : `${url}?_cb=${Date.now()}&_r=${Math.random()}`;
+                }),
+                backgroundUrl: `${AUDIO_CDN_URL}/other/monkeys.mp3?_t=${backgroundTimestamp}&_r=${Math.random()}&_cb=${Date.now()}`,
                 questionId: questionId
             });
         });
@@ -101,7 +104,7 @@
         const outroTimestamp = Date.now() + 1;
         audioSegments.push({
             type: 'single',
-            url: `${AUDIO_CDN_URL}/other/outro.mp3?t=${outroTimestamp}`
+            url: `${AUDIO_CDN_URL}/other/outro.mp3?_t=${outroTimestamp}&_r=${Math.random()}&_cb=${Date.now()}`
         });
         
         console.log(`🎼 Generated ${audioSegments.length} audio segments for ${sortedQuestionIds.length} questions`);
@@ -143,10 +146,13 @@
             }
             
             // Call the combine-audio API
-            const response = await fetch(`${API_BASE_URL}/api/combine-audio`, {
+            const response = await fetch(`${API_BASE_URL}/api/combine-audio?_t=${Date.now()}&_r=${Math.random()}`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
                 },
                 body: JSON.stringify({
                     world: world,
@@ -201,7 +207,13 @@
      */
     async function checkProgramStatus(shareId) {
         try {
-            const response = await fetch(`${API_BASE_URL}/api/get-radio-data?shareId=${shareId}`);
+            const response = await fetch(`${API_BASE_URL}/api/get-radio-data?shareId=${shareId}&_t=${Date.now()}&_r=${Math.random()}`, {
+                headers: {
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
+                }
+            });
             
             if (!response.ok) {
                 throw new Error(`Failed to fetch radio data: ${response.status}`);
