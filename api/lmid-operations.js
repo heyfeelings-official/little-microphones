@@ -1,18 +1,35 @@
 /**
- * api/lmid-operations.js - LMID CRUD Operations
+ * api/lmid-operations.js - Consolidated LMID Management Operations
  * 
- * PURPOSE: Handles LMID operations (add, delete) with Memberstack integration
- * DEPENDENCIES: Supabase client, Memberstack API
+ * PURPOSE: Handles all LMID operations (create, add, delete) with Memberstack integration
+ * DEPENDENCIES: Supabase client, Memberstack API, LMID utilities
  * 
- * REQUEST FORMAT:
+ * REQUEST FORMATS:
+ * 
+ * CREATE LMID (replaces create-lmid.js):
  * POST /api/lmid-operations
  * {
- *   "action": "add" | "delete",
+ *   "action": "create",
+ *   "memberId": "mem_123",
+ *   "memberEmail": "teacher@school.com"
+ * }
+ * 
+ * ADD LMID (existing functionality):
+ * POST /api/lmid-operations
+ * {
+ *   "action": "add",
  *   "memberId": "mem_123",
  *   "memberEmail": "teacher@school.com",
- *   "currentLmids": "1,2,3" (current LMID string),
- *   "lmidToDelete": 123 (only for delete action),
- *   "newLmidString": "1,2,3" (only for delete action - remaining LMIDs)
+ *   "currentLmids": "1,2,3"
+ * }
+ * 
+ * DELETE LMID (existing functionality):
+ * POST /api/lmid-operations
+ * {
+ *   "action": "delete",
+ *   "memberId": "mem_123",
+ *   "lmidToDelete": 123,
+ *   "newLmidString": "1,2"
  * }
  * 
  * RESPONSE FORMAT:
@@ -20,213 +37,67 @@
  *   "success": true,
  *   "message": "Operation completed successfully",
  *   "lmid": 123,
- *   "shareIds": {...} (only for add action),
+ *   "shareIds": {...} (for create/add actions),
  *   "newLmidString": "1,2,3" (updated LMID string)
  * }
+ * 
+ * CONSOLIDATED FEATURES:
+ * - Unified endpoint for all LMID operations
+ * - Shared utility functions for consistency
+ * - Comprehensive security validation
+ * - Memberstack metadata synchronization
+ * - Error handling and logging
+ * 
+ * LAST UPDATED: January 2025
+ * VERSION: 3.0.0 (Consolidated)
+ * STATUS: Production Ready ✅
  */
 
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-// Memberstack Admin API configuration
-const MEMBERSTACK_SECRET_KEY = process.env.MEMBERSTACK_SECRET_KEY;
-const MEMBERSTACK_API_URL = 'https://admin.memberstack.com';
-
-const worlds = ['spookyland', 'waterpark', 'shopping-spree', 'amusement-park', 'big-city', 'neighborhood'];
+import {
+    findNextAvailableLmid,
+    generateAllShareIds,
+    assignLmidToMember,
+    validateMemberId,
+    validateLmidOwnership,
+    updateMemberstackMetadata,
+    getSupabaseClient
+} from '../utils/lmid-utils.js';
 
 /**
- * Generate a random, URL-safe ShareID
- * @returns {string} 8-character random string
- */
-function generateShareId() {
-    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-    let result = '';
-    for (let i = 0; i < 8; i++) {
-        result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
-}
-
-/**
- * Check if a ShareID is already used in any world column
- * @param {string} shareId - ShareID to check
- * @returns {Promise<boolean>} True if already used
- */
-async function isShareIdUsed(shareId) {
-    const { data } = await supabase
-        .from('lmids')
-        .select('lmid')
-        .or(`share_id_spookyland.eq.${shareId},share_id_waterpark.eq.${shareId},share_id_shopping_spree.eq.${shareId},share_id_amusement_park.eq.${shareId},share_id_big_city.eq.${shareId},share_id_neighborhood.eq.${shareId}`)
-        .limit(1);
-    
-    return data && data.length > 0;
-}
-
-/**
- * Generate unique ShareIDs for all worlds
- * @returns {Promise<Object>} Object with world names as keys and ShareIDs as values
- */
-async function generateAllShareIds() {
-    const shareIds = {};
-    
-    for (const world of worlds) {
-        let attempts = 0;
-        const maxAttempts = 10;
-        
-        while (attempts < maxAttempts) {
-            const shareId = generateShareId();
-            const isUsed = await isShareIdUsed(shareId);
-            
-            if (!isUsed) {
-                shareIds[world] = shareId;
-                break;
-            }
-            
-            attempts++;
-        }
-        
-        if (attempts >= maxAttempts) {
-            throw new Error(`Failed to generate unique ShareID for world: ${world}`);
-        }
-    }
-    
-    return shareIds;
-}
-
-/**
- * Find the next available LMID
- * @returns {Promise<number|null>} Next available LMID or null if none available
- */
-async function findNextAvailableLmid() {
-    const { data, error } = await supabase
-        .from('lmids')
-        .select('lmid')
-        .eq('status', 'available')
-        .order('lmid', { ascending: true })
-        .limit(1);
-
-    if (error) {
-        console.error('Error finding available LMID:', error);
-        return null;
-    }
-
-    return data.length > 0 ? data[0].lmid : null;
-}
-
-/**
- * Validate member ID format (basic validation)
+ * Handle CREATE LMID operation (replaces create-lmid.js functionality)
  * @param {string} memberId - Memberstack member ID
- * @returns {boolean} True if format looks valid
+ * @param {string} memberEmail - Member email
+ * @returns {Promise<Object>} Operation result
  */
-function isValidMemberId(memberId) {
-    // Memberstack member IDs typically start with 'mem_' and contain alphanumeric characters
-    return typeof memberId === 'string' && 
-           memberId.startsWith('mem_') && 
-           memberId.length > 10;
+async function handleCreateLmid(memberId, memberEmail) {
+    // Find next available LMID
+    const availableLmid = await findNextAvailableLmid();
+    if (!availableLmid) {
+        throw new Error('No available LMIDs for assignment');
+    }
+
+    // Generate all ShareIDs
+    const shareIds = await generateAllShareIds();
+
+    // Assign LMID to member with all ShareIDs
+    const assignmentSuccess = await assignLmidToMember(availableLmid, memberId, memberEmail, shareIds);
+    if (!assignmentSuccess) {
+        throw new Error('Failed to assign LMID to member');
+    }
+
+    console.log(`✅ LMID ${availableLmid} created and assigned to ${memberEmail} with all ShareIDs`);
+
+    return {
+        success: true,
+        message: 'LMID created successfully with all world ShareIDs',
+        lmid: availableLmid,
+        shareIds: shareIds,
+        newLmidString: String(availableLmid)
+    };
 }
 
 /**
- * Validate LMID ownership against database
- * @param {string} memberId - Memberstack member ID
- * @param {string} lmidsToValidate - Comma-separated LMIDs to validate
- * @returns {Promise<Object>} Validation result
- */
-async function validateLmidOwnership(memberId, lmidsToValidate) {
-    try {
-        // Get actual owned LMIDs from database
-        const { data: ownedRecords, error } = await supabase
-            .from('lmids')
-            .select('lmid')
-            .eq('assigned_to_member_id', memberId)
-            .eq('status', 'used')
-            .order('lmid', { ascending: true });
-
-        if (error) {
-            console.error('Error fetching member LMIDs for validation:', error);
-            return { valid: false, error: 'Database validation failed' };
-        }
-
-        const validLmids = ownedRecords ? ownedRecords.map(record => record.lmid.toString()) : [];
-        const lmidsArray = lmidsToValidate ? lmidsToValidate.split(',').map(id => id.trim()) : [];
-        
-        // Check which LMIDs are invalid
-        const invalidLmids = lmidsArray.filter(lmid => !validLmids.includes(lmid));
-        
-        return {
-            valid: invalidLmids.length === 0,
-            validLmids,
-            invalidLmids,
-            message: invalidLmids.length === 0 
-                ? 'All LMIDs are valid' 
-                : `Invalid LMIDs: ${invalidLmids.join(', ')}`
-        };
-    } catch (error) {
-        console.error('Error in validateLmidOwnership:', error);
-        return { valid: false, error: 'Validation error' };
-    }
-}
-
-/**
- * Update Memberstack member metadata using Admin API (with validation)
- * @param {string} memberId - Memberstack member ID
- * @param {string} newLmidString - New LMID string
- * @returns {Promise<boolean>} Success status
- */
-async function updateMemberstackMetadata(memberId, newLmidString) {
-    if (!MEMBERSTACK_SECRET_KEY) {
-        console.warn('MEMBERSTACK_SECRET_KEY not configured - skipping metadata update');
-        return false;
-    }
-
-    // 🔒 SECURITY: Validate LMID ownership before updating metadata
-    console.log(`🔒 Validating LMID ownership for ${memberId}: ${newLmidString}`);
-    const validation = await validateLmidOwnership(memberId, newLmidString);
-    
-    if (!validation.valid) {
-        console.error(`❌ SECURITY VIOLATION: ${memberId} attempted to set invalid LMIDs: ${validation.invalidLmids?.join(', ')}`);
-        console.error(`❌ Valid LMIDs for this user: ${validation.validLmids?.join(', ')}`);
-        return false;
-    }
-
-    try {
-        console.log(`🔄 Updating Memberstack metadata for ${memberId} with validated lmids: ${newLmidString}`);
-        
-        const response = await fetch(`${MEMBERSTACK_API_URL}/members/${memberId}`, {
-            method: 'PATCH',
-            headers: {
-                'x-api-key': MEMBERSTACK_SECRET_KEY,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                metaData: {
-                    lmids: newLmidString
-                }
-            })
-        });
-
-        if (!response.ok) {
-            const errorData = await response.text();
-            console.error(`❌ Memberstack API error (${response.status}):`, errorData);
-            return false;
-        }
-
-        const responseData = await response.json();
-        console.log(`✅ Memberstack metadata updated successfully:`, responseData);
-        return true;
-
-    } catch (error) {
-        console.error('❌ Error updating Memberstack metadata:', error);
-        return false;
-    }
-}
-
-// Note: Memberstack metadata updates are now handled by frontend DOM API
-
-/**
- * Handle ADD LMID operation
+ * Handle ADD LMID operation (existing functionality)
  * @param {string} memberId - Memberstack member ID
  * @param {string} memberEmail - Member email
  * @param {string} currentLmids - Current LMID string
@@ -243,25 +114,8 @@ async function handleAddLmid(memberId, memberEmail, currentLmids) {
     const shareIds = await generateAllShareIds();
 
     // Assign LMID to member with all ShareIDs
-    const updateData = {
-        status: 'used',
-        assigned_to_member_id: memberId,
-        assigned_to_member_email: memberEmail,
-        assigned_at: new Date().toISOString(),
-        share_id_spookyland: shareIds.spookyland,
-        share_id_waterpark: shareIds.waterpark,
-        share_id_shopping_spree: shareIds['shopping-spree'],
-        share_id_amusement_park: shareIds['amusement-park'],
-        share_id_big_city: shareIds['big-city'],
-        share_id_neighborhood: shareIds.neighborhood
-    };
-
-    const { error: updateError } = await supabase
-        .from('lmids')
-        .update(updateData)
-        .eq('lmid', availableLmid);
-
-    if (updateError) {
+    const assignmentSuccess = await assignLmidToMember(availableLmid, memberId, memberEmail, shareIds);
+    if (!assignmentSuccess) {
         throw new Error('Failed to assign LMID to member');
     }
 
@@ -276,8 +130,6 @@ async function handleAddLmid(memberId, memberEmail, currentLmids) {
     
     console.log(`✅ LMID ${availableLmid} assigned in Supabase and Memberstack metadata ${memberstackUpdated ? 'updated' : 'update failed'}.`);
 
-    console.log(`✅ LMID ${availableLmid} assigned to member ${memberId} (${memberEmail})`);
-
     return {
         success: true,
         message: 'LMID added successfully',
@@ -288,13 +140,15 @@ async function handleAddLmid(memberId, memberEmail, currentLmids) {
 }
 
 /**
- * Handle DELETE LMID operation
+ * Handle DELETE LMID operation (existing functionality)
  * @param {string} memberId - Memberstack member ID
  * @param {number} lmidToDelete - LMID to delete
  * @param {string} newLmidString - New LMID string after deletion
  * @returns {Promise<Object>} Operation result
  */
 async function handleDeleteLmid(memberId, lmidToDelete, newLmidString) {
+    const supabase = getSupabaseClient();
+    
     // Mark LMID as deleted in database
     const { error: deleteError } = await supabase
         .from('lmids')
@@ -351,7 +205,7 @@ export default async function handler(req, res) {
         }
 
         // Validate member ID format
-        if (!isValidMemberId(memberId)) {
+        if (!validateMemberId(memberId)) {
             return res.status(400).json({ 
                 success: false, 
                 error: 'Invalid member ID format' 
@@ -360,7 +214,17 @@ export default async function handler(req, res) {
 
         let result;
 
-        if (action === 'add') {
+        if (action === 'create') {
+            // NEW: Handle create LMID (replaces create-lmid.js)
+            if (!memberEmail) {
+                return res.status(400).json({ 
+                    success: false, 
+                    error: 'Missing required parameter: memberEmail for create action' 
+                });
+            }
+            result = await handleCreateLmid(memberId, memberEmail);
+        } else if (action === 'add') {
+            // EXISTING: Handle add LMID
             if (!memberEmail) {
                 return res.status(400).json({ 
                     success: false, 
@@ -369,6 +233,7 @@ export default async function handler(req, res) {
             }
             result = await handleAddLmid(memberId, memberEmail, currentLmids || '');
         } else if (action === 'delete') {
+            // EXISTING: Handle delete LMID
             if (!lmidToDelete) {
                 return res.status(400).json({ 
                     success: false, 
@@ -379,7 +244,7 @@ export default async function handler(req, res) {
         } else {
             return res.status(400).json({ 
                 success: false, 
-                error: 'Invalid action. Use "add" or "delete"' 
+                error: 'Invalid action. Use "create", "add", or "delete"' 
             });
         }
 

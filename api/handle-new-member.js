@@ -2,7 +2,7 @@
  * api/handle-new-member.js - Memberstack Webhook Handler for Parent Registration
  * 
  * PURPOSE: Handles new member registration webhook from Memberstack and assigns LMID based on ShareID metadata
- * DEPENDENCIES: Supabase client, Memberstack webhook verification
+ * DEPENDENCIES: Supabase client, Memberstack webhook verification, LMID utilities
  * 
  * REQUEST FORMAT:
  * POST /api/handle-new-member (Webhook from Memberstack)
@@ -20,37 +20,10 @@
  * 6. Return success confirmation
  */
 
-import { createClient } from '@supabase/supabase-js';
-
-// Initialize Supabase client
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-/**
- * Find the next available LMID in the database
- * @returns {Promise<number|null>} Next available LMID or null if none available
- */
-async function findNextAvailableLmid() {
-    try {
-        const { data: availableLmids, error } = await supabase
-            .from('lmids')
-            .select('lmid')
-            .eq('status', 'available')
-            .order('lmid', { ascending: true })
-            .limit(1);
-
-        if (error) {
-            console.error('Error finding available LMID:', error);
-            return null;
-        }
-
-        return availableLmids.length > 0 ? availableLmids[0].lmid : null;
-    } catch (error) {
-        console.error('Unexpected error finding LMID:', error);
-        return null;
-    }
-}
+import { 
+    findNextAvailableLmid,
+    getSupabaseClient
+} from '../utils/lmid-utils.js';
 
 /**
  * Assign LMID to new member
@@ -61,6 +34,7 @@ async function findNextAvailableLmid() {
  */
 async function assignLmidToMember(lmid, memberId, memberEmail) {
     try {
+        const supabase = getSupabaseClient();
         const { error } = await supabase
             .from('lmids')
             .update({
@@ -160,6 +134,8 @@ export default async function handler(req, res) {
         }
 
         console.log(`Member originated from ShareID: ${originatingShareId}, World: ${originatingWorld}`);
+
+        const supabase = getSupabaseClient();
 
         // Look up the original LMID from world-specific ShareID
         let originalRecord = null;

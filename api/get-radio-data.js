@@ -2,7 +2,7 @@
  * api/get-radio-data.js - Radio Program Data Retrieval Service
  * 
  * PURPOSE: Fetches all data needed for radio program page based on ShareID
- * DEPENDENCIES: Supabase client, Bunny.net API, existing list-recordings API
+ * DEPENDENCIES: Supabase client, Bunny.net API, existing list-recordings API, LMID utilities
  * 
  * REQUEST FORMAT:
  * GET /api/get-radio-data?shareId=kz7xp4v9
@@ -26,13 +26,8 @@
  * 6. Return all data for frontend decision making
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseClient } from '../utils/lmid-utils.js';
 import https from 'https';
-
-// Initialize Supabase client
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 /**
  * Fetch recordings from cloud storage for given world/lmid
@@ -156,6 +151,7 @@ export default async function handler(req, res) {
             });
         }
 
+        const supabase = getSupabaseClient();
         let lmidRecord = null;
         let world = null;
 

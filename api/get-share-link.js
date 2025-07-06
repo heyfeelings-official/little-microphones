@@ -2,7 +2,7 @@
  * api/get-share-link.js - World-Specific ShareID Generation & Retrieval Service
  * 
  * PURPOSE: Generates or retrieves a unique ShareID for a given LMID and world to create shareable radio program links
- * DEPENDENCIES: Supabase client, crypto for ID generation
+ * DEPENDENCIES: Supabase client, LMID utilities
  * 
  * REQUEST FORMAT:
  * GET /api/get-share-link?lmid=38&world=spookyland
@@ -18,36 +18,13 @@
  * 5. Return ShareID and complete shareable URL
  */
 
-import { createClient } from '@supabase/supabase-js';
-
-// Initialize Supabase client
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-const validWorlds = ['spookyland', 'waterpark', 'shopping-spree', 'amusement-park', 'big-city', 'neighborhood'];
-
-/**
- * Generate a random, URL-safe ShareID
- * @returns {string} 8-character random string
- */
-function generateShareId() {
-    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-    let result = '';
-    for (let i = 0; i < 8; i++) {
-        result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
-}
-
-/**
- * Get the database column name for a world
- * @param {string} world - World name
- * @returns {string} Column name
- */
-function getWorldColumn(world) {
-    return `share_id_${world.replace('-', '_')}`;
-}
+import { 
+    getSupabaseClient, 
+    generateShareId, 
+    isShareIdUsed, 
+    getWorldColumn,
+    WORLDS 
+} from '../utils/lmid-utils.js';
 
 export default async function handler(req, res) {
     // Set CORS headers
@@ -85,10 +62,10 @@ export default async function handler(req, res) {
             });
         }
 
-        if (!validWorlds.includes(world)) {
+        if (!WORLDS.includes(world)) {
             return res.status(400).json({ 
                 success: false, 
-                error: `Invalid world. Must be one of: ${validWorlds.join(', ')}` 
+                error: `Invalid world. Must be one of: ${WORLDS.join(', ')}` 
             });
         }
 
@@ -100,6 +77,7 @@ export default async function handler(req, res) {
             });
         }
 
+        const supabase = getSupabaseClient();
         const worldColumn = getWorldColumn(world);
 
         // Check if ShareID already exists for this LMID+world combination
@@ -137,14 +115,10 @@ export default async function handler(req, res) {
                 attempts++;
 
                 // Check if this ShareID is already used in any world column
-                const { data: duplicateCheck } = await supabase
-                    .from('lmids')
-                    .select('lmid')
-                    .or(`share_id_spookyland.eq.${shareId},share_id_waterpark.eq.${shareId},share_id_shopping_spree.eq.${shareId},share_id_amusement_park.eq.${shareId},share_id_big_city.eq.${shareId},share_id_neighborhood.eq.${shareId}`)
-                    .limit(1);
+                const isUsed = await isShareIdUsed(shareId);
 
                 // If no duplicate found, we can use this ShareID
-                if (!duplicateCheck || duplicateCheck.length === 0) {
+                if (!isUsed) {
                     // Update the record with new ShareID for this world
                     const updateData = {};
                     updateData[worldColumn] = shareId;

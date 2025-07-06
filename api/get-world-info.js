@@ -1,8 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { getSupabaseClient } from '../utils/lmid-utils.js';
 
 const worldBackgrounds = {
     'shopping-spree': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/67f506146fb421db045378af_cdcb9c23ac6f956cbb6f7f498c75cd11_worlds-Anxiety.avif',
@@ -30,6 +26,8 @@ export default async function handler(req, res) {
         if (!shareId) {
             return res.status(400).json({ success: false, error: 'Missing required parameter: shareId' });
         }
+
+        const supabase = getSupabaseClient();
 
         // Search for the shareId in all world-specific columns
         const { data, error } = await supabase
