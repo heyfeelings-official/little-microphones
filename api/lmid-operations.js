@@ -85,14 +85,23 @@ async function handleCreateLmid(memberId, memberEmail) {
         throw new Error('Failed to assign LMID to member');
     }
 
-    console.log(`✅ LMID ${availableLmid} created and assigned to ${memberEmail} with all ShareIDs`);
+    // Update LMID string for new member (first LMID)
+    const newLmidString = String(availableLmid);
+    
+    // Update Memberstack metadata via Admin API
+    const memberstackUpdated = await updateMemberstackMetadata(memberId, newLmidString);
+    if (!memberstackUpdated) {
+        console.warn(`⚠️ LMID ${availableLmid} created in Supabase but Memberstack metadata update failed`);
+    }
+
+    console.log(`✅ LMID ${availableLmid} created and assigned to ${memberEmail} with all ShareIDs. Memberstack metadata ${memberstackUpdated ? 'updated' : 'update failed'}.`);
 
     return {
         success: true,
         message: 'LMID created successfully with all world ShareIDs',
         lmid: availableLmid,
         shareIds: shareIds,
-        newLmidString: String(availableLmid)
+        newLmidString: newLmidString
     };
 }
 
