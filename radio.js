@@ -73,42 +73,37 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('🎵 Radio page initializing...');
     
     try {
-        // Extract ShareID from URL
-        currentShareId = getShareIdFromUrl();
+        // Extract ShareID and World from URL
+        const { shareId, world } = getParamsFromUrl();
+        currentShareId = shareId;
+
         if (!currentShareId) {
             showError('Invalid Link', 'This radio program link is missing required information. Please check the link and try again.');
             return;
         }
         
         console.log(`📻 ShareID extracted: ${currentShareId}`);
-        
-        // --- Stage 1: Fast initial load for UI ---
-        showLoadingState('Loading world...'); // Show a minimal loading state first
-        const worldInfo = await fetchWorldInfo(currentShareId);
-        
-        if (worldInfo) {
-            console.log('🌍 World info loaded:', worldInfo);
-            // Immediately update the visual elements
-            setWorldBackground(worldInfo.world, worldInfo.backgroundUrl);
-            updateWorldName(worldInfo.world);
-        } else {
-            // Even if this fails, we can continue and let the main data fetch try
-            console.warn('Could not fetch world info early. Proceeding with main data fetch.');
-        }
 
-        // --- Stage 2: Full data load for radio program ---
-        showLoadingState('Loading radio program...'); // Update loading message
+        // If world is in the URL, set background and name immediately
+        if (world) {
+            console.log(`🌍 World from URL: ${world}`);
+            setWorldBackground(world);
+            updateWorldName(world);
+        }
         
-        // Fetch full radio data from API
-        currentRadioData = await fetchRadioData(currentShareId);
+        console.log(`📻 Loading radio data for ShareID: ${currentShareId}`);
+        showLoadingState('Loading radio program...');
+        
+        // Fetch radio data from API
+        currentRadioData = await fetchRadioData(currentShareId, world);
         
         if (!currentRadioData) {
             showError('Program Not Found', 'This radio program could not be found. The link may be expired or invalid.');
             return;
         }
 
-        // If the fast load failed, update content now with data from the full fetch
-        if (!worldInfo) {
+        // If world was not in URL, update content now with data from the full fetch
+        if (!world) {
             updatePageContent(currentRadioData);
         }
         
@@ -139,44 +134,30 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 /**
- * Extract ShareID from URL parameters
- * @returns {string|null} ShareID or null if not found
+ * Extract ShareID and World from URL parameters
+ * @returns {{shareId: string|null, world: string|null}}
  */
-function getShareIdFromUrl() {
+function getParamsFromUrl() {
     const urlParams = new URLSearchParams(window.location.search);
-    return urlParams.get('ID');
-}
-
-/**
- * Fetch initial world info for fast page load
- * @param {string} shareId - The ShareID
- * @returns {Promise<Object|null>} World info or null if failed
- */
-async function fetchWorldInfo(shareId) {
-    try {
-        const response = await fetch(`https://little-microphones.vercel.app/api/get-world-info?shareId=${shareId}`);
-        if (!response.ok) {
-            throw new Error(`API request failed: ${response.status}`);
-        }
-        const data = await response.json();
-        if (!data.success) {
-            throw new Error(data.error || 'Failed to fetch world info');
-        }
-        return data;
-    } catch (error) {
-        console.error('Failed to fetch world info:', error);
-        return null;
-    }
+    return {
+        shareId: urlParams.get('ID'),
+        world: urlParams.get('world')
+    };
 }
 
 /**
  * Fetch radio data from the API
  * @param {string} shareId - The ShareID
+ * @param {string|null} world - The world, if known from URL
  * @returns {Promise<Object|null>} Radio data or null if failed
  */
-async function fetchRadioData(shareId) {
+async function fetchRadioData(shareId, world = null) {
     try {
-        const response = await fetch(`https://little-microphones.vercel.app/api/get-radio-data?shareId=${shareId}`);
+        let apiUrl = `https://little-microphones.vercel.app/api/get-radio-data?shareId=${shareId}`;
+        if (world) {
+            apiUrl += `&world=${world}`;
+        }
+        const response = await fetch(apiUrl);
         
         if (!response.ok) {
             throw new Error(`API request failed: ${response.status}`);
@@ -217,11 +198,7 @@ function updateWorldName(world) {
 function updatePageContent(radioData) {
     console.log('🔧 DEBUG: updatePageContent called with radioData:', radioData);
     
-    // Update page title
-    const worldName = radioData.world.charAt(0).toUpperCase() + radioData.world.slice(1).replace(/-/g, ' ');
-    document.title = `${worldName} Radio Program - Little Microphones`;
-    
-    // Update world name in UI
+    // Update page title and world name
     updateWorldName(radioData.world);
     
     console.log('🔧 DEBUG: About to call setWorldBackground with world:', radioData.world);
@@ -233,13 +210,13 @@ function updatePageContent(radioData) {
     const programInfoElement = document.getElementById('program-info');
     if (programInfoElement) {
         programInfoElement.innerHTML = `
-            <h2>${worldName} Radio Program</h2>
+            <h2>${radioData.world} Radio Program</h2>
             <p>Program ID: ${radioData.lmid}</p>
             <p>Recordings: ${radioData.recordingCount}</p>
         `;
     }
     
-    console.log(`📊 Program info: ${worldName}, LMID ${radioData.lmid}, ${radioData.recordingCount} recordings`);
+    console.log(`📊 Program info: ${radioData.world}, LMID ${radioData.lmid}, ${radioData.recordingCount} recordings`);
 }
 
 /**
@@ -860,19 +837,18 @@ function extractTimestampFromFilename(filename) {
 /**
  * Set world-specific background image
  * @param {string} world - World identifier (e.g., 'spookyland')
- * @param {string|null} backgroundUrl - Optional: Direct URL for the background
  */
-function setWorldBackground(world, backgroundUrl = null) {
+function setWorldBackground(world) {
     const worldBackgrounds = {
         'shopping-spree': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/67f506146fb421db045378af_cdcb9c23ac6f956cbb6f7f498c75cd11_worlds-Anxiety.avif',
         'waterpark': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/67f50606d058c933cd554be8_2938a42d480503a33daf8a8334f53f0a_worlds-Empathy.avif',
         'amusement-park': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/67f505fe412762bb8a01b03d_85fcbe125912ab0998bf679d2e8c6082_worlds-Love.avif',
         'big-city': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/67f505f572e936f2b665af1f_7b989a3fe827622216294c6539607059_worlds-Anger.avif',
         'spookyland': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/67f505ecd6f37624ef7affb8_587c997427b10cabcc31cc98d6e516f4_worlds-Fear.png',
-        'neighborhood': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/67f505e36e849e0a811c0f1c_66d2f3d61b36a6427357732a392823c9_worlds-Boredom.avif'
+        'neighborhood': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/683859c64fa8c3f50ead799a_worlds-boredom.avif'
     };
 
-    const url = backgroundUrl || worldBackgrounds[world];
+    const url = worldBackgrounds[world];
     
     const worldWrapper = document.querySelector('.lm-world-wrapper');
 

@@ -146,7 +146,7 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { shareId } = req.query;
+        const { shareId, world: worldFromUrl } = req.query;
 
         // Validate ShareID parameter
         if (!shareId) {
@@ -180,25 +180,36 @@ export default async function handler(req, res) {
 
         const lmid = lmidRecord.lmid.toString();
         
-        // For now, we'll need to determine the world from the recordings or use a default
-        // TODO: Consider adding world column to lmids table in future migration
-        // For now, we'll try to detect world from existing recordings
-        let world = 'spookyland'; // Default fallback
+        let world;
+
+        if (worldFromUrl) {
+            world = worldFromUrl;
+            console.log(`🌍 Using world from URL parameter: ${world}`);
+        } else {
+            // For now, we'll need to determine the world from the recordings or use a default
+            // TODO: Consider adding world column to lmids table in future migration
+            // For now, we'll try to detect world from existing recordings
+            world = 'spookyland'; // Default fallback for initial recording fetch
+            
+            // Fetch current recordings to determine world from filename
+            const tempRecordings = await fetchAllRecordingsFromCloud(world, lmid);
+            
+            // Try to detect world from recording filenames if we have any
+            if (tempRecordings.length > 0) {
+                const firstRecording = tempRecordings[0];
+                if (firstRecording.filename) {
+                    // Extract world from filename pattern: kids-world_{world}-lmid_{lmid}-...
+                    const worldMatch = firstRecording.filename.match(/kids-world_([^-]+)-lmid_/);
+                    if (worldMatch) {
+                        world = worldMatch[1];
+                    }
+                }
+            }
+            console.log(`🌍 Detected world from recordings: ${world}`);
+        }
         
         // Fetch current recordings from cloud storage
         const currentRecordings = await fetchAllRecordingsFromCloud(world, lmid);
-        
-        // Try to detect world from recording filenames if we have any
-        if (currentRecordings.length > 0) {
-            const firstRecording = currentRecordings[0];
-            if (firstRecording.filename) {
-                // Extract world from filename pattern: kids-world_{world}-lmid_{lmid}-...
-                const worldMatch = firstRecording.filename.match(/kids-world_([^-]+)-lmid_/);
-                if (worldMatch) {
-                    world = worldMatch[1];
-                }
-            }
-        }
 
         // Fetch last program manifest
         const lastManifest = await fetchLastProgramManifest(world, lmid);
