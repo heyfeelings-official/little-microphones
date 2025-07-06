@@ -129,7 +129,48 @@ function isValidMemberId(memberId) {
 }
 
 /**
- * Update Memberstack member metadata using Admin API
+ * Validate LMID ownership against database
+ * @param {string} memberId - Memberstack member ID
+ * @param {string} lmidsToValidate - Comma-separated LMIDs to validate
+ * @returns {Promise<Object>} Validation result
+ */
+async function validateLmidOwnership(memberId, lmidsToValidate) {
+    try {
+        // Get actual owned LMIDs from database
+        const { data: ownedRecords, error } = await supabase
+            .from('lmids')
+            .select('lmid')
+            .eq('assigned_to_member_id', memberId)
+            .eq('status', 'used')
+            .order('lmid', { ascending: true });
+
+        if (error) {
+            console.error('Error fetching member LMIDs for validation:', error);
+            return { valid: false, error: 'Database validation failed' };
+        }
+
+        const validLmids = ownedRecords ? ownedRecords.map(record => record.lmid.toString()) : [];
+        const lmidsArray = lmidsToValidate ? lmidsToValidate.split(',').map(id => id.trim()) : [];
+        
+        // Check which LMIDs are invalid
+        const invalidLmids = lmidsArray.filter(lmid => !validLmids.includes(lmid));
+        
+        return {
+            valid: invalidLmids.length === 0,
+            validLmids,
+            invalidLmids,
+            message: invalidLmids.length === 0 
+                ? 'All LMIDs are valid' 
+                : `Invalid LMIDs: ${invalidLmids.join(', ')}`
+        };
+    } catch (error) {
+        console.error('Error in validateLmidOwnership:', error);
+        return { valid: false, error: 'Validation error' };
+    }
+}
+
+/**
+ * Update Memberstack member metadata using Admin API (with validation)
  * @param {string} memberId - Memberstack member ID
  * @param {string} newLmidString - New LMID string
  * @returns {Promise<boolean>} Success status
@@ -140,8 +181,18 @@ async function updateMemberstackMetadata(memberId, newLmidString) {
         return false;
     }
 
+    // 🔒 SECURITY: Validate LMID ownership before updating metadata
+    console.log(`🔒 Validating LMID ownership for ${memberId}: ${newLmidString}`);
+    const validation = await validateLmidOwnership(memberId, newLmidString);
+    
+    if (!validation.valid) {
+        console.error(`❌ SECURITY VIOLATION: ${memberId} attempted to set invalid LMIDs: ${validation.invalidLmids?.join(', ')}`);
+        console.error(`❌ Valid LMIDs for this user: ${validation.validLmids?.join(', ')}`);
+        return false;
+    }
+
     try {
-        console.log(`🔄 Updating Memberstack metadata for ${memberId} with lmids: ${newLmidString}`);
+        console.log(`🔄 Updating Memberstack metadata for ${memberId} with validated lmids: ${newLmidString}`);
         
         const response = await fetch(`${MEMBERSTACK_API_URL}/members/${memberId}`, {
             method: 'PATCH',
