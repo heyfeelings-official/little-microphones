@@ -342,7 +342,10 @@
                 
                 // Load existing recordings after database is ready
                 databasePromise.then(() => {
-                    renderRecordingsList(wrapper, questionId, world, lmid);
+                    // Add small delay to ensure database is fully ready
+                    setTimeout(() => {
+                        renderRecordingsList(wrapper, questionId, world, lmid);
+                    }, 100);
                 }).catch(error => {
                     log('error', `Failed to render recordings for question ${questionId}:`, error);
                 });
