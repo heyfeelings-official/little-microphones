@@ -145,8 +145,8 @@ export default async function handler(req, res) {
             // If we know the world, search in the specific column
             const worldColumn = `share_id_${originatingWorld.replace('-', '_')}`;
             const { data, error } = await supabase
-                .from('lmids')
-                .select('lmid, assigned_to_member_id')
+            .from('lmids')
+            .select('lmid, assigned_to_member_id')
                 .eq(worldColumn, originatingShareId)
                 .single();
             
@@ -158,8 +158,8 @@ export default async function handler(req, res) {
                 .from('lmids')
                 .select('lmid, assigned_to_member_id, share_id_spookyland, share_id_waterpark, share_id_shopping_spree, share_id_amusement_park, share_id_big_city, share_id_neighborhood')
                 .or(`share_id_spookyland.eq.${originatingShareId},share_id_waterpark.eq.${originatingShareId},share_id_shopping_spree.eq.${originatingShareId},share_id_amusement_park.eq.${originatingShareId},share_id_big_city.eq.${originatingShareId},share_id_neighborhood.eq.${originatingShareId}`)
-                .single();
-            
+            .single();
+
             originalRecord = data;
             searchError = error;
         }

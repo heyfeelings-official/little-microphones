@@ -163,8 +163,8 @@ export default async function handler(req, res) {
             // Look up LMID using the world-specific column
             const worldColumn = `share_id_${world.replace('-', '_')}`;
             const { data, error } = await supabase
-                .from('lmids')
-                .select('lmid, assigned_to_member_id')
+            .from('lmids')
+            .select('lmid, assigned_to_member_id')
                 .eq(worldColumn, shareId)
                 .single();
 
@@ -182,14 +182,14 @@ export default async function handler(req, res) {
                 .from('lmids')
                 .select('lmid, assigned_to_member_id, share_id_spookyland, share_id_waterpark, share_id_shopping_spree, share_id_amusement_park, share_id_big_city, share_id_neighborhood')
                 .or(`share_id_spookyland.eq.${shareId},share_id_waterpark.eq.${shareId},share_id_shopping_spree.eq.${shareId},share_id_amusement_park.eq.${shareId},share_id_big_city.eq.${shareId},share_id_neighborhood.eq.${shareId}`)
-                .single();
+            .single();
 
             if (error || !data) {
                 console.error('Database fetch error:', error);
-                return res.status(404).json({ 
-                    success: false, 
-                    error: 'ShareID not found or database error' 
-                });
+            return res.status(404).json({ 
+                success: false, 
+                error: 'ShareID not found or database error' 
+            });
             }
 
             lmidRecord = data;

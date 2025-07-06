@@ -461,8 +461,8 @@ function downloadFile(url, filePath) {
                         .catch(reject);
                     return;
                 } else {
-                    reject(new Error(`Failed to download ${url}: ${response.statusCode}`));
-                    return;
+                reject(new Error(`Failed to download ${url}: ${response.statusCode}`));
+                return;
                 }
             }
             

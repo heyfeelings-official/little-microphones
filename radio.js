@@ -87,7 +87,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         
         console.log(`📻 ShareID extracted: ${currentShareId}`);
-
+        
         // --- Stage 1: Fast initial load for UI ---
         showLoadingState('Loading world...');
         const worldInfo = await fetchWorldInfo(currentShareId);
@@ -111,10 +111,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             showError('Program Not Found', 'This radio program could not be found. The link may be expired or invalid.');
             return;
         }
-
+        
         // If the fast load failed, update content now with data from the full fetch
         if (!worldInfo) {
-            updatePageContent(currentRadioData);
+        updatePageContent(currentRadioData);
         }
         
         // Determine if we need to generate a new program
@@ -214,7 +214,7 @@ function updateWorldName(world) {
     const worldName = window.LM_CONFIG?.UTILS?.formatWorldName(world) || 
                       world.charAt(0).toUpperCase() + world.slice(1).replace(/-/g, ' ');
     document.title = `${worldName} Radio Program - Little Microphones`;
-
+    
     const worldElement = document.getElementById('world-name');
     if (worldElement) {
         worldElement.textContent = worldName;
