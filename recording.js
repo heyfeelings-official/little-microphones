@@ -235,17 +235,19 @@
         // Inject global styles once
         injectGlobalStyles();
         
-        // Initialize database once for the world
+        // Get world and lmid from global scope or URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const lmid = window.currentLmid || urlParams.get('lmid') || 'default';
+        
+        // Initialize database FIRST and wait for completion
+        log('info', 'Initializing database...');
         const databasePromise = setupDatabase().then(() => {
             log('info', 'Database initialized successfully');
+            return true;
         }).catch(error => {
             log('error', 'Database initialization failed:', error);
             throw error;
         });
-        
-        // Get world and lmid from global scope or URL parameters
-        const urlParams = new URLSearchParams(window.location.search);
-        const lmid = window.currentLmid || urlParams.get('lmid') || 'default';
         
         // Find all recorder elements in the current world
         // First try the collection-based approach used by rp.js
@@ -286,8 +288,12 @@
         
         log('info', `Found ${recorderWrappers.length} recorder wrappers for world: ${world}`);
         
-        // Initialize each recorder
-        recorderWrappers.forEach((wrapper, index) => {
+        // Wait for database initialization, THEN initialize recorders
+        databasePromise.then(() => {
+            log('info', `Database ready, initializing ${recorderWrappers.length} recorders...`);
+            
+            // Initialize each recorder
+            recorderWrappers.forEach((wrapper, index) => {
             try {
                 // Get question ID from various possible sources
                 let questionId = wrapper.dataset.questionId || 
@@ -340,15 +346,10 @@
                     log('error', `Failed to initialize recorder for question: ${questionId}`);
                 }
                 
-                // Load existing recordings after database is ready
-                databasePromise.then(() => {
-                    // Add small delay to ensure database is fully ready
-                    setTimeout(() => {
-                        renderRecordingsList(wrapper, questionId, world, lmid);
-                    }, 100);
-                }).catch(error => {
-                    log('error', `Failed to render recordings for question ${questionId}:`, error);
-                });
+                // Load existing recordings immediately (database is already ready)
+                setTimeout(() => {
+                    renderRecordingsList(wrapper, questionId, world, lmid);
+                }, 100);
                 
             } catch (error) {
                 log('error', `Failed to initialize recorder ${index}:`, error);
@@ -370,6 +371,10 @@
         }, 5000);
         
         log('info', `World initialization completed: ${world}`);
+        
+        }).catch(error => {
+            log('error', `Database initialization failed for world ${world}:`, error);
+        });
     }
 
     /**
