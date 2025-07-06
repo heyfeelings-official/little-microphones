@@ -186,9 +186,14 @@ export function getWorldColumn(world) {
  */
 export async function validateLmidOwnership(memberId, lmidsToValidate) {
     try {
+        console.log(`🔍 [validateLmidOwnership] === STARTING VALIDATION ===`);
+        console.log(`🔍 [validateLmidOwnership] memberId: ${memberId}`);
+        console.log(`🔍 [validateLmidOwnership] lmidsToValidate: "${lmidsToValidate}"`);
+        
         const supabase = getSupabaseClient();
         
         // Get actual owned LMIDs from database
+        console.log(`🔍 [validateLmidOwnership] Querying Supabase for owned LMIDs...`);
         const { data: ownedRecords, error } = await supabase
             .from('lmids')
             .select('lmid')
@@ -196,18 +201,25 @@ export async function validateLmidOwnership(memberId, lmidsToValidate) {
             .eq('status', 'used')
             .order('lmid', { ascending: true });
 
+        console.log(`🔍 [validateLmidOwnership] Supabase query result:`, { ownedRecords, error });
+
         if (error) {
-            console.error('Error fetching member LMIDs for validation:', error);
+            console.error('❌ [validateLmidOwnership] Error fetching member LMIDs for validation:', error);
             return { valid: false, error: 'Database validation failed' };
         }
 
         const validLmids = ownedRecords ? ownedRecords.map(record => record.lmid.toString()) : [];
         const lmidsArray = lmidsToValidate ? lmidsToValidate.split(',').map(id => id.trim()) : [];
         
+        console.log(`🔍 [validateLmidOwnership] validLmids from DB: [${validLmids.join(', ')}]`);
+        console.log(`🔍 [validateLmidOwnership] lmidsArray to validate: [${lmidsArray.join(', ')}]`);
+        
         // Check which LMIDs are invalid
         const invalidLmids = lmidsArray.filter(lmid => !validLmids.includes(lmid));
         
-        return {
+        console.log(`🔍 [validateLmidOwnership] invalidLmids: [${invalidLmids.join(', ')}]`);
+        
+        const result = {
             valid: invalidLmids.length === 0,
             validLmids,
             invalidLmids,
@@ -215,8 +227,11 @@ export async function validateLmidOwnership(memberId, lmidsToValidate) {
                 ? 'All LMIDs are valid' 
                 : `Invalid LMIDs: ${invalidLmids.join(', ')}`
         };
+        
+        console.log(`🔍 [validateLmidOwnership] Final validation result:`, result);
+        return result;
     } catch (error) {
-        console.error('Error in validateLmidOwnership:', error);
+        console.error('❌ [validateLmidOwnership] Error in validateLmidOwnership:', error);
         return { valid: false, error: 'Validation error' };
     }
 }
@@ -230,22 +245,28 @@ export async function validateLmidOwnership(memberId, lmidsToValidate) {
 export async function updateMemberstackMetadata(memberId, newLmidString) {
     const MEMBERSTACK_SECRET_KEY = process.env.MEMBERSTACK_SECRET_KEY;
     
+    console.log(`🔧 [updateMemberstackMetadata] === STARTING METADATA UPDATE ===`);
     console.log(`🔧 [updateMemberstackMetadata] Called for memberId: ${memberId} with lmids: "${newLmidString}"`);
+    console.log(`🔧 [updateMemberstackMetadata] Timestamp: ${new Date().toISOString()}`);
 
     if (!MEMBERSTACK_SECRET_KEY) {
-        console.warn('MEMBERSTACK_SECRET_KEY not configured. Skipping metadata update.');
+        console.warn('❌ MEMBERSTACK_SECRET_KEY not configured. Skipping metadata update.');
         return false;
     }
     console.log('🔑 MEMBERSTACK_SECRET_KEY is configured.');
 
     // 🔒 SECURITY: Validate LMID ownership before updating metadata
+    console.log(`🔍 [updateMemberstackMetadata] Starting LMID ownership validation...`);
     const validation = await validateLmidOwnership(memberId, newLmidString);
+    console.log(`🔍 [updateMemberstackMetadata] Validation result:`, JSON.stringify(validation, null, 2));
+    
     if (!validation.valid) {
-        console.error(`❌ SECURITY VIOLATION: Member ${memberId} attempted to set invalid LMIDs: ${validation.invalidLmids?.join(', ')}`);
-        console.error(`  > Actual owned LMIDs: ${validation.validLmids?.join(', ')}`);
+        console.error(`❌ [updateMemberstackMetadata] SECURITY VIOLATION: Member ${memberId} attempted to set invalid LMIDs: ${validation.invalidLmids?.join(', ')}`);
+        console.error(`❌ [updateMemberstackMetadata] Actual owned LMIDs: ${validation.validLmids?.join(', ')}`);
+        console.error(`❌ [updateMemberstackMetadata] Validation error: ${validation.error || 'Unknown error'}`);
         return false;
     }
-    console.log('🔒 LMID ownership validated successfully.');
+    console.log('🔒 [updateMemberstackMetadata] LMID ownership validated successfully.');
 
     const requestBody = {
         metaData: {
@@ -267,20 +288,23 @@ export async function updateMemberstackMetadata(memberId, newLmidString) {
             body: JSON.stringify(requestBody)
         });
 
-        console.log(`📥 Response status: ${response.status} ${response.statusText}`);
+        console.log(`📥 [updateMemberstackMetadata] Response status: ${response.status} ${response.statusText}`);
 
         if (response.ok) {
             const responseData = await response.json();
-            console.log('✅ Memberstack metadata updated successfully:', responseData);
+            console.log('✅ [updateMemberstackMetadata] Memberstack metadata updated successfully:', responseData);
+            console.log('✅ [updateMemberstackMetadata] === METADATA UPDATE COMPLETED SUCCESSFULLY ===');
             return true;
         } else {
             const errorText = await response.text();
-            console.error(`❌ Memberstack API error (${response.status}):`, errorText);
+            console.error(`❌ [updateMemberstackMetadata] Memberstack API error (${response.status}):`, errorText);
+            console.error(`❌ [updateMemberstackMetadata] === METADATA UPDATE FAILED ===`);
             return false;
         }
 
     } catch (error) {
-        console.error('❌ Network error during Memberstack metadata update:', error);
+        console.error('❌ [updateMemberstackMetadata] Network error during Memberstack metadata update:', error);
+        console.error('❌ [updateMemberstackMetadata] === METADATA UPDATE FAILED WITH EXCEPTION ===');
         return false;
     }
 } 
