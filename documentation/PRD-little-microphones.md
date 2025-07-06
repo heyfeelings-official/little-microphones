@@ -1,4 +1,8 @@
-# Little Microphones - Product Requirements Document (PRD)
+# PRD - Little Microphones 🎙️
+
+**Data:** 6 września 2024  
+**Wersja:** 4.2.0  
+**Status:** ✅ Aktywna - Funkcjonalność Wszystkich Światów + Audio System
 
 ## Project Overview
 Little Microphones is a comprehensive web-based audio recording platform that allows users to record responses to themed questions and generate professional radio programs. The system features a revolutionary sharing architecture that enables teachers to create secure, shareable radio program links while maintaining privacy and security. The platform integrates with Webflow CMS for content management, uses Bunny.net CDN for audio storage and delivery, and features advanced FFmpeg audio processing for professional-quality output.
@@ -229,3 +233,31 @@ master: {
 **Performance**: Audio processing ~30-60 seconds, 44.1kHz stereo output  
 **Security**: Multi-layer authorization with Memberstack + metadata validation  
 **Scalability**: Serverless architecture with global CDN distribution 
+
+## 🚨 KRYTYCZNE NAPRAWY
+
+### Styczeń 2025: Naprawa Synchronizacji LMID z Memberstack
+
+**Problem:**
+- System dodawał LMID do Supabase, ale nie aktualizował metadanych w Memberstack
+- API Memberstack wymaga `metaData` (camelCase), nie `metadata` (lowercase)  
+- Wszystkie aktualizacje metadanych były ciche failures
+
+**Naprawy:**
+- ✅ Zmieniono `metadata` na `metaData` w `utils/lmid-utils.js`
+- ✅ Zmieniono `metadata` na `metaData` w `api/test-memberstack.js`
+- ✅ Przetestowano - API działa poprawnie z `metaData`
+- ✅ Wszystkie endpointy synchronizują metadane z Memberstack
+
+**Pliki Zmienione:**
+- `utils/lmid-utils.js` - funkcja `updateMemberstackMetadata()`
+- `api/test-memberstack.js` - endpoint testowy  
+- `api/memberstack-webhook.js` - webhook dla educatorów
+- `api/handle-new-member.js` - webhook dla rodziców
+
+**Rezultat:**
+- LMID są teraz poprawnie synchronizowane między Supabase i Memberstack
+- Metadane są aktualizowane w czasie rzeczywistym
+- System działa zgodnie z oczekiwaniami
+
+--- 
