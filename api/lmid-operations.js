@@ -111,85 +111,27 @@ async function findNextAvailableLmid() {
 }
 
 /**
- * Get member data from Memberstack
+ * Validate member ID format (basic validation)
  * @param {string} memberId - Memberstack member ID
- * @returns {Promise<Object|null>} Member data or null if not found
+ * @returns {boolean} True if format looks valid
  */
-async function getMemberFromMemberstack(memberId) {
-    try {
-        const memberstackApiKey = process.env.MEMBERSTACK_API_KEY;
-        if (!memberstackApiKey) {
-            console.error('MEMBERSTACK_API_KEY not configured');
-            return null;
-        }
-
-        const response = await fetch(`https://api.memberstack.com/v1/members/${memberId}`, {
-            headers: {
-                'X-API-Key': memberstackApiKey,
-                'Content-Type': 'application/json'
-            }
-        });
-
-        if (!response.ok) {
-            console.error('Failed to get member from Memberstack:', response.status);
-            return null;
-        }
-
-        const data = await response.json();
-        return data.member || data;
-    } catch (error) {
-        console.error('Error getting member from Memberstack:', error);
-        return null;
-    }
+function isValidMemberId(memberId) {
+    // Memberstack member IDs typically start with 'mem_' and contain alphanumeric characters
+    return typeof memberId === 'string' && 
+           memberId.startsWith('mem_') && 
+           memberId.length > 10;
 }
 
-/**
- * Update Memberstack member metadata with LMIDs
- * @param {string} memberId - Memberstack member ID
- * @param {string} lmidString - Comma-separated LMID string
- * @returns {Promise<boolean>} Success status
- */
-async function updateMemberstackMetadata(memberId, lmidString) {
-    try {
-        const memberstackApiKey = process.env.MEMBERSTACK_API_KEY;
-        if (!memberstackApiKey) {
-            console.error('MEMBERSTACK_API_KEY not configured');
-            return false;
-        }
-
-        const response = await fetch(`https://api.memberstack.com/v1/members/${memberId}`, {
-            method: 'PATCH',
-            headers: {
-                'X-API-Key': memberstackApiKey,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                metaData: {
-                    lmids: lmidString || null
-                }
-            })
-        });
-
-        if (!response.ok) {
-            console.error('Failed to update Memberstack metadata:', response.status);
-            return false;
-        }
-
-        return true;
-    } catch (error) {
-        console.error('Error updating Memberstack metadata:', error);
-        return false;
-    }
-}
+// Note: Memberstack metadata updates are handled by frontend
+// This keeps the backend simpler and avoids API key management issues
 
 /**
  * Handle ADD LMID operation
  * @param {string} memberId - Memberstack member ID
  * @param {string} memberEmail - Member email
- * @param {Object} memberData - Member data from Memberstack
  * @returns {Promise<Object>} Operation result
  */
-async function handleAddLmid(memberId, memberEmail, memberData) {
+async function handleAddLmid(memberId, memberEmail) {
     // Find next available LMID
     const availableLmid = await findNextAvailableLmid();
     if (!availableLmid) {
@@ -222,14 +164,11 @@ async function handleAddLmid(memberId, memberEmail, memberData) {
         throw new Error('Failed to assign LMID to member');
     }
 
-    // Update Memberstack metadata
-    const currentLmids = memberData.metaData?.lmids || '';
-    const newLmidString = currentLmids ? `${currentLmids},${availableLmid}` : availableLmid.toString();
+    // Note: Memberstack metadata will be updated by frontend after successful response
+    console.log(`LMID ${availableLmid} assigned to member ${memberId} (${memberEmail})`);
     
-    const memberstackSuccess = await updateMemberstackMetadata(memberId, newLmidString);
-    if (!memberstackSuccess) {
-        console.warn('Failed to update Memberstack metadata, but LMID was assigned');
-    }
+    // TODO: In future, we could implement Memberstack API integration here
+    // For now, frontend handles metadata updates
 
     return {
         success: true,
@@ -257,11 +196,11 @@ async function handleDeleteLmid(memberId, lmidToDelete, newLmidString) {
         throw new Error('Failed to delete LMID from database');
     }
 
-    // Update Memberstack metadata
-    const memberstackSuccess = await updateMemberstackMetadata(memberId, newLmidString);
-    if (!memberstackSuccess) {
-        console.warn('Failed to update Memberstack metadata, but LMID was deleted');
-    }
+    // Note: Memberstack metadata will be updated by frontend after successful response
+    console.log(`LMID ${lmidToDelete} deleted for member ${memberId}`);
+    
+    // TODO: In future, we could implement Memberstack API integration here
+    // For now, frontend handles metadata updates
 
     return {
         success: true,
@@ -296,12 +235,11 @@ export default async function handler(req, res) {
             });
         }
 
-        // Get member data from Memberstack
-        const memberData = await getMemberFromMemberstack(memberId);
-        if (!memberData) {
-            return res.status(404).json({ 
+        // Validate member ID format
+        if (!isValidMemberId(memberId)) {
+            return res.status(400).json({ 
                 success: false, 
-                error: 'Member not found in Memberstack' 
+                error: 'Invalid member ID format' 
             });
         }
 
@@ -314,7 +252,7 @@ export default async function handler(req, res) {
                     error: 'Missing required parameter: memberEmail for add action' 
                 });
             }
-            result = await handleAddLmid(memberId, memberEmail, memberData);
+            result = await handleAddLmid(memberId, memberEmail);
         } else if (action === 'delete') {
             if (!lmidToDelete) {
                 return res.status(400).json({ 
