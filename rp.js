@@ -102,8 +102,8 @@ function initializeRecordingForWorld(world) {
 }
 
 function showWorldCollection(world) {
-  // Define all possible world collections
-  const allCollections = [
+  // Use global config for world collections with fallback
+  const allCollections = window.LM_CONFIG?.WORLD_COLLECTIONS || [
     'collection-spookyland',
     'collection-shopping-spree', 
     'collection-amusement-park',
@@ -129,12 +129,13 @@ function showWorldCollection(world) {
     console.log(`Showing collection for world: ${world}`);
     
     // Initialize recording functionality for this world only
+    const uiDelay = window.LM_CONFIG?.TIMEOUTS?.UI_UPDATE_DELAY || 100;
     setTimeout(() => {
       initializeRecordingForWorld(world);
       
       // Hook into existing generate-program button and convert to share link functionality
       setupExistingRadioProgramButton(world, window.currentLmid);
-    }, 100);
+    }, uiDelay);
   } else {
     console.warn(`Collection element not found: ${targetCollectionId}`);
   }
@@ -175,8 +176,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const worldNameElement = document.getElementById("wrold-name");
     if (worldNameElement) {
-      // Format the world name for display (e.g., "spookyland" -> "Spookyland", "big-city" -> "Big city")
-      const formattedWorldName = worldFromUrl.charAt(0).toUpperCase() + worldFromUrl.slice(1).replace(/-/g, ' ');
+      // Use global config utility or fallback
+      const formattedWorldName = window.LM_CONFIG?.UTILS?.formatWorldName(worldFromUrl) || 
+                                  worldFromUrl.charAt(0).toUpperCase() + worldFromUrl.slice(1).replace(/-/g, ' ');
       worldNameElement.textContent = formattedWorldName;
     }
 

@@ -30,6 +30,7 @@
     
     // API Configuration - Use global config if available, fallback to hardcoded
     const API_BASE_URL = window.LM_CONFIG?.API_BASE_URL || 'https://little-microphones.vercel.app';
+    const AUDIO_CDN_URL = window.LM_CONFIG?.AUDIO_CDN_URL || 'https://little-microphones.b-cdn.net/audio';
     
     // Create global RadioGenerator namespace
     window.RadioGenerator = window.RadioGenerator || {};
@@ -60,7 +61,7 @@
         const introTimestamp = Date.now();
         audioSegments.push({
             type: 'single',
-            url: `https://little-microphones.b-cdn.net/audio/other/intro.mp3?t=${introTimestamp}`
+            url: `${AUDIO_CDN_URL}/other/intro.mp3?t=${introTimestamp}`
         });
         
         // 2. Add questions and answers in order
@@ -71,7 +72,7 @@
             const cacheBustTimestamp = Date.now() + Math.random();
             audioSegments.push({
                 type: 'single',
-                url: `https://little-microphones.b-cdn.net/audio/${world}/${world}-QID${questionId}.mp3?t=${cacheBustTimestamp}`
+                url: `${AUDIO_CDN_URL}/${world}/${world}-QID${questionId}.mp3?t=${cacheBustTimestamp}`
             });
             
             // Sort answers by filename timestamp (first recorded = first played)
@@ -86,7 +87,7 @@
             audioSegments.push({
                 type: 'combine_with_background',
                 answerUrls: sortedAnswers.map(recording => recording.url || recording.cloudUrl),
-                backgroundUrl: `https://little-microphones.b-cdn.net/audio/other/monkeys.mp3?t=${backgroundTimestamp}`,
+                backgroundUrl: `${AUDIO_CDN_URL}/other/monkeys.mp3?t=${backgroundTimestamp}`,
                 questionId: questionId
             });
         });
@@ -95,7 +96,7 @@
         const outroTimestamp = Date.now() + 1;
         audioSegments.push({
             type: 'single',
-            url: `https://little-microphones.b-cdn.net/audio/other/outro.mp3?t=${outroTimestamp}`
+            url: `${AUDIO_CDN_URL}/other/outro.mp3?t=${outroTimestamp}`
         });
         
         console.log(`🎼 Generated ${audioSegments.length} audio segments for ${sortedQuestionIds.length} questions`);

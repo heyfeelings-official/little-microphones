@@ -535,7 +535,9 @@ document.addEventListener("DOMContentLoaded", () => {
       const cancelBtn = modal.querySelector('#cancelBtn');
       
       // Focus on input
-      setTimeout(() => input.focus(), 100);
+              // Use global config for focus delay with fallback
+        const focusDelay = window.LM_CONFIG?.TIMEOUTS?.FOCUS_DELAY || 100;
+        setTimeout(() => input.focus(), focusDelay);
       
       // Validate input in real-time
       input.addEventListener('input', () => {
