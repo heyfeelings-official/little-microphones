@@ -51,7 +51,7 @@ export default async function handler(req, res) {
         }
 
         const requestBody = {
-            metadata: {
+            metaData: {
                 lmids: correctLmidString
             }
         };
