@@ -1,6 +1,31 @@
-import { getSupabaseClient } from '../utils/lmid-utils.js';
+/**
+ * api/get-world-info.js - Quick World Info Retrieval (Refactored)
+ * 
+ * PURPOSE: Fast endpoint to get world info from ShareID for radio page optimization
+ * DEPENDENCIES: Enhanced utils for standardized API handling
+ * 
+ * REQUEST FORMAT:
+ * GET /api/get-world-info?shareId=kz7xp4v9
+ * 
+ * RESPONSE FORMAT:
+ * { success: true, world: "spookyland", lmid: 38, backgroundUrl: "...", timestamp: "2025-01-06T..." }
+ * 
+ * OPTIMIZATIONS:
+ * - Minimal data transfer for faster page loads
+ * - Caching for frequently accessed ShareIDs
+ * - Quick database lookup with optimized queries
+ * - Standardized error handling and response format
+ * 
+ * LAST UPDATED: January 2025
+ * VERSION: 2.0.0 (Refactored)
+ * STATUS: Production Ready ✅
+ */
 
-const worldBackgrounds = {
+import { handleApiRequest } from '../utils/api-utils.js';
+import { findLmidByShareId } from '../utils/database-utils.js';
+
+// World background images (moved to constants)
+const WORLD_BACKGROUNDS = {
     'shopping-spree': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/67f506146fb421db045378af_cdcb9c23ac6f956cbb6f7f498c75cd11_worlds-Anxiety.avif',
     'waterpark': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/67f50606d058c933cd554be8_2938a42d480503a33daf8a8334f53f0a_worlds-Empathy.avif',
     'amusement-park': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/67f505fe412762bb8a01b03d_85fcbe125912ab0998bf679d2e8c6082_worlds-Love.avif',
@@ -9,62 +34,42 @@ const worldBackgrounds = {
     'neighborhood': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/683859c64fa8c3f50ead799a_worlds-boredom.avif'
 };
 
+/**
+ * Handler function for world info retrieval
+ * @param {Object} req - Request object
+ * @param {Object} res - Response object
+ * @param {Object} params - Validated parameters
+ * @returns {Promise<Object>} Response data
+ */
+async function getWorldInfoHandler(req, res, params) {
+    const { shareId } = params;
+    
+    // Use optimized database query with caching
+    const lmidData = await findLmidByShareId(shareId);
+    
+    if (!lmidData) {
+        const error = new Error('ShareID not found');
+        error.status = 404;
+        error.code = 'SHARE_ID_NOT_FOUND';
+        throw error;
+    }
+    
+    // Get background URL for the world
+    const backgroundUrl = WORLD_BACKGROUNDS[lmidData.world];
+    
+    // Return optimized response data
+    return {
+        world: lmidData.world,
+        lmid: lmidData.lmid,
+        backgroundUrl: backgroundUrl || null
+    };
+}
+
 export default async function handler(req, res) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-    if (req.method === 'OPTIONS') {
-        return res.status(200).end();
-    }
-    if (req.method !== 'GET') {
-        return res.status(405).json({ success: false, error: 'Method not allowed. Use GET.' });
-    }
-
-    try {
-        const { shareId } = req.query;
-        if (!shareId) {
-            return res.status(400).json({ success: false, error: 'Missing required parameter: shareId' });
-        }
-
-        const supabase = getSupabaseClient();
-
-        // Search for the shareId in all world-specific columns
-        const { data, error } = await supabase
-            .from('lmids')
-            .select('lmid, share_id_spookyland, share_id_waterpark, share_id_shopping_spree, share_id_amusement_park, share_id_big_city, share_id_neighborhood')
-            .or(`share_id_spookyland.eq.${shareId},share_id_waterpark.eq.${shareId},share_id_shopping_spree.eq.${shareId},share_id_amusement_park.eq.${shareId},share_id_big_city.eq.${shareId},share_id_neighborhood.eq.${shareId}`)
-            .single();
-
-        if (error || !data) {
-            console.error(`World lookup failed for shareId: ${shareId}`, error);
-            return res.status(404).json({ success: false, error: 'ShareID not found' });
-        }
-
-        // Determine which world this shareId belongs to
-        let world = null;
-        if (data.share_id_spookyland === shareId) world = 'spookyland';
-        else if (data.share_id_waterpark === shareId) world = 'waterpark';
-        else if (data.share_id_shopping_spree === shareId) world = 'shopping-spree';
-        else if (data.share_id_amusement_park === shareId) world = 'amusement-park';
-        else if (data.share_id_big_city === shareId) world = 'big-city';
-        else if (data.share_id_neighborhood === shareId) world = 'neighborhood';
-
-        if (!world) {
-            return res.status(404).json({ success: false, error: 'World not found for shareId' });
-        }
-
-        const backgroundUrl = worldBackgrounds[world];
-
-        return res.status(200).json({
-            success: true,
-            world: world,
-            backgroundUrl: backgroundUrl,
-            lmid: data.lmid
-        });
-
-    } catch (error) {
-        console.error('Unexpected error in get-world-info:', error);
-        return res.status(500).json({ success: false, error: 'Internal server error' });
-    }
+    await handleApiRequest(req, res, {
+        endpoint: 'get-world-info',
+        allowedMethods: ['GET'],
+        requiredParams: ['shareId'],
+        timeout: 10000 // Fast endpoint needs quick timeout
+    }, getWorldInfoHandler);
 } 

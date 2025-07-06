@@ -1,97 +1,106 @@
-import { getSupabaseClient } from '../utils/lmid-utils.js';
+/**
+ * api/test-memberstack.js - Memberstack Metadata Sync Testing Endpoint (Refactored)
+ * 
+ * PURPOSE: Force-sync member metadata between Supabase and Memberstack for testing
+ * DEPENDENCIES: Enhanced utils for standardized API handling and database operations
+ * 
+ * REQUEST FORMAT:
+ * POST /api/test-memberstack
+ * Body: { memberId: "mem_123..." }
+ * 
+ * RESPONSE FORMAT:
+ * { success: true, message: "...", synchronizedLmids: "1,2,3", timestamp: "2025-01-06T..." }
+ * 
+ * FUNCTIONALITY:
+ * - Fetches correct LMID data from Supabase database
+ * - Force-updates Memberstack metadata with correct data
+ * - Provides detailed logging for debugging sync issues
+ * - Uses enhanced error handling and caching
+ * 
+ * LAST UPDATED: January 2025
+ * VERSION: 2.0.0 (Refactored)
+ * STATUS: Production Ready ✅
+ */
 
-export default async function handler(req, res) {
-    // Set CORS headers
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+import { handleApiRequest } from '../utils/api-utils.js';
+import { findLmidsByMemberId } from '../utils/database-utils.js';
+import { updateMemberMetadata } from '../utils/memberstack-utils.js';
 
-    if (req.method === 'OPTIONS') {
-        return res.status(200).end();
-    }
-
-    if (req.method !== 'POST') {
-        return res.status(405).json({ success: false, error: 'Method not allowed. Use POST.' });
-    }
-
-    const { memberId } = req.body;
-    if (!memberId) {
-        return res.status(400).json({ success: false, error: 'Missing required parameter: memberId' });
-    }
-
+/**
+ * Handler function for Memberstack metadata sync testing
+ * @param {Object} req - Request object
+ * @param {Object} res - Response object
+ * @param {Object} params - Validated parameters
+ * @returns {Promise<Object>} Response data
+ */
+async function testMemberstackHandler(req, res, params) {
+    const { memberId } = params;
+    
     console.log(`🔧 [SYNC-MEMBERSTACK] Starting one-time sync for member: ${memberId}`);
-
+    
     try {
-        // Step 1: Fetch correct LMIDs from our database (Supabase)
+        // Step 1: Fetch correct LMIDs from our database using optimized query
         console.log('🔍 Fetching correct LMIDs from Supabase...');
-        const supabase = getSupabaseClient();
-        const { data: correctLmidRecords, error: dbError } = await supabase
-            .from('lmids')
-            .select('lmid')
-            .eq('assigned_to_member_id', memberId)
-            .eq('status', 'used')
-            .order('lmid', { ascending: true });
-
-        if (dbError) {
-            console.error('❌ Supabase error:', dbError);
-            throw new Error('Failed to fetch correct LMIDs from database.');
+        const lmidRecords = await findLmidsByMemberId(memberId);
+        
+        if (!lmidRecords || lmidRecords.length === 0) {
+            console.log(`📭 No LMIDs found for member: ${memberId}`);
+            return {
+                message: `No LMIDs found for member ${memberId}`,
+                synchronizedLmids: '',
+                lmidCount: 0
+            };
         }
-
-        const correctLmidArray = correctLmidRecords.map(r => r.lmid);
+        
+        const correctLmidArray = lmidRecords.map(record => record.lmid);
         const correctLmidString = correctLmidArray.join(',');
         console.log(`📄 Correct LMIDs from Supabase: [${correctLmidString}]`);
-
-        // Step 2: Force-update Memberstack metadata with the correct data
-        console.log('📤 Preparing to force-update Memberstack...');
-        const MEMBERSTACK_SECRET_KEY = process.env.MEMBERSTACK_SECRET_KEY;
-        const MEMBERSTACK_API_URL = 'https://admin.memberstack.com';
-
-        if (!MEMBERSTACK_SECRET_KEY) {
-            throw new Error('MEMBERSTACK_SECRET_KEY not configured on server.');
-        }
-
-        const requestBody = {
-            metaData: {
-                lmids: correctLmidString
-            }
-        };
-
-        const requestUrl = `${MEMBERSTACK_API_URL}/members/${memberId}`;
-        console.log(`📤 Making PATCH request to: ${requestUrl}`);
-        console.log(`📤 Request body:`, JSON.stringify(requestBody, null, 2));
-
-        const response = await fetch(requestUrl, {
-            method: 'PATCH',
-            headers: {
-                'x-api-key': MEMBERSTACK_SECRET_KEY,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(requestBody)
+        
+        // Step 2: Force-update Memberstack metadata using enhanced function
+        console.log('📤 Force-updating Memberstack metadata...');
+        const updateSuccess = await updateMemberMetadata(memberId, {
+            lmids: correctLmidString
+        }, {
+            validateOwnership: false, // Skip validation for force sync
+            clearCache: true
         });
-
-        console.log(`📥 Memberstack response status: ${response.status} ${response.statusText}`);
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error(`❌ Memberstack API error:`, errorText);
-            throw new Error(`Failed to update Memberstack metadata. Status: ${response.status}`);
+        
+        if (!updateSuccess) {
+            const error = new Error('Failed to update Memberstack metadata');
+            error.status = 500;
+            error.code = 'MEMBERSTACK_UPDATE_FAILED';
+            throw error;
         }
-
-        const responseData = await response.json();
+        
         console.log('✅ Memberstack metadata synchronized successfully!');
-
-        return res.status(200).json({
-            success: true,
-            message: `Successfully synchronized Memberstack metadata for member ${memberId}.`,
+        
+        return {
+            message: `Successfully synchronized Memberstack metadata for member ${memberId}`,
             synchronizedLmids: correctLmidString,
-            memberstackResponse: responseData
-        });
-
+            lmidCount: correctLmidArray.length,
+            lmidDetails: lmidRecords.map(record => ({
+                lmid: record.lmid,
+                assignedAt: record.assigned_at
+            }))
+        };
+        
     } catch (error) {
         console.error('❌ [SYNC-MEMBERSTACK] Error during sync process:', error);
-        return res.status(500).json({
-            success: false,
-            error: error.message || 'An internal server error occurred during the sync process.'
-        });
+        
+        // Re-throw with enhanced error information
+        const enhancedError = new Error(`Sync process failed: ${error.message}`);
+        enhancedError.status = error.status || 500;
+        enhancedError.code = error.code || 'SYNC_FAILED';
+        throw enhancedError;
     }
+}
+
+export default async function handler(req, res) {
+    await handleApiRequest(req, res, {
+        endpoint: 'test-memberstack',
+        allowedMethods: ['POST'],
+        requiredParams: ['memberId'],
+        requiredEnvVars: ['MEMBERSTACK_SECRET_KEY'],
+        timeout: 30000 // Allow extra time for Memberstack API calls
+    }, testMemberstackHandler);
 } 

@@ -1,7 +1,7 @@
 /**
- * utils/api-utils.js - Shared API Utilities
+ * utils/api-utils.js - Enhanced Shared API Utilities
  * 
- * PURPOSE: Common utilities for API endpoints to reduce code duplication
+ * PURPOSE: Comprehensive utilities for API endpoints to eliminate code duplication
  * DEPENDENCIES: None
  * 
  * EXPORTED FUNCTIONS:
@@ -11,9 +11,17 @@
  * - createErrorResponse(): Create standardized error response
  * - createSuccessResponse(): Create standardized success response
  * - validateRequiredParams(): Validate required parameters exist
+ * - validateEnvironmentVars(): Validate environment variables exist
+ * - logApiRequest(): Log API request for debugging
+ * - handleApiRequest(): Comprehensive API request handler with error boundaries
+ * - validateMemberstackWebhook(): Validate Memberstack webhook signature
+ * - sanitizeError(): Sanitize error messages for safe client responses
+ * - formatApiResponse(): Format consistent API responses
+ * - timeoutPromise(): Add timeout to promises
+ * - retryWithBackoff(): Retry function with exponential backoff
  * 
  * LAST UPDATED: January 2025
- * VERSION: 1.0.0
+ * VERSION: 2.0.0 (Enhanced)
  * STATUS: Production Ready ✅
  */
 
@@ -25,7 +33,8 @@
 export function setCorsHeaders(res, methods = ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', methods.join(', '));
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Memberstack-Signature');
+    res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
 }
 
 /**
@@ -36,6 +45,7 @@ export function setCorsHeaders(res, methods = ['GET', 'POST', 'PUT', 'DELETE', '
  */
 export function handleOptionsRequest(req, res) {
     if (req.method === 'OPTIONS') {
+        setCorsHeaders(res);
         res.status(200).end();
         return true;
     }
@@ -53,10 +63,11 @@ export function validateMethod(req, res, allowedMethods) {
     const methods = Array.isArray(allowedMethods) ? allowedMethods : [allowedMethods];
     
     if (!methods.includes(req.method)) {
-        res.status(405).json({
-            success: false,
-            error: `Method not allowed. Use ${methods.join(' or ')}.`
-        });
+        const errorResponse = createErrorResponse(
+            `Method not allowed. Use ${methods.join(' or ')}.`,
+            { allowedMethods: methods, receivedMethod: req.method }
+        );
+        res.status(405).json(errorResponse);
         return false;
     }
     return true;
@@ -65,17 +76,23 @@ export function validateMethod(req, res, allowedMethods) {
 /**
  * Create standardized error response
  * @param {string} message - Error message
- * @param {string} details - Optional error details
+ * @param {Object} details - Optional error details
+ * @param {string} code - Optional error code
  * @returns {Object} Error response object
  */
-export function createErrorResponse(message, details = null) {
+export function createErrorResponse(message, details = null, code = null) {
     const response = {
         success: false,
-        error: message
+        error: message,
+        timestamp: new Date().toISOString()
     };
     
     if (details) {
         response.details = details;
+    }
+    
+    if (code) {
+        response.code = code;
     }
     
     return response;
@@ -90,7 +107,8 @@ export function createErrorResponse(message, details = null) {
 export function createSuccessResponse(message, data = null) {
     const response = {
         success: true,
-        message: message
+        message: message,
+        timestamp: new Date().toISOString()
     };
     
     if (data) {
@@ -158,4 +176,223 @@ export function logApiRequest(endpoint, req, params = {}) {
     if (Object.keys(params).length > 0) {
         console.log(`Parameters:`, params);
     }
+}
+
+/**
+ * Comprehensive API request handler with error boundaries
+ * @param {Object} req - Request object
+ * @param {Object} res - Response object
+ * @param {Object} config - Configuration object
+ * @param {Function} handler - Main handler function
+ * @returns {Promise} Promise that resolves with response
+ */
+export async function handleApiRequest(req, res, config, handler) {
+    const { 
+        endpoint, 
+        allowedMethods = ['GET', 'POST'], 
+        requiredParams = [],
+        requiredEnvVars = [],
+        timeout = 30000
+    } = config;
+    
+    try {
+        // Set CORS headers
+        setCorsHeaders(res, allowedMethods);
+        
+        // Handle OPTIONS
+        if (handleOptionsRequest(req, res)) {
+            return;
+        }
+        
+        // Validate method
+        if (!validateMethod(req, res, allowedMethods)) {
+            return;
+        }
+        
+        // Log request
+        logApiRequest(endpoint, req, { ...req.body, ...req.query });
+        
+        // Validate required parameters
+        const params = { ...req.body, ...req.query };
+        const paramValidation = validateRequiredParams(params, requiredParams);
+        if (!paramValidation.valid) {
+            const errorResponse = createErrorResponse(
+                'Missing required parameters',
+                { missing: paramValidation.missing },
+                'MISSING_PARAMETERS'
+            );
+            return res.status(400).json(errorResponse);
+        }
+        
+        // Validate environment variables
+        const envValidation = validateEnvironmentVars(requiredEnvVars);
+        if (!envValidation.valid) {
+            console.error(`Missing environment variables: ${envValidation.missing.join(', ')}`);
+            const errorResponse = createErrorResponse(
+                'Server configuration error',
+                null,
+                'SERVER_CONFIG_ERROR'
+            );
+            return res.status(500).json(errorResponse);
+        }
+        
+        // Execute handler with timeout
+        const result = await timeoutPromise(handler(req, res, params), timeout);
+        
+        // If handler hasn't sent response yet, send success response
+        if (!res.headersSent && result) {
+            const successResponse = createSuccessResponse('Operation completed successfully', result);
+            return res.status(200).json(successResponse);
+        }
+        
+    } catch (error) {
+        console.error(`Error in ${endpoint}:`, error);
+        
+        // Don't send response if already sent
+        if (!res.headersSent) {
+            const sanitizedError = sanitizeError(error);
+            const errorResponse = createErrorResponse(
+                sanitizedError.message,
+                sanitizedError.details,
+                sanitizedError.code
+            );
+            return res.status(sanitizedError.status || 500).json(errorResponse);
+        }
+    }
+}
+
+/**
+ * Validate Memberstack webhook signature (basic implementation)
+ * @param {Object} req - Request object
+ * @returns {boolean} True if webhook is valid
+ */
+export function validateMemberstackWebhook(req) {
+    // TODO: Implement proper Memberstack webhook signature verification
+    // For now, we'll do basic validation
+    const userAgent = req.headers['user-agent'];
+    const signature = req.headers['x-memberstack-signature'];
+    
+    // Basic validation - in production, verify the actual signature
+    return userAgent && userAgent.includes('Memberstack');
+}
+
+/**
+ * Sanitize error messages for safe client responses
+ * @param {Error} error - Error object
+ * @returns {Object} Sanitized error object
+ */
+export function sanitizeError(error) {
+    const sanitized = {
+        message: 'An error occurred',
+        details: null,
+        code: null,
+        status: 500
+    };
+    
+    if (error.message) {
+        // Remove sensitive information from error messages
+        const sensitivePatterns = [
+            /password/i,
+            /token/i,
+            /key/i,
+            /secret/i,
+            /credential/i
+        ];
+        
+        let message = error.message;
+        sensitivePatterns.forEach(pattern => {
+            message = message.replace(pattern, '[REDACTED]');
+        });
+        
+        sanitized.message = message;
+    }
+    
+    if (error.code) {
+        sanitized.code = error.code;
+    }
+    
+    if (error.status) {
+        sanitized.status = error.status;
+    }
+    
+    // Add specific handling for common error types
+    if (error.name === 'ValidationError') {
+        sanitized.status = 400;
+        sanitized.code = 'VALIDATION_ERROR';
+    } else if (error.name === 'NotFoundError') {
+        sanitized.status = 404;
+        sanitized.code = 'NOT_FOUND';
+    }
+    
+    return sanitized;
+}
+
+/**
+ * Format consistent API response
+ * @param {boolean} success - Success status
+ * @param {string} message - Response message
+ * @param {Object} data - Response data
+ * @param {Object} meta - Response metadata
+ * @returns {Object} Formatted response
+ */
+export function formatApiResponse(success, message, data = null, meta = null) {
+    const response = {
+        success,
+        message,
+        timestamp: new Date().toISOString()
+    };
+    
+    if (data) {
+        response.data = data;
+    }
+    
+    if (meta) {
+        response.meta = meta;
+    }
+    
+    return response;
+}
+
+/**
+ * Add timeout to promises
+ * @param {Promise} promise - Promise to timeout
+ * @param {number} timeout - Timeout in milliseconds
+ * @returns {Promise} Promise that rejects on timeout
+ */
+export function timeoutPromise(promise, timeout) {
+    return Promise.race([
+        promise,
+        new Promise((_, reject) => {
+            setTimeout(() => reject(new Error(`Operation timed out after ${timeout}ms`)), timeout);
+        })
+    ]);
+}
+
+/**
+ * Retry function with exponential backoff
+ * @param {Function} fn - Function to retry
+ * @param {number} maxRetries - Maximum number of retries
+ * @param {number} baseDelay - Base delay in milliseconds
+ * @returns {Promise} Promise that resolves with function result
+ */
+export async function retryWithBackoff(fn, maxRetries = 3, baseDelay = 1000) {
+    let lastError;
+    
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+            return await fn();
+        } catch (error) {
+            lastError = error;
+            
+            if (attempt === maxRetries) {
+                throw error;
+            }
+            
+            const delay = baseDelay * Math.pow(2, attempt);
+            console.log(`Retry attempt ${attempt + 1} failed, retrying in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
+    }
+    
+    throw lastError;
 } 
