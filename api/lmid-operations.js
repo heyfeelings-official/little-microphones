@@ -10,6 +10,7 @@
  *   "action": "add" | "delete",
  *   "memberId": "mem_123",
  *   "memberEmail": "teacher@school.com",
+ *   "currentLmids": "1,2,3" (current LMID string),
  *   "lmidToDelete": 123 (only for delete action),
  *   "newLmidString": "1,2,3" (only for delete action - remaining LMIDs)
  * }
@@ -19,7 +20,8 @@
  *   "success": true,
  *   "message": "Operation completed successfully",
  *   "lmid": 123,
- *   "shareIds": {...} (only for add action)
+ *   "shareIds": {...} (only for add action),
+ *   "newLmidString": "1,2,3" (updated LMID string)
  * }
  */
 
@@ -28,6 +30,10 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Memberstack API configuration
+const MEMBERSTACK_SECRET_KEY = process.env.MEMBERSTACK_SECRET_KEY;
+const MEMBERSTACK_API_URL = 'https://api.memberstack.com/v1';
 
 const worlds = ['spookyland', 'waterpark', 'shopping-spree', 'amusement-park', 'big-city', 'neighborhood'];
 
@@ -122,16 +128,54 @@ function isValidMemberId(memberId) {
            memberId.length > 10;
 }
 
-// Note: Memberstack metadata updates are handled by frontend
-// This keeps the backend simpler and avoids API key management issues
+/**
+ * Update Memberstack member metadata
+ * @param {string} memberId - Memberstack member ID
+ * @param {string} newLmidString - New LMID string
+ * @returns {Promise<boolean>} Success status
+ */
+async function updateMemberstackMetadata(memberId, newLmidString) {
+    if (!MEMBERSTACK_SECRET_KEY) {
+        console.warn('MEMBERSTACK_SECRET_KEY not configured - skipping metadata update');
+        return false;
+    }
+
+    try {
+        const response = await fetch(`${MEMBERSTACK_API_URL}/members/${memberId}`, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `Bearer ${MEMBERSTACK_SECRET_KEY}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                metaData: {
+                    lmids: newLmidString
+                }
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error('Memberstack API error:', errorData);
+            return false;
+        }
+
+        console.log(`✅ Updated Memberstack metadata for ${memberId}: lmids=${newLmidString}`);
+        return true;
+    } catch (error) {
+        console.error('Error updating Memberstack metadata:', error);
+        return false;
+    }
+}
 
 /**
  * Handle ADD LMID operation
  * @param {string} memberId - Memberstack member ID
  * @param {string} memberEmail - Member email
+ * @param {string} currentLmids - Current LMID string
  * @returns {Promise<Object>} Operation result
  */
-async function handleAddLmid(memberId, memberEmail) {
+async function handleAddLmid(memberId, memberEmail, currentLmids) {
     // Find next available LMID
     const availableLmid = await findNextAvailableLmid();
     if (!availableLmid) {
@@ -164,17 +208,23 @@ async function handleAddLmid(memberId, memberEmail) {
         throw new Error('Failed to assign LMID to member');
     }
 
-    // Note: Memberstack metadata will be updated by frontend after successful response
-    console.log(`LMID ${availableLmid} assigned to member ${memberId} (${memberEmail})`);
+    // Update LMID string
+    const newLmidString = currentLmids ? `${currentLmids},${availableLmid}` : String(availableLmid);
     
-    // TODO: In future, we could implement Memberstack API integration here
-    // For now, frontend handles metadata updates
+    // Update Memberstack metadata
+    const memberstackUpdated = await updateMemberstackMetadata(memberId, newLmidString);
+    if (!memberstackUpdated) {
+        console.warn(`⚠️ LMID ${availableLmid} assigned in Supabase but Memberstack metadata update failed`);
+    }
+
+    console.log(`✅ LMID ${availableLmid} assigned to member ${memberId} (${memberEmail})`);
 
     return {
         success: true,
         message: 'LMID added successfully',
         lmid: availableLmid,
-        shareIds: shareIds
+        shareIds: shareIds,
+        newLmidString: newLmidString
     };
 }
 
@@ -196,15 +246,18 @@ async function handleDeleteLmid(memberId, lmidToDelete, newLmidString) {
         throw new Error('Failed to delete LMID from database');
     }
 
-    // Note: Memberstack metadata will be updated by frontend after successful response
-    console.log(`LMID ${lmidToDelete} deleted for member ${memberId}`);
-    
-    // TODO: In future, we could implement Memberstack API integration here
-    // For now, frontend handles metadata updates
+    // Update Memberstack metadata
+    const memberstackUpdated = await updateMemberstackMetadata(memberId, newLmidString);
+    if (!memberstackUpdated) {
+        console.warn(`⚠️ LMID ${lmidToDelete} deleted from Supabase but Memberstack metadata update failed`);
+    }
+
+    console.log(`✅ LMID ${lmidToDelete} deleted for member ${memberId}`);
 
     return {
         success: true,
-        message: 'LMID deleted successfully'
+        message: 'LMID deleted successfully',
+        newLmidString: newLmidString
     };
 }
 
@@ -226,7 +279,7 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { action, memberId, memberEmail, lmidToDelete, newLmidString } = req.body;
+        const { action, memberId, memberEmail, currentLmids, lmidToDelete, newLmidString } = req.body;
 
         if (!action || !memberId) {
             return res.status(400).json({ 
@@ -252,7 +305,7 @@ export default async function handler(req, res) {
                     error: 'Missing required parameter: memberEmail for add action' 
                 });
             }
-            result = await handleAddLmid(memberId, memberEmail);
+            result = await handleAddLmid(memberId, memberEmail, currentLmids || '');
         } else if (action === 'delete') {
             if (!lmidToDelete) {
                 return res.status(400).json({ 
@@ -260,7 +313,7 @@ export default async function handler(req, res) {
                     error: 'Missing required parameter: lmidToDelete for delete action' 
                 });
             }
-            result = await handleDeleteLmid(memberId, lmidToDelete, newLmidString);
+            result = await handleDeleteLmid(memberId, lmidToDelete, newLmidString || '');
         } else {
             return res.status(400).json({ 
                 success: false, 

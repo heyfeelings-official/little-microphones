@@ -351,12 +351,14 @@ document.addEventListener("DOMContentLoaded", () => {
         addButton.disabled = true;
         addButton.textContent = "Adding...";
 
-        const response = await fetch(`${API_BASE_URL}/api/create-lmid`, {
+        const response = await fetch(`${API_BASE_URL}/api/lmid-operations`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            action: 'add',
             memberId: memberId,
             memberEmail: memberEmail,
+            currentLmids: lmidFromMeta || '',
           }),
         });
 

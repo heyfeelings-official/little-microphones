@@ -1067,8 +1067,9 @@ function initializeAudioRecorder(recorderWrapper) {
      * Update recording UI elements with current status
      */
     function updateRecordingUI(recordingData, retryCount = 0) {
-        const MAX_RETRIES = 15;
-        const RETRY_DELAY = 200; // ms
+        // Use global config for retry settings with fallback
+        const MAX_RETRIES = window.LM_CONFIG?.TIMEOUTS?.MAX_RETRIES || 15;
+        const RETRY_DELAY = window.LM_CONFIG?.TIMEOUTS?.RETRY_DELAY || 200; // ms
 
         const recordingElement = document.querySelector(`[data-recording-id="${recordingData.id}"]`);
 
@@ -1165,7 +1166,10 @@ let db;
 function setupDatabase() {
     return new Promise((resolve, reject) => {
         if (db) return resolve(db);
-        const request = indexedDB.open("kidsAudioDB", 2); // Bumped version to 2 to trigger upgrade
+        // Use global config for database settings with fallback
+        const dbName = window.LM_CONFIG?.DATABASE?.NAME || "kidsAudioDB";
+        const dbVersion = window.LM_CONFIG?.DATABASE?.VERSION || 2;
+        const request = indexedDB.open(dbName, dbVersion); // Bumped version to 2 to trigger upgrade
 
         request.onupgradeneeded = (event) => {
             const db = event.target.result;
@@ -1312,7 +1316,9 @@ function initializeRecordersForWorld(world) {
         initializedWorlds.delete(world);
         return;
     }
-    const recorderWrappers = targetCollection.querySelectorAll('.faq1_accordion.lm');
+    // Use global config for selectors with fallback
+    const recorderSelector = window.LM_CONFIG?.SELECTORS?.RECORDER_WRAPPER || '.faq1_accordion.lm';
+    const recorderWrappers = targetCollection.querySelectorAll(recorderSelector);
     log('info', `🎵 Initializing ${recorderWrappers.length} audio recorders for ${world}...`);
     recorderWrappers.forEach(wrapper => initializeAudioRecorder(wrapper));
     log('info', `✅ All recorders initialized and loaded for ${world}`);
@@ -1867,7 +1873,9 @@ async function collectRecordingsForRadioProgram(world, lmid) {
     const targetCollection = document.getElementById(targetCollectionId);
     
     if (targetCollection) {
-        const recorderWrappers = targetCollection.querySelectorAll('.faq1_accordion.lm');
+        // Use global config for selectors with fallback
+        const recorderSelector = window.LM_CONFIG?.SELECTORS?.RECORDER_WRAPPER || '.faq1_accordion.lm';
+        const recorderWrappers = targetCollection.querySelectorAll(recorderSelector);
         
         for (const wrapper of recorderWrappers) {
             const rawQuestionId = wrapper.dataset.questionId;

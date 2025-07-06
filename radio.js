@@ -207,7 +207,9 @@ async function fetchRadioData(shareId, world = null) {
  * @param {string} world - The world name (e.g., "spookyland")
  */
 function updateWorldName(world) {
-    const worldName = world.charAt(0).toUpperCase() + world.slice(1).replace(/-/g, ' ');
+    // Use global config utility or fallback
+    const worldName = window.LM_CONFIG?.UTILS?.formatWorldName(world) || 
+                      world.charAt(0).toUpperCase() + world.slice(1).replace(/-/g, ' ');
     document.title = `${worldName} Radio Program - Little Microphones`;
 
     const worldElement = document.getElementById('world-name');
@@ -362,7 +364,9 @@ function showAudioPlayer(audioUrl) {
         return;
     }
 
-    const worldName = currentRadioData.world.charAt(0).toUpperCase() + currentRadioData.world.slice(1).replace(/-/g, ' ');
+    // Use global config utility or fallback
+    const worldName = window.LM_CONFIG?.UTILS?.formatWorldName(currentRadioData.world) || 
+                      currentRadioData.world.charAt(0).toUpperCase() + currentRadioData.world.slice(1).replace(/-/g, ' ');
     
     // Create professional audio player
     playerContainer.innerHTML = `
@@ -866,7 +870,8 @@ function extractTimestampFromFilename(filename) {
  * @param {string} world - World identifier (e.g., 'spookyland')
  */
 function setWorldBackground(world) {
-    const worldBackgrounds = {
+    // Use global config for world images with fallback
+    const worldBackgrounds = window.LM_CONFIG?.WORLD_IMAGES || {
         'shopping-spree': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/67f506146fb421db045378af_cdcb9c23ac6f956cbb6f7f498c75cd11_worlds-Anxiety.avif',
         'waterpark': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/67f50606d058c933cd554be8_2938a42d480503a33daf8a8334f53f0a_worlds-Empathy.avif',
         'amusement-park': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/67f505fe412762bb8a01b03d_85fcbe125912ab0998bf679d2e8c6082_worlds-Love.avif',
