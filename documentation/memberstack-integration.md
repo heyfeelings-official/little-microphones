@@ -98,6 +98,10 @@ To jest centralny punkt, który zawodził i został naprawiony.
     -   Specjalny endpoint do obsługi webhooka `member.created`.
     -   Również importuje i wywołuje `updateMemberstackMetadata`, aby przypisać LMID nowo zarejestrowanym użytkownikom.
 
+4.  **`api/handle-new-member.js`**:
+    -   Endpoint do obsługi rejestracji nowych członków na podstawie ShareID.
+    -   Również importuje i wywołuje `updateMemberstackMetadata`, aby przypisać LMID nowo zarejestrowanym użytkownikom.
+
 ### Schemat Przepływu Danych (Dodawanie LMID)
 
 1.  **Użytkownik** klika "Dodaj Program" na stronie.
@@ -108,4 +112,88 @@ To jest centralny punkt, który zawodził i został naprawiony.
     c. Wywołuje `updateMemberstackMetadata` z `utils/lmid-utils.js`.
 4.  **`updateMemberstackMetadata`** wysyła żądanie `PATCH` do **Memberstack Admin API** z poprawnym formatem `{"metadata": ...}`.
 5.  **Memberstack** aktualizuje metadane użytkownika.
-6.  Odpowiedź wraca tą samą drogą, a frontend odświeża interfejs. 
+6.  Odpowiedź wraca tą samą drogą, a frontend odświeża interfejs.
+
+---
+
+## 4. Naprawy Implementowane w Styczniu 2025
+
+### Problem: Niespójna Synchronizacja LMID z Memberstack
+
+**Objawy**: System dodawał LMID do bazy danych Supabase, ale nie aktualizował metadanych w Memberstack, co powodowało brak synchronizacji między systemami.
+
+### Zidentyfikowane Problemy:
+
+1. **Lokalne Funkcje updateMemberstackMetadata**:
+   - `api/memberstack-webhook.js` zawierał lokalną funkcję `updateMemberstackMetadata` używającą starego API
+   - Używała `MEMBERSTACK_API_KEY` zamiast `MEMBERSTACK_SECRET_KEY`
+   - Używała starego endpointu `https://api.memberstack.com/v1/members/` zamiast `https://admin.memberstack.com/members/`
+   - Używała nieprawidłowych nagłówków `X-API-Key` zamiast `x-api-key`
+   - Używała nieprawidłowej struktury body `metaData` zamiast `metadata`
+
+2. **Brak Aktualizacji Metadanych**:
+   - `api/handle-new-member.js` w ogóle nie aktualizował metadanych Memberstack
+   - Przypisywał LMID tylko w bazie danych Supabase
+
+3. **Niespójne Klucze API**:
+   - Różne pliki używały różnych zmiennych środowiskowych (`MEMBERSTACK_API_KEY` vs `MEMBERSTACK_SECRET_KEY`)
+
+### Zastosowane Naprawy:
+
+1. **Zunifikowana Implementacja**:
+   - Usunięto lokalną funkcję `updateMemberstackMetadata` z `api/memberstack-webhook.js`
+   - Dodano import zunifikowanej funkcji z `utils/lmid-utils.js`
+   - Wszystkie endpointy teraz używają tej samej, poprawnej implementacji
+
+2. **Dodano Aktualizację Metadanych**:
+   - Dodano wywołanie `updateMemberstackMetadata` w `api/handle-new-member.js`
+   - Dodano generowanie ShareIDs dla nowych członków
+   - Dodano opóźnienie 1 sekundy dla spójności bazy danych
+
+3. **Uspójniono Konfigurację**:
+   - Wszystkie pliki używają `MEMBERSTACK_SECRET_KEY`
+   - Wszystkie pliki używają `https://admin.memberstack.com/members/`
+   - Wszystkie pliki używają nagłówka `x-api-key`
+   - Wszystkie pliki używają struktury body `{"metadata": {"lmids": "..."}}`
+
+### Zmiany w Plikach:
+
+- **`api/memberstack-webhook.js`**: Usunięto lokalną funkcję, dodano import z utils
+- **`api/handle-new-member.js`**: Dodano aktualizację metadanych Memberstack
+- **`utils/lmid-utils.js`**: Pozostał bez zmian (już był poprawny)
+- **`api/lmid-operations.js`**: Pozostał bez zmian (już był poprawny)
+
+### Rezultat:
+
+Teraz wszystkie operacje LMID (tworzenie, dodawanie, usuwanie) poprawnie synchronizują się z Memberstack, zapewniając spójność danych między Supabase a Memberstack.
+
+---
+
+## 5. Testowanie
+
+### Endpoint Testowy: `/api/test-memberstack`
+
+Dostępny jest endpoint do testowania synchronizacji metadanych:
+
+```javascript
+// POST /api/test-memberstack
+{
+  "memberId": "mem_123456789"
+}
+```
+
+Ten endpoint:
+1. Pobiera poprawne LMIDs z bazy danych Supabase
+2. Wymusza aktualizację metadanych w Memberstack
+3. Zwraca wynik synchronizacji
+
+### Wymagane Zmienne Środowiskowe na Vercel:
+
+- `MEMBERSTACK_SECRET_KEY`: Klucz do Memberstack Admin API
+- `SUPABASE_URL`: URL bazy danych Supabase
+- `SUPABASE_ANON_KEY`: Klucz publiczny Supabase
+
+---
+
+**Ostatnia Aktualizacja**: 16 Styczeń 2025  
+**Status**: Naprawiony i Przetestowany ✅ 
