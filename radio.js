@@ -82,15 +82,34 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         console.log(`📻 ShareID extracted: ${currentShareId}`);
         
-        console.log(`📻 Loading radio data for ShareID: ${currentShareId}`);
-        showLoadingState('Loading radio program...');
+        // --- Stage 1: Fast initial load for UI ---
+        showLoadingState('Loading world...'); // Show a minimal loading state first
+        const worldInfo = await fetchWorldInfo(currentShareId);
         
-        // Fetch radio data from API
+        if (worldInfo) {
+            console.log('🌍 World info loaded:', worldInfo);
+            // Immediately update the visual elements
+            setWorldBackground(worldInfo.world, worldInfo.backgroundUrl);
+            updateWorldName(worldInfo.world);
+        } else {
+            // Even if this fails, we can continue and let the main data fetch try
+            console.warn('Could not fetch world info early. Proceeding with main data fetch.');
+        }
+
+        // --- Stage 2: Full data load for radio program ---
+        showLoadingState('Loading radio program...'); // Update loading message
+        
+        // Fetch full radio data from API
         currentRadioData = await fetchRadioData(currentShareId);
         
         if (!currentRadioData) {
             showError('Program Not Found', 'This radio program could not be found. The link may be expired or invalid.');
             return;
+        }
+
+        // If the fast load failed, update content now with data from the full fetch
+        if (!worldInfo) {
+            updatePageContent(currentRadioData);
         }
         
         // Determine if we need to generate a new program
@@ -129,6 +148,28 @@ function getShareIdFromUrl() {
 }
 
 /**
+ * Fetch initial world info for fast page load
+ * @param {string} shareId - The ShareID
+ * @returns {Promise<Object|null>} World info or null if failed
+ */
+async function fetchWorldInfo(shareId) {
+    try {
+        const response = await fetch(`https://little-microphones.vercel.app/api/get-world-info?shareId=${shareId}`);
+        if (!response.ok) {
+            throw new Error(`API request failed: ${response.status}`);
+        }
+        const data = await response.json();
+        if (!data.success) {
+            throw new Error(data.error || 'Failed to fetch world info');
+        }
+        return data;
+    } catch (error) {
+        console.error('Failed to fetch world info:', error);
+        return null;
+    }
+}
+
+/**
  * Fetch radio data from the API
  * @param {string} shareId - The ShareID
  * @returns {Promise<Object|null>} Radio data or null if failed
@@ -155,6 +196,21 @@ async function fetchRadioData(shareId) {
 }
 
 /**
+ * Updates just the world name in the UI
+ * @param {string} world - The world name (e.g., "spookyland")
+ */
+function updateWorldName(world) {
+    const worldName = world.charAt(0).toUpperCase() + world.slice(1).replace(/-/g, ' ');
+    document.title = `${worldName} Radio Program - Little Microphones`;
+
+    const worldElement = document.getElementById('world-name');
+    if (worldElement) {
+        worldElement.textContent = worldName;
+    }
+}
+
+
+/**
  * Update page content with radio program information
  * @param {Object} radioData - Radio data from API
  */
@@ -166,15 +222,7 @@ function updatePageContent(radioData) {
     document.title = `${worldName} Radio Program - Little Microphones`;
     
     // Update world name in UI
-    const worldElement = document.getElementById('world-name');
-    console.log('🔧 DEBUG: Looking for element with id="world-name", found:', worldElement);
-    if (worldElement) {
-        console.log('🔧 DEBUG: Setting world name to:', worldName);
-        worldElement.textContent = worldName;
-        console.log('🔧 DEBUG: Element text after setting:', worldElement.textContent);
-    } else {
-        console.warn('🔧 DEBUG: Element with id="world-name" not found in DOM');
-    }
+    updateWorldName(radioData.world);
     
     console.log('🔧 DEBUG: About to call setWorldBackground with world:', radioData.world);
     
@@ -811,45 +859,35 @@ function extractTimestampFromFilename(filename) {
 
 /**
  * Set world-specific background image
- * @param {string} world - World name
+ * @param {string} world - World identifier (e.g., 'spookyland')
+ * @param {string|null} backgroundUrl - Optional: Direct URL for the background
  */
-function setWorldBackground(world) {
-    console.log('🔧 DEBUG: setWorldBackground called with world:', world);
-    
+function setWorldBackground(world, backgroundUrl = null) {
     const worldBackgrounds = {
         'shopping-spree': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/67f506146fb421db045378af_cdcb9c23ac6f956cbb6f7f498c75cd11_worlds-Anxiety.avif',
         'waterpark': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/67f50606d058c933cd554be8_2938a42d480503a33daf8a8334f53f0a_worlds-Empathy.avif',
         'amusement-park': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/67f505fe412762bb8a01b03d_85fcbe125912ab0998bf679d2e8c6082_worlds-Love.avif',
         'big-city': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/67f505f572e936f2b665af1f_7b989a3fe827622216294c6539607059_worlds-Anger.avif',
         'spookyland': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/67f505ecd6f37624ef7affb8_587c997427b10cabcc31cc98d6e516f4_worlds-Fear.png',
-        'nieghborhood': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/683859c64fa8c3f50ead799a_worlds-boredom.avif'
+        'neighborhood': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/67f505e36e849e0a811c0f1c_66d2f3d61b36a6427357732a392823c9_worlds-Boredom.avif'
     };
+
+    const url = backgroundUrl || worldBackgrounds[world];
     
-    const bgUrl = worldBackgrounds[world];
-    console.log('🔧 DEBUG: Background URL for world:', bgUrl);
-    
-    if (bgUrl) {
-        const bgDiv = document.querySelector('.lm-world-wrapper');
-        console.log('🔧 DEBUG: Looking for .lm-world-wrapper, found:', bgDiv);
-        
-        if (bgDiv) {
-            bgDiv.style.backgroundImage = `url('${bgUrl}')`;
-            bgDiv.style.backgroundSize = 'cover';
-            bgDiv.style.backgroundPosition = 'center';
-            console.log(`🌍 Set background for world: ${world}`);
-            console.log('🔧 DEBUG: Applied styles:', bgDiv.style.backgroundImage);
-        } else {
-            console.warn('Background container .lm-world-wrapper not found');
-            console.log('🔧 DEBUG: Available elements with "world" in class:', document.querySelectorAll('[class*="world"]'));
-        }
+    const worldWrapper = document.querySelector('.lm-world-wrapper');
+
+    if (url && worldWrapper) {
+        console.log(`🔧 DEBUG: Setting background for .lm-world-wrapper to ${url}`);
+        worldWrapper.style.backgroundImage = `url('${url}')`;
     } else {
-        console.warn(`No background image defined for world: ${world}`);
+        if (!url) console.warn(`🔧 DEBUG: No background URL found for world: ${world}`);
+        if (!worldWrapper) console.warn('🔧 DEBUG: .lm-world-wrapper element not found');
     }
 }
 
 /**
  * Show loading state
- * @param {string} message - Loading message
+ * @param {string} message - Message to display
  */
 function showLoadingState(message) {
     const mainContainer = document.getElementById('main-container') || document.body;
