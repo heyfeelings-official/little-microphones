@@ -33,7 +33,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Memberstack API configuration
 const MEMBERSTACK_SECRET_KEY = process.env.MEMBERSTACK_SECRET_KEY;
-const MEMBERSTACK_API_URL = 'https://api.memberstack.com/v1';
+const MEMBERSTACK_API_URL = 'https://admin.memberstack.com';
 
 const worlds = ['spookyland', 'waterpark', 'shopping-spree', 'amusement-park', 'big-city', 'neighborhood'];
 
@@ -146,7 +146,7 @@ async function updateMemberstackMetadata(memberId, newLmidString) {
 
     try {
         const requestBody = {
-            metaData: {
+            customFields: {
                 lmids: newLmidString
             }
         };
@@ -157,7 +157,7 @@ async function updateMemberstackMetadata(memberId, newLmidString) {
         const response = await fetch(`${MEMBERSTACK_API_URL}/members/${memberId}`, {
             method: 'PATCH',
             headers: {
-                'Authorization': `Bearer ${MEMBERSTACK_SECRET_KEY}`,
+                'x-api-key': MEMBERSTACK_SECRET_KEY,
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(requestBody)
