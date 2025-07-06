@@ -66,8 +66,8 @@
  * STATUS: Production Ready ✅
  */
 
-// API Configuration
-const API_BASE_URL = 'https://little-microphones.vercel.app';
+// API Configuration - Use global config if available, fallback to hardcoded
+const API_BASE_URL = window.LM_CONFIG?.API_BASE_URL || 'https://little-microphones.vercel.app';
 
 const savingLocks = new Set();
 
@@ -556,7 +556,7 @@ async function deleteRecording(recordingId, questionId, elementToRemove) {
         // Create a minimal recording object for cloud deletion
         const recordingData = {
             id: recordingId,
-            cloudUrl: `https://little-microphones.b-cdn.net/${lmid}/${world}/${recordingId}.mp3`
+            cloudUrl: `${window.LM_CONFIG?.CDN_BASE_URL || 'https://little-microphones.b-cdn.net'}/${lmid}/${world}/${recordingId}.mp3`
         };
         
         console.log(`Deleting from cloud: ${recordingData.cloudUrl}`);
@@ -1537,7 +1537,8 @@ async function generateRadioProgram(world, lmid) {
         
         // 1. Add intro
         const introTimestamp = Date.now();
-        const introUrl = `https://little-microphones.b-cdn.net/audio/other/intro.mp3?t=${introTimestamp}`;
+        const AUDIO_CDN_URL = window.LM_CONFIG?.AUDIO_CDN_URL || 'https://little-microphones.b-cdn.net/audio';
+        const introUrl = `${AUDIO_CDN_URL}/other/intro.mp3?t=${introTimestamp}`;
         audioSegments.push({
             type: 'single',
             url: introUrl
@@ -1550,7 +1551,7 @@ async function generateRadioProgram(world, lmid) {
             
             // Add question prompt with cache-busting
             const cacheBustTimestamp = Date.now();
-            const questionUrl = `https://little-microphones.b-cdn.net/audio/${world}/${world}-QID${questionId}.mp3?t=${cacheBustTimestamp}`;
+            const questionUrl = `${AUDIO_CDN_URL}/${world}/${world}-QID${questionId}.mp3?t=${cacheBustTimestamp}`;
             audioSegments.push({
                 type: 'single',
                 url: questionUrl
@@ -1565,7 +1566,7 @@ async function generateRadioProgram(world, lmid) {
             
             // Combine answers with background music (cache-busted)
             const backgroundTimestamp = Date.now() + Math.random(); // Unique timestamp per question
-            const backgroundUrl = `https://little-microphones.b-cdn.net/audio/other/monkeys.mp3?t=${backgroundTimestamp}`;
+            const backgroundUrl = `${AUDIO_CDN_URL}/other/monkeys.mp3?t=${backgroundTimestamp}`;
             audioSegments.push({
                 type: 'combine_with_background',
                 answerUrls: answerUrls,
@@ -1576,7 +1577,7 @@ async function generateRadioProgram(world, lmid) {
         
         // 3. Add outro
         const outroTimestamp = Date.now() + 1;
-        const outroUrl = `https://little-microphones.b-cdn.net/audio/other/outro.mp3?t=${outroTimestamp}`;
+        const outroUrl = `${AUDIO_CDN_URL}/other/outro.mp3?t=${outroTimestamp}`;
         audioSegments.push({
             type: 'single',
             url: outroUrl
