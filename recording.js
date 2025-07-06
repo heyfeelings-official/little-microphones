@@ -372,10 +372,33 @@
      * @param {string} lmid - LMID
      */
     async function renderRecordingsList(wrapper, questionId, world, lmid) {
-        const recordingsList = wrapper.querySelector('.recordings-list, [data-element="recordings-list"]');
+        let recordingsList = wrapper.querySelector('.recordings-list, [data-element="recordings-list"]');
+        
+        // If no recordings list found, create one
         if (!recordingsList) {
-            log('warn', `Recordings list not found for question: ${questionId}`);
-            return;
+            log('debug', `Creating recordings list for question: ${questionId}`);
+            
+            recordingsList = document.createElement('ul');
+            recordingsList.className = 'recordings-list';
+            recordingsList.style.cssText = `
+                list-style: none;
+                margin: 10px 0 0 0;
+                padding: 0;
+                max-height: 300px;
+                overflow-y: auto;
+            `;
+            
+            // Try to find a good place to insert it
+            const recordButton = wrapper.querySelector('.record-button, [data-element="record-button"]');
+            if (recordButton) {
+                // Insert after the record button
+                recordButton.parentNode.insertBefore(recordingsList, recordButton.nextSibling);
+            } else {
+                // Fallback: append to the wrapper
+                wrapper.appendChild(recordingsList);
+            }
+            
+            log('debug', `Recordings list created and inserted for question: ${questionId}`);
         }
         
         try {
