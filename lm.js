@@ -603,3 +603,29 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 });
+
+// Test function for Memberstack API debugging
+window.testMemberstackAPI = async function() {
+  try {
+    const { data: memberData } = await memberstack.getCurrentMember();
+    if (!memberData) {
+      console.error("Not logged in");
+      return;
+    }
+    
+    const memberId = memberData.id;
+    console.log(`Testing Memberstack API for member: ${memberId}`);
+    
+    const response = await fetch(`${API_BASE_URL}/api/test-memberstack`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ memberId: memberId })
+    });
+    
+    const result = await response.json();
+    console.log('Test result:', result);
+    
+  } catch (error) {
+    console.error('Test failed:', error);
+  }
+};
