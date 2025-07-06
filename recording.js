@@ -339,8 +339,12 @@
                     log('error', `Failed to initialize recorder for question: ${questionId}`);
                 }
                 
-                // Load existing recordings
-                renderRecordingsList(wrapper, questionId, world, lmid);
+                // Load existing recordings after database is ready
+                setupDatabase().then(() => {
+                    renderRecordingsList(wrapper, questionId, world, lmid);
+                }).catch(error => {
+                    log('error', `Failed to render recordings for question ${questionId}:`, error);
+                });
                 
             } catch (error) {
                 log('error', `Failed to initialize recorder ${index}:`, error);
