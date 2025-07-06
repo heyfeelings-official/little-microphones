@@ -235,11 +235,12 @@
         // Inject global styles once
         injectGlobalStyles();
         
-        // Initialize database
-        setupDatabase().then(() => {
+        // Initialize database once for the world
+        const databasePromise = setupDatabase().then(() => {
             log('info', 'Database initialized successfully');
         }).catch(error => {
             log('error', 'Database initialization failed:', error);
+            throw error;
         });
         
         // Get world and lmid from global scope or URL parameters
@@ -340,7 +341,7 @@
                 }
                 
                 // Load existing recordings after database is ready
-                setupDatabase().then(() => {
+                databasePromise.then(() => {
                     renderRecordingsList(wrapper, questionId, world, lmid);
                 }).catch(error => {
                     log('error', `Failed to render recordings for question ${questionId}:`, error);
