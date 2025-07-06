@@ -31,9 +31,7 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Memberstack API configuration
-const MEMBERSTACK_SECRET_KEY = process.env.MEMBERSTACK_SECRET_KEY;
-const MEMBERSTACK_API_URL = 'https://admin.memberstack.com';
+// Note: Memberstack metadata updates are handled by frontend DOM API
 
 const worlds = ['spookyland', 'waterpark', 'shopping-spree', 'amusement-park', 'big-city', 'neighborhood'];
 
@@ -128,58 +126,7 @@ function isValidMemberId(memberId) {
            memberId.length > 10;
 }
 
-/**
- * Update Memberstack member metadata
- * @param {string} memberId - Memberstack member ID
- * @param {string} newLmidString - New LMID string
- * @returns {Promise<boolean>} Success status
- */
-async function updateMemberstackMetadata(memberId, newLmidString) {
-    console.log(`🔧 updateMemberstackMetadata called with memberId: ${memberId}, newLmidString: ${newLmidString}`);
-    
-    if (!MEMBERSTACK_SECRET_KEY) {
-        console.warn('MEMBERSTACK_SECRET_KEY not configured - skipping metadata update');
-        return false;
-    }
-
-    console.log(`🔑 MEMBERSTACK_SECRET_KEY is configured, proceeding with API call`);
-
-    try {
-        const requestBody = {
-            customFields: {
-                lmids: newLmidString
-            }
-        };
-        
-        console.log(`📤 Making PATCH request to: ${MEMBERSTACK_API_URL}/members/${memberId}`);
-        console.log(`📤 Request body:`, JSON.stringify(requestBody, null, 2));
-
-        const response = await fetch(`${MEMBERSTACK_API_URL}/members/${memberId}`, {
-            method: 'PATCH',
-            headers: {
-                'x-api-key': MEMBERSTACK_SECRET_KEY,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(requestBody)
-        });
-
-        console.log(`📥 Response status: ${response.status} ${response.statusText}`);
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            console.error('❌ Memberstack API error:', errorData);
-            return false;
-        }
-
-        const responseData = await response.json();
-        console.log(`📥 Response data:`, JSON.stringify(responseData, null, 2));
-        console.log(`✅ Updated Memberstack metadata for ${memberId}: lmids=${newLmidString}`);
-        return true;
-    } catch (error) {
-        console.error('❌ Error updating Memberstack metadata:', error);
-        return false;
-    }
-}
+// Note: Memberstack metadata updates are now handled by frontend DOM API
 
 /**
  * Handle ADD LMID operation
@@ -224,15 +171,7 @@ async function handleAddLmid(memberId, memberEmail, currentLmids) {
     // Update LMID string
     const newLmidString = currentLmids ? `${currentLmids},${availableLmid}` : String(availableLmid);
     
-    console.log(`🔄 Attempting to update Memberstack metadata for ${memberId} with lmids: ${newLmidString}`);
-    
-    // Update Memberstack metadata
-    const memberstackUpdated = await updateMemberstackMetadata(memberId, newLmidString);
-    if (!memberstackUpdated) {
-        console.warn(`⚠️ LMID ${availableLmid} assigned in Supabase but Memberstack metadata update failed`);
-    } else {
-        console.log(`✅ Successfully updated Memberstack metadata for ${memberId}`);
-    }
+    console.log(`✅ LMID ${availableLmid} assigned in Supabase. Frontend will update Memberstack metadata.`);
 
     console.log(`✅ LMID ${availableLmid} assigned to member ${memberId} (${memberEmail})`);
 
@@ -263,13 +202,7 @@ async function handleDeleteLmid(memberId, lmidToDelete, newLmidString) {
         throw new Error('Failed to delete LMID from database');
     }
 
-    // Update Memberstack metadata
-    const memberstackUpdated = await updateMemberstackMetadata(memberId, newLmidString);
-    if (!memberstackUpdated) {
-        console.warn(`⚠️ LMID ${lmidToDelete} deleted from Supabase but Memberstack metadata update failed`);
-    }
-
-    console.log(`✅ LMID ${lmidToDelete} deleted for member ${memberId}`);
+    console.log(`✅ LMID ${lmidToDelete} deleted from Supabase. Frontend will update Memberstack metadata.`);
 
     return {
         success: true,
