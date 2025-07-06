@@ -461,4 +461,101 @@ NODE_ENV=production
 - `share_id_big_city`: generated ShareID
 - `share_id_neighborhood`: generated ShareID
 
+---
+
+### 2. memberstack-webhook.js
+**PURPOSE**: Handles new educator registration webhook from Memberstack and automatically assigns LMID
+
+**METHOD**: POST `/api/memberstack-webhook`
+
+**REQUEST BODY** (Webhook from Memberstack):
+```json
+{
+  "type": "member.created",
+  "data": {
+    "member": {
+      "id": "mem_123456789",
+      "auth": {
+        "email": "teacher@school.com"
+      }
+    }
+  }
+}
+```
+
+**RESPONSE**:
+```json
+{
+  "success": true,
+  "message": "Educator processed successfully",
+  "assignedLmid": 123,
+  "shareIds": {
+    "spookyland": "abc12345",
+    "waterpark": "def67890",
+    "shopping-spree": "ghi13579",
+    "amusement-park": "jkl24680",
+    "big-city": "mno97531",
+    "neighborhood": "pqr86420"
+  }
+}
+```
+
+**FEATURES**:
+- Verifies Memberstack webhook authenticity
+- Finds next available LMID from database
+- Generates 6 unique ShareIDs (one per world)
+- Assigns LMID to educator with all metadata
+- Updates Memberstack metadata with LMID
+- Sends alert email if no LMIDs available
+
+**USED BY**: Memberstack webhook on new educator registration
+
+**REPLACES**: "Creating Memberstack Educator" Make.com scenario
+
+---
+
+### 3. lmid-operations.js
+**PURPOSE**: Handles LMID operations (add, delete) with Memberstack integration
+
+**METHOD**: POST `/api/lmid-operations`
+
+**REQUEST BODY**:
+```json
+{
+  "action": "add" | "delete",
+  "memberId": "mem_123456789",
+  "memberEmail": "teacher@school.com",
+  "lmidToDelete": 123,
+  "newLmidString": "1,2,3"
+}
+```
+
+**RESPONSE**:
+```json
+{
+  "success": true,
+  "message": "Operation completed successfully",
+  "lmid": 123,
+  "shareIds": {
+    "spookyland": "abc12345",
+    "waterpark": "def67890",
+    "shopping-spree": "ghi13579",
+    "amusement-park": "jkl24680",
+    "big-city": "mno97531",
+    "neighborhood": "pqr86420"
+  }
+}
+```
+
+**FEATURES**:
+- Handles both add and delete operations
+- Integrates with Memberstack API for member data
+- Generates ShareIDs for add operations
+- Updates Memberstack metadata
+- Validates member existence
+
+**USED BY**: `lm.js` for delete operations (add operations now use `/api/create-lmid`)
+
+**REPLACES**: "LMID CRUD" Make.com scenario
+
 --- 

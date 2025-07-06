@@ -124,9 +124,10 @@ document.addEventListener("DOMContentLoaded", () => {
       console.error("An error occurred while fetching Member Data:", error);
     });
 
-  // NEW: A single webhook URL for all actions (add, delete, etc.)
-  // Please create a NEW webhook in Make.com for this combined scenario and paste its URL here.
-  const unifiedWebhookUrl = "https://hook.us1.make.com/aqxns3r1ysrpfqtdk4vi2t4yx04uhycv"; // <-- PASTE NEW WEBHOOK URL HERE
+  // NOTE: Webhooks replaced with direct API endpoints
+  // - /api/create-lmid for adding new LMIDs
+  // - /api/lmid-operations for delete operations
+  // - /api/memberstack-webhook for new educator registration
 
   // --- Secure Deletion Flow ---
   // We keep this event listener on the body so it's always active.
@@ -236,10 +237,9 @@ document.addEventListener("DOMContentLoaded", () => {
         const filteredArray = lmidArray.filter(id => id !== lmidToDelete);
         const newLmidString = filteredArray.length > 0 ? filteredArray.join(',') : null;
 
-        const response = await fetch(unifiedWebhookUrl, {
+        const response = await fetch('/api/lmid-operations', {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          // Send the 'delete' action along with all necessary data.
           body: JSON.stringify({
             action: 'delete',
             memberId: memberId,
@@ -250,8 +250,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const result = await response.json();
 
-        if (!response.ok || result.status !== "success") {
-          throw new Error(result.message || "The server returned an error during the deletion process.");
+        if (!response.ok || !result.success) {
+          throw new Error(result.error || "The server returned an error during the deletion process.");
         }
 
         itemToDelete.remove();
