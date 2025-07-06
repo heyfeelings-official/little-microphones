@@ -257,32 +257,8 @@ document.addEventListener("DOMContentLoaded", () => {
           throw new Error(result.error || "The server returned an error during the deletion process.");
         }
 
-        // Update Memberstack metadata with new LMID string after deletion
-        if (newLmidString !== null) {
-          try {
-            await memberstack.updateMember({
-              customFields: {
-                lmids: newLmidString
-              }
-            });
-            console.log("✅ Memberstack metadata updated successfully after LMID deletion");
-          } catch (updateError) {
-            console.error("❌ Failed to update Memberstack metadata after deletion:", updateError);
-            // Continue with UI update even if Memberstack update fails
-          }
-        } else {
-          // If no LMIDs left, clear the metadata
-          try {
-            await memberstack.updateMember({
-              customFields: {
-                lmids: ""
-              }
-            });
-            console.log("✅ Memberstack metadata cleared (no LMIDs remaining)");
-          } catch (updateError) {
-            console.error("❌ Failed to clear Memberstack metadata:", updateError);
-          }
-        }
+        // Backend handles Memberstack metadata updates via Admin API
+        console.log("✅ LMID deleted and metadata will be updated by backend");
 
         itemToDelete.remove();
         console.log(`Successfully deleted LMID ${lmidToDelete}`);
@@ -398,20 +374,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const newLmid = result.lmid;
         console.log(`Created LMID ${newLmid} with ShareIDs:`, result.shareIds);
 
-        // Update Memberstack metadata with new LMID string
-        if (result.newLmidString) {
-          try {
-            await memberstack.updateMember({
-              customFields: {
-                lmids: result.newLmidString
-              }
-            });
-            console.log("✅ Memberstack metadata updated successfully with new LMID");
-          } catch (updateError) {
-            console.error("❌ Failed to update Memberstack metadata:", updateError);
-            // Continue with UI update even if Memberstack update fails
-          }
-        }
+        // Backend handles Memberstack metadata updates via Admin API
+        console.log("✅ LMID created and metadata will be updated by backend");
 
         // Dynamically create and add the new element to the page.
         const template = document.getElementById("lm-slot");

@@ -31,7 +31,9 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Note: Memberstack metadata updates are handled by frontend DOM API
+// Memberstack Admin API configuration
+const MEMBERSTACK_SECRET_KEY = process.env.MEMBERSTACK_SECRET_KEY;
+const MEMBERSTACK_API_URL = 'https://admin.memberstack.com';
 
 const worlds = ['spookyland', 'waterpark', 'shopping-spree', 'amusement-park', 'big-city', 'neighborhood'];
 
@@ -126,6 +128,50 @@ function isValidMemberId(memberId) {
            memberId.length > 10;
 }
 
+/**
+ * Update Memberstack member metadata using Admin API
+ * @param {string} memberId - Memberstack member ID
+ * @param {string} newLmidString - New LMID string
+ * @returns {Promise<boolean>} Success status
+ */
+async function updateMemberstackMetadata(memberId, newLmidString) {
+    if (!MEMBERSTACK_SECRET_KEY) {
+        console.warn('MEMBERSTACK_SECRET_KEY not configured - skipping metadata update');
+        return false;
+    }
+
+    try {
+        console.log(`🔄 Updating Memberstack metadata for ${memberId} with lmids: ${newLmidString}`);
+        
+        const response = await fetch(`${MEMBERSTACK_API_URL}/members/${memberId}`, {
+            method: 'PATCH',
+            headers: {
+                'x-api-key': MEMBERSTACK_SECRET_KEY,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                metaData: {
+                    lmids: newLmidString
+                }
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.text();
+            console.error(`❌ Memberstack API error (${response.status}):`, errorData);
+            return false;
+        }
+
+        const responseData = await response.json();
+        console.log(`✅ Memberstack metadata updated successfully:`, responseData);
+        return true;
+
+    } catch (error) {
+        console.error('❌ Error updating Memberstack metadata:', error);
+        return false;
+    }
+}
+
 // Note: Memberstack metadata updates are now handled by frontend DOM API
 
 /**
@@ -171,7 +217,13 @@ async function handleAddLmid(memberId, memberEmail, currentLmids) {
     // Update LMID string
     const newLmidString = currentLmids ? `${currentLmids},${availableLmid}` : String(availableLmid);
     
-    console.log(`✅ LMID ${availableLmid} assigned in Supabase. Frontend will update Memberstack metadata.`);
+    // Update Memberstack metadata via Admin API
+    const memberstackUpdated = await updateMemberstackMetadata(memberId, newLmidString);
+    if (!memberstackUpdated) {
+        console.warn(`⚠️ LMID ${availableLmid} assigned in Supabase but Memberstack metadata update failed`);
+    }
+    
+    console.log(`✅ LMID ${availableLmid} assigned in Supabase and Memberstack metadata ${memberstackUpdated ? 'updated' : 'update failed'}.`);
 
     console.log(`✅ LMID ${availableLmid} assigned to member ${memberId} (${memberEmail})`);
 
@@ -202,7 +254,16 @@ async function handleDeleteLmid(memberId, lmidToDelete, newLmidString) {
         throw new Error('Failed to delete LMID from database');
     }
 
-    console.log(`✅ LMID ${lmidToDelete} deleted from Supabase. Frontend will update Memberstack metadata.`);
+    // Update Memberstack metadata after deletion
+    if (newLmidString !== null) {
+        const memberstackUpdated = await updateMemberstackMetadata(memberId, newLmidString);
+        if (!memberstackUpdated) {
+            console.warn(`⚠️ LMID ${lmidToDelete} deleted from Supabase but Memberstack metadata update failed`);
+        }
+        console.log(`✅ LMID ${lmidToDelete} deleted from Supabase and Memberstack metadata ${memberstackUpdated ? 'updated' : 'update failed'}.`);
+    } else {
+        console.log(`✅ LMID ${lmidToDelete} deleted from Supabase.`);
+    }
 
     return {
         success: true,
