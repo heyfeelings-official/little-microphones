@@ -269,7 +269,7 @@ export async function updateMemberstackMetadata(memberId, newLmidString) {
     console.log('🔒 [updateMemberstackMetadata] LMID ownership validated successfully.');
 
     const requestBody = {
-        metaData: {
+        metadata: {
             lmids: newLmidString || ""
         }
     };

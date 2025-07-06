@@ -63,25 +63,96 @@ export default async function handler(req, res) {
         const currentData = await getResponse.json();
         console.log('📄 Current member data:', JSON.stringify(currentData, null, 2));
 
-        // Test 2: Update metadata
+        // Test 2: Update metadata - Try multiple formats
         const testLmids = "43,46,73";
-        const requestBody = {
-            metaData: {
+        
+        // Try 1: metadata (lowercase)
+        console.log(`📤 PATCH request to: ${MEMBERSTACK_API_URL}/members/${memberId}`);
+        console.log(`🧪 Testing format 1: metadata (lowercase)`);
+        
+        const requestBody1 = {
+            metadata: {
                 lmids: testLmids
             }
         };
-        
-        console.log(`📤 PATCH request to: ${MEMBERSTACK_API_URL}/members/${memberId}`);
-        console.log(`📤 Request body:`, JSON.stringify(requestBody, null, 2));
+        console.log(`📤 Request body 1:`, JSON.stringify(requestBody1, null, 2));
 
-        const patchResponse = await fetch(`${MEMBERSTACK_API_URL}/members/${memberId}`, {
+        const patchResponse1 = await fetch(`${MEMBERSTACK_API_URL}/members/${memberId}`, {
             method: 'PATCH',
             headers: {
                 'x-api-key': MEMBERSTACK_SECRET_KEY,
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify(requestBody)
+            body: JSON.stringify(requestBody1)
         });
+
+        console.log(`📥 Response 1 status: ${patchResponse1.status} ${patchResponse1.statusText}`);
+        
+        if (patchResponse1.ok) {
+            const responseData1 = await patchResponse1.json();
+            console.log('✅ Format 1 successful:', JSON.stringify(responseData1, null, 2));
+            
+            return res.status(200).json({
+                success: true,
+                message: 'Memberstack API test successful with format 1',
+                currentData: currentData,
+                updateResponse: responseData1
+            });
+        }
+        
+        // Try 2: metaData (camelCase)
+        console.log(`🧪 Testing format 2: metaData (camelCase)`);
+        
+        const requestBody2 = {
+            metaData: {
+                lmids: testLmids
+            }
+        };
+        console.log(`📤 Request body 2:`, JSON.stringify(requestBody2, null, 2));
+
+        const patchResponse2 = await fetch(`${MEMBERSTACK_API_URL}/members/${memberId}`, {
+            method: 'PATCH',
+            headers: {
+                'x-api-key': MEMBERSTACK_SECRET_KEY,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody2)
+        });
+
+        console.log(`📥 Response 2 status: ${patchResponse2.status} ${patchResponse2.statusText}`);
+        
+        if (patchResponse2.ok) {
+            const responseData2 = await patchResponse2.json();
+            console.log('✅ Format 2 successful:', JSON.stringify(responseData2, null, 2));
+            
+            return res.status(200).json({
+                success: true,
+                message: 'Memberstack API test successful with format 2',
+                currentData: currentData,
+                updateResponse: responseData2
+            });
+        }
+        
+        // Try 3: Direct lmids property
+        console.log(`🧪 Testing format 3: direct lmids property`);
+        
+        const requestBody3 = {
+            lmids: testLmids
+        };
+        console.log(`📤 Request body 3:`, JSON.stringify(requestBody3, null, 2));
+
+        const patchResponse3 = await fetch(`${MEMBERSTACK_API_URL}/members/${memberId}`, {
+            method: 'PATCH',
+            headers: {
+                'x-api-key': MEMBERSTACK_SECRET_KEY,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody3)
+        });
+
+        console.log(`📥 Response 3 status: ${patchResponse3.status} ${patchResponse3.statusText}`);
+        
+        const patchResponse = patchResponse3; // Use last response for error handling
 
         console.log(`📥 PATCH Response status: ${patchResponse.status} ${patchResponse.statusText}`);
 
