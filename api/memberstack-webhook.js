@@ -24,47 +24,9 @@
 import { 
     findNextAvailableLmid,
     generateAllShareIds,
-    assignLmidToMember
+    assignLmidToMember,
+    updateMemberstackMetadata
 } from '../utils/lmid-utils.js';
-
-/**
- * Update Memberstack member metadata with LMID
- * @param {string} memberId - Memberstack member ID
- * @param {number} lmid - LMID to assign
- * @returns {Promise<boolean>} Success status
- */
-async function updateMemberstackMetadata(memberId, lmid) {
-    try {
-        const memberstackApiKey = process.env.MEMBERSTACK_API_KEY;
-        if (!memberstackApiKey) {
-            console.error('MEMBERSTACK_API_KEY not configured');
-            return false;
-        }
-
-        const response = await fetch(`https://api.memberstack.com/v1/members/${memberId}`, {
-            method: 'PATCH',
-            headers: {
-                'X-API-Key': memberstackApiKey,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                metaData: {
-                    lmids: lmid.toString()
-                }
-            })
-        });
-
-        if (!response.ok) {
-            console.error('Failed to update Memberstack metadata:', response.status);
-            return false;
-        }
-
-        return true;
-    } catch (error) {
-        console.error('Error updating Memberstack metadata:', error);
-        return false;
-    }
-}
 
 /**
  * Send alert email when no LMIDs are available
@@ -190,13 +152,16 @@ export default async function handler(req, res) {
             });
         }
 
-        // Update Memberstack metadata
-        const memberstackSuccess = await updateMemberstackMetadata(memberId, availableLmid);
+        // Wait a moment for database consistency before metadata update
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Update Memberstack metadata using the unified function from utils
+        const memberstackSuccess = await updateMemberstackMetadata(memberId, availableLmid.toString());
         if (!memberstackSuccess) {
-            console.warn('Failed to update Memberstack metadata, but LMID was assigned');
+            console.warn(`⚠️ LMID ${availableLmid} assigned to educator but Memberstack metadata update failed`);
         }
 
-        console.log(`Successfully assigned LMID ${availableLmid} to educator ${memberEmail}`);
+        console.log(`✅ LMID ${availableLmid} assigned to educator ${memberEmail}. Memberstack metadata ${memberstackSuccess ? 'updated' : 'update failed'}.`);
 
         return res.status(200).json({
             success: true,

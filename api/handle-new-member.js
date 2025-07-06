@@ -17,45 +17,17 @@
  * 3. Look up original LMID and world from ShareID
  * 4. Find next available LMID and assign to new member
  * 5. Update Supabase with new member assignment
- * 6. Return success confirmation
+ * 6. Update Memberstack metadata with LMID
+ * 7. Return success confirmation
  */
 
 import { 
     findNextAvailableLmid,
+    generateAllShareIds,
+    assignLmidToMember,
+    updateMemberstackMetadata,
     getSupabaseClient
 } from '../utils/lmid-utils.js';
-
-/**
- * Assign LMID to new member
- * @param {number} lmid - LMID to assign
- * @param {string} memberId - Memberstack member ID
- * @param {string} memberEmail - Member email address
- * @returns {Promise<boolean>} Success status
- */
-async function assignLmidToMember(lmid, memberId, memberEmail) {
-    try {
-        const supabase = getSupabaseClient();
-        const { error } = await supabase
-            .from('lmids')
-            .update({
-                status: 'used',
-                assigned_to_member_id: memberId,
-                assigned_to_member_email: memberEmail,
-                assigned_at: new Date().toISOString()
-            })
-            .eq('lmid', lmid);
-
-        if (error) {
-            console.error('Error assigning LMID:', error);
-            return false;
-        }
-
-        return true;
-    } catch (error) {
-        console.error('Unexpected error assigning LMID:', error);
-        return false;
-    }
-}
 
 /**
  * Verify Memberstack webhook signature (basic implementation)
@@ -184,8 +156,11 @@ export default async function handler(req, res) {
             });
         }
 
-        // Assign the LMID to the new member
-        const assignmentSuccess = await assignLmidToMember(availableLmid, memberId, memberEmail);
+        // Generate all ShareIDs for the new LMID
+        const shareIds = await generateAllShareIds();
+
+        // Assign the LMID to the new member with all ShareIDs
+        const assignmentSuccess = await assignLmidToMember(availableLmid, memberId, memberEmail, shareIds);
         if (!assignmentSuccess) {
             return res.status(500).json({ 
                 success: false, 
@@ -193,7 +168,16 @@ export default async function handler(req, res) {
             });
         }
 
-        console.log(`Successfully assigned LMID ${availableLmid} to new member ${memberEmail}`);
+        // Wait a moment for database consistency before metadata update
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Update Memberstack metadata with the new LMID
+        const memberstackSuccess = await updateMemberstackMetadata(memberId, availableLmid.toString());
+        if (!memberstackSuccess) {
+            console.warn(`⚠️ LMID ${availableLmid} assigned to member but Memberstack metadata update failed`);
+        }
+
+        console.log(`✅ LMID ${availableLmid} assigned to member ${memberEmail}. Memberstack metadata ${memberstackSuccess ? 'updated' : 'update failed'}.`);
 
         return res.status(200).json({
             success: true,
@@ -201,7 +185,8 @@ export default async function handler(req, res) {
             assignedLmid: availableLmid,
             memberEmail: memberEmail,
             originatingShareId: originatingShareId,
-            originalLmid: originalRecord.lmid
+            originalLmid: originalRecord.lmid,
+            shareIds: shareIds
         });
 
     } catch (error) {
