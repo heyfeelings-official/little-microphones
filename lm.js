@@ -237,7 +237,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const filteredArray = lmidArray.filter(id => id !== lmidToDelete);
         const newLmidString = filteredArray.length > 0 ? filteredArray.join(',') : null;
 
-        const response = await fetch('/api/lmid-operations', {
+        const response = await fetch('https://little-microphones.vercel.app/api/lmid-operations', {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -348,7 +348,7 @@ document.addEventListener("DOMContentLoaded", () => {
         addButton.disabled = true;
         addButton.textContent = "Adding...";
 
-        const response = await fetch('/api/create-lmid', {
+        const response = await fetch('https://little-microphones.vercel.app/api/create-lmid', {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
