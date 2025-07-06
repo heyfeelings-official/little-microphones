@@ -29,8 +29,13 @@
     'use strict';
     
     // API Configuration - Use global config if available, fallback to hardcoded
-    const API_BASE_URL = window.LM_CONFIG?.API_BASE_URL || 'https://little-microphones.vercel.app';
-    const AUDIO_CDN_URL = window.LM_CONFIG?.AUDIO_CDN_URL || 'https://little-microphones.b-cdn.net/audio';
+    // Check if API_BASE_URL is already defined globally to avoid redeclaration
+    if (typeof API_BASE_URL === 'undefined') {
+        var API_BASE_URL = window.LM_CONFIG?.API_BASE_URL || 'https://little-microphones.vercel.app';
+    }
+    if (typeof AUDIO_CDN_URL === 'undefined') {
+        var AUDIO_CDN_URL = window.LM_CONFIG?.AUDIO_CDN_URL || 'https://little-microphones.b-cdn.net/audio';
+    }
     
     // Create global RadioGenerator namespace
     window.RadioGenerator = window.RadioGenerator || {};

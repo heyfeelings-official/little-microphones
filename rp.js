@@ -75,7 +75,10 @@
  */
 
 // API Configuration - Use global config if available, fallback to hardcoded
-const API_BASE_URL = window.LM_CONFIG?.API_BASE_URL || 'https://little-microphones.vercel.app';
+// Check if API_BASE_URL is already defined globally to avoid redeclaration
+if (typeof API_BASE_URL === 'undefined') {
+    var API_BASE_URL = window.LM_CONFIG?.API_BASE_URL || 'https://little-microphones.vercel.app';
+}
 
 /**
  * Shows only the collection for the specified world and hides all others
