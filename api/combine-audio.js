@@ -91,7 +91,7 @@ import os from 'os';
 import https from 'https';
 import http from 'http';
 import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
-import { extractFilesUsed, STATIC_FILES } from './audio-utils.js';
+import { extractFilesUsed, STATIC_FILES } from '../utils/audio-utils.js';
 
 export default async function handler(req, res) {
     // Set CORS headers
