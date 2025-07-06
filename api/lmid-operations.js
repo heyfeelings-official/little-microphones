@@ -88,6 +88,9 @@ async function handleCreateLmid(memberId, memberEmail) {
     // Update LMID string for new member (first LMID)
     const newLmidString = String(availableLmid);
     
+    // Wait a moment for database consistency before metadata update
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
     // Update Memberstack metadata via Admin API
     const memberstackUpdated = await updateMemberstackMetadata(memberId, newLmidString);
     if (!memberstackUpdated) {
@@ -130,6 +133,9 @@ async function handleAddLmid(memberId, memberEmail, currentLmids) {
 
     // Update LMID string
     const newLmidString = currentLmids ? `${currentLmids},${availableLmid}` : String(availableLmid);
+    
+    // Wait a moment for database consistency before metadata update
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
     // Update Memberstack metadata via Admin API
     const memberstackUpdated = await updateMemberstackMetadata(memberId, newLmidString);
