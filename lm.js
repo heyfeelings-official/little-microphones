@@ -37,6 +37,9 @@
  * VERSION: 2.4.0
  * STATUS: Production Ready ✅
  */
+// API Configuration
+const API_BASE_URL = 'https://little-microphones.vercel.app';
+
 document.addEventListener("DOMContentLoaded", () => {
   const memberstack = window.$memberstackDom;
 
@@ -211,7 +214,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // Delete all associated files from Bunny.net storage before removing LMID
         console.log(`Deleting LMID ${lmidToDelete} and all associated files`);
         try {
-          const deleteFilesResponse = await fetch('https://little-microphones.vercel.app/api/delete-audio', {
+          const deleteFilesResponse = await fetch(`${API_BASE_URL}/api/delete-audio`, {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -237,7 +240,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const filteredArray = lmidArray.filter(id => id !== lmidToDelete);
         const newLmidString = filteredArray.length > 0 ? filteredArray.join(',') : null;
 
-        const response = await fetch('https://little-microphones.vercel.app/api/lmid-operations', {
+        const response = await fetch(`${API_BASE_URL}/api/lmid-operations`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -348,7 +351,7 @@ document.addEventListener("DOMContentLoaded", () => {
         addButton.disabled = true;
         addButton.textContent = "Adding...";
 
-        const response = await fetch('https://little-microphones.vercel.app/api/create-lmid', {
+        const response = await fetch(`${API_BASE_URL}/api/create-lmid`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

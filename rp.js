@@ -74,6 +74,9 @@
  * STATUS: Production Ready ✅
  */
 
+// API Configuration
+const API_BASE_URL = 'https://little-microphones.vercel.app';
+
 /**
  * Shows only the collection for the specified world and hides all others
  * @param {string} world - The world slug (e.g., 'spookyland', 'shopping-spree')
@@ -272,7 +275,7 @@ function setupExistingRadioProgramButton(world, lmid) {
     
     try {
       // Call the new get-share-link API
-      const response = await fetch(`https://little-microphones.vercel.app/api/get-share-link?lmid=${lmid}`);
+              const response = await fetch(`${API_BASE_URL}/api/get-share-link?lmid=${lmid}`);
       
       if (!response.ok) {
         throw new Error(`Failed to get share link: ${response.status}`);

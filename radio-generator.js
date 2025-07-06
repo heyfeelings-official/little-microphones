@@ -28,6 +28,9 @@
 (function() {
     'use strict';
     
+    // API Configuration
+    const API_BASE_URL = 'https://little-microphones.vercel.app';
+    
     // Create global RadioGenerator namespace
     window.RadioGenerator = window.RadioGenerator || {};
     
@@ -134,7 +137,7 @@
             }
             
             // Call the combine-audio API
-            const response = await fetch('https://little-microphones.vercel.app/api/combine-audio', {
+            const response = await fetch(`${API_BASE_URL}/api/combine-audio`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -192,7 +195,7 @@
      */
     async function checkProgramStatus(shareId) {
         try {
-            const response = await fetch(`https://little-microphones.vercel.app/api/get-radio-data?shareId=${shareId}`);
+            const response = await fetch(`${API_BASE_URL}/api/get-radio-data?shareId=${shareId}`);
             
             if (!response.ok) {
                 throw new Error(`Failed to fetch radio data: ${response.status}`);

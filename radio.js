@@ -60,6 +60,9 @@
  * STATUS: Production Ready ✅
  */
 
+// API Configuration
+const API_BASE_URL = 'https://little-microphones.vercel.app';
+
 // Global state management
 let currentRadioData = null;
 let currentShareId = null;
@@ -153,7 +156,7 @@ function getShareIdFromUrl() {
  */
 async function fetchWorldInfo(shareId) {
     try {
-        const response = await fetch(`https://little-microphones.vercel.app/api/get-world-info?shareId=${shareId}`);
+        const response = await fetch(`${API_BASE_URL}/api/get-world-info?shareId=${shareId}`);
         if (!response.ok) {
             throw new Error(`API request failed: ${response.status}`);
         }
@@ -176,7 +179,7 @@ async function fetchWorldInfo(shareId) {
  */
 async function fetchRadioData(shareId, world = null) {
     try {
-        let apiUrl = `https://little-microphones.vercel.app/api/get-radio-data?shareId=${shareId}`;
+        let apiUrl = `${API_BASE_URL}/api/get-radio-data?shareId=${shareId}`;
         if (world) {
             apiUrl += `&world=${world}`;
         }
@@ -261,7 +264,7 @@ async function generateNewProgram() {
         const audioSegments = convertRecordingsToAudioSegments(currentRadioData.currentRecordings, currentRadioData.world);
         
         // Call the combine-audio API to generate new program
-        const response = await fetch('https://little-microphones.vercel.app/api/combine-audio', {
+        const response = await fetch(`${API_BASE_URL}/api/combine-audio`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

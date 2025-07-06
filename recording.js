@@ -66,6 +66,9 @@
  * STATUS: Production Ready ✅
  */
 
+// API Configuration
+const API_BASE_URL = 'https://little-microphones.vercel.app';
+
 const savingLocks = new Set();
 
 // --- Global initialization tracking ---
@@ -508,7 +511,7 @@ async function deleteFromBunny(recordingData, world, lmid, questionId) {
         const filename = `${recordingData.id}.mp3`;
         console.log(`[${questionId}] Deleting: ${filename}`);
 
-        const response = await fetch('https://little-microphones.vercel.app/api/delete-audio', {
+        const response = await fetch(`${API_BASE_URL}/api/delete-audio`, {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1022,7 +1025,7 @@ function initializeAudioRecorder(recorderWrapper) {
             const base64Audio = await blobToBase64(recordingData.audio);
            
             // Upload via API route
-            const response = await fetch('https://little-microphones.vercel.app/api/upload-audio', {
+            const response = await fetch(`${API_BASE_URL}/api/upload-audio`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1588,7 +1591,7 @@ async function generateRadioProgram(world, lmid) {
         startFunStatusMessages();
         
         // Send to API for actual processing
-        const response = await fetch('https://little-microphones.vercel.app/api/combine-audio', {
+        const response = await fetch(`${API_BASE_URL}/api/combine-audio`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -2097,7 +2100,7 @@ async function loadRecordingsFromCloud(questionId, world, lmid) {
         // Removed per-question cloud loading log
         
         // Fetch from cloud API
-        const response = await fetch(`https://little-microphones.vercel.app/api/list-recordings?world=${world}&lmid=${lmid}&questionId=${questionId}`);
+        const response = await fetch(`${API_BASE_URL}/api/list-recordings?world=${world}&lmid=${lmid}&questionId=${questionId}`);
         
         if (!response.ok) {
             console.warn(`[${questionId}] Cloud fetch failed (${response.status}), returning empty list`);
