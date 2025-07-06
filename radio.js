@@ -632,15 +632,4 @@ window.RadioSystem = {
     }
 };
 
-// Export for module usage
-export {
-    getShareIdFromUrl,
-    updateWorldName,
-    updatePageContent,
-    setupRegistrationFlow,
-    handleProgramGeneration,
-    showLoadingState,
-    hideLoadingState,
-    showError,
-    showSuccessMessage
-}; 
+console.log('✅ Radio system loaded and available globally'); 
