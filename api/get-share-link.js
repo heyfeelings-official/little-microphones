@@ -1,18 +1,18 @@
 /**
- * api/get-share-link.js - ShareID Generation & Retrieval Service
+ * api/get-share-link.js - World-Specific ShareID Generation & Retrieval Service
  * 
- * PURPOSE: Generates or retrieves a unique ShareID for a given LMID to create shareable radio program links
+ * PURPOSE: Generates or retrieves a unique ShareID for a given LMID and world to create shareable radio program links
  * DEPENDENCIES: Supabase client, crypto for ID generation
  * 
  * REQUEST FORMAT:
- * GET /api/get-share-link?lmid=38
+ * GET /api/get-share-link?lmid=38&world=spookyland
  * 
  * RESPONSE FORMAT:
- * { success: true, shareId: "kz7xp4v9", url: "https://domain.com/members/radio?ID=kz7xp4v9" }
+ * { success: true, shareId: "kz7xp4v9", url: "https://domain.com/members/radio?ID=kz7xp4v9", world: "spookyland" }
  * 
  * LOGIC:
- * 1. Validate LMID parameter
- * 2. Check if ShareID already exists for this LMID
+ * 1. Validate LMID and world parameters
+ * 2. Check if ShareID already exists for this LMID+world combination
  * 3. If exists, return existing ShareID
  * 4. If not, generate new unique ShareID and save to database
  * 5. Return ShareID and complete shareable URL
@@ -25,6 +25,8 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+const validWorlds = ['spookyland', 'waterpark', 'shopping-spree', 'amusement-park', 'big-city', 'neighborhood'];
+
 /**
  * Generate a random, URL-safe ShareID
  * @returns {string} 8-character random string
@@ -36,6 +38,15 @@ function generateShareId() {
         result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
+}
+
+/**
+ * Get the database column name for a world
+ * @param {string} world - World name
+ * @returns {string} Column name
+ */
+function getWorldColumn(world) {
+    return `share_id_${world.replace('-', '_')}`;
 }
 
 export default async function handler(req, res) {
@@ -56,13 +67,28 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { lmid } = req.query;
+        const { lmid, world } = req.query;
 
         // Validate LMID parameter
         if (!lmid) {
             return res.status(400).json({ 
                 success: false, 
                 error: 'Missing required parameter: lmid' 
+            });
+        }
+
+        // Validate world parameter
+        if (!world) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Missing required parameter: world' 
+            });
+        }
+
+        if (!validWorlds.includes(world)) {
+            return res.status(400).json({ 
+                success: false, 
+                error: `Invalid world. Must be one of: ${validWorlds.join(', ')}` 
             });
         }
 
@@ -74,10 +100,12 @@ export default async function handler(req, res) {
             });
         }
 
-        // Check if ShareID already exists for this LMID
+        const worldColumn = getWorldColumn(world);
+
+        // Check if ShareID already exists for this LMID+world combination
         const { data: existingRecord, error: fetchError } = await supabase
             .from('lmids')
-            .select('share_id')
+            .select(worldColumn)
             .eq('lmid', lmidNumber)
             .single();
 
@@ -97,9 +125,9 @@ export default async function handler(req, res) {
             });
         }
 
-        let shareId = existingRecord?.share_id;
+        let shareId = existingRecord?.[worldColumn];
 
-        // If ShareID doesn't exist, generate a new one
+        // If ShareID doesn't exist for this world, generate a new one
         if (!shareId) {
             let attempts = 0;
             const maxAttempts = 10;
@@ -108,19 +136,22 @@ export default async function handler(req, res) {
                 shareId = generateShareId();
                 attempts++;
 
-                // Check if this ShareID is already used
+                // Check if this ShareID is already used in any world column
                 const { data: duplicateCheck } = await supabase
                     .from('lmids')
                     .select('lmid')
-                    .eq('share_id', shareId)
-                    .single();
+                    .or(`share_id_spookyland.eq.${shareId},share_id_waterpark.eq.${shareId},share_id_shopping_spree.eq.${shareId},share_id_amusement_park.eq.${shareId},share_id_big_city.eq.${shareId},share_id_neighborhood.eq.${shareId}`)
+                    .limit(1);
 
                 // If no duplicate found, we can use this ShareID
-                if (!duplicateCheck) {
-                    // Update the record with new ShareID
+                if (!duplicateCheck || duplicateCheck.length === 0) {
+                    // Update the record with new ShareID for this world
+                    const updateData = {};
+                    updateData[worldColumn] = shareId;
+                    
                     const { error: updateError } = await supabase
                         .from('lmids')
-                        .update({ share_id: shareId })
+                        .update(updateData)
                         .eq('lmid', lmidNumber);
 
                     if (updateError) {
@@ -153,7 +184,8 @@ export default async function handler(req, res) {
             success: true,
             shareId: shareId,
             url: shareableUrl,
-            lmid: lmidNumber
+            lmid: lmidNumber,
+            world: world
         });
 
     } catch (error) {

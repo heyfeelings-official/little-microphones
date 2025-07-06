@@ -146,6 +146,7 @@ export default async function handler(req, res) {
         const memberEmail = member.email;
         const metadata = member.metadata || {};
         const originatingShareId = metadata.originating_share_id;
+        const originatingWorld = metadata.originating_world;
 
         console.log(`Processing new member: ${memberEmail} (${memberId})`);
 
@@ -158,16 +159,36 @@ export default async function handler(req, res) {
             });
         }
 
-        console.log(`Member originated from ShareID: ${originatingShareId}`);
+        console.log(`Member originated from ShareID: ${originatingShareId}, World: ${originatingWorld}`);
 
-        // Look up the original LMID and world from ShareID
-        const { data: originalRecord, error: fetchError } = await supabase
-            .from('lmids')
-            .select('lmid, assigned_to_member_id')
-            .eq('share_id', originatingShareId)
-            .single();
+        // Look up the original LMID from world-specific ShareID
+        let originalRecord = null;
+        let searchError = null;
 
-        if (fetchError || !originalRecord) {
+        if (originatingWorld && originatingWorld !== 'unknown') {
+            // If we know the world, search in the specific column
+            const worldColumn = `share_id_${originatingWorld.replace('-', '_')}`;
+            const { data, error } = await supabase
+                .from('lmids')
+                .select('lmid, assigned_to_member_id')
+                .eq(worldColumn, originatingShareId)
+                .single();
+            
+            originalRecord = data;
+            searchError = error;
+        } else {
+            // If world is unknown, search across all world-specific columns
+            const { data, error } = await supabase
+                .from('lmids')
+                .select('lmid, assigned_to_member_id, share_id_spookyland, share_id_waterpark, share_id_shopping_spree, share_id_amusement_park, share_id_big_city, share_id_neighborhood')
+                .or(`share_id_spookyland.eq.${originatingShareId},share_id_waterpark.eq.${originatingShareId},share_id_shopping_spree.eq.${originatingShareId},share_id_amusement_park.eq.${originatingShareId},share_id_big_city.eq.${originatingShareId},share_id_neighborhood.eq.${originatingShareId}`)
+                .single();
+            
+            originalRecord = data;
+            searchError = error;
+        }
+
+        if (searchError || !originalRecord) {
             console.error('Could not find original LMID for ShareID:', originatingShareId);
             return res.status(400).json({ 
                 success: false, 

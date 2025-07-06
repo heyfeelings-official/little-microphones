@@ -548,11 +548,12 @@ function handleRegistration() {
         // Start registration process with ShareID metadata
         memberstack.openModal('signup', {
             metadata: {
-                originating_share_id: currentShareId
+                originating_share_id: currentShareId,
+                originating_world: currentRadioData?.world || 'unknown'
             }
         });
         
-        console.log(`📝 Registration started with ShareID: ${currentShareId}`);
+        console.log(`📝 Registration started with ShareID: ${currentShareId}, World: ${currentRadioData?.world}`);
         
     } catch (error) {
         console.error('Registration error:', error);
