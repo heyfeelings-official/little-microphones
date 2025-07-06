@@ -230,49 +230,57 @@ export async function validateLmidOwnership(memberId, lmidsToValidate) {
 export async function updateMemberstackMetadata(memberId, newLmidString) {
     const MEMBERSTACK_SECRET_KEY = process.env.MEMBERSTACK_SECRET_KEY;
     
+    console.log(`🔧 [updateMemberstackMetadata] Called for memberId: ${memberId} with lmids: "${newLmidString}"`);
+
     if (!MEMBERSTACK_SECRET_KEY) {
-        console.warn('MEMBERSTACK_SECRET_KEY not configured - skipping metadata update');
+        console.warn('MEMBERSTACK_SECRET_KEY not configured. Skipping metadata update.');
         return false;
     }
+    console.log('🔑 MEMBERSTACK_SECRET_KEY is configured.');
 
     // 🔒 SECURITY: Validate LMID ownership before updating metadata
-    console.log(`🔒 Validating LMID ownership for ${memberId}: ${newLmidString}`);
     const validation = await validateLmidOwnership(memberId, newLmidString);
-    
     if (!validation.valid) {
-        console.error(`❌ SECURITY VIOLATION: ${memberId} attempted to set invalid LMIDs: ${validation.invalidLmids?.join(', ')}`);
-        console.error(`❌ Valid LMIDs for this user: ${validation.validLmids?.join(', ')}`);
+        console.error(`❌ SECURITY VIOLATION: Member ${memberId} attempted to set invalid LMIDs: ${validation.invalidLmids?.join(', ')}`);
+        console.error(`  > Actual owned LMIDs: ${validation.validLmids?.join(', ')}`);
         return false;
     }
+    console.log('🔒 LMID ownership validated successfully.');
+
+    const requestBody = {
+        metaData: {
+            lmids: newLmidString || ""
+        }
+    };
+    
+    const requestUrl = `${MEMBERSTACK_API_URL}/members/${memberId}`;
+    console.log(`📤 Making PATCH request to: ${requestUrl}`);
+    console.log(`📤 Request body:`, JSON.stringify(requestBody, null, 2));
 
     try {
-        console.log(`🔄 Updating Memberstack metadata for ${memberId} with validated lmids: ${newLmidString}`);
-        
-        const response = await fetch(`${MEMBERSTACK_API_URL}/members/${memberId}`, {
+        const response = await fetch(requestUrl, {
             method: 'PATCH',
             headers: {
                 'x-api-key': MEMBERSTACK_SECRET_KEY,
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                metaData: {
-                    lmids: newLmidString
-                }
-            })
+            body: JSON.stringify(requestBody)
         });
 
-        if (!response.ok) {
-            const errorData = await response.text();
-            console.error(`❌ Memberstack API error (${response.status}):`, errorData);
+        console.log(`📥 Response status: ${response.status} ${response.statusText}`);
+
+        if (response.ok) {
+            const responseData = await response.json();
+            console.log('✅ Memberstack metadata updated successfully:', responseData);
+            return true;
+        } else {
+            const errorText = await response.text();
+            console.error(`❌ Memberstack API error (${response.status}):`, errorText);
             return false;
         }
 
-        const responseData = await response.json();
-        console.log(`✅ Memberstack metadata updated successfully:`, responseData);
-        return true;
-
     } catch (error) {
-        console.error('❌ Error updating Memberstack metadata:', error);
+        console.error('❌ Network error during Memberstack metadata update:', error);
         return false;
     }
 } 
