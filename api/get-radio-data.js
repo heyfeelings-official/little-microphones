@@ -156,19 +156,64 @@ export default async function handler(req, res) {
             });
         }
 
-        // Look up LMID and world from ShareID in Supabase
-        const { data: lmidRecord, error: fetchError } = await supabase
-            .from('lmids')
-            .select('lmid, assigned_to_member_id')
-            .eq('share_id', shareId)
-            .single();
+        let lmidRecord = null;
+        let world = null;
 
-        if (fetchError) {
-            console.error('Database fetch error:', fetchError);
-            return res.status(404).json({ 
-                success: false, 
-                error: 'ShareID not found or database error' 
-            });
+        if (worldFromUrl) {
+            // If world is provided, we can do a direct lookup
+            world = worldFromUrl;
+            console.log(`🌍 Using world from URL parameter: ${world}`);
+            
+            // Look up LMID using the world-specific column
+            const worldColumn = `share_id_${world.replace('-', '_')}`;
+            const { data, error } = await supabase
+                .from('lmids')
+                .select('lmid, assigned_to_member_id')
+                .eq(worldColumn, shareId)
+                .single();
+
+            if (error || !data) {
+                console.error('Database fetch error:', error);
+                return res.status(404).json({ 
+                    success: false, 
+                    error: 'ShareID not found for specified world' 
+                });
+            }
+            lmidRecord = data;
+        } else {
+            // Search across all world-specific columns to find the shareId and determine world
+            const { data, error } = await supabase
+                .from('lmids')
+                .select('lmid, assigned_to_member_id, share_id_spookyland, share_id_waterpark, share_id_shopping_spree, share_id_amusement_park, share_id_big_city, share_id_neighborhood')
+                .or(`share_id_spookyland.eq.${shareId},share_id_waterpark.eq.${shareId},share_id_shopping_spree.eq.${shareId},share_id_amusement_park.eq.${shareId},share_id_big_city.eq.${shareId},share_id_neighborhood.eq.${shareId}`)
+                .single();
+
+            if (error || !data) {
+                console.error('Database fetch error:', error);
+                return res.status(404).json({ 
+                    success: false, 
+                    error: 'ShareID not found or database error' 
+                });
+            }
+
+            lmidRecord = data;
+
+            // Determine which world this shareId belongs to
+            if (data.share_id_spookyland === shareId) world = 'spookyland';
+            else if (data.share_id_waterpark === shareId) world = 'waterpark';
+            else if (data.share_id_shopping_spree === shareId) world = 'shopping-spree';
+            else if (data.share_id_amusement_park === shareId) world = 'amusement-park';
+            else if (data.share_id_big_city === shareId) world = 'big-city';
+            else if (data.share_id_neighborhood === shareId) world = 'neighborhood';
+
+            if (!world) {
+                return res.status(404).json({ 
+                    success: false, 
+                    error: 'World not found for shareId' 
+                });
+            }
+            
+            console.log(`🌍 Detected world from database: ${world}`);
         }
 
         if (!lmidRecord) {
@@ -179,34 +224,6 @@ export default async function handler(req, res) {
         }
 
         const lmid = lmidRecord.lmid.toString();
-        
-        let world;
-
-        if (worldFromUrl) {
-            world = worldFromUrl;
-            console.log(`🌍 Using world from URL parameter: ${world}`);
-        } else {
-            // For now, we'll need to determine the world from the recordings or use a default
-            // TODO: Consider adding world column to lmids table in future migration
-            // For now, we'll try to detect world from existing recordings
-            world = 'spookyland'; // Default fallback for initial recording fetch
-            
-            // Fetch current recordings to determine world from filename
-            const tempRecordings = await fetchAllRecordingsFromCloud(world, lmid);
-            
-            // Try to detect world from recording filenames if we have any
-            if (tempRecordings.length > 0) {
-                const firstRecording = tempRecordings[0];
-                if (firstRecording.filename) {
-                    // Extract world from filename pattern: kids-world_{world}-lmid_{lmid}-...
-                    const worldMatch = firstRecording.filename.match(/kids-world_([^-]+)-lmid_/);
-                    if (worldMatch) {
-                        world = worldMatch[1];
-                    }
-                }
-            }
-            console.log(`🌍 Detected world from recordings: ${world}`);
-        }
         
         // Fetch current recordings from cloud storage
         const currentRecordings = await fetchAllRecordingsFromCloud(world, lmid);

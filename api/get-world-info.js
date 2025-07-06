@@ -10,7 +10,7 @@ const worldBackgrounds = {
     'amusement-park': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/67f505fe412762bb8a01b03d_85fcbe125912ab0998bf679d2e8c6082_worlds-Love.avif',
     'big-city': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/67f505f572e936f2b665af1f_7b989a3fe827622216294c6539607059_worlds-Anger.avif',
     'spookyland': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/67f505ecd6f37624ef7affb8_587c997427b10cabcc31cc98d6e516f4_worlds-Fear.png',
-    'neighborhood': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/67f505e36e849e0a811c0f1c_66d2f3d61b36a6427357732a392823c9_worlds-Boredom.avif'
+    'neighborhood': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/683859c64fa8c3f50ead799a_worlds-boredom.avif'
 };
 
 export default async function handler(req, res) {
@@ -31,24 +31,38 @@ export default async function handler(req, res) {
             return res.status(400).json({ success: false, error: 'Missing required parameter: shareId' });
         }
 
-        const { data: lmidRecord, error } = await supabase
+        // Search for the shareId in all world-specific columns
+        const { data, error } = await supabase
             .from('lmids')
-            .select('world')
-            .eq('share_id', shareId)
+            .select('lmid, share_id_spookyland, share_id_waterpark, share_id_shopping_spree, share_id_amusement_park, share_id_big_city, share_id_neighborhood')
+            .or(`share_id_spookyland.eq.${shareId},share_id_waterpark.eq.${shareId},share_id_shopping_spree.eq.${shareId},share_id_amusement_park.eq.${shareId},share_id_big_city.eq.${shareId},share_id_neighborhood.eq.${shareId}`)
             .single();
 
-        if (error || !lmidRecord || !lmidRecord.world) {
-            console.error(`Fast lookup failed for shareId: ${shareId}`, error);
-            return res.status(404).json({ success: false, error: 'ShareID not found or world not assigned' });
+        if (error || !data) {
+            console.error(`World lookup failed for shareId: ${shareId}`, error);
+            return res.status(404).json({ success: false, error: 'ShareID not found' });
         }
 
-        const world = lmidRecord.world;
-        const backgroundUrl = worldBackgrounds[world] || null;
+        // Determine which world this shareId belongs to
+        let world = null;
+        if (data.share_id_spookyland === shareId) world = 'spookyland';
+        else if (data.share_id_waterpark === shareId) world = 'waterpark';
+        else if (data.share_id_shopping_spree === shareId) world = 'shopping-spree';
+        else if (data.share_id_amusement_park === shareId) world = 'amusement-park';
+        else if (data.share_id_big_city === shareId) world = 'big-city';
+        else if (data.share_id_neighborhood === shareId) world = 'neighborhood';
+
+        if (!world) {
+            return res.status(404).json({ success: false, error: 'World not found for shareId' });
+        }
+
+        const backgroundUrl = worldBackgrounds[world];
 
         return res.status(200).json({
             success: true,
             world: world,
-            backgroundUrl: backgroundUrl
+            backgroundUrl: backgroundUrl,
+            lmid: data.lmid
         });
 
     } catch (error) {

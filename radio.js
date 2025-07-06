@@ -73,10 +73,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('🎵 Radio page initializing...');
     
     try {
-        // Extract ShareID and World from URL
-        const { shareId, world } = getParamsFromUrl();
-        currentShareId = shareId;
-
+        // Extract ShareID from URL
+        currentShareId = getShareIdFromUrl();
         if (!currentShareId) {
             showError('Invalid Link', 'This radio program link is missing required information. Please check the link and try again.');
             return;
@@ -84,26 +82,32 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         console.log(`📻 ShareID extracted: ${currentShareId}`);
 
-        // If world is in the URL, set background and name immediately
-        if (world) {
-            console.log(`🌍 World from URL: ${world}`);
-            setWorldBackground(world);
-            updateWorldName(world);
-        }
+        // --- Stage 1: Fast initial load for UI ---
+        showLoadingState('Loading world...');
+        const worldInfo = await fetchWorldInfo(currentShareId);
         
-        console.log(`📻 Loading radio data for ShareID: ${currentShareId}`);
+        if (worldInfo) {
+            console.log('🌍 World info loaded:', worldInfo);
+            // Immediately update the visual elements
+            setWorldBackground(worldInfo.world);
+            updateWorldName(worldInfo.world);
+        } else {
+            console.warn('Could not fetch world info early. Proceeding with main data fetch.');
+        }
+
+        // --- Stage 2: Full data load for radio program ---
         showLoadingState('Loading radio program...');
         
-        // Fetch radio data from API
-        currentRadioData = await fetchRadioData(currentShareId, world);
+        // Fetch radio data from API - pass world if we have it for faster lookup
+        currentRadioData = await fetchRadioData(currentShareId, worldInfo?.world);
         
         if (!currentRadioData) {
             showError('Program Not Found', 'This radio program could not be found. The link may be expired or invalid.');
             return;
         }
 
-        // If world was not in URL, update content now with data from the full fetch
-        if (!world) {
+        // If the fast load failed, update content now with data from the full fetch
+        if (!worldInfo) {
             updatePageContent(currentRadioData);
         }
         
@@ -134,15 +138,34 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 /**
- * Extract ShareID and World from URL parameters
- * @returns {{shareId: string|null, world: string|null}}
+ * Extract ShareID from URL parameters
+ * @returns {string|null} ShareID or null if not found
  */
-function getParamsFromUrl() {
+function getShareIdFromUrl() {
     const urlParams = new URLSearchParams(window.location.search);
-    return {
-        shareId: urlParams.get('ID'),
-        world: urlParams.get('world')
-    };
+    return urlParams.get('ID');
+}
+
+/**
+ * Fetch initial world info for fast page load
+ * @param {string} shareId - The ShareID
+ * @returns {Promise<Object|null>} World info or null if failed
+ */
+async function fetchWorldInfo(shareId) {
+    try {
+        const response = await fetch(`https://little-microphones.vercel.app/api/get-world-info?shareId=${shareId}`);
+        if (!response.ok) {
+            throw new Error(`API request failed: ${response.status}`);
+        }
+        const data = await response.json();
+        if (!data.success) {
+            throw new Error(data.error || 'Failed to fetch world info');
+        }
+        return data;
+    } catch (error) {
+        console.error('Failed to fetch world info:', error);
+        return null;
+    }
 }
 
 /**
