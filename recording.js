@@ -403,13 +403,52 @@
         
         try {
             // Load recordings from database
-            const recordings = await loadRecordingsFromDB(questionId, world, lmid);
+            let recordings = await loadRecordingsFromDB(questionId, world, lmid);
+            
+            // If no local recordings found, try to sync from cloud
+            if (recordings.length === 0) {
+                log('debug', `No local recordings found for question: ${questionId}, checking cloud...`);
+                
+                try {
+                    const cloudRecordings = await loadRecordingsFromCloud(questionId, world, lmid);
+                    if (cloudRecordings.length > 0) {
+                        log('info', `Found ${cloudRecordings.length} cloud recordings for question: ${questionId}, syncing...`);
+                        
+                        // Add cloud recordings to local database
+                        for (const cloudRecording of cloudRecordings) {
+                            const localRecordingData = {
+                                id: cloudRecording.filename.replace('.mp3', ''), // Use filename as ID
+                                questionId: questionId,
+                                world: world,
+                                lmid: lmid,
+                                audio: null, // No local blob for cloud-only recordings
+                                createdAt: new Date(cloudRecording.lastModified).toISOString(),
+                                timestamp: cloudRecording.lastModified,
+                                uploadStatus: 'uploaded',
+                                cloudUrl: cloudRecording.url
+                            };
+                            
+                            try {
+                                await saveRecordingToDB(localRecordingData);
+                                log('debug', `Synced cloud recording: ${localRecordingData.id}`);
+                            } catch (error) {
+                                log('error', `Failed to sync recording ${localRecordingData.id}:`, error);
+                            }
+                        }
+                        
+                        // Reload recordings from database after sync
+                        recordings = await loadRecordingsFromDB(questionId, world, lmid);
+                    }
+                } catch (error) {
+                    log('error', `Failed to sync from cloud for question ${questionId}:`, error);
+                }
+            }
             
             // Clear existing list
             recordingsList.innerHTML = '';
             
             if (recordings.length === 0) {
-                log('debug', `No recordings found for question: ${questionId}`);
+                log('debug', `No recordings found for question: ${questionId} (checked both local and cloud)`);
                 return;
             }
             

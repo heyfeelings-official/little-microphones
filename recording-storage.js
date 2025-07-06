@@ -289,11 +289,12 @@
      */
     async function loadRecordingsFromCloud(questionId, world, lmid) {
         try {
-            const response = await fetch(`${window.LM_CONFIG?.API_BASE_URL || 'https://little-microphones.vercel.app'}/api/list-recordings`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ world, lmid, questionId })
-            });
+            const params = new URLSearchParams({ world, lmid });
+            if (questionId) {
+                params.append('questionId', questionId);
+            }
+            
+            const response = await fetch(`${window.LM_CONFIG?.API_BASE_URL || 'https://little-microphones.vercel.app'}/api/list-recordings?${params}`);
 
             const result = await response.json();
             
