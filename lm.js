@@ -2,15 +2,13 @@
  * lm.js - Main Dashboard Controller
  * 
  * PURPOSE: Dashboard controller orchestrating authentication and LMID management UI
- * DEPENDENCIES: LM Auth System, Webflow, API endpoints
+ * DEPENDENCIES: LM Auth System (loaded globally), Webflow, API endpoints
  * DOCUMENTATION: See /documentation/lm.js.md for complete system overview
  * 
- * REFACTORED ARCHITECTURE:
- * - Authentication delegated to utils/lm-auth.js module
- * - UI management and DOM manipulation handled locally
- * - Secure deletion flow with enhanced confirmation
- * - World navigation with parameter validation
- * - Dynamic template cloning and Webflow integration
+ * BROWSER COMPATIBILITY:
+ * - Uses traditional JavaScript (no ES6 modules) for Webflow compatibility
+ * - Relies on utils/lm-auth.js being loaded first to access window.LMAuth
+ * - All functions available as global objects for immediate execution
  * 
  * MAIN FUNCTIONS:
  * - Dashboard initialization with auth system integration
@@ -25,26 +23,29 @@
  * - Event delegation for dynamic content
  * 
  * LAST UPDATED: January 2025
- * VERSION: 3.0.0 (Refactored)
+ * VERSION: 3.1.0 (Webflow Compatible)
  * STATUS: Production Ready ✅
  */
 
-// Import authentication system
-import { getAuthSystem } from './utils/lm-auth.js';
-
-// API Configuration - Use global config if available, fallback to hardcoded
-if (typeof API_BASE_URL === 'undefined') {
-    var API_BASE_URL = window.LM_CONFIG?.API_BASE_URL || 'https://little-microphones.vercel.app';
-}
-
-// Initialize authentication system
-const authSystem = getAuthSystem();
-
+// Wait for DOM and required dependencies
 document.addEventListener("DOMContentLoaded", async () => {
+    // API Configuration - Use global config if available, fallback to hardcoded
+    if (typeof API_BASE_URL === 'undefined') {
+        var API_BASE_URL = window.LM_CONFIG?.API_BASE_URL || 'https://little-microphones.vercel.app';
+    }
+
     console.log("🚀 Initializing Little Microphones Dashboard");
+    
+    // Wait for auth system to be available
+    if (!window.LMAuth) {
+        console.error("❌ LMAuth not found - ensure utils/lm-auth.js is loaded first");
+        showErrorMessage("Authentication system not loaded. Please refresh the page.");
+        return;
+    }
     
     try {
         // Initialize authentication system
+        const authSystem = window.LMAuth.getAuthSystem();
         const authResult = await authSystem.initialize();
         
         if (!authResult.success) {
@@ -62,8 +63,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         // Initialize UI with LMID data
         await initializeDashboardUI(authResult.lmids);
         
-        // Setup event listeners
-        setupEventListeners();
+        // Setup event listeners with auth system
+        setupEventListeners(authSystem);
         
         console.log("🎉 Dashboard initialization complete");
         
@@ -147,8 +148,12 @@ function createLMIDElement(template, lmid) {
 
 /**
  * Setup event listeners for dashboard interactions
+ * @param {Object} authSystem - Global auth system instance
  */
-function setupEventListeners() {
+function setupEventListeners(authSystem) {
+    // Store auth system globally for event handlers
+    window.LM_AUTH_SYSTEM = authSystem;
+    
     // Secure deletion flow
     document.body.addEventListener("click", handleDeleteClick);
     
@@ -205,7 +210,8 @@ async function handleDeleteClick(event) {
     setDeletionInProgress(itemToDelete, deleteButton);
     
     try {
-        // Get current member data for deletion operation
+        // Get auth system and member data for deletion operation
+        const authSystem = window.LM_AUTH_SYSTEM;
         const memberData = await authSystem.memberData.getMemberForLMIDOperation();
         
         // Delete associated files from cloud storage
@@ -284,7 +290,8 @@ async function handleAddLMID() {
     try {
         console.log("➕ Add LMID request");
         
-        // Validate operation permissions
+        // Get auth system and validate operation permissions
+        const authSystem = window.LM_AUTH_SYSTEM;
         const validation = await authSystem.validateForOperation();
         
         if (!validation.success) {
@@ -634,14 +641,19 @@ function showDeleteConfirmationModal(lmidToDelete) {
 // Test function for Memberstack API debugging
 window.testMemberstackAPI = async function() {
     try {
-        const authResult = await authSystem.initialize();
+        if (!window.LM_AUTH_SYSTEM) {
+            console.error("Auth system not initialized");
+            return;
+        }
+        
+        const authResult = await window.LM_AUTH_SYSTEM.initialize();
         
         if (!authResult.authenticated) {
             console.error("Not logged in");
             return;
         }
         
-        const memberData = await authSystem.memberData.getMemberForLMIDOperation();
+        const memberData = await window.LM_AUTH_SYSTEM.memberData.getMemberForLMIDOperation();
         console.log(`Testing Memberstack API for member: ${memberData.memberId}`);
         
         const response = await fetch(`${API_BASE_URL}/api/test-memberstack`, {
