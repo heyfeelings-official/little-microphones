@@ -246,11 +246,40 @@
         const urlParams = new URLSearchParams(window.location.search);
         const lmid = window.currentLmid || urlParams.get('lmid') || 'default';
         
-        // Find all recorder wrappers in the current world
-        const recorderWrappers = document.querySelectorAll(`[data-world="${world}"] .recorder-wrapper, .recorder-wrapper[data-world="${world}"]`);
+        // Find all recorder elements in the current world
+        // First try the collection-based approach used by rp.js
+        const targetCollectionId = `collection-${world}`;
+        const targetCollection = document.getElementById(targetCollectionId);
+        let recorderWrappers = [];
+        
+        if (targetCollection) {
+            // Look for FAQ accordion elements with .lm class (Webflow structure)
+            recorderWrappers = targetCollection.querySelectorAll('.faq1_accordion.lm');
+            log('debug', `Found ${recorderWrappers.length} FAQ accordion elements in collection-${world}`);
+        }
+        
+        // Fallback: look for traditional recorder-wrapper elements
+        if (recorderWrappers.length === 0) {
+            recorderWrappers = document.querySelectorAll(`[data-world="${world}"] .recorder-wrapper, .recorder-wrapper[data-world="${world}"]`);
+            log('debug', `Found ${recorderWrappers.length} traditional recorder-wrapper elements`);
+        }
+        
+        // Final fallback: look for any elements with record buttons
+        if (recorderWrappers.length === 0) {
+            recorderWrappers = document.querySelectorAll('.record-button, [data-element="record-button"]');
+            if (recorderWrappers.length > 0) {
+                // Convert to parent elements
+                recorderWrappers = Array.from(recorderWrappers).map(btn => btn.closest('.faq1_accordion') || btn.parentElement);
+                recorderWrappers = recorderWrappers.filter(el => el); // Remove nulls
+                log('debug', `Found ${recorderWrappers.length} elements via record button discovery`);
+            }
+        }
         
         if (recorderWrappers.length === 0) {
-            log('warn', `No recorder wrappers found for world: ${world}`);
+            log('warn', `No recorder elements found for world: ${world}. Checked:
+            - #collection-${world} .faq1_accordion.lm
+            - [data-world="${world}"] .recorder-wrapper
+            - .record-button parent elements`);
             return;
         }
         
@@ -259,12 +288,29 @@
         // Initialize each recorder
         recorderWrappers.forEach((wrapper, index) => {
             try {
-                const questionId = normalizeQuestionId(
-                    wrapper.dataset.questionId || 
-                    wrapper.dataset.question || 
-                    wrapper.id || 
-                    `question_${index + 1}`
-                );
+                // Get question ID from various possible sources
+                let questionId = wrapper.dataset.questionId || 
+                               wrapper.dataset.question || 
+                               wrapper.id;
+                
+                // If no question ID found, try to extract from text content or other attributes
+                if (!questionId) {
+                    const questionText = wrapper.querySelector('h3, h2, .question-text, [data-element="question"]');
+                    if (questionText) {
+                        // Try to extract number from question text
+                        const match = questionText.textContent.match(/(\d+)/);
+                        if (match) {
+                            questionId = match[1];
+                        }
+                    }
+                }
+                
+                // Final fallback
+                if (!questionId) {
+                    questionId = `question_${index + 1}`;
+                }
+                
+                questionId = normalizeQuestionId(questionId);
                 
                 log('debug', `Initializing recorder for question: ${questionId}`);
                 
