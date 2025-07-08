@@ -82,10 +82,26 @@ async function getTeacherDataHandler(req, res, params) {
     let schoolName = 'from School';
 
     if (memberData) {
-        // Extract teacher name from member data
-        const firstName = memberData.metaData?.firstName || memberData.metaData?.first_name || '';
-        const lastName = memberData.metaData?.lastName || memberData.metaData?.last_name || '';
-        const schoolFromMeta = memberData.metaData?.school || memberData.metaData?.schoolName || '';
+        console.log('👨‍🏫 Member data structure:', JSON.stringify(memberData, null, 2));
+        
+        // Extract teacher name from CUSTOM FIELDS (not metaData)
+        const firstName = memberData.customFields?.['First Name'] || 
+                         memberData.customFields?.firstName || 
+                         memberData.metaData?.firstName || 
+                         memberData.metaData?.first_name || '';
+                         
+        const lastName = memberData.customFields?.['Last Name'] || 
+                        memberData.customFields?.lastName || 
+                        memberData.metaData?.lastName || 
+                        memberData.metaData?.last_name || '';
+                        
+        // Extract school from CUSTOM FIELDS
+        const schoolFromCustomFields = memberData.customFields?.['school-place-name'] || 
+                                     memberData.customFields?.school || 
+                                     memberData.metaData?.school || 
+                                     memberData.metaData?.schoolName || '';
+
+        console.log('👨‍🏫 Extracted data:', { firstName, lastName, schoolFromCustomFields });
 
         // Format teacher name
         if (firstName || lastName) {
@@ -94,9 +110,13 @@ async function getTeacherDataHandler(req, res, params) {
         }
 
         // Format school name
-        if (schoolFromMeta) {
-            schoolName = schoolFromMeta.startsWith('from ') ? schoolFromMeta : `from ${schoolFromMeta}`;
+        if (schoolFromCustomFields) {
+            schoolName = schoolFromCustomFields.startsWith('from ') ? schoolFromCustomFields : `from ${schoolFromCustomFields}`;
         }
+        
+        console.log('👨‍🏫 Final formatted data:', { teacherName, schoolName });
+    } else {
+        console.warn('👨‍🏫 No member data returned from Memberstack');
     }
 
     return {
