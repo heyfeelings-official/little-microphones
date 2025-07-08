@@ -98,11 +98,11 @@
                 align-items: center;
                 padding: 14px 20px;
                 margin-bottom: 8px;
-                background-color: #f0f0f0;
+                background-color: #FF4444;  /* Changed to red */
                 border: none;
                 border-radius: 40px; /* Makes it look like an audio player */
-                color: #333;
-                animation: pulse-bg 2s infinite;
+                color: white;  /* Changed to white for better contrast */
+                animation: pulse-bg-red 2s infinite;  /* Changed animation name */
                 list-style: none;
                 font-size: 14px;
             }
@@ -114,13 +114,13 @@
             .recording-placeholder .placeholder-timer {
                 font-family: monospace;
                 font-size: 14px;
-                color: #555;
+                color: #fff;  /* Changed to white */
             }
 
-            @keyframes pulse-bg {
-                0% { background-color: #f5f5f5; }
-                50% { background-color: #e9e9e9; }
-                100% { background-color: #f5f5f5; }
+            @keyframes pulse-bg-red {
+                0% { background-color: #FF4444; }
+                50% { background-color: #CC0000; }
+                100% { background-color: #FF4444; }
             }
 
             .new-recording-fade-in {

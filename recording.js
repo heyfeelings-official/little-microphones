@@ -244,33 +244,18 @@ function log(level, message, data = null) {
         const databasePromise = setupDatabase().then(async () => {
             log('info', 'Database initialized successfully');
             
-            // Check if this is a fresh LMID (no recordings in cloud)
+            // Sync with cloud instead of aggressive cleanup
             try {
-                const cloudRecordings = await loadRecordingsFromCloud(null, world, lmid);
-                if (cloudRecordings.length === 0) {
-                    log('info', `LMID ${lmid} appears to be new (no cloud recordings), cleaning local database...`);
-                    
-                    // Get all local recordings for this world/lmid
-                    const localRecordings = await getAllRecordingsForWorldLmid(world, lmid);
-                    
-                    if (localRecordings.length > 0) {
-                        log('info', `Found ${localRecordings.length} stale local recordings for new LMID ${lmid}, removing...`);
-                        
-                        // Delete all local recordings for this world/lmid
-                        for (const recording of localRecordings) {
-                            try {
-                                await deleteRecordingFromDB(recording.id);
-                                log('debug', `Deleted stale recording: ${recording.id}`);
-                            } catch (error) {
-                                log('error', `Failed to delete stale recording ${recording.id}:`, error);
-                            }
-                        }
-                        
-                        log('info', `Cleaned ${localRecordings.length} stale recordings for new LMID ${lmid}`);
-                    }
+                log('info', `Syncing recordings with cloud for LMID ${lmid}...`);
+                const syncResult = await syncRecordingsWithCloud(world, lmid);
+                
+                if (syncResult.success) {
+                    log('info', `Cloud sync completed: ${syncResult.syncedCount} recordings synced`);
+                } else {
+                    log('warn', `Cloud sync failed: ${syncResult.error}`);
                 }
             } catch (error) {
-                log('warn', `Could not check cloud status for LMID ${lmid}:`, error);
+                log('warn', `Could not sync with cloud for LMID ${lmid}:`, error);
                 // Continue anyway - don't block initialization
             }
             
@@ -390,16 +375,26 @@ function log(level, message, data = null) {
         // Mark world as initialized
         initializedWorlds.add(world);
         
-        // Setup cleanup for orphaned recordings (run once per world)
-            setTimeout(() => {
-            cleanupAllOrphanedRecordings(world, lmid).then(cleanedCount => {
-                if (cleanedCount > 0) {
-                    log('info', `Cleaned up ${cleanedCount} orphaned recordings for world: ${world}`);
+        // Don't run aggressive cleanup anymore - just sync periodically
+        setTimeout(() => {
+            syncRecordingsWithCloud(world, lmid).then(result => {
+                if (result.success && result.syncedCount > 0) {
+                    log('info', `Background sync completed: ${result.syncedCount} recordings synced`);
+                    // Refresh all recording lists after sync
+                    recorderWrappers.forEach((wrapper, index) => {
+                        const questionId = normalizeQuestionId(
+                            wrapper.dataset.questionId || 
+                            wrapper.dataset.question || 
+                            wrapper.id || 
+                            `question_${index + 1}`
+                        );
+                        renderRecordingsList(wrapper, questionId, world, lmid);
+                    });
                 }
             }).catch(error => {
-                log('error', 'Orphaned recording cleanup failed:', error);
+                log('error', 'Background sync failed:', error);
             });
-        }, 5000);
+        }, 3000); // Run sync after 3 seconds
         
         log('info', `World initialization completed: ${world}`);
         
