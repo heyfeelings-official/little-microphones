@@ -148,6 +148,7 @@
                         (url, data, genFn) => showAudioPlayer(url, data, () => handleProgramGeneration()),
                         updatePageContent
                     );
+                    hideLoadingState(); // Hide loading state after showing existing program
                 } else {
                     console.log('📝 No existing program found - generating initial program...');
                     await handleProgramGeneration();
