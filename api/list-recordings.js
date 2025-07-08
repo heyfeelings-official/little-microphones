@@ -77,10 +77,11 @@
  */
 
 export default async function handler(req, res) {
-    // Set CORS headers
+    // Set CORS headers for all requests first
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
 
     // Handle preflight requests
     if (req.method === 'OPTIONS') {
@@ -88,7 +89,7 @@ export default async function handler(req, res) {
     }
 
     if (req.method !== 'GET') {
-        return res.status(405).json({ error: 'Method not allowed' });
+        return res.status(405).json({ success: false, error: 'Method not allowed' });
     }
 
     try {
@@ -96,6 +97,7 @@ export default async function handler(req, res) {
 
         if (!world || !lmid) {
             return res.status(400).json({ 
+                success: false,
                 error: 'Missing required parameters: world, lmid' 
             });
         }
@@ -179,6 +181,7 @@ export default async function handler(req, res) {
     } catch (error) {
         console.error('List recordings error:', error);
         return res.status(500).json({
+            success: false,
             error: 'Failed to list recordings',
             details: error.message
         });

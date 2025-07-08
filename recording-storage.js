@@ -297,7 +297,12 @@
             params.append('_t', Date.now());
             params.append('_r', Math.random().toString(36));
             
-            const response = await fetch(`${window.LM_CONFIG?.API_BASE_URL || 'https://little-microphones.vercel.app'}/api/list-recordings?${params}`, {
+            const apiBaseUrl = window.LM_CONFIG?.API_BASE_URL || 'https://little-microphones.vercel.app';
+            const apiUrl = `${apiBaseUrl}/api/list-recordings?${params}`;
+            
+            console.log(`Fetching recordings from: ${apiUrl}`);
+            
+            const response = await fetch(apiUrl, {
                 method: 'GET',
                 headers: {
                     'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -305,6 +310,13 @@
                     'Expires': '0'
                 }
             });
+
+            if (!response.ok) {
+                console.error(`List recordings failed: ${response.status} ${response.statusText}`);
+                const errorText = await response.text();
+                console.error('Error details:', errorText);
+                return [];
+            }
 
             const result = await response.json();
             
@@ -332,7 +344,8 @@
             const base64Audio = await blobToBase64(recordingData.audio);
             const filename = `kids-world_${world}-lmid_${lmid}-question_${recordingData.questionId}-tm_${recordingData.timestamp}.mp3`;
 
-            const response = await fetch(`${window.LM_CONFIG?.API_BASE_URL || 'https://little-microphones.vercel.app'}/api/upload-audio?_t=${Date.now()}&_r=${Math.random()}`, {
+            const apiBaseUrl = window.LM_CONFIG?.API_BASE_URL || 'https://little-microphones.vercel.app';
+            const response = await fetch(`${apiBaseUrl}/api/upload-audio?_t=${Date.now()}&_r=${Math.random()}`, {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
@@ -383,7 +396,8 @@
                 return { success: true }; // Nothing to delete
             }
 
-            const response = await fetch(`${window.LM_CONFIG?.API_BASE_URL || 'https://little-microphones.vercel.app'}/api/delete-audio?_t=${Date.now()}&_r=${Math.random()}`, {
+            const apiBaseUrl = window.LM_CONFIG?.API_BASE_URL || 'https://little-microphones.vercel.app';
+            const response = await fetch(`${apiBaseUrl}/api/delete-audio?_t=${Date.now()}&_r=${Math.random()}`, {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
