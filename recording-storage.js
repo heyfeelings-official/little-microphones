@@ -305,9 +305,7 @@
             const response = await fetch(apiUrl, {
                 method: 'GET',
                 headers: {
-                    'Cache-Control': 'no-cache, no-store, must-revalidate',
-                    'Pragma': 'no-cache',
-                    'Expires': '0'
+                    'Accept': 'application/json'
                 }
             });
 
@@ -348,10 +346,7 @@
             const response = await fetch(`${apiBaseUrl}/api/upload-audio?_t=${Date.now()}&_r=${Math.random()}`, {
                 method: 'POST',
                 headers: { 
-                    'Content-Type': 'application/json',
-                    'Cache-Control': 'no-cache, no-store, must-revalidate',
-                    'Pragma': 'no-cache',
-                    'Expires': '0'
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
                     world,
@@ -400,10 +395,7 @@
             const response = await fetch(`${apiBaseUrl}/api/delete-audio?_t=${Date.now()}&_r=${Math.random()}`, {
                 method: 'POST',
                 headers: { 
-                    'Content-Type': 'application/json',
-                    'Cache-Control': 'no-cache, no-store, must-revalidate',
-                    'Pragma': 'no-cache',
-                    'Expires': '0'
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
                     world,

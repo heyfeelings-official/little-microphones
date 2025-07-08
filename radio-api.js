@@ -65,13 +65,9 @@
             console.log(`🌍 Fetching world info for ShareID: ${shareId}`);
             
             const response = await fetch(apiUrl, {
-                signal: controller.signal,
+                method: 'GET',
                 headers: {
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json',
-                    'Cache-Control': 'no-cache, no-store, must-revalidate',
-                    'Pragma': 'no-cache',
-                    'Expires': '0'
+                    'Accept': 'application/json'
                 }
             });
             
@@ -131,13 +127,9 @@
             console.log(`📻 Fetching radio data for ShareID: ${shareId}${world ? ` (world: ${world})` : ''}`);
             
             const response = await fetch(apiUrl, {
-                signal: controller.signal,
+                method: 'GET',
                 headers: {
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json',
-                    'Cache-Control': 'no-cache, no-store, must-revalidate',
-                    'Pragma': 'no-cache',
-                    'Expires': '0'
+                    'Accept': 'application/json'
                 }
             });
             
@@ -236,11 +228,7 @@
             const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'Cache-Control': 'no-cache, no-store, must-revalidate',
-                    'Pragma': 'no-cache',
-                    'Expires': '0'
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(requestBody),
                 signal: generationAbortController.signal
