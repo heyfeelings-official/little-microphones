@@ -359,21 +359,35 @@
     }
 }
 
-/**
+    /**
      * Update teacher and school info
+     * Now searches for ALL elements with these IDs, not just inside container
      */
     function updateTeacherInfo(teacherName, schoolName) {
-        const teacherElement = document.getElementById('teacher-full-name');
-        const schoolElement = document.getElementById('school-name');
+        // Find ALL elements with teacher-full-name ID (może być wiele)
+        const teacherElements = document.querySelectorAll('#teacher-full-name');
+        teacherElements.forEach(element => {
+            if (element && teacherName) {
+                element.textContent = teacherName;
+                console.log(`👨‍🏫 Updated teacher name in element: ${teacherName}`);
+            }
+        });
         
-        if (teacherElement && teacherName) {
-            teacherElement.textContent = teacherName;
-            console.log(`👨‍🏫 Updated teacher name: ${teacherName}`);
+        // Find ALL elements with school-name ID (może być wiele)
+        const schoolElements = document.querySelectorAll('#school-name');
+        schoolElements.forEach(element => {
+            if (element && schoolName) {
+                element.textContent = schoolName;
+                console.log(`🏫 Updated school name in element: ${schoolName}`);
+            }
+        });
+        
+        // Log if we found elements
+        if (teacherElements.length === 0) {
+            console.warn('⚠️ No elements found with ID "teacher-full-name"');
         }
-        
-        if (schoolElement && schoolName) {
-            schoolElement.textContent = schoolName;
-            console.log(`🏫 Updated school name: ${schoolName}`);
+        if (schoolElements.length === 0) {
+            console.warn('⚠️ No elements found with ID "school-name"');
         }
     }
 
@@ -779,7 +793,7 @@
             setTimeout(() => {
                 showExistingProgram({
                     ...data,
-                    lastManifest: { programUrl: combineResult.programUrl }
+                    lastManifest: { programUrl: combineResult.url || combineResult.programUrl }
                 });
             }, 1000);
             
