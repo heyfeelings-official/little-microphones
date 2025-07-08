@@ -1,116 +1,177 @@
-# Little Microphones 🎵
+# Little Microphones - Audio Recording & Radio Program System
 
-A comprehensive audio recording and radio program generation system designed for children's programs. Create personalized radio shows by recording answers to themed questions and automatically combining them into professional radio programs with advanced FFmpeg audio processing.
+## Overview
+Little Microphones is a comprehensive audio recording and radio program generation system built for educational environments. Students can record answers to questions and automatically generate personalized radio programs.
 
-## 📚 Comprehensive Documentation
+## New File Structure (v4.4.6+)
 
-For complete system documentation, please refer to the comprehensive and up-to-date documentation in the `/documentation` folder:
+### Main Application Files
+- **`record.js`** - Recording page authorization system (formerly `rp.js`)
+- **`little-microphones.js`** - Dashboard controller (formerly `lm.js`)
+- **`radio.js`** - Radio program player page
+- **`config.js`** - Global configuration and utilities
 
-### 🎯 Start Here
-- **[📋 Product Requirements Document](./documentation/PRD-little-microphones.md)** - Complete system overview, architecture, and product vision with latest updates
+### Recording System
+- **`recording/`** - Organized recording functionality
+  - `recording.js` - Main recording system
+  - `recording-audio.js` - Audio processing
+  - `recording-ui.js` - UI components
+  - `recording-storage.js` - Storage management
+  - `recording-radio.js` - Radio generation
 
-### 📁 Enhanced File Documentation  
-- **[🔐 lm.js](./documentation/lm.js.md)** - Main authentication & LMID management system with security features
-- **[🎵 recording.js](./documentation/recording.js.md)** - Multi-question audio recording system with radio program generation
-- **[🛡️ rp.js](./documentation/rp.js.md)** - Recording page authorization & world management with integration details
+### Backend API
+- **`api/`** - Serverless functions for Vercel
+  - `upload-audio.js` - Audio file uploads to Bunny CDN
+  - `combine-audio.js` - Radio program generation
+  - `get-radio-data.js` - Radio program data retrieval
+  - `get-teacher-data.js` - Teacher information
+  - `lmid-operations.js` - LMID management
+  - And more...
 
-### 🌐 Complete API Documentation
-- **[⚡ API Functions](./documentation/api-documentation.md)** - Complete serverless API reference with security and performance details
-  - `/api/upload-audio` - Secure audio file upload service with validation
-  - `/api/delete-audio` - Comprehensive audio file deletion service with cleanup
-  - `/api/combine-audio` - Professional radio program generation service with FFmpeg
-  - `/api/list-recordings` - Cloud recording discovery & synchronization service
+### Utilities
+- **`utils/`** - Helper functions and utilities
+  - `lm-auth.js` - Authentication system
+  - `audio-utils.js` - Audio processing utilities
+  - `database-utils.js` - Database operations
+  - And more...
 
-### 🚀 Infrastructure & Deployment
-- **[📦 Deployment Guide](./documentation/deployment.md)** - Vercel deployment, Bunny.net CDN, infrastructure setup, and monitoring
+## New URL Structure
 
-## 🏗️ System Architecture
+### Dashboard
+- **URL**: `/members/little-microphones`
+- **Purpose**: Main dashboard for managing programs
+- **File**: `little-microphones.js`
 
-### Technology Stack
-- **Frontend**: Vanilla JavaScript with WebRTC, IndexedDB, Canvas API, HTML5 Audio
-- **Backend**: Node.js serverless functions with FFmpeg audio processing
-- **Storage**: Dual-layer architecture (IndexedDB + Bunny.net CDN)
-- **Authentication**: Memberstack with metadata-driven authorization
-- **Deployment**: Vercel with GitHub integration and automatic deployment
-- **Automation**: Make.com webhooks for user management and LMID lifecycle
+### Recording Pages
+- **URL**: `/members/record?world=spookyland&lmid=123`
+- **Purpose**: Protected recording interface
+- **Files**: `record.js` + `recording/recording.js`
 
-### System Requirements
-- **Frontend**: Webflow hosting with custom JavaScript integration
-- **Backend**: Vercel serverless functions (Node.js 18+)
-- **Storage**: Bunny.net CDN for global audio file delivery
-- **Authentication**: Memberstack for secure user management
+### Radio Programs (Public)
+- **URL**: `/little-microphones?ID=shareId`
+- **Purpose**: Public access to radio programs
+- **File**: `radio.js`
 
-### Key Dependencies
-```json
-{
-  "@ffmpeg-installer/ffmpeg": "^1.1.0",
-  "fluent-ffmpeg": "^2.1.3"
-}
+## Key Features
+
+### Audio Recording
+- Multi-question recording system
+- Local storage with cloud backup
+- Real-time upload progress
+- Audio format optimization
+- Recording management (play, delete, organize)
+
+### Radio Program Generation
+- Automatic program creation from recordings
+- Professional audio mixing with background music
+- Intro/outro integration
+- Smart caching and regeneration
+- Share link generation
+
+### User Management
+- Memberstack integration for authentication
+- LMID (Learning Management ID) system
+- Teacher data management
+- Secure authorization flows
+
+### Technical Features
+- IndexedDB for local storage
+- Bunny.net CDN for audio hosting
+- Supabase for metadata storage
+- FFmpeg for audio processing
+- Real-time progress tracking
+
+## Webflow Integration
+
+### Script Tags
+```html
+<!-- Global Config (all pages) -->
+<script src="https://little-microphones.vercel.app/config.js"></script>
+
+<!-- Dashboard Page -->
+<script src="https://little-microphones.vercel.app/little-microphones.js"></script>
+
+<!-- Recording Pages -->
+<script src="https://little-microphones.vercel.app/record.js"></script>
+<script src="https://little-microphones.vercel.app/recording/recording.js"></script>
+
+<!-- Radio Program Page -->
+<script src="https://little-microphones.vercel.app/radio.js"></script>
 ```
 
-### Environment Variables
+### Required HTML Elements
+- Dashboard: LMID templates and management UI
+- Recording: Question collections and recorder wrappers
+- Radio: State containers and audio player elements
+
+## Environment Setup
+
+### Required Environment Variables
 ```bash
-BUNNY_API_KEY=your_storage_api_key
-BUNNY_STORAGE_ZONE=your_storage_zone_name
-BUNNY_CDN_URL=https://your-zone.b-cdn.net
+# Supabase Database
+SUPABASE_URL=your_supabase_url
+SUPABASE_ANON_KEY=your_supabase_anon_key
+
+# Bunny.net CDN
+BUNNY_API_KEY=your_bunny_api_key
+BUNNY_STORAGE_ZONE=your_storage_zone
+BUNNY_CDN_URL=your_cdn_url
+
+# Memberstack
+MEMBERSTACK_SECRET_KEY=your_memberstack_secret
 ```
 
-## 🎯 Advanced Features
+### Database Tables
+- `lmids` - LMID management and metadata
+- `share_links` - Radio program sharing
+- `audio_manifests` - Audio program tracking
 
-- **🎤 Multi-Question Recording**: Independent audio recorders per question with isolated state management
-- **☁️ Professional Cloud Storage**: Automatic backup to Bunny.net CDN with intelligent error recovery
-- **📻 Advanced Radio Program Generation**: Professional FFmpeg audio processing with noise reduction and mixing
-- **🔒 Comprehensive Security**: Memberstack-based authentication with metadata-driven authorization
-- **🌍 Themed Worlds**: Multiple content themes with organized collections and backgrounds
-- **📱 Real-time Feedback**: Waveform visualization, upload progress, and animated status updates
-- **🔄 Cross-Device Sync**: Cloud-first architecture enabling seamless device switching
-- **🎛️ Professional Audio Processing**: Background music mixing, noise reduction, and mastering
+## Development
 
-## 🔄 Enhanced Development Workflow
-
-1. **Make Changes**: Edit files locally with comprehensive documentation support
-2. **Commit & Push**: `git add . && git commit -m "Description" && git push origin main`
-3. **Auto Deploy**: Vercel automatically deploys changes with environment validation
-4. **Verify**: Test functionality in production environment with monitoring tools
-
-## 🌟 Complete System Overview
-
-```
-User → Webflow Frontend → JavaScript (lm.js/recording.js/rp.js) → 
-Vercel APIs (4 endpoints) → Bunny.net Storage → CDN Delivery → User Experience
+### Local Development
+```bash
+npm install
+vercel dev
 ```
 
-## 🎵 Professional Audio Pipeline
-
-```
-WebRTC Recording (WebM) → Local Storage (IndexedDB) → 
-Cloud Upload (MP3) → Professional FFmpeg Processing → 
-Radio Program Generation → CDN Delivery → User Playback
+### Deployment
+```bash
+vercel --prod
 ```
 
-## 🛠️ Enhanced Technical Stack
+### Testing
+- ShareID: `p4l909my` (test radio program)
+- LMID: `90` (test recordings)
+- World: `spookyland` (test environment)
 
-- **Frontend**: Event-driven architecture with custom audio processing
-- **Backend**: Serverless functions with professional audio mixing capabilities
-- **Storage**: Organized CDN structure with intelligent caching and cleanup
-- **Authentication**: Secure metadata-driven system with real-time validation
-- **Deployment**: Automated CI/CD with comprehensive monitoring
-- **Automation**: Webhook-driven user management with error recovery
+## Migration Notes
 
-## 📞 Support & Documentation
+### From v4.4.5 and earlier:
+1. **File renames**: Update script references
+   - `rp.js` → `record.js`
+   - `lm.js` → `little-microphones.js`
+2. **URL changes**: Update navigation links
+   - `/members/rp` → `/members/record`
+   - `/members/lm` → `/members/little-microphones`
+   - `/members/radio` → `/little-microphones`
+3. **File organization**: Recording files moved to `recording/` folder
 
-For technical questions or system-specific issues, refer to the detailed and comprehensive documentation in the `/documentation` folder. Each file contains thorough information about its purpose, implementation, security features, and integration points.
+## Documentation
 
-## 📊 System Status
+See `/documentation/` folder for detailed guides:
+- API documentation
+- Webflow integration guides
+- Audio architecture
+- Deployment instructions
+- Troubleshooting guides
 
-**🟢 All Systems Operational**
-- Audio Recording: ✅ Professional quality with real-time feedback
-- Cloud Storage: ✅ Global CDN with intelligent caching
-- Radio Generation: ✅ Advanced FFmpeg processing
-- Authentication: ✅ Secure multi-layer validation
-- Cross-Device Sync: ✅ Seamless experience across devices
-- Documentation: ✅ Comprehensive and current
+## Support
 
----
+- Check documentation first
+- Review console logs for errors
+- Test with known ShareIDs/LMIDs
+- Verify environment variables
 
-**🎵 Little Microphones** - Empowering children's voices through advanced technology # Testing environment variables
+**Version**: 4.4.6+  
+**Status**: Production Ready ✅  
+**Last Updated**: January 2025
