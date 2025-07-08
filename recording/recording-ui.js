@@ -150,9 +150,17 @@
      * @param {Function} getAudioSource - Function to get audio source URL
      * @param {Function} deleteRecording - Function to delete recording
      * @param {Function} dispatchUploadStatusEvent - Function to dispatch status events
+     * @param {Object} options - Optional configuration {showDeleteButton: true, showUploadIcon: true}
      * @returns {Promise<HTMLLIElement>} Created list item element
      */
-    async function createRecordingElement(recordingData, questionId, getAudioSource, deleteRecording, dispatchUploadStatusEvent) {
+    async function createRecordingElement(recordingData, questionId, getAudioSource, deleteRecording, dispatchUploadStatusEvent, options = {}) {
+        // Default options
+        const config = {
+            showDeleteButton: true,
+            showUploadIcon: true,
+            ...options
+        };
+        
         const li = document.createElement('li');
         li.dataset.recordingId = recordingData.id;
         li.style.cssText = 'list-style: none; margin-bottom: 0;';
@@ -181,26 +189,28 @@
         const playButtonContainer = createPlayButton();
         const timeDisplay = createTimeDisplay();
         const progressContainer = createProgressBar();
-        const uploadIcon = createUploadIcon();
-        const deleteButton = createDeleteButton();
+        const uploadIcon = config.showUploadIcon ? createUploadIcon() : null;
+        const deleteButton = config.showDeleteButton ? createDeleteButton() : null;
 
         // --- Assemble Player ---
         playerContainer.appendChild(playButtonContainer);
         playerContainer.appendChild(timeDisplay);
         playerContainer.appendChild(progressContainer);
-        playerContainer.appendChild(uploadIcon);
-        playerContainer.appendChild(deleteButton);
+        if (uploadIcon) playerContainer.appendChild(uploadIcon);
+        if (deleteButton) playerContainer.appendChild(deleteButton);
         li.appendChild(playerContainer);
 
         // --- Add Event Listeners ---
         setupAudioPlayerEvents(audio, playButtonContainer, progressContainer, timeDisplay);
         
         // Delete button event
-        deleteButton.addEventListener('click', () => { 
-            if (confirm("Are you sure you want to delete this recording?")) {
-                deleteRecording(recordingData.id, questionId, li);
-            }
-        });
+        if (deleteButton) {
+            deleteButton.addEventListener('click', () => { 
+                if (confirm("Are you sure you want to delete this recording?")) {
+                    deleteRecording(recordingData.id, questionId, li);
+                }
+            });
+        }
         
         // --- Load Metadata ---
         audio.addEventListener('loadedmetadata', () => {
@@ -211,7 +221,9 @@
         audio.load();
 
         // --- Setup Upload Status Handling ---
-        setupUploadStatusHandling(li, recordingData, uploadIcon, deleteButton, dispatchUploadStatusEvent);
+        if (uploadIcon && deleteButton) {
+            setupUploadStatusHandling(li, recordingData, uploadIcon, deleteButton, dispatchUploadStatusEvent);
+        }
 
         return li;
     }

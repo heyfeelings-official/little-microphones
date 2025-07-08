@@ -443,7 +443,7 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
-            z-index: -1;
+            z-index: 0;
             pointer-events: none;
         `;
         
@@ -452,8 +452,20 @@
             container.style.position = 'relative';
         }
         
+        // Ensure container content is above video
+        container.style.zIndex = '1';
+        
         // Add video to container
         container.appendChild(video);
+        
+        // Ensure all child elements are above the video
+        const children = container.children;
+        for (let i = 0; i < children.length; i++) {
+            if (children[i] !== video) {
+                children[i].style.position = 'relative';
+                children[i].style.zIndex = '1';
+            }
+        }
         
         // Handle video load errors - fallback to image
         video.addEventListener('error', () => {
@@ -558,57 +570,13 @@
             'radio-program',
             getAudioSource,
             deleteRecording,
-            dispatchUploadStatusEvent
+            dispatchUploadStatusEvent,
+            {
+                showDeleteButton: false,
+                showUploadIcon: false
+            }
         ).then(playerElement => {
             if (playerElement) {
-                console.log('🔍 Searching for delete button in player element...');
-                
-                // Remove the delete button since this is a radio page
-                // Look for delete button by its SVG content and color
-                const deleteButtons = playerElement.querySelectorAll('div[style*="cursor: pointer"][style*="#F25444"]');
-                deleteButtons.forEach(btn => {
-                    if (btn.innerHTML.includes('viewBox="0 0 16 20"')) {
-                        btn.style.display = 'none';
-                        console.log('🗑️ Delete button hidden on radio page (method 1)');
-                    }
-                });
-                
-                // Also try alternative selector
-                const allDeleteButtons = playerElement.querySelectorAll('div[style*="color: #F25444"]');
-                allDeleteButtons.forEach(btn => {
-                    if (btn.innerHTML.includes('svg')) {
-                        btn.style.display = 'none';
-                        console.log('🗑️ Delete button hidden (method 2)');
-                    }
-                });
-                
-                // More aggressive approach - find all divs with trash SVG
-                const allDivs = playerElement.querySelectorAll('div');
-                allDivs.forEach(div => {
-                    if (div.innerHTML.includes('viewBox="0 0 16 20"') || 
-                        (div.style.color && div.style.color.includes('#F25444')) ||
-                        (div.style.cssText && div.style.cssText.includes('#F25444'))) {
-                        div.style.display = 'none';
-                        console.log('🗑️ Delete button hidden (method 3 - aggressive)');
-                    }
-                });
-                
-                // Final approach - hide any element that looks like a delete button
-                const allElements = playerElement.querySelectorAll('*');
-                allElements.forEach(el => {
-                    if (el.innerHTML && el.innerHTML.includes('M4.22363 9.09265')) { // Part of delete SVG path
-                        el.style.display = 'none';
-                        console.log('🗑️ Delete button hidden (method 4 - SVG path)');
-                    }
-                });
-                
-                // Remove the upload icon since this is already uploaded
-                const uploadIcons = playerElement.querySelectorAll('.upload-status');
-                uploadIcons.forEach(icon => {
-                    icon.style.display = 'none';
-                    console.log('📤 Upload icon hidden on radio page');
-                });
-                
                 // Add some styling to make it fit better in the radio context
                 const playerDiv = playerElement.querySelector('div[style*="background: white"]');
                 if (playerDiv) {
