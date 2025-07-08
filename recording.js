@@ -167,40 +167,39 @@ function log(level, message, data = null) {
         try {
             log('info', `Starting deletion of recording: ${recordingId}`);
             
-            // Get recording data first
-            const recordingData = await getRecordingFromDB(recordingId);
-            if (!recordingData) {
-                log('warn', `Recording ${recordingId} not found in database`);
-                if (elementToRemove && elementToRemove.parentNode) {
-                    elementToRemove.parentNode.removeChild(elementToRemove);
-                }
+            // Extract world and lmid from recording ID
+            const match = recordingId.match(/kids-world_([^-]+)-lmid_([^-]+)-/);
+            if (!match) {
+                log('error', 'Invalid recording ID format');
+                alert('Cannot delete recording: invalid format');
                 return;
             }
             
-            // Extract world and lmid from recording data or ID
-            const world = recordingData.world;
-            const lmid = recordingData.lmid;
+            const world = match[1];
+            const lmid = match[2];
             
-            if (!world || !lmid) {
-                log('error', `Missing world or lmid for recording ${recordingId}`);
-                alert('Cannot delete recording: missing required information');
-                         return;
-                    }
-            
-            // Delete from cloud storage if exists
-            if (recordingData.cloudUrl) {
-                try {
-                    await deleteFromBunny(recordingData, world, lmid, questionId);
-                    log('info', `Cloud file deleted: ${recordingData.cloudUrl}`);
-    } catch (error) {
-                    log('warn', `Failed to delete cloud file: ${error.message}`);
-                    // Continue with local deletion even if cloud deletion fails
-                }
+            // First try to delete from cloud (primary storage)
+            try {
+                // For cloud recordings, we need to construct the proper data
+                const recordingData = {
+                    id: recordingId,
+                    cloudUrl: `https://${window.LM_CONFIG?.CDN_BASE_URL || 'little-microphones.b-cdn.net'}/${lmid}/${world}/${recordingId}.mp3`
+                };
+                
+                await deleteFromBunny(recordingData, world, lmid, questionId);
+                log('info', `Cloud file deleted: ${recordingId}`);
+            } catch (error) {
+                log('warn', `Failed to delete cloud file: ${error.message}`);
+                // Continue anyway - maybe it's only local
             }
             
-            // Delete from local database
-            await deleteRecordingFromDB(recordingId);
-            log('info', `Recording deleted from database: ${recordingId}`);
+            // Then try to delete from local database (if exists)
+            try {
+                await deleteRecordingFromDB(recordingId);
+                log('info', `Local database entry deleted: ${recordingId}`);
+            } catch (error) {
+                log('debug', `No local entry to delete: ${recordingId}`);
+            }
             
             // Remove from UI with animation
             if (elementToRemove && elementToRemove.parentNode) {
@@ -214,11 +213,11 @@ function log(level, message, data = null) {
             
             log('info', `Recording deletion completed: ${recordingId}`);
 
-    } catch (error) {
+        } catch (error) {
             log('error', `Failed to delete recording ${recordingId}:`, error);
             alert('Failed to delete recording. Please try again.');
+        }
     }
-}
 
 /**
      * Initialize recorders for a specific world
@@ -244,64 +243,9 @@ function log(level, message, data = null) {
         const databasePromise = setupDatabase().then(async () => {
             log('info', 'Database initialized successfully');
             
-            // Sync with cloud instead of aggressive cleanup
-            try {
-                log('info', `Syncing recordings with cloud for LMID ${lmid}...`);
-                
-                // First, get all recordings from cloud for this world/lmid
-                const cloudRecordings = await loadRecordingsFromCloud(null, world, lmid);
-                
-                if (cloudRecordings.length > 0) {
-                    log('info', `Found ${cloudRecordings.length} recordings in cloud`);
-                    
-                    // Get all local recordings
-                    const localRecordings = await getAllRecordingsForWorldLmid(world, lmid);
-                    const localIds = new Set(localRecordings.map(r => r.id));
-                    
-                    // Add cloud recordings that don't exist locally
-                    let addedCount = 0;
-                    for (const cloudRec of cloudRecordings) {
-                        // Extract recording ID from filename
-                        const recordingId = cloudRec.filename.replace('.mp3', '');
-                        
-                        if (!localIds.has(recordingId)) {
-                            // Extract questionId from filename
-                            const match = cloudRec.filename.match(/question_([^-]+)-/);
-                            const questionId = match ? match[1] : 'unknown';
-                            
-                            const localRecordingData = {
-                                id: recordingId,
-                                questionId: questionId,
-                                world: world,
-                                lmid: lmid,
-                                audio: null, // No local blob for cloud-only recordings
-                                createdAt: new Date(cloudRec.lastModified).toISOString(),
-                                timestamp: cloudRec.lastModified,
-                                uploadStatus: 'uploaded',
-                                cloudUrl: cloudRec.url
-                            };
-                            
-                            try {
-                                await saveRecordingToDB(localRecordingData);
-                                addedCount++;
-                                log('debug', `Synced cloud recording: ${recordingId}`);
-                            } catch (error) {
-                                // Ignore duplicate key errors
-                                if (!error.message?.includes('Key already exists')) {
-                                    log('error', `Failed to sync recording ${recordingId}:`, error);
-                                }
-                            }
-                        }
-                    }
-                    
-                    log('info', `Cloud sync completed: ${addedCount} new recordings added`);
-                } else {
-                    log('info', 'No recordings found in cloud for this LMID');
-                }
-            } catch (error) {
-                log('warn', `Could not sync with cloud for LMID ${lmid}:`, error);
-                // Continue anyway - don't block initialization
-            }
+            // Simple approach - just ensure database is ready
+            // No sync needed - Bunny.net is our source of truth
+            log('info', 'Database ready for temporary recording storage');
             
             return true;
         }).catch(error => {
@@ -494,24 +438,56 @@ function log(level, message, data = null) {
         }
         
         try {
-            // Load recordings from database
-            let recordings = await loadRecordingsFromDB(questionId, world, lmid);
-            
-            // Don't sync from cloud here - it's done globally during initialization
-            // This prevents multiple requests for each question
-            
-            // Clear existing list
+            // Clear existing list first
             recordingsList.innerHTML = '';
             
-            if (recordings.length === 0) {
+            // Load recordings directly from cloud - Bunny.net is our source of truth
+            const cloudRecordings = await loadRecordingsFromCloud(questionId, world, lmid);
+            
+            // Also check for any local recordings that are still uploading
+            const localRecordings = await loadRecordingsFromDB(questionId, world, lmid);
+            const uploadingRecordings = localRecordings.filter(r => 
+                r.uploadStatus === 'pending' || r.uploadStatus === 'uploading' || r.uploadStatus === 'failed'
+            );
+            
+            // Combine cloud recordings with uploading local recordings
+            const allRecordings = [];
+            
+            // Add cloud recordings first
+            for (const cloudRec of cloudRecordings) {
+                const recordingId = cloudRec.filename.replace('.mp3', '');
+                allRecordings.push({
+                    id: recordingId,
+                    questionId: questionId,
+                    world: world,
+                    lmid: lmid,
+                    audio: null,
+                    createdAt: new Date(cloudRec.lastModified).toISOString(),
+                    timestamp: cloudRec.lastModified,
+                    uploadStatus: 'uploaded',
+                    cloudUrl: cloudRec.url
+                });
+            }
+            
+            // Add uploading recordings
+            allRecordings.push(...uploadingRecordings);
+            
+            // Sort by timestamp (newest first)
+            allRecordings.sort((a, b) => {
+                const timestampA = parseInt(a.id.split('-tm_')[1]) || a.timestamp || 0;
+                const timestampB = parseInt(b.id.split('-tm_')[1]) || b.timestamp || 0;
+                return timestampB - timestampA;
+            });
+            
+            if (allRecordings.length === 0) {
                 log('debug', `No recordings found for question: ${questionId}`);
                 return;
             }
             
-            log('debug', `Rendering ${recordings.length} recordings for question: ${questionId}`);
+            log('debug', `Rendering ${allRecordings.length} recordings for question: ${questionId} (${cloudRecordings.length} from cloud, ${uploadingRecordings.length} uploading)`);
             
             // Create elements for each recording
-            for (const recording of recordings) {
+            for (const recording of allRecordings) {
                 try {
                     const recordingElement = await createRecordingElement(
                         recording,

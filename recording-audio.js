@@ -230,7 +230,8 @@
             renderRecordingsList,
             setButtonText,
             formatTime,
-            log
+            log,
+            deleteRecordingFromDB
         } = dependencies;
 
         // Internal state
@@ -494,13 +495,15 @@
                 const uploadResult = await uploadResponse.json();
 
                 if (uploadResult.success) {
-                    // Update recording with cloud URL
-                    recordingData.cloudUrl = uploadResult.url;
-                    recordingData.uploadStatus = 'uploaded';
-                    await updateRecordingInDB(recordingData);
-
+                    // Upload successful - delete from local database
+                    // We don't need it anymore, Bunny.net is our source of truth
+                    await deleteRecordingFromDB(recordingData.id);
+                    
                     dispatchUploadStatusEvent(recordingData.id, 'uploaded');
-                    log('info', `Upload completed: ${recordingData.id}`);
+                    log('info', `Upload completed and local copy removed: ${recordingData.id}`);
+                    
+                    // Refresh the list to show the uploaded recording from cloud
+                    renderRecordingsList();
                 } else {
                     throw new Error(uploadResult.error || 'Upload failed');
                 }
