@@ -359,10 +359,12 @@
 }
 
     /**
-     * Set world background video - enhanced to use video backgrounds from API
+     * Set world background video - enhanced to use video backgrounds from API with image fallback
      */
     function setWorldBackground(world, backgroundUrl) {
         if (!world) return;
+        
+        console.log(`🎬 Setting background for world: ${world}, URL: ${backgroundUrl}`);
         
         const worldBg = document.getElementById('world-bg');
         const programContainer = document.querySelector('.program-container');
@@ -371,38 +373,49 @@
         let videoUrl = backgroundUrl;
         if (!videoUrl) {
             videoUrl = window.LM_CONFIG?.WORLD_VIDEOS?.[world];
+            console.log(`📹 Using config video URL: ${videoUrl}`);
         }
         
+        // Try video first
         if (videoUrl && videoUrl.endsWith('.mp4')) {
+            console.log(`🎥 Setting up video background: ${videoUrl}`);
+            
             // Create or update video element for world-bg
             if (worldBg) {
-                setupVideoBackground(worldBg, videoUrl);
+                setupVideoBackground(worldBg, videoUrl, world);
             }
             
             // Create or update video element for program-container
             if (programContainer) {
-                setupVideoBackground(programContainer, videoUrl);
+                setupVideoBackground(programContainer, videoUrl, world);
             }
-        } else if (videoUrl) {
-            // Fallback to image if not MP4
-            if (worldBg) {
-                worldBg.style.backgroundImage = `url('${videoUrl}')`;
-                worldBg.style.backgroundSize = 'cover';
-                worldBg.style.backgroundPosition = 'center';
-            }
+        } else {
+            // Fallback to image
+            console.log(`🖼️ Falling back to image background for ${world}`);
+            const imageUrl = backgroundUrl || window.LM_CONFIG?.WORLD_IMAGES?.[world];
             
-            if (programContainer) {
-                programContainer.style.backgroundImage = `url('${videoUrl}')`;
-                programContainer.style.backgroundSize = 'cover';
-                programContainer.style.backgroundPosition = 'center';
+            if (imageUrl) {
+                if (worldBg) {
+                    worldBg.style.backgroundImage = `url('${imageUrl}')`;
+                    worldBg.style.backgroundSize = 'cover';
+                    worldBg.style.backgroundPosition = 'center';
+                }
+                
+                if (programContainer) {
+                    programContainer.style.backgroundImage = `url('${imageUrl}')`;
+                    programContainer.style.backgroundSize = 'cover';
+                    programContainer.style.backgroundPosition = 'center';
+                }
             }
         }
     }
 
     /**
-     * Setup video background for an element
+     * Setup video background for an element with image fallback
      */
-    function setupVideoBackground(container, videoUrl) {
+    function setupVideoBackground(container, videoUrl, world) {
+        console.log(`🎬 Setting up video for container:`, container.id || container.className, `URL: ${videoUrl}`);
+        
         // Remove existing video if any
         const existingVideo = container.querySelector('.world-bg-video');
         if (existingVideo) {
@@ -420,6 +433,7 @@
         video.loop = true;
         video.muted = true;
         video.playsInline = true;
+        video.preload = 'auto';
         
         // Style the video to cover the container
         video.style.cssText = `
@@ -441,21 +455,40 @@
         // Add video to container
         container.appendChild(video);
         
-        // Handle video load errors
+        // Handle video load errors - fallback to image
         video.addEventListener('error', () => {
-            console.warn(`Failed to load video background: ${videoUrl}`);
+            console.warn(`❌ Failed to load video background: ${videoUrl}, falling back to image`);
             video.remove();
-            // Fallback to no background
-            container.style.backgroundColor = '#f0f0f0';
+            
+            // Fallback to image
+            const imageUrl = window.LM_CONFIG?.WORLD_IMAGES?.[world];
+            if (imageUrl) {
+                console.log(`🖼️ Using image fallback: ${imageUrl}`);
+                container.style.backgroundImage = `url('${imageUrl}')`;
+                container.style.backgroundSize = 'cover';
+                container.style.backgroundPosition = 'center';
+            } else {
+                container.style.backgroundColor = '#f0f0f0';
+            }
         });
         
         // Ensure video starts playing
         video.addEventListener('loadeddata', () => {
+            console.log(`✅ Video loaded successfully: ${videoUrl}`);
             video.play().catch(error => {
-                console.warn('Video autoplay failed:', error);
+                console.warn('⚠️ Video autoplay failed:', error);
                 // Video will still be visible as first frame
             });
         });
+        
+        // Force play attempt after a short delay
+        setTimeout(() => {
+            if (video.paused) {
+                video.play().catch(error => {
+                    console.warn('⚠️ Delayed video play failed:', error);
+                });
+            }
+        }, 500);
     }
 
     /**
@@ -529,16 +562,30 @@
         ).then(playerElement => {
             if (playerElement) {
                 // Remove the delete button since this is a radio page
-                const deleteButton = playerElement.querySelector('[style*="cursor: pointer"][style*="#F25444"]');
-                if (deleteButton) {
-                    deleteButton.style.display = 'none';
-                }
+                // Look for delete button by its SVG content and color
+                const deleteButtons = playerElement.querySelectorAll('div[style*="cursor: pointer"][style*="#F25444"]');
+                deleteButtons.forEach(btn => {
+                    if (btn.innerHTML.includes('viewBox="0 0 16 20"')) {
+                        btn.style.display = 'none';
+                        console.log('🗑️ Delete button hidden on radio page');
+                    }
+                });
+                
+                // Also try alternative selector
+                const allDeleteButtons = playerElement.querySelectorAll('div[style*="color: #F25444"]');
+                allDeleteButtons.forEach(btn => {
+                    if (btn.innerHTML.includes('svg')) {
+                        btn.style.display = 'none';
+                        console.log('🗑️ Delete button hidden (alternative selector)');
+                    }
+                });
                 
                 // Remove the upload icon since this is already uploaded
-                const uploadIcon = playerElement.querySelector('.upload-status');
-                if (uploadIcon) {
-                    uploadIcon.style.display = 'none';
-                }
+                const uploadIcons = playerElement.querySelectorAll('.upload-status');
+                uploadIcons.forEach(icon => {
+                    icon.style.display = 'none';
+                    console.log('📤 Upload icon hidden on radio page');
+                });
                 
                 // Add some styling to make it fit better in the radio context
                 const playerDiv = playerElement.querySelector('div[style*="background: white"]');
