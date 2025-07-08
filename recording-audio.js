@@ -518,8 +518,9 @@
          */
         function generateRecordingId() {
             const timestamp = Date.now();
-            const random = Math.random().toString(36).substr(2, 9);
-            return `kids-world_${world}-lmid_${lmid}-question_${questionId}-tm_${timestamp}-${random}`;
+            // Don't add extra random suffix - the timestamp is unique enough
+            // This matches the filename format expected by the system
+            return `kids-world_${world}-lmid_${lmid}-question_${questionId}-tm_${timestamp}`;
         }
 
         /**

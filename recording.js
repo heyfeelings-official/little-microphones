@@ -247,12 +247,56 @@ function log(level, message, data = null) {
             // Sync with cloud instead of aggressive cleanup
             try {
                 log('info', `Syncing recordings with cloud for LMID ${lmid}...`);
-                const syncResult = await syncRecordingsWithCloud(world, lmid);
                 
-                if (syncResult.success) {
-                    log('info', `Cloud sync completed: ${syncResult.syncedCount} recordings synced`);
+                // First, get all recordings from cloud for this world/lmid
+                const cloudRecordings = await loadRecordingsFromCloud(null, world, lmid);
+                
+                if (cloudRecordings.length > 0) {
+                    log('info', `Found ${cloudRecordings.length} recordings in cloud`);
+                    
+                    // Get all local recordings
+                    const localRecordings = await getAllRecordingsForWorldLmid(world, lmid);
+                    const localIds = new Set(localRecordings.map(r => r.id));
+                    
+                    // Add cloud recordings that don't exist locally
+                    let addedCount = 0;
+                    for (const cloudRec of cloudRecordings) {
+                        // Extract recording ID from filename
+                        const recordingId = cloudRec.filename.replace('.mp3', '');
+                        
+                        if (!localIds.has(recordingId)) {
+                            // Extract questionId from filename
+                            const match = cloudRec.filename.match(/question_([^-]+)-/);
+                            const questionId = match ? match[1] : 'unknown';
+                            
+                            const localRecordingData = {
+                                id: recordingId,
+                                questionId: questionId,
+                                world: world,
+                                lmid: lmid,
+                                audio: null, // No local blob for cloud-only recordings
+                                createdAt: new Date(cloudRec.lastModified).toISOString(),
+                                timestamp: cloudRec.lastModified,
+                                uploadStatus: 'uploaded',
+                                cloudUrl: cloudRec.url
+                            };
+                            
+                            try {
+                                await saveRecordingToDB(localRecordingData);
+                                addedCount++;
+                                log('debug', `Synced cloud recording: ${recordingId}`);
+                            } catch (error) {
+                                // Ignore duplicate key errors
+                                if (!error.message?.includes('Key already exists')) {
+                                    log('error', `Failed to sync recording ${recordingId}:`, error);
+                                }
+                            }
+                        }
+                    }
+                    
+                    log('info', `Cloud sync completed: ${addedCount} new recordings added`);
                 } else {
-                    log('warn', `Cloud sync failed: ${syncResult.error}`);
+                    log('info', 'No recordings found in cloud for this LMID');
                 }
             } catch (error) {
                 log('warn', `Could not sync with cloud for LMID ${lmid}:`, error);
@@ -374,30 +418,16 @@ function log(level, message, data = null) {
         
         // Sync with cloud once, then render all recording lists
         setTimeout(() => {
-            syncRecordingsWithCloud(world, lmid).then(result => {
-                log('info', `Background sync completed: ${result.syncedCount} recordings synced`);
-                // Now render all recording lists after sync
-                recorderWrappers.forEach((wrapper, index) => {
-                    const questionId = normalizeQuestionId(
-                        wrapper.dataset.questionId || 
-                        wrapper.dataset.question || 
-                        wrapper.id || 
-                        `question_${index + 1}`
-                    );
-                    renderRecordingsList(wrapper, questionId, world, lmid);
-                });
-            }).catch(error => {
-                log('error', 'Background sync failed:', error);
-                // Still render lists even if sync fails
-                recorderWrappers.forEach((wrapper, index) => {
-                    const questionId = normalizeQuestionId(
-                        wrapper.dataset.questionId || 
-                        wrapper.dataset.question || 
-                        wrapper.id || 
-                        `question_${index + 1}`
-                    );
-                    renderRecordingsList(wrapper, questionId, world, lmid);
-                });
+            // No need to sync again - just render the lists
+            log('info', 'Rendering all recording lists...');
+            recorderWrappers.forEach((wrapper, index) => {
+                const questionId = normalizeQuestionId(
+                    wrapper.dataset.questionId || 
+                    wrapper.dataset.question || 
+                    wrapper.id || 
+                    `question_${index + 1}`
+                );
+                renderRecordingsList(wrapper, questionId, world, lmid);
             });
         }, 500); // Small delay to ensure everything is ready
         
