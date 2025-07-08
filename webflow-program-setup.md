@@ -1,262 +1,220 @@
-# 🎵 Webflow Radio Program Page - Single Container Setup Guide
+# Webflow Radio Program Setup Guide
 
-## 📋 Nowa Struktura - Jeden Kontener z Dynamicznymi Stanami
+## Overview
+This guide helps you set up the radio program page in Webflow using the simplified single-container approach with JavaScript-controlled state management.
 
-Zamiast 3 kontenerów, mamy teraz **JEDEN kontener** z elementami które się podmieniają:
+## Required Structure
 
-### **Struktura HTML:**
+### HTML Structure (Single Container)
 ```html
 <div class="program-container">
-    <!-- 1. STATYCZNY HEADER -->
+    <!-- STATIC ELEMENTS (always visible) -->
     <div class="program-header">
         <h2>Little Microphones</h2>
-        <h1 id="world-name">Spookyland</h1>
+        <h1 id="world-name">Loading...</h1>
     </div>
     
-    <!-- 2. STATYCZNE INFO NAUCZYCIELA -->
     <div class="teacher-info">
-        <div id="teacher-full-name">John Teacher & The Kids</div>
-        <div id="school-name">from Elementary X</div>
+        <div id="teacher-full-name">Loading...</div>
+        <div id="school-name">Loading...</div>
     </div>
     
-    <!-- 3. DYNAMICZNE STANY (tylko jeden widoczny) -->
-    <div id="loading-state">Loading...</div>
-    <div id="generating-state" style="display: none;">Generating...</div>
-    <div id="player-state" style="display: none;">[Player będzie wstrzyknięty przez JS]</div>
+    <!-- DYNAMIC STATE ELEMENTS (JavaScript controls visibility) -->
+    <div id="loading-state">
+        <div id="loading-text">Loading your radio program...</div>
+    </div>
+    
+    <div id="generating-state" style="display: none;">
+        <div id="generating-text">Generating your radio program...</div>
+    </div>
+    
+    <div id="player-state" style="display: none;">
+        <!-- Audio player will be injected here by JavaScript -->
+    </div>
 </div>
 ```
 
----
+## Required Element IDs
 
-## 🛠️ **Krok po Kroku Setup w Webflow**
+### Container Elements
+- `.program-container` - Main container (class, not ID)
+- `#world-bg` (optional) - Element for world background image
 
-### **Krok 1: Główny Kontener**
-1. **Dodaj Div Block** z klasą `program-container`
-2. **Styluj** według własnego designu
+### Static Content Elements
+- `#world-name` - Displays the world name (e.g., "Spookyland")
+- `#teacher-full-name` - Displays teacher name
+- `#school-name` - Displays school name
 
-### **Krok 2: Statyczny Header**
-```html
-<div class="program-header">
-    <h2>Little Microphones</h2>
-    <h1 id="world-name">Spookyland</h1>
-</div>
-```
+### Dynamic State Elements
+- `#loading-state` - Container for loading state
+- `#loading-text` - Loading message text
+- `#generating-state` - Container for generating state
+- `#generating-text` - Generating message text
+- `#player-state` - Container for audio player (content injected by JS)
 
-**W Webflow:**
-1. **Dodaj Div Block** z klasą `program-header`
-2. **Dodaj H2** z tekstem "Little Microphones" (nigdy się nie zmienia)
-3. **Dodaj H1** z **ID: `world-name`** i tekstem "Spookyland" (JavaScript podmieni)
+## CSS Classes (Optional but Recommended)
 
-### **Krok 3: Statyczne Info Nauczyciela**
-```html
-<div class="teacher-info">
-    <div id="teacher-full-name">John Teacher & The Kids</div>
-    <div id="school-name">from Elementary X</div>
-</div>
-```
-
-**W Webflow:**
-1. **Dodaj Div Block** z klasą `teacher-info`
-2. **Dodaj Div** z **ID: `teacher-full-name`** i tekstem "John Teacher & The Kids"
-3. **Dodaj Div** z **ID: `school-name`** i tekstem "from Elementary X"
-
-### **Krok 4: Stan Loading**
-```html
-<div id="loading-state">
-    <div id="loading-text">Loading your radio program...</div>
-</div>
-```
-
-**W Webflow:**
-1. **Dodaj Div Block** z **ID: `loading-state`**
-2. **Dodaj Text Block** z **ID: `loading-text`** i tekstem "Loading your radio program..."
-3. **Styluj** według potrzeb (spinner, animacje, etc.)
-
-### **Krok 5: Stan Generating**
-```html
-<div id="generating-state" style="display: none;">
-    <div id="generating-text">Generating your radio program...</div>
-</div>
-```
-
-**W Webflow:**
-1. **Dodaj Div Block** z **ID: `generating-state`**
-2. **Ustaw Display: None** w Designer
-3. **Dodaj Text Block** z **ID: `generating-text`** i tekstem "Generating your radio program..."
-4. **Styluj** (może być animacja ładowania)
-
-### **Krok 6: Stan Player**
-```html
-<div id="player-state" style="display: none;">
-    <!-- JavaScript wstrzyknie customowy player tutaj -->
-</div>
-```
-
-**W Webflow:**
-1. **Dodaj Div Block** z **ID: `player-state`**
-2. **Ustaw Display: None** w Designer
-3. **Zostaw pusty** - JavaScript wstrzyknie cały player
-4. **Styluj kontener** (padding, background, etc.)
-
----
-
-## 🎯 **Wymagane ID dla JavaScript:**
-
-### **Statyczne Elementy:**
-- `#world-name` - nazwa świata (JavaScript podmieni)
-- `#teacher-full-name` - imię nauczyciela (JavaScript podmieni)
-- `#school-name` - nazwa szkoły (JavaScript podmieni)
-
-### **Stany Dynamiczne:**
-- `#loading-state` - kontener loading (JavaScript pokaże/ukryje)
-- `#loading-text` - tekst loading (JavaScript podmieni)
-- `#generating-state` - kontener generating (JavaScript pokaże/ukryje)
-- `#generating-text` - tekst generating (JavaScript podmieni losowe)
-- `#player-state` - kontener player (JavaScript wstrzyknie player)
-
----
-
-## 🎨 **Stylowanie w Webflow**
-
-### **Program Container:**
 ```css
 .program-container {
-    max-width: 600px;
-    margin: 0 auto;
-    padding: 20px;
-    border-radius: 20px;
-    /* Tło świata zostanie ustawione przez JavaScript */
+    position: relative;
+    padding: 40px;
+    border-radius: 16px;
+    background-size: cover;
+    background-position: center;
+    min-height: 400px;
 }
-```
 
-### **Header:**
-```css
 .program-header {
-    text-align: center;
-    margin-bottom: 20px;
-}
-
-.program-header h2 {
-    font-size: 16px;
-    opacity: 0.8;
-    margin-bottom: 10px;
-}
-
-.program-header h1 {
-    font-size: 36px;
-    font-weight: bold;
-    margin: 0;
-}
-```
-
-### **Teacher Info:**
-```css
-.teacher-info {
     text-align: center;
     margin-bottom: 30px;
 }
 
-#teacher-full-name {
-    font-size: 18px;
-    font-weight: 500;
-    margin-bottom: 5px;
-}
-
-#school-name {
+.teacher-info {
+    text-align: center;
+    margin-bottom: 30px;
     font-size: 14px;
-    opacity: 0.7;
+    opacity: 0.8;
 }
-```
 
-### **Loading State:**
-```css
-#loading-state {
+#loading-state, #generating-state, #player-state {
+    background: rgba(255, 255, 255, 0.95);
+    padding: 30px;
+    border-radius: 12px;
     text-align: center;
-    padding: 40px 20px;
-}
-
-#loading-text {
-    font-size: 18px;
-    animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-    0%, 100% { opacity: 0.7; }
-    50% { opacity: 1; }
-}
-```
-
-### **Generating State:**
-```css
-#generating-state {
-    text-align: center;
-    padding: 40px 20px;
 }
 
 #generating-text {
-    font-size: 16px;
-    font-style: italic;
-    color: #666;
+    font-size: 18px;
+    font-weight: 500;
+    color: #333;
 }
+
+/* Audio player styling handled by inline styles in JavaScript */
 ```
 
-### **Player State:**
-```css
-#player-state {
-    padding: 20px;
-    background: rgba(255,255,255,0.1);
-    border-radius: 15px;
-    backdrop-filter: blur(10px);
-}
+## JavaScript Integration
 
-/* Style dla elementów playera (opcjonalne) */
-.audio-player-container {
-    /* JavaScript wstrzyknie player - możesz stylować */
-}
+### 1. Include Required Scripts
+Add these scripts in Webflow's custom code section (before </body> tag):
+
+```html
+<!-- Configuration -->
+<script src="https://little-microphones.vercel.app/config.js"></script>
+
+<!-- Radio Program Script -->
+<script src="https://little-microphones.vercel.app/radio.js"></script>
 ```
 
----
+### 2. NO Additional Initialization Needed
+The radio.js script automatically:
+- Detects when DOM is loaded
+- Extracts ShareID from URL (?ID=xxx)
+- Loads world and teacher data
+- Manages state transitions
+- Handles audio player creation
 
-## 🚀 **Jak to Działa:**
+### 3. URL Parameters
+The page expects a ShareID in the URL:
+```
+https://yoursite.com/radio?ID=p4l909my
+```
 
-### **JavaScript Logic:**
-1. **Statyczne elementy** nigdy się nie ukrywają - tylko zmieniają tekst
-2. **Stany dynamiczne** - tylko jeden widoczny na raz:
-   - Loading → Generating → Player
-3. **Player** jest wstrzykiwany przez JavaScript (customowy z /rp)
+## State Management
 
-### **Automatyczne Funkcje:**
-- ✅ **Tło świata** ustawiane automatycznie
-- ✅ **Nazwa świata** formatowana (spookyland → Spookyland)
-- ✅ **Dane nauczyciela** pobierane z Memberstack
-- ✅ **Zabawne teksty** podczas generating (15 losowych)
-- ✅ **Customowy player** z pełną kontrolą
+The JavaScript automatically manages three states:
 
-### **Development Mode:**
-- Wszystkie 3 stany widoczne jednocześnie z ramkami
-- Ustaw `DEVELOPMENT_MODE = false` gdy skończysz
+1. **Loading State** (initial)
+   - Shows: loading-state
+   - Hides: generating-state, player-state
+   - Displays: "Loading your radio program..."
 
----
+2. **Generating State** (when creating new program)
+   - Shows: generating-state
+   - Hides: loading-state, player-state
+   - Displays: Fun rotating messages every 2 seconds
 
-## 📱 **Responsive Design:**
+3. **Player State** (when program is ready)
+   - Shows: player-state
+   - Hides: loading-state, generating-state
+   - Contains: Custom audio player with full controls
 
-Pamiętaj o:
-- **Mobile breakpoints** w Webflow
-- **Font sizes** na różnych urządzeniach  
-- **Padding/margins** dla mobile
-- **Player controls** na touch devices
+## Features Included
 
----
+### Automatic Features
+- ✅ World background image from configuration
+- ✅ Teacher data fetched from API
+- ✅ World name formatting (spookyland → Spookyland)
+- ✅ Fun generating messages that rotate
+- ✅ Mobile-responsive audio player
+- ✅ Automatic program generation when needed
 
-## ✅ **Checklist Setup:**
+### Audio Player Features
+- Play/pause button
+- Progress bar (clickable for seeking)
+- Time display (current/total)
+- Volume control with mute
+- Recording count display
+- Styled with inline CSS (no external styles needed)
 
-- [ ] Główny kontener `.program-container`
-- [ ] Header z `#world-name`
-- [ ] Teacher info z `#teacher-full-name` i `#school-name`
-- [ ] Loading state z `#loading-state` i `#loading-text`
-- [ ] Generating state z `#generating-state` i `#generating-text` (hidden)
-- [ ] Player state z `#player-state` (hidden)
-- [ ] Wszystkie style w Webflow Designer
-- [ ] Test na mobile i desktop
+## Testing
 
-**Po setup ustaw `DEVELOPMENT_MODE = false` w radio.js!** 🎉 
+### Development Testing
+1. Create the HTML structure in Webflow
+2. Add required IDs to elements
+3. Include the JavaScript files
+4. Test with a valid ShareID: `?ID=p4l909my`
+
+### Common Issues
+
+1. **"Required elements not found"**
+   - Check that all required IDs exist
+   - Ensure IDs are exactly as specified (case-sensitive)
+
+2. **"No ShareID found in URL"**
+   - Make sure URL includes `?ID=xxxxx` parameter
+
+3. **Styles not applying**
+   - The audio player uses inline styles
+   - Container background is set via JavaScript
+   - Add your own CSS for container styling
+
+## Mobile Considerations
+
+The system is mobile-optimized:
+- Audio player is responsive
+- Touch-friendly controls
+- No popups (uses direct links)
+- Automatic state management
+
+## Example Complete Setup
+
+```html
+<div class="program-container">
+    <div class="program-header">
+        <h2>Little Microphones</h2>
+        <h1 id="world-name">Loading...</h1>
+    </div>
+    
+    <div class="teacher-info">
+        <div id="teacher-full-name">Loading...</div>
+        <div id="school-name">Loading...</div>
+    </div>
+    
+    <div id="loading-state">
+        <div id="loading-text">Loading your radio program...</div>
+    </div>
+    
+    <div id="generating-state" style="display: none;">
+        <div id="generating-text">Mixing magical audio potions...</div>
+    </div>
+    
+    <div id="player-state" style="display: none;">
+        <!-- Player injected here -->
+    </div>
+</div>
+
+<script src="https://little-microphones.vercel.app/config.js"></script>
+<script src="https://little-microphones.vercel.app/radio.js"></script>
+```
+
+That's it! The system handles everything else automatically. 

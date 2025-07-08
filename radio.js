@@ -24,31 +24,111 @@
     // API Configuration
     const API_BASE_URL = window.LM_CONFIG?.API_BASE_URL || 'https://little-microphones.vercel.app';
 
-    // Fun generating messages that loop
+    // Fun generating messages
     const GENERATING_MESSAGES = [
-        'Mixing magical audio potions...',
-        'Teaching robots to speak kid language...',
-        'Sprinkling digital fairy dust...',
-        'Convincing microphones to cooperate...',
-        'Assembling audio LEGO blocks...',
-        'Training AI to understand giggles...',
-        'Weaving sound waves together...',
-        'Asking the audio elves for help...',
-        'Translating excitement into radio waves...',
-        'Collecting scattered sound particles...',
-        'Brewing the perfect audio recipe...',
-        'Negotiating with stubborn sound files...',
-        'Building bridges between recordings...',
-        'Summoning the radio program spirits...',
-        'Organizing a symphony of voices...'
+        "Mixing magical audio potions...",
+        "Teaching robots to speak kid language...",
+        "Sprinkling digital fairy dust...",
+        "Warming up the radio transmitters...",
+        "Collecting voice sparkles...",
+        "Tuning the imagination frequencies...",
+        "Assembling story molecules...",
+        "Charging up the fun-o-meter...",
+        "Downloading giggles from the cloud...",
+        "Activating the awesome sauce...",
+        "Brewing a batch of audio magic...",
+        "Gathering rainbow sound waves...",
+        "Polishing the voice crystals...",
+        "Spinning the wheel of wonder...",
+        "Unleashing the creativity dragons..."
     ];
+    
+    // Current message index
+    let currentMessageIndex = 0;
+    
+    /**
+     * Convert recordings to audioSegments format for combine-audio API
+     * This is a simplified version of convertRecordingsToAudioSegments from audio-utils.js
+     */
+    function convertRecordingsToAudioSegments(recordings, world) {
+        const audioSegments = [];
+        
+        // Group recordings by questionId
+        const recordingsByQuestion = {};
+        recordings.forEach(recording => {
+            // Extract questionId from filename
+            let questionId = '1'; // default
+            if (recording.filename) {
+                const match = recording.filename.match(/question_(\d+)/);
+                if (match) {
+                    questionId = match[1];
+                }
+            }
+            
+            if (!recordingsByQuestion[questionId]) {
+                recordingsByQuestion[questionId] = [];
+            }
+            recordingsByQuestion[questionId].push(recording);
+        });
+        
+        // Sort question IDs numerically
+        const sortedQuestionIds = Object.keys(recordingsByQuestion).sort((a, b) => parseInt(a) - parseInt(b));
+        
+        // 1. Add intro
+        const introTimestamp = Date.now();
+        audioSegments.push({
+            type: 'single',
+            url: `https://little-microphones.b-cdn.net/audio/other/intro.mp3?t=${introTimestamp}`
+        });
+        
+        // 2. Add questions and answers in order
+        sortedQuestionIds.forEach(questionId => {
+            const questionRecordings = recordingsByQuestion[questionId];
+            
+            // Add question prompt
+            const cacheBustTimestamp = Date.now() + Math.random();
+            audioSegments.push({
+                type: 'single',
+                url: `https://little-microphones.b-cdn.net/audio/${world}/${world}-QID${questionId}.mp3?t=${cacheBustTimestamp}`
+            });
+            
+            // Sort answers by timestamp (first recorded = first played)
+            const sortedAnswers = questionRecordings.sort((a, b) => {
+                // Extract timestamp from filename
+                const getTimestamp = (filename) => {
+                    const match = filename?.match(/tm_(\d+)/);
+                    return match ? parseInt(match[1]) : 0;
+                };
+                return getTimestamp(a.filename) - getTimestamp(b.filename);
+            });
+            
+            // Combine answers with background music
+            const backgroundTimestamp = Date.now() + Math.random();
+            audioSegments.push({
+                type: 'combine_with_background',
+                answerUrls: sortedAnswers.map(recording => recording.url || recording.cloudUrl),
+                backgroundUrl: `https://little-microphones.b-cdn.net/audio/other/monkeys.mp3?t=${backgroundTimestamp}`,
+                questionId: questionId
+            });
+        });
+        
+        // 3. Add outro
+        const outroTimestamp = Date.now() + 1;
+        audioSegments.push({
+            type: 'single',
+            url: `https://little-microphones.b-cdn.net/audio/other/outro.mp3?t=${outroTimestamp}`
+        });
+        
+        console.log(`🎼 Generated ${audioSegments.length} audio segments for ${sortedQuestionIds.length} questions`);
+        return audioSegments;
+    }
 
     /**
      * Initialize the radio page
      */
     document.addEventListener('DOMContentLoaded', function() {
-        console.log('🎵 Radio page initializing...');
-        
+    console.log('🎵 Radio page initializing...');
+    
         // Extract ShareID from URL
         const urlParams = new URLSearchParams(window.location.search);
         currentShareId = urlParams.get('ID');
@@ -131,7 +211,7 @@
                     lmid: data.lmid,
                     backgroundUrl: data.backgroundUrl
                 };
-            } else {
+        } else {
                 throw new Error(data.error || 'Failed to fetch world info');
             }
         } catch (error) {
@@ -253,9 +333,9 @@
                 element.style.display = 'none';
             }
         });
-    }
+}
 
-    /**
+/**
      * Show specific state element
      */
     function showState(stateId) {
@@ -276,10 +356,10 @@
         if (worldElement) {
             worldElement.textContent = formattedWorld;
             console.log(`🌍 Updated world name: ${formattedWorld}`);
-        }
     }
+}
 
-    /**
+/**
      * Update teacher and school info
      */
     function updateTeacherInfo(teacherName, schoolName) {
@@ -301,8 +381,8 @@
      * Set world background image - enhanced to use backgroundUrl from API
      */
     function setWorldBackground(world, backgroundUrl) {
-        if (!world) return;
-        
+    if (!world) return;
+    
         const worldBg = document.getElementById('world-bg');
         const programContainer = document.querySelector('.program-container');
         
@@ -337,10 +417,10 @@
         const loadingText = document.getElementById('loading-text');
         if (loadingText) {
             loadingText.textContent = message;
-        }
     }
+}
 
-    /**
+/**
      * Update generating message
      */
     function updateGeneratingMessage(message) {
@@ -372,8 +452,8 @@
                 }
                 
                 .custom-audio-controls {
-                    display: flex;
-                    align-items: center;
+        display: flex;
+        align-items: center;
                     gap: 12px;
                     margin-bottom: 12px;
                 }
@@ -386,9 +466,9 @@
                     background: #007ace;
                     color: white;
                     cursor: pointer;
-                    display: flex;
+        display: flex;
                     align-items: center;
-                    justify-content: center;
+        justify-content: center;
                     font-size: 16px;
                     transition: background 0.2s;
                 }
@@ -402,22 +482,22 @@
                     display: flex;
                     flex-direction: column;
                     gap: 8px;
-                }
-                
-                .progress-bar {
-                    width: 100%;
+        }
+        
+        .progress-bar {
+            width: 100%;
                     height: 6px;
                     background: #e0e0e0;
                     border-radius: 3px;
                     cursor: pointer;
                     position: relative;
-                }
-                
-                .progress-fill {
-                    height: 100%;
+        }
+        
+        .progress-fill {
+            height: 100%;
                     background: #007ace;
                     border-radius: 3px;
-                    width: 0%;
+            width: 0%;
                     transition: width 0.1s;
                 }
                 
@@ -436,9 +516,9 @@
                 
                 .volume-btn {
                     background: none;
-                    border: none;
-                    font-size: 16px;
-                    cursor: pointer;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
                     padding: 4px;
                 }
                 
@@ -461,7 +541,7 @@
                 }
                 
                 .recording-info {
-                    text-align: center;
+            text-align: center;
                     font-size: 14px;
                     color: #666;
                     margin-top: 8px;
@@ -671,13 +751,17 @@
         showGeneratingState();
         
         try {
+            // Convert recordings to audioSegments format
+            const audioSegments = convertRecordingsToAudioSegments(data.currentRecordings, data.world);
+
             // Call combine API
             const combineResponse = await fetch(`${API_BASE_URL}/api/combine-audio`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     lmid: data.lmid,
-                    world: data.world
+                    world: data.world,
+                    audioSegments: audioSegments
                 })
             });
             
