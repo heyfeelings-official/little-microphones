@@ -119,8 +119,22 @@ export default async function handler(req, res) {
         });
 
         if (!response.ok) {
+            // Handle 404 specifically - folder doesn't exist yet (new LMID)
+            if (response.status === 404) {
+                console.log(`Folder ${folderPath} does not exist yet (new LMID)`);
+                return res.status(200).json({
+                    success: true,
+                    world: world,
+                    lmid: lmid,
+                    questionId: questionId || 'all',
+                    count: 0,
+                    recordings: []
+                });
+            }
+            
             console.error(`Bunny.net list failed: ${response.status} ${response.statusText}`);
             return res.status(500).json({ 
+                success: false,
                 error: 'Failed to list recordings from cloud storage',
                 details: `HTTP ${response.status}`
             });
