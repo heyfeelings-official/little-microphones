@@ -237,8 +237,8 @@ async function combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams) {
             const segment = audioSegments[i];
             console.log(`🎵 Processing segment ${i + 1}/${audioSegments.length}:`, segment.type);
             
-            if (segment.type === 'single') {
-                // Single audio file (intro, outro, questions)
+            if (segment.type === 'single' || segment.type === 'recording') {
+                // Single audio file (intro, outro, questions, recordings)
                 const fileName = `segment-${String(i).padStart(3, '0')}-single.mp3`;
                 const filePath = path.join(tempDir, fileName);
                 
@@ -253,6 +253,23 @@ async function combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams) {
                 });
                 
                 console.log(`✅ Processed single segment ${i + 1}: ${fileName}`);
+                
+            } else if (segment.type === 'question_intro' || segment.type === 'pause' || segment.type === 'question_transition') {
+                // Generate silent audio for intro/pause/transition segments
+                const fileName = `segment-${String(i).padStart(3, '0')}-${segment.type}.mp3`;
+                const filePath = path.join(tempDir, fileName);
+                
+                const duration = segment.duration || 2; // default 2 seconds
+                console.log(`🔧 Generating ${duration}s silent segment for ${segment.type}`);
+                await generateSilentPlaceholder(filePath, duration);
+                
+                processedSegments.push({
+                    path: filePath,
+                    type: 'single',
+                    originalIndex: i
+                });
+                
+                console.log(`✅ Processed ${segment.type} segment ${i + 1}: ${fileName}`);
                 
             } else if (segment.type === 'combine_with_background') {
                 // Combine multiple answers with background music

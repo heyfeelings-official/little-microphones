@@ -206,6 +206,8 @@
                 showError('Generation Failed', `Failed to generate radio program: ${error.message}`);
             } finally {
                 isGenerating = false;
+                // Ensure loading state is always hidden
+                hideLoadingState();
             }
         }
 
