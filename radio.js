@@ -452,9 +452,6 @@
             container.style.position = 'relative';
         }
         
-        // Ensure container content is above video
-        container.style.zIndex = '1';
-        
         // Add video to container
         container.appendChild(video);
         
