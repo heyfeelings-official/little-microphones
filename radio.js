@@ -1,11 +1,11 @@
 /**
- * radio.js - Simplified Radio Program Page for Webflow Integration
+ * radio.js - Single Container Radio Program Page for Webflow Integration
  * 
- * PURPOSE: Controls 3 Webflow containers for different states
- * CONTAINERS:
- * 1. #loading-container - Loading state
- * 2. #player-container - Audio player state  
- * 3. #generating-container - Generation progress state
+ * PURPOSE: Controls ONE container with dynamic state elements
+ * STRUCTURE:
+ * 1. Static header: "Little Microphones" + world name
+ * 2. Static teacher info: "John Teacher & The Kids from Elementary X" 
+ * 3. Dynamic state element: Loading/Generating/Player
  * 
  * NO INLINE STYLES - All styling done in Webflow
  * NO HTML GENERATION - Uses existing Webflow elements
@@ -24,7 +24,7 @@
     // API Configuration
     const API_BASE_URL = window.LM_CONFIG?.API_BASE_URL || 'https://little-microphones.vercel.app';
 
-    // TEMPORARY: Development mode - show all containers
+    // TEMPORARY: Development mode - show all states
     const DEVELOPMENT_MODE = true;
 
     // Fun generating messages that loop
@@ -64,63 +64,57 @@
         
         console.log('📻 ShareID extracted:', currentShareId);
         
-        // Initialize containers
-        initializeContainers();
+        // Initialize state elements
+        initializeStateElements();
         
         // Start loading
-        showLoading();
+        showLoadingState();
         
         // Load radio data
         loadRadioData();
     });
 
     /**
-     * Initialize all containers
+     * Initialize state elements for development
      */
-    function initializeContainers() {
-        const containers = [
-            'loading-container',
-            'player-container', 
-            'generating-container'
-        ];
-        
-        containers.forEach(containerId => {
-            const container = document.getElementById(containerId);
-            if (container) {
-                if (DEVELOPMENT_MODE) {
-                    // DEVELOPMENT: Show all containers
-                    container.style.display = 'block';
-                    container.style.marginBottom = '20px';
-                    container.style.border = '2px solid #ccc';
-                    container.style.padding = '20px';
-                    console.log(`✅ ${containerId} found and visible for development`);
+    function initializeStateElements() {
+        if (DEVELOPMENT_MODE) {
+            // Show all state elements for development
+            const stateElements = [
+                'loading-state',
+                'generating-state', 
+                'player-state'
+            ];
+            
+            stateElements.forEach(elementId => {
+                const element = document.getElementById(elementId);
+                if (element) {
+                    element.style.display = 'block';
+                    element.style.marginBottom = '20px';
+                    element.style.border = '2px solid #ccc';
+                    element.style.padding = '20px';
+                    console.log(`✅ ${elementId} found and visible for development`);
                 } else {
-                    // PRODUCTION: Hide all initially
-                    container.style.display = 'none';
-                    console.log(`✅ ${containerId} found and hidden`);
+                    console.warn(`❌ State element not found: ${elementId}`);
                 }
-            } else {
-                console.warn(`❌ Container not found: ${containerId}`);
-            }
-        });
+            });
+        }
         
-        console.log('✅ Program container initialized');
+        console.log('✅ State elements initialized');
     }
 
     /**
      * Show loading state
      */
-    function showLoading() {
+    function showLoadingState() {
         console.log('📡 Showing loading state');
         
         if (!DEVELOPMENT_MODE) {
-            hideAllContainers();
-            showContainer('loading-container');
+            hideAllStates();
+            showState('loading-state');
         }
         
-        updateWorldInfo('Loading...', '', '');
         updateLoadingMessage('Loading your radio program...');
-        
         currentState = 'loading';
         console.log('📡 Loading state shown');
     }
@@ -128,26 +122,16 @@
     /**
      * Show player state
      */
-    function showPlayer(audioUrl, radioData) {
+    function showPlayerState(audioUrl, radioData) {
         console.log('🎵 Showing player state');
         
         if (!DEVELOPMENT_MODE) {
-            hideAllContainers();
-            showContainer('player-container');
+            hideAllStates();
+            showState('player-state');
         }
-        
-        // Update world info
-        updateWorldInfo(
-            radioData.world || 'Unknown World',
-            radioData.teacherName || 'Teacher & The Kids',
-            radioData.schoolName || 'from School'
-        );
         
         // Setup audio player
         setupAudioPlayer(audioUrl, radioData);
-        
-        // Set world background
-        setWorldBackground(radioData.world);
         
         currentState = 'player';
         console.log('✅ Player state shown');
@@ -156,25 +140,16 @@
     /**
      * Show generating state
      */
-    function showGenerating() {
+    function showGeneratingState() {
         console.log('⚙️ Showing generating state');
         
         if (!DEVELOPMENT_MODE) {
-            hideAllContainers();
-            showContainer('generating-container');
+            hideAllStates();
+            showState('generating-state');
         }
-        
-        updateWorldInfo(
-            currentRadioData?.world || 'Unknown World',
-            '', // Don't show teacher during generating
-            ''  // Don't show school during generating
-        );
         
         // Start looped generating messages
         startGeneratingMessages();
-        
-        // Set world background
-        setWorldBackground(currentRadioData?.world);
         
         currentState = 'generating';
         console.log('✅ Generating state shown');
@@ -192,12 +167,12 @@
         }
         
         // Show first message immediately
-        updateGeneratingStatus(GENERATING_MESSAGES[messageIndex], 0);
+        updateGeneratingMessage(GENERATING_MESSAGES[messageIndex]);
         
         // Loop through messages every 2 seconds
         generatingInterval = setInterval(() => {
             messageIndex = (messageIndex + 1) % GENERATING_MESSAGES.length;
-            updateGeneratingStatus(GENERATING_MESSAGES[messageIndex], Math.random() * 90 + 5); // Random progress 5-95%
+            updateGeneratingMessage(GENERATING_MESSAGES[messageIndex]);
         }, 2000);
     }
 
@@ -208,6 +183,58 @@
         if (generatingInterval) {
             clearInterval(generatingInterval);
             generatingInterval = null;
+        }
+    }
+
+    /**
+     * Hide all state elements
+     */
+    function hideAllStates() {
+        const states = ['loading-state', 'generating-state', 'player-state'];
+        states.forEach(stateId => {
+            const element = document.getElementById(stateId);
+            if (element) {
+                element.style.display = 'none';
+            }
+        });
+    }
+
+    /**
+     * Show specific state element
+     */
+    function showState(stateId) {
+        const element = document.getElementById(stateId);
+        if (element) {
+            element.style.display = 'block';
+        }
+    }
+
+    /**
+     * Update world name in header
+     */
+    function updateWorldName(worldName) {
+        const formattedWorld = window.LM_CONFIG?.UTILS?.formatWorldName(worldName) || 
+                              (worldName ? worldName.charAt(0).toUpperCase() + worldName.slice(1).replace(/-/g, ' ') : 'Loading...');
+        
+        const worldElement = document.getElementById('world-name');
+        if (worldElement) {
+            worldElement.textContent = formattedWorld;
+        }
+    }
+
+    /**
+     * Update teacher and school info
+     */
+    function updateTeacherInfo(teacherName, schoolName) {
+        const teacherElement = document.getElementById('teacher-full-name');
+        const schoolElement = document.getElementById('school-name');
+        
+        if (teacherElement && teacherName) {
+            teacherElement.textContent = teacherName;
+        }
+        
+        if (schoolElement && schoolName) {
+            schoolElement.textContent = schoolName;
         }
     }
 
@@ -242,158 +269,158 @@
     }
 
     /**
-     * Hide all containers
-     */
-    function hideAllContainers() {
-        const containers = ['loading-container', 'player-container', 'generating-container'];
-        containers.forEach(containerId => {
-            const container = document.getElementById(containerId);
-            if (container) {
-                container.style.display = 'none';
-            }
-        });
-    }
-
-    /**
-     * Show specific container
-     */
-    function showContainer(containerId) {
-        const container = document.getElementById(containerId);
-        if (container) {
-            container.style.display = 'block';
-        }
-    }
-
-    /**
-     * Update world info across all containers
-     */
-    function updateWorldInfo(worldName, teacherName, schoolName) {
-        // Format world name properly
-        const formattedWorld = window.LM_CONFIG?.UTILS?.formatWorldName(worldName) || 
-                              (worldName ? worldName.charAt(0).toUpperCase() + worldName.slice(1).replace(/-/g, ' ') : 'Loading...');
-        
-        // Update world names
-        const worldElements = document.querySelectorAll('.world-name, #program-world-name');
-        worldElements.forEach(el => {
-            if (el) el.textContent = formattedWorld;
-        });
-        
-        // Update teacher names (only if provided)
-        if (teacherName) {
-            const teacherElements = document.querySelectorAll('.program-teacher, #program-teacher');
-            teacherElements.forEach(el => {
-                if (el) el.textContent = teacherName;
-            });
-        }
-        
-        // Update school names (only if provided)
-        if (schoolName) {
-            const schoolElements = document.querySelectorAll('.program-school, #program-school');
-            schoolElements.forEach(el => {
-                if (el) el.textContent = schoolName;
-            });
-        }
-        
-        // Remove duplicate teacher/school elements that are outside containers
-        removeDuplicateElements();
-    }
-
-    /**
-     * Remove duplicate teacher/school elements outside containers
-     */
-    function removeDuplicateElements() {
-        // Hide the duplicate elements with IDs
-        const teacherFullName = document.getElementById('teacher-full-name');
-        const schoolName = document.getElementById('school-name');
-        
-        if (teacherFullName) {
-            teacherFullName.style.display = 'none';
-        }
-        
-        if (schoolName) {
-            schoolName.style.display = 'none';
-        }
-    }
-
-    /**
      * Update loading message
      */
     function updateLoadingMessage(message) {
-        const elements = document.querySelectorAll('.loading-message, #program-status-text');
-        elements.forEach(el => {
-            if (el) el.textContent = message;
-        });
+        const loadingText = document.getElementById('loading-text');
+        if (loadingText) {
+            loadingText.textContent = message;
+        }
     }
 
     /**
-     * Update generating status
+     * Update generating message
      */
-    function updateGeneratingStatus(message, progress) {
-        // Update status message
-        const statusElements = document.querySelectorAll('.generating-status, .generating-message');
-        statusElements.forEach(el => {
-            if (el) el.textContent = message;
-        });
-        
-        // Update progress bar
-        const progressElements = document.querySelectorAll('.progress-bar, .progress-fill');
-        progressElements.forEach(el => {
-            if (el) el.style.width = `${progress}%`;
-        });
-        
-        // Update progress text - remove "% complete" since messages are fun
-        const progressTextElements = document.querySelectorAll('.progress-text');
-        progressTextElements.forEach(el => {
-            if (el) el.textContent = `${Math.round(progress)}%`;
-        });
+    function updateGeneratingMessage(message) {
+        const generatingText = document.getElementById('generating-text');
+        if (generatingText) {
+            generatingText.textContent = message;
+        }
     }
 
     /**
-     * Setup audio player
+     * Setup audio player using the custom player from /rp page
      */
     function setupAudioPlayer(audioUrl, radioData) {
-        const audioElements = document.querySelectorAll('audio, .program-audio');
-        
-        audioElements.forEach(audio => {
-            if (audio) {
-                audio.src = audioUrl;
-                audio.load();
-                
-                // Update time display on time update
-                audio.addEventListener('timeupdate', function() {
-                    updateTimeDisplay(audio.currentTime, audio.duration);
-                });
-                
-                // Update recording count
-                updateRecordingCount(radioData.recordingCount || 0);
+        // Get the player container
+        const playerContainer = document.getElementById('player-state');
+        if (!playerContainer) {
+            console.error('Player container not found');
+            return;
+        }
+
+        // Create custom audio player HTML (same as /rp page)
+        playerContainer.innerHTML = `
+            <div class="audio-player-container">
+                <audio id="radio-audio" preload="metadata" style="display: none;">
+                    <source src="${audioUrl}" type="audio/mpeg">
+                    <source src="${audioUrl}" type="audio/mp3">
+                </audio>
+                <div class="custom-audio-controls">
+                    <button id="play-pause-btn" class="play-btn">
+                        <span class="play-icon">▶</span>
+                        <span class="pause-icon" style="display: none;">⏸</span>
+                    </button>
+                    <div class="progress-container">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-fill"></div>
+                        </div>
+                        <div class="time-display">
+                            <span id="current-time">0:00</span>
+                            <span class="separator">/</span>
+                            <span id="total-time">0:00</span>
+                        </div>
+                    </div>
+                    <div class="volume-container">
+                        <button id="volume-btn" class="volume-btn">🔊</button>
+                        <input type="range" id="volume-slider" class="volume-slider" min="0" max="1" step="0.1" value="1">
+                    </div>
+                </div>
+                <div class="recording-info">
+                    <span class="recording-count">${radioData.recordingCount || 0} recordings</span>
+                </div>
+            </div>
+        `;
+
+        // Setup audio player functionality
+        setupCustomAudioPlayer(audioUrl);
+    }
+
+    /**
+     * Setup custom audio player functionality
+     */
+    function setupCustomAudioPlayer(audioUrl) {
+        audioPlayer = document.getElementById('radio-audio');
+        const playPauseBtn = document.getElementById('play-pause-btn');
+        const playIcon = document.querySelector('.play-icon');
+        const pauseIcon = document.querySelector('.pause-icon');
+        const progressFill = document.getElementById('progress-fill');
+        const currentTimeEl = document.getElementById('current-time');
+        const totalTimeEl = document.getElementById('total-time');
+        const volumeBtn = document.getElementById('volume-btn');
+        const volumeSlider = document.getElementById('volume-slider');
+
+        if (!audioPlayer) return;
+
+        // Play/Pause functionality
+        playPauseBtn.addEventListener('click', function() {
+            if (audioPlayer.paused) {
+                audioPlayer.play();
+                playIcon.style.display = 'none';
+                pauseIcon.style.display = 'inline';
+            } else {
+                audioPlayer.pause();
+                playIcon.style.display = 'inline';
+                pauseIcon.style.display = 'none';
             }
         });
-    }
 
-    /**
-     * Update time display
-     */
-    function updateTimeDisplay(currentTime, duration) {
-        const timeElements = document.querySelectorAll('.time-display');
-        
-        if (isNaN(currentTime) || isNaN(duration)) return;
-        
-        const current = formatTime(currentTime);
-        const total = formatTime(duration);
-        
-        timeElements.forEach(el => {
-            if (el) el.textContent = `${current} / ${total}`;
-        });
-    }
+        // Time update
+        audioPlayer.addEventListener('timeupdate', function() {
+            const currentTime = audioPlayer.currentTime;
+            const duration = audioPlayer.duration;
 
-    /**
-     * Update recording count
-     */
-    function updateRecordingCount(count) {
-        const countElements = document.querySelectorAll('.recording-count');
-        countElements.forEach(el => {
-            if (el) el.textContent = `${count} recordings`;
+            if (!isNaN(duration)) {
+                const progress = (currentTime / duration) * 100;
+                progressFill.style.width = `${progress}%`;
+                
+                currentTimeEl.textContent = formatTime(currentTime);
+                totalTimeEl.textContent = formatTime(duration);
+            }
         });
+
+        // Volume control
+        volumeSlider.addEventListener('input', function() {
+            audioPlayer.volume = volumeSlider.value;
+            updateVolumeIcon(volumeSlider.value);
+        });
+
+        volumeBtn.addEventListener('click', function() {
+            if (audioPlayer.volume > 0) {
+                audioPlayer.volume = 0;
+                volumeSlider.value = 0;
+            } else {
+                audioPlayer.volume = 1;
+                volumeSlider.value = 1;
+            }
+            updateVolumeIcon(audioPlayer.volume);
+        });
+
+        // Progress bar click
+        const progressContainer = document.querySelector('.progress-bar');
+        progressContainer.addEventListener('click', function(e) {
+            const rect = progressContainer.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const width = rect.width;
+            const clickPercent = clickX / width;
+            
+            if (!isNaN(audioPlayer.duration)) {
+                audioPlayer.currentTime = clickPercent * audioPlayer.duration;
+            }
+        });
+
+        // Update volume icon
+        function updateVolumeIcon(volume) {
+            if (volume === 0) {
+                volumeBtn.textContent = '🔇';
+            } else if (volume < 0.5) {
+                volumeBtn.textContent = '🔉';
+            } else {
+                volumeBtn.textContent = '🔊';
+            }
+        }
+
+        console.log('🎵 Custom audio player setup complete');
     }
 
     /**
@@ -425,6 +452,15 @@
             
             currentRadioData = data;
             
+            // Update world name and background
+            updateWorldName(data.world);
+            setWorldBackground(data.world);
+            
+            // Get teacher data and update info
+            getTeacherData(data.lmid).then(teacherData => {
+                updateTeacherInfo(teacherData.teacherName, teacherData.schoolName);
+            });
+            
             if (data.success) {
                 if (data.lastManifest?.programUrl) {
                     // Program exists, show player
@@ -450,18 +486,12 @@
         console.log('✅ Showing existing program');
         
         const audioUrl = data.lastManifest.programUrl;
+        const radioData = {
+            world: data.world,
+            recordingCount: data.currentRecordings?.length || 0
+        };
         
-        // Get teacher data from memberstack if available
-        getTeacherData(data.lmid).then(teacherData => {
-            const radioData = {
-                world: data.world,
-                teacherName: teacherData.teacherName || 'Teacher & The Kids',
-                schoolName: teacherData.schoolName || 'from School',
-                recordingCount: data.currentRecordings?.length || 0
-            };
-            
-            showPlayer(audioUrl, radioData);
-        });
+        showPlayerState(audioUrl, radioData);
     }
 
     /**
@@ -470,7 +500,7 @@
     async function generateNewProgram(data) {
         console.log('⚙️ Generating new program');
         
-        showGenerating();
+        showGeneratingState();
         
         try {
             // Call combine API
@@ -491,7 +521,7 @@
             
             // Stop generating messages
             stopGeneratingMessages();
-            updateGeneratingStatus('Program generated successfully!', 100);
+            updateGeneratingMessage('Program generated successfully!');
             
             // Wait a moment then show player
             setTimeout(() => {
@@ -509,7 +539,7 @@
     }
 
     /**
-     * Get teacher data from Memberstack
+     * Get teacher data from API
      */
     async function getTeacherData(lmid) {
         try {
@@ -559,11 +589,11 @@
 
     // Make functions available globally for testing
     window.RadioProgram = {
-        showLoading,
-        showPlayer,
-        showGenerating,
+        showLoadingState,
+        showPlayerState,
+        showGeneratingState,
         updateLoadingMessage,
-        updateGeneratingStatus,
+        updateGeneratingMessage,
         loadRadioData,
         stopGeneratingMessages
     };

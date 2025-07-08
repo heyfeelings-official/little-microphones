@@ -1,109 +1,262 @@
-# 🎵 Webflow Program Page Setup Guide
+# 🎵 Webflow Radio Program Page - Single Container Setup Guide
 
-## 📋 Problem Zidentyfikowany
+## 📋 Nowa Struktura - Jeden Kontener z Dynamicznymi Stanami
 
-W twoim HTML masz tylko **loading container**, ale JavaScript potrzebuje **3 kontenery**. Konsola pokazuje: `"Container not found: player-container"`
+Zamiast 3 kontenerów, mamy teraz **JEDEN kontener** z elementami które się podmieniają:
 
-## ✅ Co masz już w HTML:
+### **Struktura HTML:**
 ```html
-<div id="program-container" class="w-layout-vflex flex-block-17">
-    <div class="program-state program-loading">
-        <div class="program-world-header">
-            <h2 class="program-world-title">Little Microphones</h2>
-            <h1 class="program-world-name" id="program-world-name">Spookyland</h1>
-        </div>
-        <div class="program-status-container">
-            <div class="program-status-text" id="program-status-text">Loading your radio program...</div>
-        </div>
-        <div class="program-meta">
-            <div class="program-teacher" id="program-teacher">John Teacher &amp; The Kids</div>
-            <div class="program-school" id="program-school">from Elementary X</div>
-        </div>
+<div class="program-container">
+    <!-- 1. STATYCZNY HEADER -->
+    <div class="program-header">
+        <h2>Little Microphones</h2>
+        <h1 id="world-name">Spookyland</h1>
     </div>
+    
+    <!-- 2. STATYCZNE INFO NAUCZYCIELA -->
+    <div class="teacher-info">
+        <div id="teacher-full-name">John Teacher & The Kids</div>
+        <div id="school-name">from Elementary X</div>
+    </div>
+    
+    <!-- 3. DYNAMICZNE STANY (tylko jeden widoczny) -->
+    <div id="loading-state">Loading...</div>
+    <div id="generating-state" style="display: none;">Generating...</div>
+    <div id="player-state" style="display: none;">[Player będzie wstrzyknięty przez JS]</div>
 </div>
 ```
 
-## ❌ Co brakuje - Dodaj do Webflow:
+---
 
-### 1. **Player Container** - ID: `player-container`
+## 🛠️ **Krok po Kroku Setup w Webflow**
+
+### **Krok 1: Główny Kontener**
+1. **Dodaj Div Block** z klasą `program-container`
+2. **Styluj** według własnego designu
+
+### **Krok 2: Statyczny Header**
 ```html
-<div id="player-container" style="display: none;">
-    <div class="program-world-header">
-        <h2 class="program-world-title">Little Microphones</h2>
-        <h1 class="program-world-name world-name">Spookyland</h1>
-    </div>
-    <div class="program-player-section">
-        <audio controls class="program-audio">
-            <!-- JavaScript wstrzyknie src -->
-        </audio>
-        <div class="program-time-display time-display">0:01 / 0:02</div>
-        <div class="program-recording-count recording-count">3 recordings</div>
-    </div>
-    <div class="program-meta">
-        <div class="program-teacher program-teacher">John Teacher & The Kids</div>
-        <div class="program-school program-school">from Elementary X</div>
-    </div>
+<div class="program-header">
+    <h2>Little Microphones</h2>
+    <h1 id="world-name">Spookyland</h1>
 </div>
 ```
 
-### 2. **Generating Container** - ID: `generating-container`
+**W Webflow:**
+1. **Dodaj Div Block** z klasą `program-header`
+2. **Dodaj H2** z tekstem "Little Microphones" (nigdy się nie zmienia)
+3. **Dodaj H1** z **ID: `world-name`** i tekstem "Spookyland" (JavaScript podmieni)
+
+### **Krok 3: Statyczne Info Nauczyciela**
 ```html
-<div id="generating-container" style="display: none;">
-    <div class="program-world-header">
-        <h2 class="program-world-title">Little Microphones</h2>
-        <h1 class="program-world-name world-name">Spookyland</h1>
-    </div>
-    <div class="program-generating-section">
-        <div class="program-status-text generating-status">Generating your radio program...</div>
-        <div class="program-progress-container">
-            <div class="program-progress-bar progress-bar"></div>
-        </div>
-        <div class="program-progress-text progress-text">Mixing audio segments...</div>
-    </div>
-    <div class="program-meta">
-        <div class="program-teacher program-teacher">John Teacher & The Kids</div>
-        <div class="program-school program-school">from Elementary X</div>
-    </div>
+<div class="teacher-info">
+    <div id="teacher-full-name">John Teacher & The Kids</div>
+    <div id="school-name">from Elementary X</div>
 </div>
 ```
 
-## 🔧 **Szybka Poprawka - Dodaj wszystkie 3 kontenery jako widoczne:**
+**W Webflow:**
+1. **Dodaj Div Block** z klasą `teacher-info`
+2. **Dodaj Div** z **ID: `teacher-full-name`** i tekstem "John Teacher & The Kids"
+3. **Dodaj Div** z **ID: `school-name`** i tekstem "from Elementary X"
 
-W Webflow Designer, w sekcji gdzie masz `program-container`, dodaj te 2 dodatkowe kontenery **OBOK** istniejącego. Na czas tworzenia ustaw wszystkie jako `display: block` żeby je widzieć.
+### **Krok 4: Stan Loading**
+```html
+<div id="loading-state">
+    <div id="loading-text">Loading your radio program...</div>
+</div>
+```
 
-## 📝 **Klasy i ID które JavaScript będzie aktualizować:**
+**W Webflow:**
+1. **Dodaj Div Block** z **ID: `loading-state`**
+2. **Dodaj Text Block** z **ID: `loading-text`** i tekstem "Loading your radio program..."
+3. **Styluj** według potrzeb (spinner, animacje, etc.)
+
+### **Krok 5: Stan Generating**
+```html
+<div id="generating-state" style="display: none;">
+    <div id="generating-text">Generating your radio program...</div>
+</div>
+```
+
+**W Webflow:**
+1. **Dodaj Div Block** z **ID: `generating-state`**
+2. **Ustaw Display: None** w Designer
+3. **Dodaj Text Block** z **ID: `generating-text`** i tekstem "Generating your radio program..."
+4. **Styluj** (może być animacja ładowania)
+
+### **Krok 6: Stan Player**
+```html
+<div id="player-state" style="display: none;">
+    <!-- JavaScript wstrzyknie customowy player tutaj -->
+</div>
+```
+
+**W Webflow:**
+1. **Dodaj Div Block** z **ID: `player-state`**
+2. **Ustaw Display: None** w Designer
+3. **Zostaw pusty** - JavaScript wstrzyknie cały player
+4. **Styluj kontener** (padding, background, etc.)
+
+---
+
+## 🎯 **Wymagane ID dla JavaScript:**
+
+### **Statyczne Elementy:**
+- `#world-name` - nazwa świata (JavaScript podmieni)
+- `#teacher-full-name` - imię nauczyciela (JavaScript podmieni)
+- `#school-name` - nazwa szkoły (JavaScript podmieni)
+
+### **Stany Dynamiczne:**
+- `#loading-state` - kontener loading (JavaScript pokaże/ukryje)
+- `#loading-text` - tekst loading (JavaScript podmieni)
+- `#generating-state` - kontener generating (JavaScript pokaże/ukryje)
+- `#generating-text` - tekst generating (JavaScript podmieni losowe)
+- `#player-state` - kontener player (JavaScript wstrzyknie player)
+
+---
+
+## 🎨 **Stylowanie w Webflow**
+
+### **Program Container:**
+```css
+.program-container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px;
+    border-radius: 20px;
+    /* Tło świata zostanie ustawione przez JavaScript */
+}
+```
+
+### **Header:**
+```css
+.program-header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.program-header h2 {
+    font-size: 16px;
+    opacity: 0.8;
+    margin-bottom: 10px;
+}
+
+.program-header h1 {
+    font-size: 36px;
+    font-weight: bold;
+    margin: 0;
+}
+```
+
+### **Teacher Info:**
+```css
+.teacher-info {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+#teacher-full-name {
+    font-size: 18px;
+    font-weight: 500;
+    margin-bottom: 5px;
+}
+
+#school-name {
+    font-size: 14px;
+    opacity: 0.7;
+}
+```
 
 ### **Loading State:**
-- `#program-world-name` - nazwa świata
-- `#program-status-text` - status loading
-- `#program-teacher` - nauczyciel  
-- `#program-school` - szkoła
+```css
+#loading-state {
+    text-align: center;
+    padding: 40px 20px;
+}
 
-### **Player State:**
-- `.world-name` - nazwa świata
-- `.program-audio` - element audio
-- `.time-display` - czas odtwarzania
-- `.recording-count` - liczba nagrań
-- `.program-teacher` - nauczyciel
-- `.program-school` - szkoła
+#loading-text {
+    font-size: 18px;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 0.7; }
+    50% { opacity: 1; }
+}
+```
 
 ### **Generating State:**
-- `.world-name` - nazwa świata
-- `.generating-status` - status generowania
-- `.progress-bar` - pasek postępu
-- `.progress-text` - tekst postępu
-- `.program-teacher` - nauczyciel
-- `.program-school` - szkoła
+```css
+#generating-state {
+    text-align: center;
+    padding: 40px 20px;
+}
 
-## 🎯 **Następny Krok:**
+#generating-text {
+    font-size: 16px;
+    font-style: italic;
+    color: #666;
+}
+```
 
-1. **Dodaj 2 brakujące kontenery** do Webflow
-2. **Ustaw wszystkie 3 jako widoczne** (`display: block`)
-3. **Przetestuj** - konsola nie powinna już pokazywać błędów
-4. **Styluj** każdy kontener osobno w Webflow Designer
+### **Player State:**
+```css
+#player-state {
+    padding: 20px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 15px;
+    backdrop-filter: blur(10px);
+}
 
-## 🚀 **JavaScript będzie automatycznie:**
-- Ukrywać/pokazywać odpowiednie kontenery
-- Aktualizować teksty i dane
-- Kontrolować audio player
-- Pokazywać progress bary 
+/* Style dla elementów playera (opcjonalne) */
+.audio-player-container {
+    /* JavaScript wstrzyknie player - możesz stylować */
+}
+```
+
+---
+
+## 🚀 **Jak to Działa:**
+
+### **JavaScript Logic:**
+1. **Statyczne elementy** nigdy się nie ukrywają - tylko zmieniają tekst
+2. **Stany dynamiczne** - tylko jeden widoczny na raz:
+   - Loading → Generating → Player
+3. **Player** jest wstrzykiwany przez JavaScript (customowy z /rp)
+
+### **Automatyczne Funkcje:**
+- ✅ **Tło świata** ustawiane automatycznie
+- ✅ **Nazwa świata** formatowana (spookyland → Spookyland)
+- ✅ **Dane nauczyciela** pobierane z Memberstack
+- ✅ **Zabawne teksty** podczas generating (15 losowych)
+- ✅ **Customowy player** z pełną kontrolą
+
+### **Development Mode:**
+- Wszystkie 3 stany widoczne jednocześnie z ramkami
+- Ustaw `DEVELOPMENT_MODE = false` gdy skończysz
+
+---
+
+## 📱 **Responsive Design:**
+
+Pamiętaj o:
+- **Mobile breakpoints** w Webflow
+- **Font sizes** na różnych urządzeniach  
+- **Padding/margins** dla mobile
+- **Player controls** na touch devices
+
+---
+
+## ✅ **Checklist Setup:**
+
+- [ ] Główny kontener `.program-container`
+- [ ] Header z `#world-name`
+- [ ] Teacher info z `#teacher-full-name` i `#school-name`
+- [ ] Loading state z `#loading-state` i `#loading-text`
+- [ ] Generating state z `#generating-state` i `#generating-text` (hidden)
+- [ ] Player state z `#player-state` (hidden)
+- [ ] Wszystkie style w Webflow Designer
+- [ ] Test na mobile i desktop
+
+**Po setup ustaw `DEVELOPMENT_MODE = false` w radio.js!** 🎉 
