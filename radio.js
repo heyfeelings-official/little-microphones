@@ -68,12 +68,77 @@
             return;
         }
         
-        // Start loading
+        // Start loading - immediately load world info and teacher data
         showLoadingState();
-        
-        // Load radio data
-        loadRadioData();
+        loadInitialData();
     });
+
+    /**
+     * Load initial data (world info and teacher data) as fast as possible
+     */
+    async function loadInitialData() {
+        try {
+            updateLoadingMessage('Getting world information...');
+            
+            // Step 1: Get world info quickly (fastest API)
+            const worldInfo = await getWorldInfo(currentShareId);
+            console.log('🌍 World info loaded:', worldInfo);
+            
+            // Immediately update world name and background
+            updateWorldName(worldInfo.world);
+            setWorldBackground(worldInfo.world, worldInfo.backgroundUrl);
+            
+            // Step 2: Get teacher data in parallel (while world is loading visually)
+            updateLoadingMessage('Getting teacher information...');
+            try {
+                const teacherData = await getTeacherData(worldInfo.lmid);
+                updateTeacherInfo(teacherData.teacherName, teacherData.schoolName);
+                console.log('👨‍🏫 Teacher info loaded:', teacherData);
+            } catch (teacherError) {
+                console.warn('Could not fetch teacher data:', teacherError);
+                // Use fallback values
+                updateTeacherInfo('Teacher & The Kids', 'from School');
+            }
+            
+            // Step 3: Now load full radio data (audio, recordings, etc.)
+            updateLoadingMessage('Loading your radio program...');
+            await loadRadioData();
+            
+        } catch (error) {
+            console.error('❌ Error loading initial data:', error);
+            showError(`Failed to load initial data: ${error.message}`);
+        }
+    }
+
+    /**
+     * Get world info quickly from ShareID
+     */
+    async function getWorldInfo(shareId) {
+        try {
+            console.log(`🌍 Fetching world info for ShareID: ${shareId}`);
+            const response = await fetch(`${API_BASE_URL}/api/get-world-info?shareId=${shareId}`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            console.log('🌍 World info response:', data);
+            
+            if (data.success) {
+                return {
+                    world: data.world,
+                    lmid: data.lmid,
+                    backgroundUrl: data.backgroundUrl
+                };
+            } else {
+                throw new Error(data.error || 'Failed to fetch world info');
+            }
+        } catch (error) {
+            console.error('❌ Error fetching world info:', error);
+            throw error;
+        }
+    }
 
     /**
      * Check if all required elements exist on the page
@@ -233,21 +298,24 @@
     }
 
     /**
-     * Set world background image
+     * Set world background image - enhanced to use backgroundUrl from API
      */
-    function setWorldBackground(world) {
+    function setWorldBackground(world, backgroundUrl) {
         if (!world) return;
         
         const worldBg = document.getElementById('world-bg');
         const programContainer = document.querySelector('.program-container');
         
-        // Get background URL from config
-        const backgroundUrl = window.LM_CONFIG?.WORLD_IMAGES?.[world];
+        // Use backgroundUrl from API first, then fallback to config
+        let imageUrl = backgroundUrl;
+        if (!imageUrl) {
+            imageUrl = window.LM_CONFIG?.WORLD_IMAGES?.[world];
+        }
         
-        if (backgroundUrl) {
+        if (imageUrl) {
             // Set on world-bg element if it exists
             if (worldBg) {
-                worldBg.style.backgroundImage = `url('${backgroundUrl}')`;
+                worldBg.style.backgroundImage = `url('${imageUrl}')`;
                 worldBg.style.backgroundSize = 'cover';
                 worldBg.style.backgroundPosition = 'center';
                 console.log(`🎨 Set world background for ${world}`);
@@ -255,7 +323,7 @@
             
             // Also set on program-container if it has the class
             if (programContainer) {
-                programContainer.style.backgroundImage = `url('${backgroundUrl}')`;
+                programContainer.style.backgroundImage = `url('${imageUrl}')`;
                 programContainer.style.backgroundSize = 'cover';
                 programContainer.style.backgroundPosition = 'center';
             }
@@ -542,12 +610,10 @@
     }
 
     /**
-     * Load radio data from API
+     * Load radio data from API - now simplified since we already have world/lmid
      */
     async function loadRadioData() {
         try {
-            updateLoadingMessage('Fetching radio data...');
-            
             const response = await fetch(`${API_BASE_URL}/api/get-radio-data?shareId=${currentShareId}`);
             
             if (!response.ok) {
@@ -558,21 +624,6 @@
             console.log('📻 Radio data fetched:', data);
             
             currentRadioData = data;
-            
-            // Update world name and background
-            updateWorldName(data.world);
-            setWorldBackground(data.world);
-            
-            // Get teacher data and update info - NAPRAWIONE
-            updateLoadingMessage('Getting teacher information...');
-            try {
-                const teacherData = await getTeacherData(data.lmid);
-                updateTeacherInfo(teacherData.teacherName, teacherData.schoolName);
-            } catch (teacherError) {
-                console.warn('Could not fetch teacher data:', teacherError);
-                // Use fallback values
-                updateTeacherInfo('Teacher & The Kids', 'from School');
-            }
             
             if (data.success) {
                 if (data.lastManifest?.programUrl) {
