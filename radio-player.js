@@ -52,10 +52,15 @@
      * @returns {HTMLAudioElement} Audio player element
      */
     function showAudioPlayer(audioUrl, radioData, generateNewProgram) {
-        const playerContainer = document.getElementById('audio-player-container');
+        let playerContainer = document.getElementById('audio-player-container');
         if (!playerContainer) {
-            console.error('Audio player container not found');
-            return null;
+            // Try fallback to main-container
+            playerContainer = document.getElementById('main-container');
+            if (!playerContainer) {
+                console.error('Audio player container not found');
+                return null;
+            }
+            console.log('Using main-container as audio player container');
         }
 
         // Use global config utility or fallback for world name formatting

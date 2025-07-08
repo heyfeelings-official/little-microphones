@@ -492,7 +492,7 @@
     }
 
     /**
-     * Check if program needs regeneration based on recordings vs manifest
+     * Check if program needs regeneration based on API response
      * @param {Object} radioData - Radio data with recordings and manifest
      * @returns {boolean} True if new program is needed
      */
@@ -502,7 +502,13 @@
             return false;
         }
         
-        // If no manifest exists, we need a new program
+        // Use the needsNewProgram flag from API - it already did the intelligent comparison
+        if (radioData.hasOwnProperty('needsNewProgram')) {
+            console.log(`🔍 API says needsNewProgram: ${radioData.needsNewProgram}`);
+            return radioData.needsNewProgram;
+        }
+        
+        // Fallback: If no manifest exists, we need a new program
         if (!radioData.lastManifest || !radioData.lastManifest.programUrl) {
             console.log('🔍 No existing program manifest - new program needed');
             return true;
@@ -514,35 +520,7 @@
             return false;
         }
         
-        // Compare current recordings with manifest
-        const manifestFiles = radioData.lastManifest.filesUsed || [];
-        const currentFiles = radioData.currentRecordings.map(rec => rec.filename || rec.id);
-        
-        // Check if file lists are different
-        if (manifestFiles.length !== currentFiles.length) {
-            console.log(`🔍 Recording count changed: ${manifestFiles.length} → ${currentFiles.length}`);
-            return true;
-        }
-        
-        // Check if any files are different
-        const manifestSet = new Set(manifestFiles);
-        const currentSet = new Set(currentFiles);
-        
-        for (const file of currentFiles) {
-            if (!manifestSet.has(file)) {
-                console.log(`🔍 New recording detected: ${file}`);
-                return true;
-            }
-        }
-        
-        for (const file of manifestFiles) {
-            if (!currentSet.has(file)) {
-                console.log(`🔍 Recording removed: ${file}`);
-                return true;
-            }
-        }
-        
-        console.log('🔍 No changes detected - existing program is current');
+        console.log('🔍 Fallback: Existing program found, assuming current');
         return false;
     }
 
