@@ -334,6 +334,7 @@ function log(level, message, data = null) {
                     saveRecordingToDB,
                     loadRecordingsFromDB,
                     updateRecordingInDB,
+                    deleteRecordingFromDB,
                     renderRecordingsList: () => renderRecordingsList(wrapper, questionId, world, lmid),
                     setButtonText,
                     formatTime,
@@ -350,7 +351,7 @@ function log(level, message, data = null) {
                     log('error', `Failed to initialize recorder for question: ${questionId}`);
                 }
                 
-                // Don't load recordings here - will be done after global sync
+                // Don't load recordings here - will be done globally after all recorders are ready
                 
             } catch (error) {
                 log('error', `Failed to initialize recorder ${index}:`, error);
@@ -373,7 +374,7 @@ function log(level, message, data = null) {
                 );
                 renderRecordingsList(wrapper, questionId, world, lmid);
             });
-        }, 500); // Small delay to ensure everything is ready
+        }, 1000); // Increased delay to avoid conflicts
         
         log('info', `World initialization completed: ${world}`);
         

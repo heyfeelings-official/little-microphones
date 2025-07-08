@@ -255,8 +255,8 @@
         }
 
         // Initialize recordings list on page load
-        renderRecordingsList();
-
+        // Don't call renderRecordingsList here - it will be called globally
+        
         /**
          * Handle record button click
          */
@@ -456,9 +456,8 @@
                     placeholderElement = null;
                 }
 
-                // Refresh recordings list
-                renderRecordingsList();
-
+                // Don't refresh recordings list here - it will be refreshed after upload
+                
                 // Start background upload
                 uploadRecordingInBackground(recordingData);
 
@@ -502,8 +501,7 @@
                     dispatchUploadStatusEvent(recordingData.id, 'uploaded');
                     log('info', `Upload completed and local copy removed: ${recordingData.id}`);
                     
-                    // Refresh the list to show the uploaded recording from cloud
-                    renderRecordingsList();
+                    // Don't refresh here - let the global system handle it
                 } else {
                     throw new Error(uploadResult.error || 'Upload failed');
                 }
