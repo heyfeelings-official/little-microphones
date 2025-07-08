@@ -24,14 +24,14 @@
 import { handleApiRequest } from '../utils/api-utils.js';
 import { findLmidByShareId } from '../utils/database-utils.js';
 
-// World background images (moved to constants)
+// World background videos (updated to use MP4 instead of AVIF)
 const WORLD_BACKGROUNDS = {
-    'shopping-spree': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/67f506146fb421db045378af_cdcb9c23ac6f956cbb6f7f498c75cd11_worlds-Anxiety.avif',
-    'waterpark': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/67f50606d058c933cd554be8_2938a42d480503a33daf8a8334f53f0a_worlds-Empathy.avif',
-    'amusement-park': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/67f505fe412762bb8a01b03d_85fcbe125912ab0998bf679d2e8c6082_worlds-Love.avif',
-    'big-city': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/67f505f572e936f2b665af1f_7b989a3fe827622216294c6539607059_worlds-Anger.avif',
-    'spookyland': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/67f505ecd6f37624ef7affb8_587c997427b10cabcc31cc98d6e516f4_worlds-Fear.png',
-    'neighborhood': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/683859c64fa8c3f50ead799a_worlds-boredom.avif'
+    'big-city': 'https://heyfeelings.b-cdn.net/Worlds/city-opt.mp4',
+    'amusement-park': 'https://heyfeelings.b-cdn.net/Worlds/funfair-opt.mp4',
+    'spookyland': 'https://heyfeelings.b-cdn.net/Worlds/halloween-opt.mp4',
+    'neighborhood': 'https://heyfeelings.b-cdn.net/Worlds/home-opt.mp4',
+    'shopping-spree': 'https://heyfeelings.b-cdn.net/Worlds/mall-opt.mp4',
+    'waterpark': 'https://heyfeelings.b-cdn.net/Worlds/waterpark-opt.mp4'
 };
 
 /**

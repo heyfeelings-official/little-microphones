@@ -358,36 +358,104 @@
     });
 }
 
-/**
-     * Set world background image - enhanced to use backgroundUrl from API
+    /**
+     * Set world background video - enhanced to use video backgrounds from API
      */
     function setWorldBackground(world, backgroundUrl) {
-    if (!world) return;
-    
+        if (!world) return;
+        
         const worldBg = document.getElementById('world-bg');
         const programContainer = document.querySelector('.program-container');
         
         // Use backgroundUrl from API first, then fallback to config
-        let imageUrl = backgroundUrl;
-        if (!imageUrl) {
-            imageUrl = window.LM_CONFIG?.WORLD_IMAGES?.[world];
+        let videoUrl = backgroundUrl;
+        if (!videoUrl) {
+            videoUrl = window.LM_CONFIG?.WORLD_VIDEOS?.[world];
         }
         
-        if (imageUrl) {
-            // Set on world-bg element if it exists
+        if (videoUrl && videoUrl.endsWith('.mp4')) {
+            // Create or update video element for world-bg
             if (worldBg) {
-                worldBg.style.backgroundImage = `url('${imageUrl}')`;
+                setupVideoBackground(worldBg, videoUrl);
+            }
+            
+            // Create or update video element for program-container
+            if (programContainer) {
+                setupVideoBackground(programContainer, videoUrl);
+            }
+        } else if (videoUrl) {
+            // Fallback to image if not MP4
+            if (worldBg) {
+                worldBg.style.backgroundImage = `url('${videoUrl}')`;
                 worldBg.style.backgroundSize = 'cover';
                 worldBg.style.backgroundPosition = 'center';
             }
             
-            // Also set on program-container if it has the class
             if (programContainer) {
-                programContainer.style.backgroundImage = `url('${imageUrl}')`;
+                programContainer.style.backgroundImage = `url('${videoUrl}')`;
                 programContainer.style.backgroundSize = 'cover';
                 programContainer.style.backgroundPosition = 'center';
             }
         }
+    }
+
+    /**
+     * Setup video background for an element
+     */
+    function setupVideoBackground(container, videoUrl) {
+        // Remove existing video if any
+        const existingVideo = container.querySelector('.world-bg-video');
+        if (existingVideo) {
+            existingVideo.remove();
+        }
+        
+        // Clear background image
+        container.style.backgroundImage = 'none';
+        
+        // Create video element
+        const video = document.createElement('video');
+        video.className = 'world-bg-video';
+        video.src = videoUrl;
+        video.autoplay = true;
+        video.loop = true;
+        video.muted = true;
+        video.playsInline = true;
+        
+        // Style the video to cover the container
+        video.style.cssText = `
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: -1;
+            pointer-events: none;
+        `;
+        
+        // Ensure container has relative positioning
+        if (getComputedStyle(container).position === 'static') {
+            container.style.position = 'relative';
+        }
+        
+        // Add video to container
+        container.appendChild(video);
+        
+        // Handle video load errors
+        video.addEventListener('error', () => {
+            console.warn(`Failed to load video background: ${videoUrl}`);
+            video.remove();
+            // Fallback to no background
+            container.style.backgroundColor = '#f0f0f0';
+        });
+        
+        // Ensure video starts playing
+        video.addEventListener('loadeddata', () => {
+            video.play().catch(error => {
+                console.warn('Video autoplay failed:', error);
+                // Video will still be visible as first frame
+            });
+        });
     }
 
     /**
