@@ -113,7 +113,7 @@ export default async function handler(req, res) {
     return handleApiRequest(req, res, {
         allowedMethods: ['GET'],
         requiredParams: ['lmid'],
-        requiredEnvVars: ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'MEMBERSTACK_SECRET_KEY'],
+        requiredEnvVars: ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'],
         endpoint: 'get-teacher-data'
     }, getTeacherDataHandler);
 } 
