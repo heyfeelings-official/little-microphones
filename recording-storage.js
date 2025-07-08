@@ -393,7 +393,7 @@
 
             const apiBaseUrl = window.LM_CONFIG?.API_BASE_URL || 'https://little-microphones.vercel.app';
             const response = await fetch(`${apiBaseUrl}/api/delete-audio?_t=${Date.now()}&_r=${Math.random()}`, {
-                method: 'POST',
+                method: 'DELETE',
                 headers: { 
                     'Content-Type': 'application/json'
                 },
@@ -402,7 +402,8 @@
                     lmid,
                     questionId,
                     recordingId: recordingData.id,
-                    cloudUrl: recordingData.cloudUrl
+                    cloudUrl: recordingData.cloudUrl,
+                    filename: recordingData.id + '.mp3'
                 })
             });
 

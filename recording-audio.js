@@ -83,8 +83,9 @@
      * @returns {Promise<string|null>} Audio URL or null
      */
     async function getAudioSource(recordingData, updateRecordingInDB) {
-        // If we have a cloud URL, verify it's still accessible
-        if (recordingData.uploadStatus === 'uploaded' && recordingData.cloudUrl) {
+        // Always prefer cloud URL if available
+        if (recordingData.cloudUrl) {
+            // Verify it's still accessible
             const isAccessible = await verifyCloudUrl(recordingData.cloudUrl);
             if (isAccessible) {
                 return recordingData.cloudUrl;
@@ -99,9 +100,23 @@
             }
         }
         
-        // Fall back to local blob if available
-        if (recordingData.audio) {
-            return URL.createObjectURL(recordingData.audio);
+        // Check if we have a local blob and it's still valid
+        if (recordingData.audio && recordingData.audio instanceof Blob) {
+            try {
+                // Create a new blob URL each time (they expire)
+                const blobUrl = URL.createObjectURL(recordingData.audio);
+                // Schedule cleanup after a reasonable time
+                setTimeout(() => URL.revokeObjectURL(blobUrl), 60000); // Clean up after 1 minute
+                return blobUrl;
+            } catch (error) {
+                console.error('Failed to create blob URL:', error);
+            }
+        }
+        
+        // If upload is pending or in progress, return null (will show upload indicator)
+        if (recordingData.uploadStatus === 'pending' || recordingData.uploadStatus === 'uploading') {
+            console.log('Recording is still uploading:', recordingData.id);
+            return null;
         }
         
         // If neither cloud nor local is available, return null
