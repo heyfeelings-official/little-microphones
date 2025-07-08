@@ -119,7 +119,6 @@
             url: `https://little-microphones.b-cdn.net/audio/other/outro.mp3?t=${outroTimestamp}`
         });
         
-        console.log(`🎼 Generated ${audioSegments.length} audio segments for ${sortedQuestionIds.length} questions`);
         return audioSegments;
     }
 
@@ -127,23 +126,17 @@
      * Initialize the radio page
      */
     document.addEventListener('DOMContentLoaded', function() {
-    console.log('🎵 Radio page initializing...');
-    
         // Extract ShareID from URL
         const urlParams = new URLSearchParams(window.location.search);
         currentShareId = urlParams.get('ID');
         
         if (!currentShareId) {
-            console.error('❌ No ShareID found in URL');
             showError('Missing ShareID in URL');
             return;
         }
         
-        console.log('📻 ShareID extracted:', currentShareId);
-        
         // Check if required elements exist
         if (!checkRequiredElements()) {
-            console.error('❌ Required elements not found on page');
             showError('Page setup incomplete - missing required elements');
             return;
         }
@@ -162,7 +155,6 @@
             
             // Step 1: Get world info quickly (fastest API)
             const worldInfo = await getWorldInfo(currentShareId);
-            console.log('🌍 World info loaded:', worldInfo);
             
             // Immediately update world name and background
             updateWorldName(worldInfo.world);
@@ -173,11 +165,10 @@
             try {
                 const teacherData = await getTeacherData(worldInfo.lmid);
                 updateTeacherInfo(teacherData.teacherName, teacherData.schoolName);
-                console.log('👨‍🏫 Teacher info loaded:', teacherData);
             } catch (teacherError) {
                 console.warn('Could not fetch teacher data:', teacherError);
                 // Use fallback values
-                updateTeacherInfo('Teacher & The Kids', 'from School');
+                updateTeacherInfo('Teacher', 'School');
             }
             
             // Step 3: Now load full radio data (audio, recordings, etc.)
@@ -185,7 +176,7 @@
             await loadRadioData();
             
         } catch (error) {
-            console.error('❌ Error loading initial data:', error);
+            console.error('Error loading initial data:', error);
             showError(`Failed to load initial data: ${error.message}`);
         }
     }
@@ -195,7 +186,6 @@
      */
     async function getWorldInfo(shareId) {
         try {
-            console.log(`🌍 Fetching world info for ShareID: ${shareId}`);
             const response = await fetch(`${API_BASE_URL}/api/get-world-info?shareId=${shareId}`);
             
             if (!response.ok) {
@@ -203,7 +193,6 @@
             }
             
             const data = await response.json();
-            console.log('🌍 World info response:', data);
             
             if (data.success) {
                 return {
@@ -215,7 +204,7 @@
                 throw new Error(data.error || 'Failed to fetch world info');
             }
         } catch (error) {
-            console.error('❌ Error fetching world info:', error);
+            console.error('Error fetching world info:', error);
             throw error;
         }
     }
@@ -235,10 +224,8 @@
         requiredElements.forEach(elementId => {
             const element = document.getElementById(elementId);
             if (!element) {
-                console.error(`❌ Required element not found: ${elementId}`);
+                console.error(`Required element not found: ${elementId}`);
                 allFound = false;
-            } else {
-                console.log(`✅ Found required element: ${elementId}`);
             }
         });
         
@@ -249,22 +236,17 @@
      * Show loading state
      */
     function showLoadingState() {
-        console.log('📡 Showing loading state');
-        
         hideAllStates();
         showState('loading-state');
         
         updateLoadingMessage('Loading your radio program...');
         currentState = 'loading';
-        console.log('📡 Loading state shown');
     }
 
     /**
      * Show player state
      */
     function showPlayerState(audioUrl, radioData) {
-        console.log('🎵 Showing player state');
-        
         hideAllStates();
         showState('player-state');
         
@@ -272,15 +254,12 @@
         setupAudioPlayer(audioUrl, radioData);
         
         currentState = 'player';
-        console.log('✅ Player state shown');
     }
 
     /**
      * Show generating state
      */
     function showGeneratingState() {
-        console.log('⚙️ Showing generating state');
-        
         hideAllStates();
         showState('generating-state');
         
@@ -288,7 +267,6 @@
         startGeneratingMessages();
         
         currentState = 'generating';
-        console.log('✅ Generating state shown');
     }
 
     /**
@@ -355,7 +333,6 @@
         const worldElement = document.getElementById('world-name');
         if (worldElement) {
             worldElement.textContent = formattedWorld;
-            console.log(`🌍 Updated world name: ${formattedWorld}`);
     }
 }
 
@@ -369,7 +346,6 @@
         teacherElements.forEach(element => {
             if (element && teacherName) {
                 element.textContent = teacherName;
-                console.log(`👨‍🏫 Updated teacher name in element: ${teacherName}`);
             }
         });
         
@@ -378,17 +354,8 @@
         schoolElements.forEach(element => {
             if (element && schoolName) {
                 element.textContent = schoolName;
-                console.log(`🏫 Updated school name in element: ${schoolName}`);
             }
         });
-        
-        // Log if we found elements
-        if (teacherElements.length === 0) {
-            console.warn('⚠️ No elements found with ID "teacher-full-name"');
-        }
-        if (schoolElements.length === 0) {
-            console.warn('⚠️ No elements found with ID "school-name"');
-        }
     }
 
     /**
@@ -412,7 +379,6 @@
                 worldBg.style.backgroundImage = `url('${imageUrl}')`;
                 worldBg.style.backgroundSize = 'cover';
                 worldBg.style.backgroundPosition = 'center';
-                console.log(`🎨 Set world background for ${world}`);
             }
             
             // Also set on program-container if it has the class
@@ -553,20 +519,6 @@
                     border-radius: 50%;
                     cursor: pointer;
                 }
-                
-                .recording-info {
-            text-align: center;
-                    font-size: 14px;
-                    color: #666;
-                    margin-top: 8px;
-                }
-                
-                .recording-count {
-                    background: rgba(0,122,206,0.1);
-                    padding: 4px 12px;
-                    border-radius: 12px;
-                    font-weight: 500;
-                }
             </style>
             <div class="audio-player-container">
                 <audio id="radio-audio" preload="metadata" style="display: none;">
@@ -592,9 +544,6 @@
                         <button id="volume-btn" class="volume-btn">🔊</button>
                         <input type="range" id="volume-slider" class="volume-slider" min="0" max="1" step="0.1" value="1">
                     </div>
-                </div>
-                <div class="recording-info">
-                    <span class="recording-count">${radioData.recordingCount || 0} recordings</span>
                 </div>
             </div>
         `;
@@ -689,7 +638,6 @@
             }
         }
 
-        console.log('🎵 Custom audio player setup complete');
     }
 
     /**
@@ -715,7 +663,6 @@
             }
             
             const data = await response.json();
-            console.log('📻 Radio data fetched:', data);
             
             currentRadioData = data;
             
@@ -736,7 +683,7 @@
             }
             
         } catch (error) {
-            console.error('❌ Error loading radio data:', error);
+            console.error('Error loading radio data:', error);
             showError(`Failed to load radio data: ${error.message}`);
         }
     }
@@ -798,7 +745,7 @@
             }, 1000);
             
         } catch (error) {
-            console.error('❌ Error generating program:', error);
+            console.error('Error generating program:', error);
             stopGeneratingMessages();
             showError(`Failed to generate program: ${error.message}`);
         }

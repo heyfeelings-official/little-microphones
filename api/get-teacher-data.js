@@ -81,8 +81,8 @@ async function getTeacherDataHandler(req, res, params) {
     console.log('👨‍🏫 Raw teacher data from Supabase:', lmidRecord);
 
     // Format teacher data with fallbacks
-    let teacherName = 'Teacher & The Kids';
-    let schoolName = 'from School';
+    let teacherName = 'Teacher';
+    let schoolName = 'School';
 
     if (lmidRecord.teacher_first_name || lmidRecord.teacher_last_name) {
         const firstName = lmidRecord.teacher_first_name || '';
@@ -90,12 +90,12 @@ async function getTeacherDataHandler(req, res, params) {
         const fullName = `${firstName} ${lastName}`.trim();
         
         if (fullName) {
-            teacherName = `${fullName} & The Kids`;
+            teacherName = fullName;
         }
     }
 
     if (lmidRecord.teacher_school_name) {
-        schoolName = `from ${lmidRecord.teacher_school_name}`;
+        schoolName = lmidRecord.teacher_school_name;
     }
 
     console.log(`👨‍🏫 Formatted teacher data: "${teacherName}" "${schoolName}"`);
