@@ -416,14 +416,24 @@ function log(level, message, data = null) {
      * @param {string} lmid - LMID
      */
     async function renderRecordingsList(wrapper, questionId, world, lmid) {
-        let recordingsList = wrapper.querySelector('.recordings-list, [data-element="recordings-list"]');
+        // Look for existing recording list with more flexible selectors
+        let recordingsList = wrapper.querySelector('.recording-list, .recordings-list, [data-element="recordings-list"], [data-element="recording-list"]');
+        
+        // If still not found, look in the parent structure (FAQ accordion)
+        if (!recordingsList && wrapper.classList.contains('faq1_accordion')) {
+            // Look for the recording list in the accordion content area
+            const accordionContent = wrapper.querySelector('.faq1_content, .accordion-content, [data-element="accordion-content"]');
+            if (accordionContent) {
+                recordingsList = accordionContent.querySelector('.recording-list, .recordings-list');
+            }
+        }
         
         // If no recordings list found, create one
         if (!recordingsList) {
-            log('debug', `Creating recordings list for question: ${questionId}`);
+            log('warn', `No existing recording list found for question: ${questionId}, creating new one`);
             
             recordingsList = document.createElement('ul');
-            recordingsList.className = 'recordings-list';
+            recordingsList.className = 'recording-list'; // Use singular form to match Webflow
             recordingsList.style.cssText = `
                 list-style: none;
                 margin: 10px 0 0 0;
@@ -432,17 +442,25 @@ function log(level, message, data = null) {
                 overflow-y: auto;
             `;
             
-            // Try to find a good place to insert it
-            const recordButton = wrapper.querySelector('.record-button, [data-element="record-button"]');
-            if (recordButton) {
-                // Insert after the record button
-                recordButton.parentNode.insertBefore(recordingsList, recordButton.nextSibling);
+            // Try to find the best place to insert it
+            const accordionContent = wrapper.querySelector('.faq1_content, .accordion-content, [data-element="accordion-content"]');
+            if (accordionContent) {
+                // Insert at the end of accordion content
+                accordionContent.appendChild(recordingsList);
             } else {
-                // Fallback: append to the wrapper
-                wrapper.appendChild(recordingsList);
+                // Fallback: find record button and insert after it
+                const recordButton = wrapper.querySelector('.record-button, [data-element="record-button"]');
+                if (recordButton && recordButton.parentNode) {
+                    recordButton.parentNode.insertBefore(recordingsList, recordButton.nextSibling);
+                } else {
+                    // Last resort: append to wrapper
+                    wrapper.appendChild(recordingsList);
+                }
             }
             
-            log('debug', `Recordings list created and inserted for question: ${questionId}`);
+            log('debug', `Recording list created and inserted for question: ${questionId}`);
+        } else {
+            log('debug', `Found existing recording list for question: ${questionId}`);
         }
         
         try {
