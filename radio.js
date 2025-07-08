@@ -19,12 +19,32 @@
     let audioPlayer = null;
     let currentShareId = null;
     let currentRadioData = null;
+    let generatingInterval = null;
 
     // API Configuration
     const API_BASE_URL = window.LM_CONFIG?.API_BASE_URL || 'https://little-microphones.vercel.app';
 
     // TEMPORARY: Development mode - show all containers
     const DEVELOPMENT_MODE = true;
+
+    // Fun generating messages that loop
+    const GENERATING_MESSAGES = [
+        'Mixing magical audio potions...',
+        'Teaching robots to speak kid language...',
+        'Sprinkling digital fairy dust...',
+        'Convincing microphones to cooperate...',
+        'Assembling audio LEGO blocks...',
+        'Training AI to understand giggles...',
+        'Weaving sound waves together...',
+        'Asking the audio elves for help...',
+        'Translating excitement into radio waves...',
+        'Collecting scattered sound particles...',
+        'Brewing the perfect audio recipe...',
+        'Negotiating with stubborn sound files...',
+        'Building bridges between recordings...',
+        'Summoning the radio program spirits...',
+        'Organizing a symphony of voices...'
+    ];
 
     /**
      * Initialize the radio page
@@ -98,7 +118,7 @@
             showContainer('loading-container');
         }
         
-        updateWorldInfo('Loading...', 'Loading...', 'Loading...');
+        updateWorldInfo('Loading...', '', '');
         updateLoadingMessage('Loading your radio program...');
         
         currentState = 'loading';
@@ -119,12 +139,15 @@
         // Update world info
         updateWorldInfo(
             radioData.world || 'Unknown World',
-            radioData.teacherName || 'Teacher',
-            radioData.schoolName || 'School'
+            radioData.teacherName || 'Teacher & The Kids',
+            radioData.schoolName || 'from School'
         );
         
         // Setup audio player
         setupAudioPlayer(audioUrl, radioData);
+        
+        // Set world background
+        setWorldBackground(radioData.world);
         
         currentState = 'player';
         console.log('✅ Player state shown');
@@ -143,14 +166,79 @@
         
         updateWorldInfo(
             currentRadioData?.world || 'Unknown World',
-            currentRadioData?.teacherName || 'Teacher',
-            currentRadioData?.schoolName || 'School'
+            '', // Don't show teacher during generating
+            ''  // Don't show school during generating
         );
         
-        updateGeneratingStatus('Generating your radio program...', 0);
+        // Start looped generating messages
+        startGeneratingMessages();
+        
+        // Set world background
+        setWorldBackground(currentRadioData?.world);
         
         currentState = 'generating';
         console.log('✅ Generating state shown');
+    }
+
+    /**
+     * Start looped generating messages
+     */
+    function startGeneratingMessages() {
+        let messageIndex = 0;
+        
+        // Clear any existing interval
+        if (generatingInterval) {
+            clearInterval(generatingInterval);
+        }
+        
+        // Show first message immediately
+        updateGeneratingStatus(GENERATING_MESSAGES[messageIndex], 0);
+        
+        // Loop through messages every 2 seconds
+        generatingInterval = setInterval(() => {
+            messageIndex = (messageIndex + 1) % GENERATING_MESSAGES.length;
+            updateGeneratingStatus(GENERATING_MESSAGES[messageIndex], Math.random() * 90 + 5); // Random progress 5-95%
+        }, 2000);
+    }
+
+    /**
+     * Stop generating messages
+     */
+    function stopGeneratingMessages() {
+        if (generatingInterval) {
+            clearInterval(generatingInterval);
+            generatingInterval = null;
+        }
+    }
+
+    /**
+     * Set world background image
+     */
+    function setWorldBackground(world) {
+        if (!world) return;
+        
+        const worldBg = document.getElementById('world-bg');
+        const programContainer = document.querySelector('.program-container');
+        
+        // Get background URL from config
+        const backgroundUrl = window.LM_CONFIG?.WORLD_IMAGES?.[world];
+        
+        if (backgroundUrl) {
+            // Set on world-bg element if it exists
+            if (worldBg) {
+                worldBg.style.backgroundImage = `url('${backgroundUrl}')`;
+                worldBg.style.backgroundSize = 'cover';
+                worldBg.style.backgroundPosition = 'center';
+                console.log(`🎨 Set world background for ${world}`);
+            }
+            
+            // Also set on program-container if it has the class
+            if (programContainer) {
+                programContainer.style.backgroundImage = `url('${backgroundUrl}')`;
+                programContainer.style.backgroundSize = 'cover';
+                programContainer.style.backgroundPosition = 'center';
+            }
+        }
     }
 
     /**
@@ -180,23 +268,51 @@
      * Update world info across all containers
      */
     function updateWorldInfo(worldName, teacherName, schoolName) {
+        // Format world name properly
+        const formattedWorld = window.LM_CONFIG?.UTILS?.formatWorldName(worldName) || 
+                              (worldName ? worldName.charAt(0).toUpperCase() + worldName.slice(1).replace(/-/g, ' ') : 'Loading...');
+        
         // Update world names
         const worldElements = document.querySelectorAll('.world-name, #program-world-name');
         worldElements.forEach(el => {
-            if (el) el.textContent = worldName;
+            if (el) el.textContent = formattedWorld;
         });
         
-        // Update teacher names
-        const teacherElements = document.querySelectorAll('.program-teacher, #program-teacher');
-        teacherElements.forEach(el => {
-            if (el) el.textContent = teacherName;
-        });
+        // Update teacher names (only if provided)
+        if (teacherName) {
+            const teacherElements = document.querySelectorAll('.program-teacher, #program-teacher');
+            teacherElements.forEach(el => {
+                if (el) el.textContent = teacherName;
+            });
+        }
         
-        // Update school names
-        const schoolElements = document.querySelectorAll('.program-school, #program-school');
-        schoolElements.forEach(el => {
-            if (el) el.textContent = schoolName;
-        });
+        // Update school names (only if provided)
+        if (schoolName) {
+            const schoolElements = document.querySelectorAll('.program-school, #program-school');
+            schoolElements.forEach(el => {
+                if (el) el.textContent = schoolName;
+            });
+        }
+        
+        // Remove duplicate teacher/school elements that are outside containers
+        removeDuplicateElements();
+    }
+
+    /**
+     * Remove duplicate teacher/school elements outside containers
+     */
+    function removeDuplicateElements() {
+        // Hide the duplicate elements with IDs
+        const teacherFullName = document.getElementById('teacher-full-name');
+        const schoolName = document.getElementById('school-name');
+        
+        if (teacherFullName) {
+            teacherFullName.style.display = 'none';
+        }
+        
+        if (schoolName) {
+            schoolName.style.display = 'none';
+        }
     }
 
     /**
@@ -225,10 +341,10 @@
             if (el) el.style.width = `${progress}%`;
         });
         
-        // Update progress text
+        // Update progress text - remove "% complete" since messages are fun
         const progressTextElements = document.querySelectorAll('.progress-text');
         progressTextElements.forEach(el => {
-            if (el) el.textContent = `${progress}% complete`;
+            if (el) el.textContent = `${Math.round(progress)}%`;
         });
     }
 
@@ -334,14 +450,18 @@
         console.log('✅ Showing existing program');
         
         const audioUrl = data.lastManifest.programUrl;
-        const radioData = {
-            world: data.world,
-            teacherName: 'Teacher & The Kids',
-            schoolName: 'from School',
-            recordingCount: data.currentRecordings?.length || 0
-        };
         
-        showPlayer(audioUrl, radioData);
+        // Get teacher data from memberstack if available
+        getTeacherData(data.lmid).then(teacherData => {
+            const radioData = {
+                world: data.world,
+                teacherName: teacherData.teacherName || 'Teacher & The Kids',
+                schoolName: teacherData.schoolName || 'from School',
+                recordingCount: data.currentRecordings?.length || 0
+            };
+            
+            showPlayer(audioUrl, radioData);
+        });
     }
 
     /**
@@ -353,19 +473,6 @@
         showGenerating();
         
         try {
-            // Simulate generation progress
-            const steps = [
-                { message: 'Preparing audio segments...', progress: 20 },
-                { message: 'Mixing with background music...', progress: 50 },
-                { message: 'Adding intro and outro...', progress: 80 },
-                { message: 'Finalizing radio program...', progress: 95 }
-            ];
-            
-            for (const step of steps) {
-                updateGeneratingStatus(step.message, step.progress);
-                await new Promise(resolve => setTimeout(resolve, 1000));
-            }
-            
             // Call combine API
             const combineResponse = await fetch(`${API_BASE_URL}/api/combine-audio`, {
                 method: 'POST',
@@ -381,6 +488,9 @@
             }
             
             const combineResult = await combineResponse.json();
+            
+            // Stop generating messages
+            stopGeneratingMessages();
             updateGeneratingStatus('Program generated successfully!', 100);
             
             // Wait a moment then show player
@@ -393,7 +503,46 @@
             
         } catch (error) {
             console.error('❌ Error generating program:', error);
+            stopGeneratingMessages();
             showError(`Failed to generate program: ${error.message}`);
+        }
+    }
+
+    /**
+     * Get teacher data from Memberstack
+     */
+    async function getTeacherData(lmid) {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/get-teacher-data?lmid=${lmid}`);
+            
+            if (!response.ok) {
+                console.warn('Failed to fetch teacher data:', response.status);
+                return {
+                    teacherName: 'Teacher & The Kids',
+                    schoolName: 'from School'
+                };
+            }
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                return {
+                    teacherName: data.teacherName,
+                    schoolName: data.schoolName
+                };
+            } else {
+                console.warn('Teacher data API returned error:', data.error);
+                return {
+                    teacherName: 'Teacher & The Kids',
+                    schoolName: 'from School'
+                };
+            }
+        } catch (error) {
+            console.warn('Could not fetch teacher data:', error);
+            return {
+                teacherName: 'Teacher & The Kids',
+                schoolName: 'from School'
+            };
         }
     }
 
@@ -403,6 +552,9 @@
     function showError(message) {
         updateLoadingMessage(`Error: ${message}`);
         console.error('💥 Radio error:', message);
+        
+        // Stop generating messages if running
+        stopGeneratingMessages();
     }
 
     // Make functions available globally for testing
@@ -412,7 +564,8 @@
         showGenerating,
         updateLoadingMessage,
         updateGeneratingStatus,
-        loadRadioData
+        loadRadioData,
+        stopGeneratingMessages
     };
 
 })();
