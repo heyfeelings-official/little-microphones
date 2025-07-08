@@ -303,6 +303,7 @@
 
     /**
      * Convert recordings to audio segments format for API
+     * FULL RADIO PROGRAM STRUCTURE: intro.mp3 → question → answers + monkeys.mp3 → question → answers + monkeys.mp3 → outro.mp3
      * @param {Array} recordings - Array of recording objects
      * @param {string} world - World name for context
      * @returns {Array} Array of audio segment objects
@@ -313,24 +314,20 @@
             return [];
         }
         
-        console.log(`🔄 Converting ${recordings.length} recordings to audio segments`);
+        console.log(`🔄 Converting ${recordings.length} recordings to full radio program structure`);
         
-        // Group recordings by question if possible
+        // Group recordings by question
         const recordingsByQuestion = {};
         
         recordings.forEach((recording, index) => {
-            // Extract question ID from filename or use index
-            let questionId = 'question_1'; // default
+            // Extract question ID from filename or use questionId
+            let questionId = recording.questionId || '1'; // default to question 1
             
             if (recording.filename) {
                 const questionMatch = recording.filename.match(/question[_-](\d+)/i);
                 if (questionMatch) {
-                    questionId = `question_${questionMatch[1]}`;
+                    questionId = questionMatch[1];
                 }
-            } else if (recording.questionId) {
-                questionId = recording.questionId;
-            } else {
-                questionId = `question_${index + 1}`;
             }
             
             if (!recordingsByQuestion[questionId]) {
@@ -344,65 +341,53 @@
             });
         });
         
-        // Sort questions by ID and recordings within questions by timestamp
-        const sortedQuestionIds = Object.keys(recordingsByQuestion).sort();
+        // Sort question IDs numerically (1, 2, 3, etc.)
+        const sortedQuestionIds = Object.keys(recordingsByQuestion).sort((a, b) => parseInt(a) - parseInt(b));
         const audioSegments = [];
         
+        // 1. Add intro.mp3
+        const introTimestamp = Date.now();
+        audioSegments.push({
+            type: 'single',
+            url: `https://little-microphones.b-cdn.net/audio/other/intro.mp3?t=${introTimestamp}`
+        });
+        
+        // 2. Add questions and answers in numeric order
         sortedQuestionIds.forEach((questionId, questionIndex) => {
             const questionRecordings = recordingsByQuestion[questionId];
             
-            // Sort recordings within question by timestamp (oldest first)
-            questionRecordings.sort((a, b) => a.timestamp - b.timestamp);
-            
-            // Add question intro if multiple questions
-            if (sortedQuestionIds.length > 1) {
-                audioSegments.push({
-                    type: 'question_intro',
-                    questionId: questionId,
-                    questionNumber: questionIndex + 1,
-                    content: `Question ${questionIndex + 1}`,
-                    duration: 2
-                });
-            }
-            
-            // Add recordings for this question
-            questionRecordings.forEach((recording, recordingIndex) => {
-                audioSegments.push({
-                    type: 'recording',
-                    url: recording.url,
-                    filename: recording.filename,
-                    questionId: questionId,
-                    questionNumber: questionIndex + 1,
-                    answerNumber: recordingIndex + 1,
-                    totalAnswersForQuestion: questionRecordings.length,
-                    metadata: {
-                        originalId: recording.id,
-                        timestamp: recording.timestamp,
-                        duration: recording.duration
-                    }
-                });
-                
-                // Add brief pause between recordings within same question
-                if (recordingIndex < questionRecordings.length - 1) {
-                    audioSegments.push({
-                        type: 'pause',
-                        duration: 1,
-                        content: 'brief_pause'
-                    });
-                }
+            // Add question prompt (spookyland-QID1.mp3, spookyland-QID2.mp3, etc.)
+            const cacheBustTimestamp = Date.now() + Math.random();
+            audioSegments.push({
+                type: 'single',
+                url: `https://little-microphones.b-cdn.net/audio/${world}/${world}-QID${questionId}.mp3?t=${cacheBustTimestamp}`
             });
             
-            // Add transition between questions
-            if (questionIndex < sortedQuestionIds.length - 1) {
-                audioSegments.push({
-                    type: 'question_transition',
-                    duration: 2,
-                    content: 'musical_bridge'
-                });
-            }
+            // Sort answers by timestamp (first recorded = first played)
+            const sortedAnswers = questionRecordings.sort((a, b) => a.timestamp - b.timestamp);
+            const answerUrls = sortedAnswers.map(recording => recording.url);
+            
+            console.log(`🎤 Question ${questionId}: ${answerUrls.length} answers`);
+            
+            // Combine answers with background music (monkeys.mp3)
+            const backgroundTimestamp = Date.now() + Math.random();
+            audioSegments.push({
+                type: 'combine_with_background',
+                answerUrls: answerUrls,
+                backgroundUrl: `https://little-microphones.b-cdn.net/audio/other/monkeys.mp3?t=${backgroundTimestamp}`,
+                questionId: questionId
+            });
         });
         
-        console.log(`✅ Created ${audioSegments.length} audio segments from ${recordings.length} recordings`);
+        // 3. Add outro.mp3
+        const outroTimestamp = Date.now() + 1;
+        audioSegments.push({
+            type: 'single',
+            url: `https://little-microphones.b-cdn.net/audio/other/outro.mp3?t=${outroTimestamp}`
+        });
+        
+        console.log(`✅ Created full radio program: ${audioSegments.length} segments for ${sortedQuestionIds.length} questions`);
+        console.log(`🎼 Structure: intro → ${sortedQuestionIds.map(q => `Q${q}+answers+monkeys`).join(' → ')} → outro`);
         
         return audioSegments;
     }
