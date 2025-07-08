@@ -279,8 +279,8 @@ function setupExistingRadioProgramButton(world, lmid) {
     newButton.textContent = 'Getting Share Link...';
     
     try {
-      // Call the new get-share-link API
-              const response = await fetch(`${API_BASE_URL}/api/get-share-link?lmid=${lmid}`);
+      // Call the get-share-link API with both lmid AND world parameters
+      const response = await fetch(`${API_BASE_URL}/api/get-share-link?lmid=${lmid}&world=${world}`);
       
       if (!response.ok) {
         throw new Error(`Failed to get share link: ${response.status}`);
@@ -293,7 +293,7 @@ function setupExistingRadioProgramButton(world, lmid) {
       }
       
       // Open the radio page in a new tab with the ShareID
-                  const radioUrl = `/members/radio?ID=${result.shareId}`;
+      const radioUrl = `/members/radio?ID=${result.shareId}`;
       window.open(radioUrl, '_blank');
       
       console.log(`Share link generated: ${result.url}`);
