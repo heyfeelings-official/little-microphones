@@ -23,370 +23,398 @@
     // API Configuration
     const API_BASE_URL = window.LM_CONFIG?.API_BASE_URL || 'https://little-microphones.vercel.app';
 
+    // TEMPORARY: Development mode - show all containers
+    const DEVELOPMENT_MODE = true;
+
     /**
      * Initialize the radio page
      */
-    document.addEventListener('DOMContentLoaded', async () => {
+    document.addEventListener('DOMContentLoaded', function() {
         console.log('🎵 Radio page initializing...');
         
-        try {
-            // Extract ShareID from URL
-            currentShareId = getShareIdFromUrl();
-            if (!currentShareId) {
-                showError('Invalid Link', 'This radio program link is missing required information.');
-                return;
-            }
-            
-            console.log(`📻 ShareID extracted: ${currentShareId}`);
-            
-            // Start with loading state
-            showLoadingState('Loading world...');
-            
-            // Fetch radio data
-            currentRadioData = await fetchRadioData(currentShareId);
-            
-            if (!currentRadioData || !currentRadioData.success) {
-                showError('Program Not Found', 'This radio program could not be found.');
-                return;
-            }
-            
-            // Update world info
-            updateWorldInfo(currentRadioData);
-            
-            // Check if we need to generate or can show existing
-            if (currentRadioData.needsNewProgram) {
-                console.log('🔄 Generating new program...');
-                await handleProgramGeneration();
-            } else if (currentRadioData.lastManifest?.programUrl) {
-                console.log('✅ Showing existing program');
-                showPlayerState(currentRadioData.lastManifest.programUrl, currentRadioData);
-            } else {
-                console.log('📝 No existing program - generating...');
-                await handleProgramGeneration();
-            }
-            
-        } catch (error) {
-            console.error('❌ Radio page initialization failed:', error);
-            showError('Loading Error', 'Failed to load the radio program.');
+        // Extract ShareID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        currentShareId = urlParams.get('ID');
+        
+        if (!currentShareId) {
+            console.error('❌ No ShareID found in URL');
+            showError('Missing ShareID in URL');
+            return;
         }
+        
+        console.log('📻 ShareID extracted:', currentShareId);
+        
+        // Initialize containers
+        initializeContainers();
+        
+        // Start loading
+        showLoading();
+        
+        // Load radio data
+        loadRadioData();
     });
 
     /**
-     * STATE MANAGEMENT - Show/Hide Webflow containers
+     * Initialize all containers
      */
-    
-    function showLoadingState(message = 'Loading...') {
-        currentState = 'loading';
-        console.log('📡 Showing loading state');
+    function initializeContainers() {
+        const containers = [
+            'loading-container',
+            'player-container', 
+            'generating-container'
+        ];
         
-        // Hide other containers
-        hideContainer('player-container');
-        hideContainer('generating-container');
+        containers.forEach(containerId => {
+            const container = document.getElementById(containerId);
+            if (container) {
+                if (DEVELOPMENT_MODE) {
+                    // DEVELOPMENT: Show all containers
+                    container.style.display = 'block';
+                    container.style.marginBottom = '20px';
+                    container.style.border = '2px solid #ccc';
+                    container.style.padding = '20px';
+                    console.log(`✅ ${containerId} found and visible for development`);
+                } else {
+                    // PRODUCTION: Hide all initially
+                    container.style.display = 'none';
+                    console.log(`✅ ${containerId} found and hidden`);
+                }
+            } else {
+                console.warn(`❌ Container not found: ${containerId}`);
+            }
+        });
         
-        // Show loading container
-        showContainer('loading-container');
-        
-        // Update loading message
-        updateText('.loading-message, #loading-message', message);
-        updateText('.loading-status, #loading-status', message);
-    }
-    
-    function showPlayerState(audioUrl, radioData = {}) {
-        currentState = 'playing';
-        console.log('🎵 Showing player state');
-        
-        // Hide other containers
-        hideContainer('loading-container');
-        hideContainer('generating-container');
-        
-        // Show player container
-        showContainer('player-container');
-        
-        // Setup audio player
-        setupAudioPlayer(audioUrl);
-        
-        console.log('✅ Player state shown');
-    }
-    
-    function showGeneratingState(message = 'Generating...', progress = 0) {
-        currentState = 'generating';
-        console.log('⚙️ Showing generating state');
-        
-        // Hide other containers
-        hideContainer('loading-container');
-        hideContainer('player-container');
-        
-        // Show generating container
-        showContainer('generating-container');
-        
-        // Update generating info
-        updateGeneratingProgress(message, progress);
+        console.log('✅ Program container initialized');
     }
 
     /**
-     * UTILITY FUNCTIONS for Webflow elements
+     * Show loading state
      */
-    
+    function showLoading() {
+        console.log('📡 Showing loading state');
+        
+        if (!DEVELOPMENT_MODE) {
+            hideAllContainers();
+            showContainer('loading-container');
+        }
+        
+        updateWorldInfo('Loading...', 'Loading...', 'Loading...');
+        updateLoadingMessage('Loading your radio program...');
+        
+        currentState = 'loading';
+        console.log('📡 Loading state shown');
+    }
+
+    /**
+     * Show player state
+     */
+    function showPlayer(audioUrl, radioData) {
+        console.log('🎵 Showing player state');
+        
+        if (!DEVELOPMENT_MODE) {
+            hideAllContainers();
+            showContainer('player-container');
+        }
+        
+        // Update world info
+        updateWorldInfo(
+            radioData.world || 'Unknown World',
+            radioData.teacherName || 'Teacher',
+            radioData.schoolName || 'School'
+        );
+        
+        // Setup audio player
+        setupAudioPlayer(audioUrl, radioData);
+        
+        currentState = 'player';
+        console.log('✅ Player state shown');
+    }
+
+    /**
+     * Show generating state
+     */
+    function showGenerating() {
+        console.log('⚙️ Showing generating state');
+        
+        if (!DEVELOPMENT_MODE) {
+            hideAllContainers();
+            showContainer('generating-container');
+        }
+        
+        updateWorldInfo(
+            currentRadioData?.world || 'Unknown World',
+            currentRadioData?.teacherName || 'Teacher',
+            currentRadioData?.schoolName || 'School'
+        );
+        
+        updateGeneratingStatus('Generating your radio program...', 0);
+        
+        currentState = 'generating';
+        console.log('✅ Generating state shown');
+    }
+
+    /**
+     * Hide all containers
+     */
+    function hideAllContainers() {
+        const containers = ['loading-container', 'player-container', 'generating-container'];
+        containers.forEach(containerId => {
+            const container = document.getElementById(containerId);
+            if (container) {
+                container.style.display = 'none';
+            }
+        });
+    }
+
+    /**
+     * Show specific container
+     */
     function showContainer(containerId) {
         const container = document.getElementById(containerId);
         if (container) {
             container.style.display = 'block';
-        } else {
-            console.warn(`Container not found: ${containerId}`);
         }
     }
-    
-    function hideContainer(containerId) {
-        const container = document.getElementById(containerId);
-        if (container) {
-            container.style.display = 'none';
-        }
-    }
-    
-    function updateText(selector, text) {
-        const elements = document.querySelectorAll(selector);
-        elements.forEach(el => {
-            if (el) el.textContent = text;
+
+    /**
+     * Update world info across all containers
+     */
+    function updateWorldInfo(worldName, teacherName, schoolName) {
+        // Update world names
+        const worldElements = document.querySelectorAll('.world-name, #program-world-name');
+        worldElements.forEach(el => {
+            if (el) el.textContent = worldName;
         });
-    }
-    
-    function updateAttribute(selector, attribute, value) {
-        const elements = document.querySelectorAll(selector);
-        elements.forEach(el => {
-            if (el) el.setAttribute(attribute, value);
+        
+        // Update teacher names
+        const teacherElements = document.querySelectorAll('.program-teacher, #program-teacher');
+        teacherElements.forEach(el => {
+            if (el) el.textContent = teacherName;
+        });
+        
+        // Update school names
+        const schoolElements = document.querySelectorAll('.program-school, #program-school');
+        schoolElements.forEach(el => {
+            if (el) el.textContent = schoolName;
         });
     }
 
     /**
-     * UPDATE FUNCTIONS for specific elements
+     * Update loading message
      */
-    
-    function updateWorldInfo(radioData) {
-        if (!radioData) return;
-        
-        const worldName = radioData.world ? 
-            radioData.world.charAt(0).toUpperCase() + radioData.world.slice(1).replace(/-/g, ' ') : 
-            'Spookyland';
-            
-        // Update world name in all containers
-        updateText('.world-name, #world-name', worldName);
-        updateText('.program-world, #program-world', worldName);
-        
-        // Update meta info
-        const teacher = radioData.teacher || 'John Teacher & The Kids';
-        const school = radioData.school || 'from Elementary X';
-        
-        updateText('.teacher-name, #teacher-name', teacher);
-        updateText('.school-name, #school-name', school);
-        updateText('.program-teacher, #program-teacher', teacher);
-        updateText('.program-school, #program-school', school);
-    }
-    
     function updateLoadingMessage(message) {
-        if (currentState !== 'loading') return;
-        updateText('.loading-message, #loading-message', message);
-        updateText('.loading-status, #loading-status', message);
+        const elements = document.querySelectorAll('.loading-message, #program-status-text');
+        elements.forEach(el => {
+            if (el) el.textContent = message;
+        });
     }
-    
-    function updateGeneratingProgress(message, progress) {
-        if (currentState !== 'generating') return;
-        
-        // Update message
-        updateText('.generating-message, #generating-message', message);
-        updateText('.generating-status, #generating-status', message);
+
+    /**
+     * Update generating status
+     */
+    function updateGeneratingStatus(message, progress) {
+        // Update status message
+        const statusElements = document.querySelectorAll('.generating-status, .generating-message');
+        statusElements.forEach(el => {
+            if (el) el.textContent = message;
+        });
         
         // Update progress bar
-        const progressBars = document.querySelectorAll('.progress-fill, #progress-fill, .generating-progress');
-        progressBars.forEach(bar => {
-            if (bar) bar.style.width = `${progress}%`;
+        const progressElements = document.querySelectorAll('.progress-bar, .progress-fill');
+        progressElements.forEach(el => {
+            if (el) el.style.width = `${progress}%`;
         });
         
         // Update progress text
-        updateText('.progress-text, #progress-text', `${progress}%`);
+        const progressTextElements = document.querySelectorAll('.progress-text');
+        progressTextElements.forEach(el => {
+            if (el) el.textContent = `${progress}% complete`;
+        });
     }
 
     /**
-     * AUDIO PLAYER SETUP
+     * Setup audio player
      */
-    
-    function setupAudioPlayer(audioUrl) {
-        // Find audio element in player container
-        const audioElements = document.querySelectorAll('#player-container audio, .program-audio, #program-audio');
+    function setupAudioPlayer(audioUrl, radioData) {
+        const audioElements = document.querySelectorAll('audio, .program-audio');
         
         audioElements.forEach(audio => {
             if (audio) {
                 audio.src = audioUrl;
                 audio.load();
                 
-                // Setup time display
-                audio.addEventListener('loadedmetadata', () => {
-                    updateTimeDisplay(audio);
+                // Update time display on time update
+                audio.addEventListener('timeupdate', function() {
+                    updateTimeDisplay(audio.currentTime, audio.duration);
                 });
                 
-                audio.addEventListener('timeupdate', () => {
-                    updateTimeDisplay(audio);
-                });
-                
-                audio.addEventListener('error', (e) => {
-                    console.error('Audio playback error:', e);
-                    updateText('.audio-error, #audio-error', 'Audio playback error');
-                });
-                
-                audioPlayer = audio;
+                // Update recording count
+                updateRecordingCount(radioData.recordingCount || 0);
             }
         });
     }
-    
-    function updateTimeDisplay(audio) {
-        if (!audio) return;
+
+    /**
+     * Update time display
+     */
+    function updateTimeDisplay(currentTime, duration) {
+        const timeElements = document.querySelectorAll('.time-display');
         
-        const currentTime = formatTime(audio.currentTime || 0);
-        const duration = formatTime(audio.duration || 0);
+        if (isNaN(currentTime) || isNaN(duration)) return;
         
-        updateText('.current-time, #current-time', currentTime);
-        updateText('.total-time, #total-time', duration);
-        updateText('.time-display, #time-display', `${currentTime} / ${duration}`);
-    }
-    
-    function formatTime(seconds) {
-        if (!isFinite(seconds)) return '0:00';
-        const mins = Math.floor(seconds / 60);
-        const secs = Math.floor(seconds % 60);
-        return `${mins}:${secs.toString().padStart(2, '0')}`;
+        const current = formatTime(currentTime);
+        const total = formatTime(duration);
+        
+        timeElements.forEach(el => {
+            if (el) el.textContent = `${current} / ${total}`;
+        });
     }
 
     /**
-     * API FUNCTIONS
+     * Update recording count
      */
-    
-    async function fetchRadioData(shareId) {
+    function updateRecordingCount(count) {
+        const countElements = document.querySelectorAll('.recording-count');
+        countElements.forEach(el => {
+            if (el) el.textContent = `${count} recordings`;
+        });
+    }
+
+    /**
+     * Format time in MM:SS
+     */
+    function formatTime(seconds) {
+        if (isNaN(seconds)) return '0:00';
+        
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = Math.floor(seconds % 60);
+        return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+    }
+
+    /**
+     * Load radio data from API
+     */
+    async function loadRadioData() {
         try {
-            const response = await fetch(`${API_BASE_URL}/api/get-radio-data?shareId=${shareId}&_t=${Date.now()}`);
+            updateLoadingMessage('Fetching radio data...');
+            
+            const response = await fetch(`${API_BASE_URL}/api/get-radio-data?shareId=${currentShareId}`);
             
             if (!response.ok) {
-                throw new Error(`API request failed: ${response.status}`);
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
             
             const data = await response.json();
             console.log('📻 Radio data fetched:', data);
             
-            return data;
+            currentRadioData = data;
             
-        } catch (error) {
-            console.error('Failed to fetch radio data:', error);
-            return null;
-        }
-    }
-    
-    async function handleProgramGeneration() {
-        try {
-            showGeneratingState('Preparing audio segments...', 0);
-            
-            // Simulate generation steps with real API call
-            const steps = [
-                { message: 'Collecting recordings...', progress: 10 },
-                { message: 'Processing audio tracks...', progress: 30 },
-                { message: 'Mixing everything together...', progress: 60 },
-                { message: 'Adding final touches...', progress: 90 },
-                { message: 'Complete!', progress: 100 }
-            ];
-            
-            for (const step of steps) {
-                updateGeneratingProgress(step.message, step.progress);
-                await sleep(1000);
-            }
-            
-            // Call actual generation API
-            const result = await generateNewProgram(currentRadioData);
-            
-            if (result.success) {
-                showPlayerState(result.audioUrl, currentRadioData);
+            if (data.success) {
+                if (data.lastManifest?.programUrl) {
+                    // Program exists, show player
+                    showExistingProgram(data);
+                } else {
+                    // Need to generate program
+                    generateNewProgram(data);
+                }
             } else {
-                throw new Error(result.error || 'Generation failed');
+                throw new Error(data.error || 'Failed to fetch radio data');
             }
             
         } catch (error) {
-            console.error('❌ Program generation failed:', error);
-            showError('Generation Failed', `Failed to generate radio program: ${error.message}`);
+            console.error('❌ Error loading radio data:', error);
+            showError(`Failed to load radio data: ${error.message}`);
         }
-    }
-    
-    async function generateNewProgram(radioData) {
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/combine-audio`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    world: radioData.world,
-                    lmid: radioData.lmid,
-                    audioSegments: convertRecordingsToAudioSegments(radioData.currentRecordings, radioData.world)
-                })
-            });
-            
-            const result = await response.json();
-            return result;
-            
-        } catch (error) {
-            console.error('Generation API error:', error);
-            return { success: false, error: error.message };
-        }
-    }
-    
-    function convertRecordingsToAudioSegments(recordings, world) {
-        // Convert recordings to audio segments format
-        // This is simplified - you may need to adapt based on your data structure
-        return recordings.map(recording => ({
-            type: 'single',
-            url: recording.cloudUrl || recording.url,
-            questionId: recording.questionId
-        }));
     }
 
     /**
-     * UTILITY FUNCTIONS
+     * Show existing program
      */
-    
-    function getShareIdFromUrl() {
-        const urlParams = new URLSearchParams(window.location.search);
-        return urlParams.get('ID');
-    }
-    
-    function showError(title, message) {
-        console.error(`${title}: ${message}`);
+    function showExistingProgram(data) {
+        console.log('✅ Showing existing program');
         
-        // Try to show error in loading container
-        updateText('.loading-message, #loading-message', `${title}: ${message}`);
-        updateText('.error-title, #error-title', title);
-        updateText('.error-message, #error-message', message);
+        const audioUrl = data.lastManifest.programUrl;
+        const radioData = {
+            world: data.world,
+            teacherName: 'Teacher & The Kids',
+            schoolName: 'from School',
+            recordingCount: data.currentRecordings?.length || 0
+        };
         
-        // Show error state
-        showContainer('loading-container');
-        hideContainer('player-container');
-        hideContainer('generating-container');
-    }
-    
-    function sleep(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
+        showPlayer(audioUrl, radioData);
     }
 
-    // Global API for external access
+    /**
+     * Generate new program
+     */
+    async function generateNewProgram(data) {
+        console.log('⚙️ Generating new program');
+        
+        showGenerating();
+        
+        try {
+            // Simulate generation progress
+            const steps = [
+                { message: 'Preparing audio segments...', progress: 20 },
+                { message: 'Mixing with background music...', progress: 50 },
+                { message: 'Adding intro and outro...', progress: 80 },
+                { message: 'Finalizing radio program...', progress: 95 }
+            ];
+            
+            for (const step of steps) {
+                updateGeneratingStatus(step.message, step.progress);
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+            
+            // Call combine API
+            const combineResponse = await fetch(`${API_BASE_URL}/api/combine-audio`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    lmid: data.lmid,
+                    world: data.world
+                })
+            });
+            
+            if (!combineResponse.ok) {
+                throw new Error('Failed to generate radio program');
+            }
+            
+            const combineResult = await combineResponse.json();
+            updateGeneratingStatus('Program generated successfully!', 100);
+            
+            // Wait a moment then show player
+            setTimeout(() => {
+                showExistingProgram({
+                    ...data,
+                    lastManifest: { programUrl: combineResult.programUrl }
+                });
+            }, 1000);
+            
+        } catch (error) {
+            console.error('❌ Error generating program:', error);
+            showError(`Failed to generate program: ${error.message}`);
+        }
+    }
+
+    /**
+     * Show error state
+     */
+    function showError(message) {
+        updateLoadingMessage(`Error: ${message}`);
+        console.error('💥 Radio error:', message);
+    }
+
+    // Make functions available globally for testing
     window.RadioProgram = {
-        // State control
-        showLoading: showLoadingState,
-        showPlayer: showPlayerState,
-        showGenerating: showGeneratingState,
-        
-        // Updates
+        showLoading,
+        showPlayer,
+        showGenerating,
         updateLoadingMessage,
-        updateGeneratingProgress,
-        updateWorldInfo,
-        
-        // Utilities
-        getCurrentState: () => currentState,
-        getAudioPlayer: () => audioPlayer,
-        formatTime
+        updateGeneratingStatus,
+        loadRadioData
     };
 
-    console.log('✅ Radio program loaded and ready for Webflow');
+})();
 
-})(); 
+console.log('✅ Radio program loaded and ready for Webflow'); 

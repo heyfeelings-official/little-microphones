@@ -1,213 +1,109 @@
 # 🎵 Webflow Program Page Setup Guide
 
-## 📋 Wymagane Kontenery w Webflow
+## 📋 Problem Zidentyfikowany
 
-Musisz stworzyć **3 kontenery** w Webflow Designer z określonymi ID:
+W twoim HTML masz tylko **loading container**, ale JavaScript potrzebuje **3 kontenery**. Konsola pokazuje: `"Container not found: player-container"`
 
-### 1. **Loading Container** - ID: `loading-container`
+## ✅ Co masz już w HTML:
 ```html
-<div id="loading-container">
-    <h2>Little Microphones</h2>
-    <h1 class="world-name">Spookyland</h1>
-    <p class="loading-message">Loading...</p>
-    <div class="program-teacher">John Teacher & The Kids</div>
-    <div class="program-school">from Elementary X</div>
+<div id="program-container" class="w-layout-vflex flex-block-17">
+    <div class="program-state program-loading">
+        <div class="program-world-header">
+            <h2 class="program-world-title">Little Microphones</h2>
+            <h1 class="program-world-name" id="program-world-name">Spookyland</h1>
+        </div>
+        <div class="program-status-container">
+            <div class="program-status-text" id="program-status-text">Loading your radio program...</div>
+        </div>
+        <div class="program-meta">
+            <div class="program-teacher" id="program-teacher">John Teacher &amp; The Kids</div>
+            <div class="program-school" id="program-school">from Elementary X</div>
+        </div>
+    </div>
 </div>
 ```
 
-### 2. **Player Container** - ID: `player-container`
+## ❌ Co brakuje - Dodaj do Webflow:
+
+### 1. **Player Container** - ID: `player-container`
 ```html
 <div id="player-container" style="display: none;">
-    <h2>Little Microphones</h2>
-    <h1 class="world-name">Spookyland</h1>
-    <audio controls class="program-audio"></audio>
-    <div class="time-display">0:01 / 0:02</div>
-    <div class="program-teacher">John Teacher & The Kids</div>
-    <div class="program-school">from Elementary X</div>
+    <div class="program-world-header">
+        <h2 class="program-world-title">Little Microphones</h2>
+        <h1 class="program-world-name world-name">Spookyland</h1>
+    </div>
+    <div class="program-player-section">
+        <audio controls class="program-audio">
+            <!-- JavaScript wstrzyknie src -->
+        </audio>
+        <div class="program-time-display time-display">0:01 / 0:02</div>
+        <div class="program-recording-count recording-count">3 recordings</div>
+    </div>
+    <div class="program-meta">
+        <div class="program-teacher program-teacher">John Teacher & The Kids</div>
+        <div class="program-school program-school">from Elementary X</div>
+    </div>
 </div>
 ```
 
-### 3. **Generating Container** - ID: `generating-container`
+### 2. **Generating Container** - ID: `generating-container`
 ```html
 <div id="generating-container" style="display: none;">
-    <h2>Little Microphones</h2>
-    <h1 class="world-name">Generating...</h1>
-    <div class="progress-bar">
-        <div class="progress-fill"></div>
+    <div class="program-world-header">
+        <h2 class="program-world-title">Little Microphones</h2>
+        <h1 class="program-world-name world-name">Spookyland</h1>
     </div>
-    <p class="generating-message">Progress bar here</p>
-    <div class="program-teacher">John Teacher & The Kids</div>
-    <div class="program-school">from Elementary X</div>
+    <div class="program-generating-section">
+        <div class="program-status-text generating-status">Generating your radio program...</div>
+        <div class="program-progress-container">
+            <div class="program-progress-bar progress-bar"></div>
+        </div>
+        <div class="program-progress-text progress-text">Mixing audio segments...</div>
+    </div>
+    <div class="program-meta">
+        <div class="program-teacher program-teacher">John Teacher & The Kids</div>
+        <div class="program-school program-school">from Elementary X</div>
+    </div>
 </div>
 ```
 
----
+## 🔧 **Szybka Poprawka - Dodaj wszystkie 3 kontenery jako widoczne:**
 
-## 🎯 Wymagane Klasy i ID
+W Webflow Designer, w sekcji gdzie masz `program-container`, dodaj te 2 dodatkowe kontenery **OBOK** istniejącego. Na czas tworzenia ustaw wszystkie jako `display: block` żeby je widzieć.
 
-### **Klasy/ID które JavaScript będzie aktualizować:**
+## 📝 **Klasy i ID które JavaScript będzie aktualizować:**
 
-#### **World Info (we wszystkich kontenerach):**
-- `.world-name` lub `#world-name` - nazwa świata
-- `.program-teacher` lub `#program-teacher` - nazwa nauczyciela
-- `.program-school` lub `#program-school` - nazwa szkoły
+### **Loading State:**
+- `#program-world-name` - nazwa świata
+- `#program-status-text` - status loading
+- `#program-teacher` - nauczyciel  
+- `#program-school` - szkoła
 
-#### **Loading Container:**
-- `.loading-message` lub `#loading-message` - wiadomość ładowania
-- `.loading-status` lub `#loading-status` - status ładowania
+### **Player State:**
+- `.world-name` - nazwa świata
+- `.program-audio` - element audio
+- `.time-display` - czas odtwarzania
+- `.recording-count` - liczba nagrań
+- `.program-teacher` - nauczyciel
+- `.program-school` - szkoła
 
-#### **Player Container:**
-- `audio` element (dowolna klasa) - odtwarzacz audio
-- `.current-time` lub `#current-time` - aktualny czas
-- `.total-time` lub `#total-time` - całkowity czas
-- `.time-display` lub `#time-display` - pełny czas "0:01 / 0:02"
-- `.audio-error` lub `#audio-error` - błędy audio
+### **Generating State:**
+- `.world-name` - nazwa świata
+- `.generating-status` - status generowania
+- `.progress-bar` - pasek postępu
+- `.progress-text` - tekst postępu
+- `.program-teacher` - nauczyciel
+- `.program-school` - szkoła
 
-#### **Generating Container:**
-- `.generating-message` lub `#generating-message` - wiadomość generowania
-- `.generating-status` lub `#generating-status` - status generowania
-- `.progress-fill` lub `#progress-fill` - wypełnienie paska postępu
-- `.progress-text` lub `#progress-text` - procent postępu
+## 🎯 **Następny Krok:**
 
----
+1. **Dodaj 2 brakujące kontenery** do Webflow
+2. **Ustaw wszystkie 3 jako widoczne** (`display: block`)
+3. **Przetestuj** - konsola nie powinna już pokazywać błędów
+4. **Styluj** każdy kontener osobno w Webflow Designer
 
-## 🛠️ Krok po Kroku Setup w Webflow
-
-### **Krok 1: Struktura HTML**
-
-1. **Dodaj 3 Div Blocks** do strony `/program`
-2. **Nadaj im ID:**
-   - `loading-container`
-   - `player-container` 
-   - `generating-container`
-
-3. **Ustaw display: none** dla `player-container` i `generating-container` w Designer
-
-### **Krok 2: Elementy w kontenerach**
-
-#### **Loading Container:**
-- Div Block z klasą `world-name`
-- Text Block z klasą `loading-message`
-- Text Block z klasą `program-teacher`
-- Text Block z klasą `program-school`
-
-#### **Player Container:**
-- Div Block z klasą `world-name`
-- **Audio Element** (z Webflow Components)
-- Text Block z klasą `time-display`
-- Text Block z klasą `program-teacher`
-- Text Block z klasą `program-school`
-
-#### **Generating Container:**
-- Div Block z klasą `world-name` 
-- Div Block z klasą `progress-bar`
-  - Wewnątrz: Div Block z klasą `progress-fill`
-- Text Block z klasą `generating-message`
-- Text Block z klasą `program-teacher`
-- Text Block z klasą `program-school`
-
-### **Krok 3: JavaScript Integration**
-
-**Dodaj do Page Settings > Custom Code > Before </body> tag:**
-
-```html
-<script>
-// Skopiuj całą zawartość radio.js tutaj
-// (392 linii kodu z radio.js)
-</script>
-```
-
----
-
-## 🎨 Stylowanie w Webflow
-
-### **Progress Bar Style:**
-```css
-.progress-bar {
-    width: 100%;
-    height: 8px;
-    background: #f0f0f0;
-    border-radius: 4px;
-    overflow: hidden;
-}
-
-.progress-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #4CAF50, #8BC34A);
-    width: 0%;
-    transition: width 0.3s ease;
-}
-```
-
-### **Container Transitions:**
-```css
-#loading-container,
-#player-container,
-#generating-container {
-    transition: opacity 0.3s ease;
-}
-```
-
-### **Responsive Design:**
-- Użyj Webflow breakpoints
-- Dostosuj rozmiary fontów
-- Ukryj/pokaż elementy na mobile
-
----
-
-## 🔧 Testowanie
-
-### **Test Controls (opcjonalne):**
-Dodaj te buttony do testowania stanów:
-
-```html
-<button onclick="window.RadioProgram.showLoading('Test loading...')">Loading</button>
-<button onclick="window.RadioProgram.showGenerating('Test generating...', 50)">Generating</button>
-<button onclick="window.RadioProgram.showPlayer('test-url', {})">Player</button>
-```
-
----
-
-## 📱 Jak to Działa
-
-### **Automatyczny Flow:**
-1. **Strona się ładuje** → pokazuje `loading-container`
-2. **Pobiera dane** → aktualizuje world info
-3. **Sprawdza czy trzeba generować:**
-   - **TAK** → pokazuje `generating-container` z postępem
-   - **NIE** → pokazuje `player-container` z audio
-
-### **Kontrola z JavaScript:**
-```javascript
-// Przełączanie stanów
-window.RadioProgram.showLoading('Loading message...')
-window.RadioProgram.showPlayer('audio-url', radioData)
-window.RadioProgram.showGenerating('Generating...', 75)
-
-// Aktualizacje
-window.RadioProgram.updateLoadingMessage('New message')
-window.RadioProgram.updateGeneratingProgress('Processing...', 90)
-```
-
----
-
-## ⚠️ Ważne Uwagi
-
-1. **Wszystkie style w Webflow** - JavaScript nie dodaje CSS
-2. **ID muszą być dokładnie takie** jak w instrukcji
-3. **Klasy można dostosować** - JavaScript szuka wielu wariantów
-4. **Audio element** musi być w `player-container`
-5. **Progress bar** potrzebuje zagnieżdżone `.progress-fill`
-
----
-
-## 🚀 Gotowe do Implementacji!
-
-Po skonfigurowaniu struktury w Webflow, JavaScript automatycznie:
-- ✅ Ukrywa/pokazuje odpowiednie kontenery
-- ✅ Aktualizuje teksty i dane
-- ✅ Obsługuje audio player
-- ✅ Zarządza progress barem
-- ✅ Formatuje czas audio
-
-**Żadnych inline styli, wszystko kontrolowane przez Webflow Designer!** 🎨 
+## 🚀 **JavaScript będzie automatycznie:**
+- Ukrywać/pokazywać odpowiednie kontenery
+- Aktualizować teksty i dane
+- Kontrolować audio player
+- Pokazywać progress bary 
