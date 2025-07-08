@@ -340,12 +340,10 @@
         // Add hover effects for better visibility
         progressContainer.addEventListener('mouseenter', () => {
             progressContainer.style.background = 'rgba(0, 0, 0, 0.2)';
-            progressContainer.style.height = '10px';
         });
         
         progressContainer.addEventListener('mouseleave', () => {
             progressContainer.style.background = 'rgba(0, 0, 0, 0.15)';
-            progressContainer.style.height = '8px';
         });
 
         // Time updates
