@@ -163,7 +163,7 @@
         
         const li = document.createElement('li');
         li.dataset.recordingId = recordingData.id;
-        li.style.cssText = 'list-style: none; margin-bottom: 0;';
+        li.style.cssText = 'list-style: none; margin-bottom: 0; width: 100%;';
 
         const audioURL = await getAudioSource(recordingData);
         if (!audioURL) {
@@ -173,7 +173,7 @@
         
         // Main player container
         const playerContainer = document.createElement('div');
-        playerContainer.style.cssText = `width: 100%; height: 48px; position: relative; background: white; border-radius: 122px; display: flex; align-items: center; padding: 0 16px; box-sizing: border-box;`;
+        playerContainer.style.cssText = `width: 100%; height: 48px; position: relative; background: #ffffff; border-radius: 122px; display: flex; align-items: center; padding: 0 16px; box-sizing: border-box;`;
         
         // Hidden audio element with cache busting
         const audio = document.createElement('audio');
@@ -267,10 +267,10 @@
      */
     function createProgressBar() {
         const progressContainer = document.createElement('div');
-        progressContainer.style.cssText = `flex: 1; height: 4px; background: rgba(0, 0, 0, 0.1); border-radius: 2px; position: relative; cursor: pointer; margin-right: 1rem;`;
+        progressContainer.style.cssText = `flex: 1; height: 8px; background: rgba(0, 0, 0, 0.15); border-radius: 4px; position: relative; cursor: pointer; margin-right: 1rem;`;
         
         const progressBar = document.createElement('div');
-        progressBar.style.cssText = `width: 0%; height: 100%; background: #007AF7; border-radius: 2px; transition: width 0.1s ease;`;
+        progressBar.style.cssText = `width: 0%; height: 100%; background: #007AF7; border-radius: 4px; transition: width 0.1s ease;`;
         progressContainer.appendChild(progressBar);
         
         return progressContainer;
@@ -335,6 +335,17 @@
                 const percentage = clickX / rect.width;
                 audio.currentTime = percentage * audio.duration;
             }
+        });
+        
+        // Add hover effects for better visibility
+        progressContainer.addEventListener('mouseenter', () => {
+            progressContainer.style.background = 'rgba(0, 0, 0, 0.2)';
+            progressContainer.style.height = '10px';
+        });
+        
+        progressContainer.addEventListener('mouseleave', () => {
+            progressContainer.style.background = 'rgba(0, 0, 0, 0.15)';
+            progressContainer.style.height = '8px';
         });
 
         // Time updates

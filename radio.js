@@ -461,7 +461,7 @@
         // Ensure all child elements are above the video
         const children = container.children;
         for (let i = 0; i < children.length; i++) {
-            if (children[i] !== video) {
+            if (children[i] !== video && !children[i].classList.contains('program-container-shadow')) {
                 children[i].style.position = 'relative';
                 children[i].style.zIndex = '1';
             }
@@ -580,8 +580,9 @@
                 // Add some styling to make it fit better in the radio context
                 const playerDiv = playerElement.querySelector('div[style*="background: white"]');
                 if (playerDiv) {
-                    playerDiv.style.background = 'rgba(255,255,255,0.9)';
+                    playerDiv.style.background = '#ffffff';
                     playerDiv.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+                    playerDiv.style.width = '100%';
                 }
                 
                 playerContainer.appendChild(playerElement);
