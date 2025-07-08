@@ -46,7 +46,7 @@ async function getWorldInfoHandler(req, res, params) {
     
     // Use optimized database query with caching
     const lmidData = await findLmidByShareId(shareId);
-    
+
     if (!lmidData) {
         const error = new Error('ShareID not found');
         error.status = 404;
@@ -56,7 +56,7 @@ async function getWorldInfoHandler(req, res, params) {
     
     // Get background URL for the world
     const backgroundUrl = WORLD_BACKGROUNDS[lmidData.world];
-    
+
     // Return optimized response data
     return {
         world: lmidData.world,

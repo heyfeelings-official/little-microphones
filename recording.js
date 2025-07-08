@@ -110,25 +110,25 @@
 
     // Global state management
     const savingLocks = new Set();
-    const initializedWorlds = new Set();
+const initializedWorlds = new Set();
 
     // Simplified logging system
-    const LOG_CONFIG = {
-        ENABLED: true,
-        PRODUCTION_MODE: typeof window !== 'undefined' && window.location && window.location.hostname !== 'localhost',
-        ICONS: { error: '❌', warn: '⚠️', info: '✅', debug: '🔍' }
-    };
+const LOG_CONFIG = {
+    ENABLED: true,
+    PRODUCTION_MODE: typeof window !== 'undefined' && window.location && window.location.hostname !== 'localhost',
+    ICONS: { error: '❌', warn: '⚠️', info: '✅', debug: '🔍' }
+};
 
-    function log(level, message, data = null) {
-        if (!LOG_CONFIG.ENABLED) return;
-        if (LOG_CONFIG.PRODUCTION_MODE && level === 'debug') return;
-        const icon = LOG_CONFIG.ICONS[level] || '📝';
-        if (data) {
-            console.log(`${icon} ${message}`, data);
-        } else {
-            console.log(`${icon} ${message}`);
-        }
+function log(level, message, data = null) {
+    if (!LOG_CONFIG.ENABLED) return;
+    if (LOG_CONFIG.PRODUCTION_MODE && level === 'debug') return;
+    const icon = LOG_CONFIG.ICONS[level] || '📝';
+    if (data) {
+        console.log(`${icon} ${message}`, data);
+    } else {
+        console.log(`${icon} ${message}`);
     }
+}
 
     /**
      * Normalize question ID to ensure consistency
@@ -184,15 +184,15 @@
             if (!world || !lmid) {
                 log('error', `Missing world or lmid for recording ${recordingId}`);
                 alert('Cannot delete recording: missing required information');
-                return;
-            }
+                         return;
+                    }
             
             // Delete from cloud storage if exists
             if (recordingData.cloudUrl) {
                 try {
                     await deleteFromBunny(recordingData, world, lmid, questionId);
                     log('info', `Cloud file deleted: ${recordingData.cloudUrl}`);
-                } catch (error) {
+    } catch (error) {
                     log('warn', `Failed to delete cloud file: ${error.message}`);
                     // Continue with local deletion even if cloud deletion fails
                 }
@@ -213,23 +213,23 @@
             }
             
             log('info', `Recording deletion completed: ${recordingId}`);
-            
-        } catch (error) {
+
+    } catch (error) {
             log('error', `Failed to delete recording ${recordingId}:`, error);
             alert('Failed to delete recording. Please try again.');
-        }
     }
+}
 
-    /**
+/**
      * Initialize recorders for a specific world
      * @param {string} world - World name to initialize
      */
     function initializeRecordersForWorld(world) {
         if (initializedWorlds.has(world)) {
             log('debug', `Recorders already initialized for world: ${world}`);
-            return;
-        }
-        
+        return;
+    }
+    
         log('info', `Initializing recorders for world: ${world}`);
         
         // Inject global styles once
@@ -360,7 +360,7 @@
         initializedWorlds.add(world);
         
         // Setup cleanup for orphaned recordings (run once per world)
-        setTimeout(() => {
+            setTimeout(() => {
             cleanupAllOrphanedRecordings(world, lmid).then(cleanedCount => {
                 if (cleanedCount > 0) {
                     log('info', `Cleaned up ${cleanedCount} orphaned recordings for world: ${world}`);
@@ -444,7 +444,7 @@
                             try {
                                 await saveRecordingToDB(localRecordingData);
                                 log('debug', `Synced cloud recording: ${localRecordingData.id}`);
-                            } catch (error) {
+    } catch (error) {
                                 log('error', `Failed to sync recording ${localRecordingData.id}:`, error);
                             }
                         }
@@ -452,7 +452,7 @@
                         // Reload recordings from database after sync
                         recordings = await loadRecordingsFromDB(questionId, world, lmid);
                     }
-                } catch (error) {
+    } catch (error) {
                     log('error', `Failed to sync from cloud for question ${questionId}:`, error);
                 }
             }
@@ -484,18 +484,18 @@
                     }
                 } catch (error) {
                     log('error', `Failed to create element for recording ${recording.id}:`, error);
-                }
             }
-            
-        } catch (error) {
-            log('error', `Failed to render recordings list for question ${questionId}:`, error);
         }
+        
+    } catch (error) {
+            log('error', `Failed to render recordings list for question ${questionId}:`, error);
     }
+}
 
-    /**
+/**
      * Generate radio program for current world/lmid
-     * @param {string} world - World name
-     * @param {string} lmid - LMID
+ * @param {string} world - World name
+ * @param {string} lmid - LMID
      */
     async function generateRadioProgramForWorld(world, lmid) {
         log('info', `Starting radio program generation for world: ${world}, lmid: ${lmid}`);
@@ -515,7 +515,7 @@
         try {
             const result = await generateRadioProgram(world, lmid, dependencies);
             return result;
-        } catch (error) {
+            } catch (error) {
             log('error', 'Radio program generation failed:', error);
             return { success: false, error: error.message };
         }
@@ -539,8 +539,8 @@
                 storage: stats,
                 radio: radioStatus,
                 initialized: initializedWorlds.has(world)
-            };
-        } catch (error) {
+                };
+            } catch (error) {
             log('error', 'Failed to get system status:', error);
             return null;
         }
@@ -558,7 +558,7 @@
             const result = await syncRecordingsWithCloud(world, lmid);
             log('info', `Cloud sync completed: ${result.message || 'success'}`);
             return result;
-        } catch (error) {
+            } catch (error) {
             log('error', 'Cloud sync failed:', error);
             return { success: false, error: error.message };
         }

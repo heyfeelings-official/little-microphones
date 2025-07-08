@@ -112,7 +112,7 @@ To jest centralny punkt, który zawodził i został naprawiony.
     c. Wywołuje `updateMemberstackMetadata` z `utils/lmid-utils.js`.
 4.  **`updateMemberstackMetadata`** wysyła żądanie `PATCH` do **Memberstack Admin API** z poprawnym formatem `{"metadata": ...}`.
 5.  **Memberstack** aktualizuje metadane użytkownika.
-6.  Odpowiedź wraca tą samą drogą, a frontend odświeża interfejs.
+6.  Odpowiedź wraca tą samą drogą, a frontend odświeża interfejs. 
 
 ---
 

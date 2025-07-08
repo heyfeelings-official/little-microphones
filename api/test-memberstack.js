@@ -35,9 +35,9 @@ import { updateMemberMetadata } from '../utils/memberstack-utils.js';
  */
 async function testMemberstackHandler(req, res, params) {
     const { memberId } = params;
-    
+
     console.log(`🔧 [SYNC-MEMBERSTACK] Starting one-time sync for member: ${memberId}`);
-    
+
     try {
         // Step 1: Fetch correct LMIDs from our database using optimized query
         console.log('🔍 Fetching correct LMIDs from Supabase...');
@@ -51,20 +51,20 @@ async function testMemberstackHandler(req, res, params) {
                 lmidCount: 0
             };
         }
-        
+
         const correctLmidArray = lmidRecords.map(record => record.lmid);
         const correctLmidString = correctLmidArray.join(',');
         console.log(`📄 Correct LMIDs from Supabase: [${correctLmidString}]`);
-        
+
         // Step 2: Force-update Memberstack metadata using enhanced function
         console.log('📤 Force-updating Memberstack metadata...');
         const updateSuccess = await updateMemberMetadata(memberId, {
-            lmids: correctLmidString
+                lmids: correctLmidString
         }, {
             validateOwnership: false, // Skip validation for force sync
             clearCache: true
         });
-        
+
         if (!updateSuccess) {
             const error = new Error('Failed to update Memberstack metadata');
             error.status = 500;
@@ -73,7 +73,7 @@ async function testMemberstackHandler(req, res, params) {
         }
         
         console.log('✅ Memberstack metadata synchronized successfully!');
-        
+
         return {
             message: `Successfully synchronized Memberstack metadata for member ${memberId}`,
             synchronizedLmids: correctLmidString,
@@ -83,7 +83,7 @@ async function testMemberstackHandler(req, res, params) {
                 assignedAt: record.assigned_at
             }))
         };
-        
+
     } catch (error) {
         console.error('❌ [SYNC-MEMBERSTACK] Error during sync process:', error);
         
