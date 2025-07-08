@@ -53,7 +53,17 @@
         'neighborhood'
     ];
     
-    // World Images (from Webflow CDN)
+    // World Videos (from HeyFeelings CDN) - replaces static images with dynamic videos
+    window.LM_CONFIG.WORLD_VIDEOS = {
+        'big-city': 'https://heyfeelings.b-cdn.net/Worlds/city-opt.mp4',
+        'amusement-park': 'https://heyfeelings.b-cdn.net/Worlds/funfair-opt.mp4',
+        'spookyland': 'https://heyfeelings.b-cdn.net/Worlds/halloween-opt.mp4',
+        'neighborhood': 'https://heyfeelings.b-cdn.net/Worlds/home-opt.mp4',
+        'shopping-spree': 'https://heyfeelings.b-cdn.net/Worlds/mall-opt.mp4',
+        'waterpark': 'https://heyfeelings.b-cdn.net/Worlds/waterpark-opt.mp4'
+    };
+    
+    // Legacy World Images (kept for fallback compatibility)
     window.LM_CONFIG.WORLD_IMAGES = {
         'shopping-spree': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/67f506146fb421db045378af_cdcb9c23ac6f956cbb6f7f498c75cd11_worlds-Anxiety.avif',
         'waterpark': 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/67f50606d058c933cd554be8_2938a42d480503a33daf8a8334f53f0a_worlds-Empathy.avif',
@@ -111,7 +121,12 @@
             return world.charAt(0).toUpperCase() + world.slice(1).replace(/-/g, ' ');
         },
         
-        // Get world image URL
+        // Get world video URL (preferred)
+        getWorldVideo: function(world) {
+            return window.LM_CONFIG.WORLD_VIDEOS[world] || '';
+        },
+        
+        // Get world image URL (fallback)
         getWorldImage: function(world) {
             return window.LM_CONFIG.WORLD_IMAGES[world] || '';
         },
