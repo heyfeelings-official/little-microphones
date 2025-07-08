@@ -270,14 +270,6 @@ function setupExistingRadioProgramButton(world, lmid) {
     
     console.log(`Get Share Link button clicked for ${world}/${lmid}`);
     
-    // Store original button state
-    const originalText = newButton.textContent;
-    const originalDisabled = newButton.disabled;
-    
-    // Disable button during processing
-    newButton.disabled = true;
-    newButton.textContent = 'Getting Share Link...';
-    
     try {
       // Call the get-share-link API with both lmid AND world parameters
       const response = await fetch(`${API_BASE_URL}/api/get-share-link?lmid=${lmid}&world=${world}`);
@@ -301,10 +293,6 @@ function setupExistingRadioProgramButton(world, lmid) {
     } catch (error) {
       console.error('Failed to get share link:', error);
       alert('Failed to get share link. Please try again.');
-    } finally {
-      // Re-enable button
-      newButton.disabled = originalDisabled;
-      newButton.textContent = originalText;
     }
   });
   

@@ -564,7 +564,7 @@
             return { success: false, error: 'Missing or invalid world name' };
         }
         
-        if (!data.lmid || typeof data.lmid !== 'string') {
+        if (!data.lmid || (typeof data.lmid !== 'string' && typeof data.lmid !== 'number')) {
             return { success: false, error: 'Missing or invalid LMID' };
         }
         
