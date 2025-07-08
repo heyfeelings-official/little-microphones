@@ -362,10 +362,7 @@ function log(level, message, data = null) {
                     log('error', `Failed to initialize recorder for question: ${questionId}`);
                 }
                 
-                // Load existing recordings immediately (database is already ready)
-                setTimeout(() => {
-                    renderRecordingsList(wrapper, questionId, world, lmid);
-                }, 100);
+                // Don't load recordings here - will be done after global sync
                 
             } catch (error) {
                 log('error', `Failed to initialize recorder ${index}:`, error);
@@ -375,26 +372,34 @@ function log(level, message, data = null) {
         // Mark world as initialized
         initializedWorlds.add(world);
         
-        // Don't run aggressive cleanup anymore - just sync periodically
+        // Sync with cloud once, then render all recording lists
         setTimeout(() => {
             syncRecordingsWithCloud(world, lmid).then(result => {
-                if (result.success && result.syncedCount > 0) {
-                    log('info', `Background sync completed: ${result.syncedCount} recordings synced`);
-                    // Refresh all recording lists after sync
-                    recorderWrappers.forEach((wrapper, index) => {
-                        const questionId = normalizeQuestionId(
-                            wrapper.dataset.questionId || 
-                            wrapper.dataset.question || 
-                            wrapper.id || 
-                            `question_${index + 1}`
-                        );
-                        renderRecordingsList(wrapper, questionId, world, lmid);
-                    });
-                }
+                log('info', `Background sync completed: ${result.syncedCount} recordings synced`);
+                // Now render all recording lists after sync
+                recorderWrappers.forEach((wrapper, index) => {
+                    const questionId = normalizeQuestionId(
+                        wrapper.dataset.questionId || 
+                        wrapper.dataset.question || 
+                        wrapper.id || 
+                        `question_${index + 1}`
+                    );
+                    renderRecordingsList(wrapper, questionId, world, lmid);
+                });
             }).catch(error => {
                 log('error', 'Background sync failed:', error);
+                // Still render lists even if sync fails
+                recorderWrappers.forEach((wrapper, index) => {
+                    const questionId = normalizeQuestionId(
+                        wrapper.dataset.questionId || 
+                        wrapper.dataset.question || 
+                        wrapper.id || 
+                        `question_${index + 1}`
+                    );
+                    renderRecordingsList(wrapper, questionId, world, lmid);
+                });
             });
-        }, 3000); // Run sync after 3 seconds
+        }, 500); // Small delay to ensure everything is ready
         
         log('info', `World initialization completed: ${world}`);
         
@@ -462,44 +467,8 @@ function log(level, message, data = null) {
             // Load recordings from database
             let recordings = await loadRecordingsFromDB(questionId, world, lmid);
             
-            // If no local recordings found, try to sync from cloud
-            if (recordings.length === 0) {
-                log('debug', `No local recordings found for question: ${questionId}, checking cloud...`);
-                
-                try {
-                    const cloudRecordings = await loadRecordingsFromCloud(questionId, world, lmid);
-                    if (cloudRecordings.length > 0) {
-                        log('info', `Found ${cloudRecordings.length} cloud recordings for question: ${questionId}, syncing...`);
-                        
-                        // Add cloud recordings to local database
-                        for (const cloudRecording of cloudRecordings) {
-                            const localRecordingData = {
-                                id: cloudRecording.filename.replace('.mp3', ''), // Use filename as ID
-                                questionId: questionId,
-                                world: world,
-                                lmid: lmid,
-                                audio: null, // No local blob for cloud-only recordings
-                                createdAt: new Date(cloudRecording.lastModified).toISOString(),
-                                timestamp: cloudRecording.lastModified,
-                                uploadStatus: 'uploaded',
-                                cloudUrl: cloudRecording.url
-                            };
-                            
-                            try {
-                                await saveRecordingToDB(localRecordingData);
-                                log('debug', `Synced cloud recording: ${localRecordingData.id}`);
-                            } catch (error) {
-                                log('error', `Failed to sync recording ${localRecordingData.id}:`, error);
-                            }
-                        }
-                        
-                        // Reload recordings from database after sync
-                        recordings = await loadRecordingsFromDB(questionId, world, lmid);
-                    }
-                } catch (error) {
-                    log('error', `Failed to sync from cloud for question ${questionId}:`, error);
-                }
-            }
+            // Don't sync from cloud here - it's done globally during initialization
+            // This prevents multiple requests for each question
             
             // Clear existing list
             recordingsList.innerHTML = '';
