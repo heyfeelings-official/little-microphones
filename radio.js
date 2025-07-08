@@ -24,9 +24,6 @@
     // API Configuration
     const API_BASE_URL = window.LM_CONFIG?.API_BASE_URL || 'https://little-microphones.vercel.app';
 
-    // TEMPORARY: Development mode - show all states
-    const DEVELOPMENT_MODE = true;
-
     // Fun generating messages that loop
     const GENERATING_MESSAGES = [
         'Mixing magical audio potions...',
@@ -64,8 +61,12 @@
         
         console.log('📻 ShareID extracted:', currentShareId);
         
-        // Initialize state elements
-        initializeStateElements();
+        // Check if required elements exist
+        if (!checkRequiredElements()) {
+            console.error('❌ Required elements not found on page');
+            showError('Page setup incomplete - missing required elements');
+            return;
+        }
         
         // Start loading
         showLoadingState();
@@ -75,32 +76,28 @@
     });
 
     /**
-     * Initialize state elements for development
+     * Check if all required elements exist on the page
      */
-    function initializeStateElements() {
-        if (DEVELOPMENT_MODE) {
-            // Show all state elements for development
-            const stateElements = [
-                'loading-state',
-                'generating-state', 
-                'player-state'
-            ];
-            
-            stateElements.forEach(elementId => {
-                const element = document.getElementById(elementId);
-                if (element) {
-                    element.style.display = 'block';
-                    element.style.marginBottom = '20px';
-                    element.style.border = '2px solid #ccc';
-                    element.style.padding = '20px';
-                    console.log(`✅ ${elementId} found and visible for development`);
-                } else {
-                    console.warn(`❌ State element not found: ${elementId}`);
-                }
-            });
-        }
+    function checkRequiredElements() {
+        const requiredElements = [
+            'loading-state',
+            'generating-state', 
+            'player-state',
+            'world-name'
+        ];
         
-        console.log('✅ State elements initialized');
+        let allFound = true;
+        requiredElements.forEach(elementId => {
+            const element = document.getElementById(elementId);
+            if (!element) {
+                console.error(`❌ Required element not found: ${elementId}`);
+                allFound = false;
+            } else {
+                console.log(`✅ Found required element: ${elementId}`);
+            }
+        });
+        
+        return allFound;
     }
 
     /**
@@ -109,10 +106,8 @@
     function showLoadingState() {
         console.log('📡 Showing loading state');
         
-        if (!DEVELOPMENT_MODE) {
-            hideAllStates();
-            showState('loading-state');
-        }
+        hideAllStates();
+        showState('loading-state');
         
         updateLoadingMessage('Loading your radio program...');
         currentState = 'loading';
@@ -125,10 +120,8 @@
     function showPlayerState(audioUrl, radioData) {
         console.log('🎵 Showing player state');
         
-        if (!DEVELOPMENT_MODE) {
-            hideAllStates();
-            showState('player-state');
-        }
+        hideAllStates();
+        showState('player-state');
         
         // Setup audio player
         setupAudioPlayer(audioUrl, radioData);
@@ -143,10 +136,8 @@
     function showGeneratingState() {
         console.log('⚙️ Showing generating state');
         
-        if (!DEVELOPMENT_MODE) {
-            hideAllStates();
-            showState('generating-state');
-        }
+        hideAllStates();
+        showState('generating-state');
         
         // Start looped generating messages
         startGeneratingMessages();
@@ -219,6 +210,7 @@
         const worldElement = document.getElementById('world-name');
         if (worldElement) {
             worldElement.textContent = formattedWorld;
+            console.log(`🌍 Updated world name: ${formattedWorld}`);
         }
     }
 
@@ -231,10 +223,12 @@
         
         if (teacherElement && teacherName) {
             teacherElement.textContent = teacherName;
+            console.log(`👨‍🏫 Updated teacher name: ${teacherName}`);
         }
         
         if (schoolElement && schoolName) {
             schoolElement.textContent = schoolName;
+            console.log(`🏫 Updated school name: ${schoolName}`);
         }
     }
 
@@ -289,7 +283,7 @@
     }
 
     /**
-     * Setup audio player using the custom player from /rp page
+     * Setup audio player exactly like the /rp page
      */
     function setupAudioPlayer(audioUrl, radioData) {
         // Get the player container
@@ -299,8 +293,119 @@
             return;
         }
 
-        // Create custom audio player HTML (same as /rp page)
+        // Create custom audio player HTML exactly like /rp page with inline styles
         playerContainer.innerHTML = `
+            <style>
+                .audio-player-container {
+                    background: rgba(255,255,255,0.9);
+                    border-radius: 12px;
+                    padding: 16px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+                }
+                
+                .custom-audio-controls {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    margin-bottom: 12px;
+                }
+                
+                .play-btn {
+                    width: 48px;
+                    height: 48px;
+                    border-radius: 50%;
+                    border: none;
+                    background: #007ace;
+                    color: white;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 16px;
+                    transition: background 0.2s;
+                }
+                
+                .play-btn:hover {
+                    background: #005a9e;
+                }
+                
+                .progress-container {
+                    flex: 1;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 8px;
+                }
+                
+                .progress-bar {
+                    width: 100%;
+                    height: 6px;
+                    background: #e0e0e0;
+                    border-radius: 3px;
+                    cursor: pointer;
+                    position: relative;
+                }
+                
+                .progress-fill {
+                    height: 100%;
+                    background: #007ace;
+                    border-radius: 3px;
+                    width: 0%;
+                    transition: width 0.1s;
+                }
+                
+                .time-display {
+                    display: flex;
+                    justify-content: space-between;
+                    font-size: 12px;
+                    color: #666;
+                }
+                
+                .volume-container {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+                
+                .volume-btn {
+                    background: none;
+                    border: none;
+                    font-size: 16px;
+                    cursor: pointer;
+                    padding: 4px;
+                }
+                
+                .volume-slider {
+                    width: 60px;
+                    height: 4px;
+                    background: #e0e0e0;
+                    outline: none;
+                    border-radius: 2px;
+                    cursor: pointer;
+                }
+                
+                .volume-slider::-webkit-slider-thumb {
+                    appearance: none;
+                    width: 12px;
+                    height: 12px;
+                    background: #007ace;
+                    border-radius: 50%;
+                    cursor: pointer;
+                }
+                
+                .recording-info {
+                    text-align: center;
+                    font-size: 14px;
+                    color: #666;
+                    margin-top: 8px;
+                }
+                
+                .recording-count {
+                    background: rgba(0,122,206,0.1);
+                    padding: 4px 12px;
+                    border-radius: 12px;
+                    font-weight: 500;
+                }
+            </style>
             <div class="audio-player-container">
                 <audio id="radio-audio" preload="metadata" style="display: none;">
                     <source src="${audioUrl}" type="audio/mpeg">
@@ -337,7 +442,7 @@
     }
 
     /**
-     * Setup custom audio player functionality
+     * Setup custom audio player functionality exactly like /rp page
      */
     function setupCustomAudioPlayer(audioUrl) {
         audioPlayer = document.getElementById('radio-audio');
@@ -349,6 +454,7 @@
         const totalTimeEl = document.getElementById('total-time');
         const volumeBtn = document.getElementById('volume-btn');
         const volumeSlider = document.getElementById('volume-slider');
+        const progressContainer = document.querySelector('.progress-bar');
 
         if (!audioPlayer) return;
 
@@ -379,6 +485,20 @@
             }
         });
 
+        // Progress bar click to seek
+        if (progressContainer) {
+            progressContainer.addEventListener('click', function(e) {
+                const rect = progressContainer.getBoundingClientRect();
+                const clickX = e.clientX - rect.left;
+                const width = rect.width;
+                const clickPercent = clickX / width;
+                
+                if (!isNaN(audioPlayer.duration)) {
+                    audioPlayer.currentTime = clickPercent * audioPlayer.duration;
+                }
+            });
+        }
+
         // Volume control
         volumeSlider.addEventListener('input', function() {
             audioPlayer.volume = volumeSlider.value;
@@ -396,20 +516,7 @@
             updateVolumeIcon(audioPlayer.volume);
         });
 
-        // Progress bar click
-        const progressContainer = document.querySelector('.progress-bar');
-        progressContainer.addEventListener('click', function(e) {
-            const rect = progressContainer.getBoundingClientRect();
-            const clickX = e.clientX - rect.left;
-            const width = rect.width;
-            const clickPercent = clickX / width;
-            
-            if (!isNaN(audioPlayer.duration)) {
-                audioPlayer.currentTime = clickPercent * audioPlayer.duration;
-            }
-        });
-
-        // Update volume icon
+        // Update volume icon based on volume level
         function updateVolumeIcon(volume) {
             if (volume === 0) {
                 volumeBtn.textContent = '🔇';
@@ -456,10 +563,16 @@
             updateWorldName(data.world);
             setWorldBackground(data.world);
             
-            // Get teacher data and update info
-            getTeacherData(data.lmid).then(teacherData => {
+            // Get teacher data and update info - NAPRAWIONE
+            updateLoadingMessage('Getting teacher information...');
+            try {
+                const teacherData = await getTeacherData(data.lmid);
                 updateTeacherInfo(teacherData.teacherName, teacherData.schoolName);
-            });
+            } catch (teacherError) {
+                console.warn('Could not fetch teacher data:', teacherError);
+                // Use fallback values
+                updateTeacherInfo('Teacher & The Kids', 'from School');
+            }
             
             if (data.success) {
                 if (data.lastManifest?.programUrl) {
@@ -539,14 +652,15 @@
     }
 
     /**
-     * Get teacher data from API
+     * Get teacher data from API - NAPRAWIONE
      */
     async function getTeacherData(lmid) {
         try {
+            console.log(`👨‍🏫 Fetching teacher data for LMID: ${lmid}`);
             const response = await fetch(`${API_BASE_URL}/api/get-teacher-data?lmid=${lmid}`);
             
             if (!response.ok) {
-                console.warn('Failed to fetch teacher data:', response.status);
+                console.warn(`Failed to fetch teacher data: ${response.status} ${response.statusText}`);
                 return {
                     teacherName: 'Teacher & The Kids',
                     schoolName: 'from School'
@@ -554,11 +668,13 @@
             }
             
             const data = await response.json();
+            console.log('👨‍🏫 Teacher data response:', data);
             
             if (data.success) {
+                // handleApiRequest puts data directly in response object via Object.assign
                 return {
-                    teacherName: data.teacherName,
-                    schoolName: data.schoolName
+                    teacherName: data.teacherName || 'Teacher & The Kids',
+                    schoolName: data.schoolName || 'from School'
                 };
             } else {
                 console.warn('Teacher data API returned error:', data.error);

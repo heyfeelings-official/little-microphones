@@ -40,12 +40,21 @@ import { getMemberDetails } from '../utils/memberstack-utils.js';
 async function getTeacherDataHandler(req, res, params) {
     const { lmid } = params;
     
+    // Validate LMID is a positive integer
+    const lmidNum = parseInt(lmid, 10);
+    if (isNaN(lmidNum) || lmidNum <= 0) {
+        const error = new Error('LMID must be a positive integer');
+        error.status = 400;
+        error.code = 'INVALID_LMID';
+        throw error;
+    }
+    
     // Get LMID record from Supabase
     const supabase = getSupabaseClient();
     const { data: lmidRecord, error } = await supabase
         .from('lmids')
         .select('assigned_to_member_id, assigned_to_member_email')
-        .eq('lmid', lmid)
+        .eq('lmid', lmidNum)
         .eq('status', 'used')
         .single();
 
@@ -98,32 +107,13 @@ async function getTeacherDataHandler(req, res, params) {
 }
 
 /**
- * Request validation schema
- */
-const validationSchema = {
-    query: {
-        lmid: {
-            required: true,
-            type: 'string',
-            transform: (value) => {
-                const num = parseInt(value, 10);
-                if (isNaN(num) || num <= 0) {
-                    throw new Error('LMID must be a positive integer');
-                }
-                return num;
-            }
-        }
-    }
-};
-
-/**
  * Main handler with validation and error handling
  */
 export default async function handler(req, res) {
     return handleApiRequest(req, res, {
         allowedMethods: ['GET'],
-        validationSchema,
-        handler: getTeacherDataHandler,
+        requiredParams: ['lmid'],
+        requiredEnvVars: ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'MEMBERSTACK_SECRET_KEY'],
         endpoint: 'get-teacher-data'
-    });
+    }, getTeacherDataHandler);
 } 
