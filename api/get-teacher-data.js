@@ -76,14 +76,19 @@ async function getTeacherDataHandler(req, res, params) {
     }
 
     // Get member details from Memberstack
-    const memberData = await getMemberDetails(memberId);
+    let memberData = null;
+    try {
+        memberData = await getMemberDetails(memberId);
+        console.log('👨‍🏫 Member data structure:', JSON.stringify(memberData, null, 2));
+    } catch (error) {
+        console.warn('👨‍🏫 Could not fetch member data from Memberstack:', error.message);
+        console.warn('👨‍🏫 This might be due to missing MEMBERSTACK_SECRET_KEY or API issues');
+    }
     
     let teacherName = 'Teacher & The Kids';
     let schoolName = 'from School';
 
     if (memberData) {
-        console.log('👨‍🏫 Member data structure:', JSON.stringify(memberData, null, 2));
-        
         // Extract teacher name from CUSTOM FIELDS (not metaData)
         const firstName = memberData.customFields?.['First Name'] || 
                          memberData.customFields?.firstName || 
@@ -116,7 +121,8 @@ async function getTeacherDataHandler(req, res, params) {
         
         console.log('👨‍🏫 Final formatted data:', { teacherName, schoolName });
     } else {
-        console.warn('👨‍🏫 No member data returned from Memberstack');
+        console.warn('👨‍🏫 Using fallback values - no member data available');
+        console.warn('👨‍🏫 To get real teacher data, configure MEMBERSTACK_SECRET_KEY in Vercel environment variables');
     }
 
     return {
@@ -133,7 +139,7 @@ export default async function handler(req, res) {
     return handleApiRequest(req, res, {
         allowedMethods: ['GET'],
         requiredParams: ['lmid'],
-        requiredEnvVars: ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'MEMBERSTACK_SECRET_KEY'],
+        requiredEnvVars: ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'],
         endpoint: 'get-teacher-data'
     }, getTeacherDataHandler);
 } 
