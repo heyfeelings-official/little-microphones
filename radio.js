@@ -21,7 +21,7 @@
     let currentRadioData = null;
     let generatingInterval = null;
 
-    // API Configuration
+// API Configuration
     const API_BASE_URL = window.LM_CONFIG?.API_BASE_URL || 'https://little-microphones.vercel.app';
 
     // Fun generating messages
@@ -336,7 +336,7 @@
     }
 }
 
-    /**
+/**
      * Update teacher and school info
      * Now searches for ALL elements with these IDs, not just inside container
      */
@@ -355,10 +355,10 @@
             if (element && schoolName) {
                 element.textContent = schoolName;
             }
-        });
-    }
+    });
+}
 
-    /**
+/**
      * Set world background image - enhanced to use backgroundUrl from API
      */
     function setWorldBackground(world, backgroundUrl) {

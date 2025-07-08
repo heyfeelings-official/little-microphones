@@ -1,9 +1,9 @@
 /**
- * rp.js - Recording Page Authorization & World Management System
+ * record.js - Recording Page Authorization & World Management System
  * 
  * PURPOSE: Secure authorization system for recording pages with world-specific content management and radio program integration
- * DEPENDENCIES: Memberstack DOM SDK, URL parameters, recording.js integration
- * DOCUMENTATION: See /documentation/rp.js.md for complete system overview
+ * DEPENDENCIES: Memberstack DOM SDK, URL parameters, recording/recording.js integration
+ * DOCUMENTATION: See /documentation/record.js.md for complete system overview
  * 
  * AUTHORIZATION FLOW:
  * URL Parameters → Memberstack Auth → LMID Ownership Validation → World Content Display → Recording System Init
@@ -39,7 +39,7 @@
  * - Success/failure feedback with appropriate user messaging
  * 
  * RECORDING SYSTEM COORDINATION:
- * - Event-driven initialization waiting for recording.js readiness
+ * - Event-driven initialization waiting for recording/recording.js readiness
  * - Question ID discovery from DOM elements with normalization
  * - ShareID generation for radio program access
  * - Fallback database scanning for recording discovery
@@ -47,7 +47,7 @@
  * 
  * INTEGRATION POINTS:
  * - Memberstack: User authentication and metadata management
- * - recording.js: Core recording functionality and radio program generation
+ * - recording/recording.js: Core recording functionality and radio program generation
  * - URL Parameters: World and LMID specification from navigation
  * - DOM Elements: World collections and recording wrapper management
  * - Global State: Authorized parameters exposure for recording system
@@ -69,8 +69,12 @@
  * - Event listener management with proper cleanup
  * - Memory-efficient global variable management
  * 
+ * URL STRUCTURE:
+ * - New URL: /members/record?world=spookyland&lmid=123
+ * - Old URL: /members/rp?world=spookyland&lmid=123 (deprecated)
+ * 
  * LAST UPDATED: January 2025
- * VERSION: 2.4.0
+ * VERSION: 2.5.0 (Renamed from rp.js)
  * STATUS: Production Ready ✅
  */
 
@@ -145,9 +149,9 @@ function showWorldCollection(world) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  // Check if this is a radio page - if so, don't run rp.js
-  if (window.location.pathname.includes('/radio')) {
-    console.log('📻 Radio page detected - skipping rp.js initialization');
+  // Check if this is a radio page - if so, don't run record.js
+  if (window.location.pathname.includes('/little-microphones')) {
+    console.log('📻 Radio page detected - skipping record.js initialization');
     return;
   }
 
@@ -189,9 +193,9 @@ document.addEventListener("DOMContentLoaded", () => {
     showWorldCollection(worldFromUrl);
   }
 
-  // Check if this is a radio page - if so, don't run rp.js
-  if (window.location.pathname.includes('/radio')) {
-    console.log('📻 Radio page detected - skipping rp.js initialization');
+  // Check if this is a radio page - if so, don't run record.js
+  if (window.location.pathname.includes('/little-microphones')) {
+    console.log('📻 Radio page detected - skipping record.js initialization');
     return;
   }
 
@@ -293,8 +297,8 @@ async function generateShareIdAndSetupButton(button, world, lmid) {
       throw new Error(result.error || 'Failed to generate share link');
     }
     
-    // Generate the radio URL with ShareID
-    const radioUrl = `/members/radio?ID=${result.shareId}`;
+    // Generate the radio URL with ShareID (new public URL structure)
+    const radioUrl = `/little-microphones?ID=${result.shareId}`;
     
     console.log(`ShareID generated: ${result.shareId}, URL: ${radioUrl}`);
     

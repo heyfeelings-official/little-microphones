@@ -1,9 +1,9 @@
 /**
- * lm.js - Main Dashboard Controller
+ * little-microphones.js - Main Dashboard Controller
  * 
  * PURPOSE: Dashboard controller orchestrating authentication and LMID management UI
  * DEPENDENCIES: LM Auth System (loaded globally), Webflow, API endpoints
- * DOCUMENTATION: See /documentation/lm.js.md for complete system overview
+ * DOCUMENTATION: See /documentation/little-microphones.js.md for complete system overview
  * 
  * BROWSER COMPATIBILITY:
  * - Uses traditional JavaScript (no ES6 modules) for Webflow compatibility
@@ -15,15 +15,21 @@
  * - LMID UI population from templates
  * - Delete operations with file cleanup
  * - Add new LMID with limit enforcement
- * - World navigation routing
+ * - World navigation routing to /members/record
  * 
  * PERFORMANCE IMPROVEMENTS:
  * - Centralized authentication reduces redundant API calls
  * - Efficient DOM manipulation with minimal Webflow re-initialization
  * - Event delegation for dynamic content
  * 
+ * URL STRUCTURE:
+ * - Dashboard URL: /members/little-microphones (new)
+ * - Dashboard URL: /members/lm (deprecated)
+ * - Recording URLs: /members/record?world=X&lmid=Y
+ * - Radio URLs: /little-microphones?ID=shareId (public access)
+ * 
  * LAST UPDATED: January 2025
- * VERSION: 3.1.0 (Webflow Compatible)
+ * VERSION: 3.2.0 (Renamed from lm.js)
  * STATUS: Production Ready ✅
  */
 
@@ -272,7 +278,7 @@
         }
 
         const lmid = programWrapper.getAttribute("data-lmid");
-        const baseUrl = worldButton.getAttribute("href") || "/rp";
+        const baseUrl = worldButton.getAttribute("href") || "/members/record";
         const newUrl = `${baseUrl}?world=${world}&lmid=${lmid}`;
         
         console.log(`🌍 Navigating to: ${newUrl}`);
