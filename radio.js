@@ -626,11 +626,15 @@
             currentRadioData = data;
             
             if (data.success) {
-                if (data.lastManifest?.programUrl) {
-                    // Program exists, show player
+                // Check if new program generation is needed (API tells us)
+                if (data.needsNewProgram === true) {
+                    console.log('🔄 New program generation needed - files have changed');
+                    generateNewProgram(data);
+                } else if (data.lastManifest?.programUrl) {
+                    console.log('✅ Using existing program - no changes detected');
                     showExistingProgram(data);
                 } else {
-                    // Need to generate program
+                    console.log('⚙️ No existing program found - generating first program');
                     generateNewProgram(data);
                 }
             } else {

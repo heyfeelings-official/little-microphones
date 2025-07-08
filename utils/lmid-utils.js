@@ -121,7 +121,7 @@ export async function findNextAvailableLmid() {
 }
 
 /**
- * Assign LMID to member with all ShareIDs
+ * Assign LMID to member with all ShareIDs and teacher data from Memberstack
  * @param {number} lmid - LMID to assign
  * @param {string} memberId - Memberstack member ID
  * @param {string} memberEmail - Member email
@@ -130,6 +130,24 @@ export async function findNextAvailableLmid() {
  */
 export async function assignLmidToMember(lmid, memberId, memberEmail, shareIds) {
     const supabase = getSupabaseClient();
+    
+    // Get teacher data from Memberstack
+    let teacherData = {
+        firstName: null,
+        lastName: null,
+        schoolName: null
+    };
+    
+    try {
+        const teacherInfo = await getTeacherDataFromMemberstack(memberId);
+        if (teacherInfo) {
+            teacherData = teacherInfo;
+            console.log('👨‍🏫 Retrieved teacher data from Memberstack:', teacherData);
+        }
+    } catch (error) {
+        console.warn('⚠️ Could not retrieve teacher data from Memberstack:', error.message);
+        console.warn('⚠️ Proceeding with LMID assignment without teacher data');
+    }
     
     const updateData = {
         status: 'used',
@@ -141,7 +159,11 @@ export async function assignLmidToMember(lmid, memberId, memberEmail, shareIds) 
         share_id_shopping_spree: shareIds['shopping-spree'],
         share_id_amusement_park: shareIds['amusement-park'],
         share_id_big_city: shareIds['big-city'],
-        share_id_neighborhood: shareIds.neighborhood
+        share_id_neighborhood: shareIds.neighborhood,
+        // Add teacher data to Supabase
+        teacher_first_name: teacherData.firstName,
+        teacher_last_name: teacherData.lastName,
+        teacher_school_name: teacherData.schoolName
     };
 
     const { error } = await supabase
@@ -154,6 +176,7 @@ export async function assignLmidToMember(lmid, memberId, memberEmail, shareIds) 
         return false;
     }
 
+    console.log(`✅ LMID ${lmid} assigned with teacher data: ${teacherData.firstName} ${teacherData.lastName} from ${teacherData.schoolName}`);
     return true;
 }
 
@@ -306,5 +329,63 @@ export async function updateMemberstackMetadata(memberId, newLmidString) {
         console.error('❌ [updateMemberstackMetadata] Network error during Memberstack metadata update:', error);
         console.error('❌ [updateMemberstackMetadata] === METADATA UPDATE FAILED WITH EXCEPTION ===');
         return false;
+    }
+} 
+
+/**
+ * Get teacher data from Memberstack API
+ * @param {string} memberId - Memberstack member ID
+ * @returns {Promise<Object|null>} Teacher data or null
+ */
+async function getTeacherDataFromMemberstack(memberId) {
+    const MEMBERSTACK_SECRET_KEY = process.env.MEMBERSTACK_SECRET_KEY;
+    
+    if (!MEMBERSTACK_SECRET_KEY) {
+        console.warn('MEMBERSTACK_SECRET_KEY not configured - cannot fetch teacher data');
+        return null;
+    }
+    
+    try {
+        const response = await fetch(`${MEMBERSTACK_API_URL}/members/${memberId}`, {
+            method: 'GET',
+            headers: {
+                'x-api-key': MEMBERSTACK_SECRET_KEY,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            console.warn(`Memberstack API error: ${response.status} ${response.statusText}`);
+            return null;
+        }
+        
+        const memberData = await response.json();
+        console.log('👨‍🏫 Raw Memberstack data:', JSON.stringify(memberData, null, 2));
+        
+        // Extract teacher data from custom fields
+        const firstName = memberData.customFields?.['First Name'] || 
+                         memberData.customFields?.firstName || 
+                         memberData.metaData?.firstName || 
+                         memberData.metaData?.first_name || null;
+                         
+        const lastName = memberData.customFields?.['Last Name'] || 
+                        memberData.customFields?.lastName || 
+                        memberData.metaData?.lastName || 
+                        memberData.metaData?.last_name || null;
+                        
+        const schoolName = memberData.customFields?.['school-place-name'] || 
+                          memberData.customFields?.school || 
+                          memberData.metaData?.school || 
+                          memberData.metaData?.schoolName || null;
+        
+        return {
+            firstName,
+            lastName,
+            schoolName
+        };
+        
+    } catch (error) {
+        console.error('Error fetching teacher data from Memberstack:', error);
+        return null;
     }
 } 

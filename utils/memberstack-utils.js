@@ -154,7 +154,8 @@ export async function getMemberDetails(memberId, useCache = true) {
     try {
         const apiKey = process.env.MEMBERSTACK_SECRET_KEY;
         if (!apiKey) {
-            throw new Error('Memberstack API key not configured');
+            console.warn('MEMBERSTACK_SECRET_KEY not configured - returning null');
+            return null;
         }
         
         const response = await fetch(`${MEMBERSTACK_API_URL}/members/${memberId}`, {
