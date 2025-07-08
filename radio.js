@@ -561,13 +561,15 @@
             dispatchUploadStatusEvent
         ).then(playerElement => {
             if (playerElement) {
+                console.log('🔍 Searching for delete button in player element...');
+                
                 // Remove the delete button since this is a radio page
                 // Look for delete button by its SVG content and color
                 const deleteButtons = playerElement.querySelectorAll('div[style*="cursor: pointer"][style*="#F25444"]');
                 deleteButtons.forEach(btn => {
                     if (btn.innerHTML.includes('viewBox="0 0 16 20"')) {
                         btn.style.display = 'none';
-                        console.log('🗑️ Delete button hidden on radio page');
+                        console.log('🗑️ Delete button hidden on radio page (method 1)');
                     }
                 });
                 
@@ -576,7 +578,27 @@
                 allDeleteButtons.forEach(btn => {
                     if (btn.innerHTML.includes('svg')) {
                         btn.style.display = 'none';
-                        console.log('🗑️ Delete button hidden (alternative selector)');
+                        console.log('🗑️ Delete button hidden (method 2)');
+                    }
+                });
+                
+                // More aggressive approach - find all divs with trash SVG
+                const allDivs = playerElement.querySelectorAll('div');
+                allDivs.forEach(div => {
+                    if (div.innerHTML.includes('viewBox="0 0 16 20"') || 
+                        (div.style.color && div.style.color.includes('#F25444')) ||
+                        (div.style.cssText && div.style.cssText.includes('#F25444'))) {
+                        div.style.display = 'none';
+                        console.log('🗑️ Delete button hidden (method 3 - aggressive)');
+                    }
+                });
+                
+                // Final approach - hide any element that looks like a delete button
+                const allElements = playerElement.querySelectorAll('*');
+                allElements.forEach(el => {
+                    if (el.innerHTML && el.innerHTML.includes('M4.22363 9.09265')) { // Part of delete SVG path
+                        el.style.display = 'none';
+                        console.log('🗑️ Delete button hidden (method 4 - SVG path)');
                     }
                 });
                 
