@@ -241,8 +241,39 @@ function log(level, message, data = null) {
         
         // Initialize database FIRST and wait for completion
         log('info', 'Initializing database...');
-        const databasePromise = setupDatabase().then(() => {
+        const databasePromise = setupDatabase().then(async () => {
             log('info', 'Database initialized successfully');
+            
+            // Check if this is a fresh LMID (no recordings in cloud)
+            try {
+                const cloudRecordings = await loadRecordingsFromCloud(null, world, lmid);
+                if (cloudRecordings.length === 0) {
+                    log('info', `LMID ${lmid} appears to be new (no cloud recordings), cleaning local database...`);
+                    
+                    // Get all local recordings for this world/lmid
+                    const localRecordings = await getAllRecordingsForWorldLmid(world, lmid);
+                    
+                    if (localRecordings.length > 0) {
+                        log('info', `Found ${localRecordings.length} stale local recordings for new LMID ${lmid}, removing...`);
+                        
+                        // Delete all local recordings for this world/lmid
+                        for (const recording of localRecordings) {
+                            try {
+                                await deleteRecordingFromDB(recording.id);
+                                log('debug', `Deleted stale recording: ${recording.id}`);
+                            } catch (error) {
+                                log('error', `Failed to delete stale recording ${recording.id}:`, error);
+                            }
+                        }
+                        
+                        log('info', `Cleaned ${localRecordings.length} stale recordings for new LMID ${lmid}`);
+                    }
+                }
+            } catch (error) {
+                log('warn', `Could not check cloud status for LMID ${lmid}:`, error);
+                // Continue anyway - don't block initialization
+            }
+            
             return true;
         }).catch(error => {
             log('error', 'Database initialization failed:', error);
@@ -418,50 +449,14 @@ function log(level, message, data = null) {
             // Load recordings from database
             let recordings = await loadRecordingsFromDB(questionId, world, lmid);
             
-            // If no local recordings found, try to sync from cloud
-            if (recordings.length === 0) {
-                log('debug', `No local recordings found for question: ${questionId}, checking cloud...`);
-                
-                try {
-                    const cloudRecordings = await loadRecordingsFromCloud(questionId, world, lmid);
-                    if (cloudRecordings.length > 0) {
-                        log('info', `Found ${cloudRecordings.length} cloud recordings for question: ${questionId}, syncing...`);
-                        
-                        // Add cloud recordings to local database
-                        for (const cloudRecording of cloudRecordings) {
-                            const localRecordingData = {
-                                id: cloudRecording.filename.replace('.mp3', ''), // Use filename as ID
-                                questionId: questionId,
-                                world: world,
-                                lmid: lmid,
-                                audio: null, // No local blob for cloud-only recordings
-                                createdAt: new Date(cloudRecording.lastModified).toISOString(),
-                                timestamp: cloudRecording.lastModified,
-                                uploadStatus: 'uploaded',
-                                cloudUrl: cloudRecording.url
-                            };
-                            
-                            try {
-                                await saveRecordingToDB(localRecordingData);
-                                log('debug', `Synced cloud recording: ${localRecordingData.id}`);
-    } catch (error) {
-                                log('error', `Failed to sync recording ${localRecordingData.id}:`, error);
-                            }
-                        }
-                        
-                        // Reload recordings from database after sync
-                        recordings = await loadRecordingsFromDB(questionId, world, lmid);
-                    }
-    } catch (error) {
-                    log('error', `Failed to sync from cloud for question ${questionId}:`, error);
-                }
-            }
+            // Skip cloud sync for initial render - it will be done once globally
+            // This prevents multiple failed requests for new LMIDs
             
             // Clear existing list
             recordingsList.innerHTML = '';
             
             if (recordings.length === 0) {
-                log('debug', `No recordings found for question: ${questionId} (checked both local and cloud)`);
+                log('debug', `No local recordings found for question: ${questionId}`);
                 return;
             }
             
