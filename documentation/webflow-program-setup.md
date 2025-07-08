@@ -12,25 +12,17 @@ This guide explains how to set up the radio program page in Webflow with the new
 window.ProgramContainer.initialize();
 ```
 
+**ALSO REMOVE**: Remove the script tag that loads the deleted `radio-player.js` file:
+```html
+<!-- Remove this script tag from your Webflow page: -->
+<script src="https://little-microphones.vercel.app/radio-player.js"></script>
+```
+
+This will fix both console errors:
+- `TypeError: Cannot read properties of undefined (reading 'initialize')`
+- `GET https://little-microphones.vercel.app/radio-player.js net::ERR_ABORTED 404 (Not Found)`
+
 ## Required Elements
 
 ### 1. Container Structure
-```html
-<div class="program-container">
-  <!-- All content goes here -->
-</div>
 ```
-
-### 2. Static Header Elements
-These elements are always visible:
-
-```html
-<!-- World name display -->
-<div id="world-name">Loading...</div>
-
-<!-- Teacher info (can be anywhere on page, not just in container) -->
-<span id="teacher-full-name">Teacher Name</span>
-<span id="school-name">School Name</span>
-```
-
-**Note**: The teacher and school elements can exist anywhere on the page. The system will find ALL elements with these IDs and update them. The text "& The Kids from" should be added in Webflow between these elements if needed. 
