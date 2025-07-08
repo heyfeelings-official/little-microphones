@@ -263,40 +263,73 @@ function setupExistingRadioProgramButton(world, lmid) {
   const newButton = existingButton.cloneNode(true);
   existingButton.parentNode.replaceChild(newButton, existingButton);
   
-  // Add click handler to the existing button - NEW: Get ShareID and open radio page
-  newButton.addEventListener('click', async (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    
-    console.log(`Get Share Link button clicked for ${world}/${lmid}`);
-    
-    try {
-      // Call the get-share-link API with both lmid AND world parameters
-      const response = await fetch(`${API_BASE_URL}/api/get-share-link?lmid=${lmid}&world=${world}`);
-      
-      if (!response.ok) {
-        throw new Error(`Failed to get share link: ${response.status}`);
-      }
-      
-      const result = await response.json();
-      
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to generate share link');
-      }
-      
-      // Open the radio page in a new tab with the ShareID
-      const radioUrl = `/members/radio?ID=${result.shareId}`;
-      window.open(radioUrl, '_blank');
-      
-      console.log(`Share link generated: ${result.url}`);
-      
-    } catch (error) {
-      console.error('Failed to get share link:', error);
-      alert('Failed to get share link. Please try again.');
-    }
-  });
+  // SIMPLIFIED: Pre-generate ShareID and inject URL directly into button
+  // This avoids mobile popup blockers and API call delays
+  generateShareIdAndSetupButton(newButton, world, lmid);
   
-      console.log(`Share link button setup complete for ${world}`);
+  console.log(`Share link button setup complete for ${world}`);
+}
+
+/**
+ * Generate ShareID and setup button with direct URL
+ * @param {HTMLElement} button - The button element
+ * @param {string} world - The world slug
+ * @param {string} lmid - The LMID
+ */
+async function generateShareIdAndSetupButton(button, world, lmid) {
+  try {
+    console.log(`Pre-generating ShareID for ${world}/${lmid}...`);
+    
+    // Call the get-share-link API to get/create ShareID
+    const response = await fetch(`${API_BASE_URL}/api/get-share-link?lmid=${lmid}&world=${world}`);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to get share link: ${response.status}`);
+    }
+    
+    const result = await response.json();
+    
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to generate share link');
+    }
+    
+    // Generate the radio URL with ShareID
+    const radioUrl = `/members/radio?ID=${result.shareId}`;
+    
+    console.log(`ShareID generated: ${result.shareId}, URL: ${radioUrl}`);
+    
+    // Set the href attribute for direct navigation (works better on mobile)
+    button.setAttribute('href', radioUrl);
+    button.setAttribute('target', '_blank');
+    button.setAttribute('rel', 'noopener noreferrer');
+    
+    // Add click handler as backup
+    button.addEventListener('click', (event) => {
+      // Let the browser handle the link naturally
+      console.log(`Opening radio program: ${radioUrl}`);
+    });
+    
+    // Update button text to indicate it's ready
+    const buttonText = button.querySelector('.btn-text, span');
+    if (buttonText) {
+      buttonText.textContent = 'Open Radio Program';
+    }
+    
+  } catch (error) {
+    console.error('Failed to setup share link button:', error);
+    
+    // Fallback: setup button with error handling
+    button.addEventListener('click', async (event) => {
+      event.preventDefault();
+      alert('Failed to load radio program. Please try again.');
+    });
+    
+    // Update button text to indicate error
+    const buttonText = button.querySelector('.btn-text, span');
+    if (buttonText) {
+      buttonText.textContent = 'Radio Program (Error)';
+    }
+  }
 }
 
 /**
