@@ -411,7 +411,7 @@
     }
 
     /**
-     * Setup audio player exactly like the /rp page
+     * Setup audio player using RecordingUI module from recording-ui.js
      */
     function setupAudioPlayer(audioUrl, radioData) {
         // Get the player container
@@ -421,224 +421,88 @@
             return;
         }
 
-        // Create custom audio player HTML exactly like /rp page with inline styles
-        playerContainer.innerHTML = `
-            <style>
-                .audio-player-container {
-                    background: rgba(255,255,255,0.9);
-                    border-radius: 12px;
-                    padding: 16px;
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-                }
-                
-                .custom-audio-controls {
-        display: flex;
-        align-items: center;
-                    gap: 12px;
-                    margin-bottom: 12px;
-                }
-                
-                .play-btn {
-                    width: 48px;
-                    height: 48px;
-                    border-radius: 50%;
-                    border: none;
-                    background: #007ace;
-                    color: white;
-                    cursor: pointer;
-        display: flex;
-                    align-items: center;
-        justify-content: center;
-                    font-size: 16px;
-                    transition: background 0.2s;
-                }
-                
-                .play-btn:hover {
-                    background: #005a9e;
-                }
-                
-                .progress-container {
-                    flex: 1;
-                    display: flex;
-                    flex-direction: column;
-                    gap: 8px;
-        }
-        
-        .progress-bar {
-            width: 100%;
-                    height: 6px;
-                    background: #e0e0e0;
-                    border-radius: 3px;
-                    cursor: pointer;
-                    position: relative;
-        }
-        
-        .progress-fill {
-            height: 100%;
-                    background: #007ace;
-                    border-radius: 3px;
-            width: 0%;
-                    transition: width 0.1s;
-                }
-                
-                .time-display {
-                    display: flex;
-                    justify-content: space-between;
-                    font-size: 12px;
-                    color: #666;
-                }
-                
-                .volume-container {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                }
-                
-                .volume-btn {
-                    background: none;
-            border: none;
-            font-size: 16px;
-            cursor: pointer;
-                    padding: 4px;
-                }
-                
-                .volume-slider {
-                    width: 60px;
-                    height: 4px;
-                    background: #e0e0e0;
-                    outline: none;
-                    border-radius: 2px;
-                    cursor: pointer;
-                }
-                
-                .volume-slider::-webkit-slider-thumb {
-                    appearance: none;
-                    width: 12px;
-                    height: 12px;
-                    background: #007ace;
-                    border-radius: 50%;
-                    cursor: pointer;
-                }
-            </style>
-            <div class="audio-player-container">
-                <audio id="radio-audio" preload="metadata" style="display: none;">
-                    <source src="${audioUrl}" type="audio/mpeg">
-                    <source src="${audioUrl}" type="audio/mp3">
-                </audio>
-                <div class="custom-audio-controls">
-                    <button id="play-pause-btn" class="play-btn">
-                        <span class="play-icon">▶</span>
-                        <span class="pause-icon" style="display: none;">⏸</span>
-                    </button>
-                    <div class="progress-container">
-                        <div class="progress-bar">
-                            <div class="progress-fill" id="progress-fill"></div>
-                        </div>
-                        <div class="time-display">
-                            <span id="current-time">0:00</span>
-                            <span class="separator">/</span>
-                            <span id="total-time">0:00</span>
-                        </div>
-                    </div>
-                    <div class="volume-container">
-                        <button id="volume-btn" class="volume-btn">🔊</button>
-                        <input type="range" id="volume-slider" class="volume-slider" min="0" max="1" step="0.1" value="1">
-                    </div>
+        // Check if RecordingUI is available
+        if (!window.RecordingUI || !window.RecordingUI.createRecordingElement) {
+            console.error('RecordingUI module not loaded. Make sure recording-ui.js is included.');
+            // Fallback to simple audio element
+            playerContainer.innerHTML = `
+                <div style="background: rgba(255,255,255,0.9); border-radius: 12px; padding: 16px; text-align: center;">
+                    <audio controls style="width: 100%;" preload="metadata">
+                        <source src="${audioUrl}" type="audio/mpeg">
+                        Your browser does not support the audio element.
+                    </audio>
                 </div>
-            </div>
-        `;
+            `;
+            return;
+        }
 
-        // Setup audio player functionality
-        setupCustomAudioPlayer(audioUrl);
-    }
+        // Clear the container
+        playerContainer.innerHTML = '';
 
-    /**
-     * Setup custom audio player functionality exactly like /rp page
-     */
-    function setupCustomAudioPlayer(audioUrl) {
-        audioPlayer = document.getElementById('radio-audio');
-        const playPauseBtn = document.getElementById('play-pause-btn');
-        const playIcon = document.querySelector('.play-icon');
-        const pauseIcon = document.querySelector('.pause-icon');
-        const progressFill = document.getElementById('progress-fill');
-        const currentTimeEl = document.getElementById('current-time');
-        const totalTimeEl = document.getElementById('total-time');
-        const volumeBtn = document.getElementById('volume-btn');
-        const volumeSlider = document.getElementById('volume-slider');
-        const progressContainer = document.querySelector('.progress-bar');
+        // Create fake recording data for the radio program
+        const recordingData = { 
+            id: 'radio-program', 
+            url: audioUrl,
+            uploadStatus: 'uploaded'
+        };
 
-        if (!audioPlayer) return;
+        // Functions required by createRecordingElement
+        const getAudioSource = async () => audioUrl;
+        const deleteRecording = () => {}; // No delete on radio page
+        const dispatchUploadStatusEvent = () => {}; // No upload status on radio page
 
-        // Play/Pause functionality
-        playPauseBtn.addEventListener('click', function() {
-            if (audioPlayer.paused) {
-                audioPlayer.play();
-                playIcon.style.display = 'none';
-                pauseIcon.style.display = 'inline';
-            } else {
-                audioPlayer.pause();
-                playIcon.style.display = 'inline';
-                pauseIcon.style.display = 'none';
-            }
-        });
-
-        // Time update
-        audioPlayer.addEventListener('timeupdate', function() {
-            const currentTime = audioPlayer.currentTime;
-            const duration = audioPlayer.duration;
-
-            if (!isNaN(duration)) {
-                const progress = (currentTime / duration) * 100;
-                progressFill.style.width = `${progress}%`;
-                
-                currentTimeEl.textContent = formatTime(currentTime);
-                totalTimeEl.textContent = formatTime(duration);
-            }
-        });
-
-        // Progress bar click to seek
-        if (progressContainer) {
-            progressContainer.addEventListener('click', function(e) {
-                const rect = progressContainer.getBoundingClientRect();
-                const clickX = e.clientX - rect.left;
-                const width = rect.width;
-                const clickPercent = clickX / width;
-                
-                if (!isNaN(audioPlayer.duration)) {
-                    audioPlayer.currentTime = clickPercent * audioPlayer.duration;
+        // Create the recording element using RecordingUI
+        window.RecordingUI.createRecordingElement(
+            recordingData,
+            'radio-program',
+            getAudioSource,
+            deleteRecording,
+            dispatchUploadStatusEvent
+        ).then(playerElement => {
+            if (playerElement) {
+                // Remove the delete button since this is a radio page
+                const deleteButton = playerElement.querySelector('[style*="cursor: pointer"][style*="#F25444"]');
+                if (deleteButton) {
+                    deleteButton.style.display = 'none';
                 }
-            });
-        }
-
-        // Volume control
-        volumeSlider.addEventListener('input', function() {
-            audioPlayer.volume = volumeSlider.value;
-            updateVolumeIcon(volumeSlider.value);
-        });
-
-        volumeBtn.addEventListener('click', function() {
-            if (audioPlayer.volume > 0) {
-                audioPlayer.volume = 0;
-                volumeSlider.value = 0;
+                
+                // Remove the upload icon since this is already uploaded
+                const uploadIcon = playerElement.querySelector('.upload-status');
+                if (uploadIcon) {
+                    uploadIcon.style.display = 'none';
+                }
+                
+                // Add some styling to make it fit better in the radio context
+                const playerDiv = playerElement.querySelector('div[style*="background: white"]');
+                if (playerDiv) {
+                    playerDiv.style.background = 'rgba(255,255,255,0.9)';
+                    playerDiv.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+                }
+                
+                playerContainer.appendChild(playerElement);
+                
+                // Store reference to audio element
+                audioPlayer = playerElement.querySelector('audio');
+                
+                console.log('✅ Radio player created using RecordingUI');
             } else {
-                audioPlayer.volume = 1;
-                volumeSlider.value = 1;
+                console.error('Failed to create player element');
             }
-            updateVolumeIcon(audioPlayer.volume);
+        }).catch(error => {
+            console.error('Error creating RecordingUI player:', error);
+            // Fallback to simple audio element
+            playerContainer.innerHTML = `
+                <div style="background: rgba(255,255,255,0.9); border-radius: 12px; padding: 16px; text-align: center;">
+                    <audio controls style="width: 100%;" preload="metadata">
+                        <source src="${audioUrl}" type="audio/mpeg">
+                        Your browser does not support the audio element.
+                    </audio>
+                </div>
+            `;
         });
-
-        // Update volume icon based on volume level
-        function updateVolumeIcon(volume) {
-            if (volume === 0) {
-                volumeBtn.textContent = '🔇';
-            } else if (volume < 0.5) {
-                volumeBtn.textContent = '🔉';
-            } else {
-                volumeBtn.textContent = '🔊';
-            }
-        }
-
     }
+
+
 
     /**
      * Format time in MM:SS
