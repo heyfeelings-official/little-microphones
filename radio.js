@@ -443,7 +443,7 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
-            z-index: 0;
+            z-index: 1;
             pointer-events: none;
         `;
         
@@ -463,7 +463,7 @@
         for (let i = 0; i < children.length; i++) {
             if (children[i] !== video && !children[i].classList.contains('program-container-shadow')) {
                 children[i].style.position = 'relative';
-                children[i].style.zIndex = '1';
+                children[i].style.zIndex = '33';
             }
         }
         

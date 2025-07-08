@@ -238,9 +238,9 @@ async function createRecordingElement(recordingData, questionId, allIds) {
     timeDisplay.textContent = '0:00 / 0:00';
     
     const progressContainer = document.createElement('div');
-    progressContainer.style.cssText = `flex: 1; height: 4px; background: rgba(0, 0, 0, 0.1); border-radius: 2px; position: relative; cursor: pointer; margin-right: 1rem;`;
+    progressContainer.style.cssText = `flex: 1; height: 8px; background: rgba(0, 0, 0, 0.15); border-radius: 4px; position: relative; cursor: pointer; margin-right: 1rem;`;
     const progressBar = document.createElement('div');
-    progressBar.style.cssText = `width: 0%; height: 100%; background: #007AF7; border-radius: 2px; transition: width 0.1s ease;`;
+    progressBar.style.cssText = `width: 0%; height: 100%; background: #007AF7; border-radius: 4px; transition: width 0.1s ease;`;
     progressContainer.appendChild(progressBar);
     
     const uploadIcon = document.createElement('div');
@@ -275,6 +275,14 @@ async function createRecordingElement(recordingData, questionId, allIds) {
             isPlaying = true;
         }
     });
+    // Add hover effects
+    progressContainer.addEventListener('mouseenter', () => {
+        progressContainer.style.background = 'rgba(0, 0, 0, 0.25)';
+    });
+    progressContainer.addEventListener('mouseleave', () => {
+        progressContainer.style.background = 'rgba(0, 0, 0, 0.15)';
+    });
+    
     progressContainer.addEventListener('click', (e) => {
         if (audio.duration && isFinite(audio.duration)) {
             const rect = progressContainer.getBoundingClientRect();
