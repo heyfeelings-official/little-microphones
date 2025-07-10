@@ -20,6 +20,7 @@
     let currentShareId = null;
     let currentRadioData = null;
     let generatingInterval = null;
+    let currentUserRole = null;
 
 // API Configuration
     const API_BASE_URL = window.LM_CONFIG?.API_BASE_URL || 'https://little-microphones.vercel.app';
@@ -46,11 +47,136 @@
     // Current message index
     let currentMessageIndex = 0;
     
+    // --- User Role Detection Functions ---
+    
+    /**
+     * Detect user role from Memberstack plan
+     * @returns {Promise<string>} User role ('parent', 'teacher', or 'therapist')
+     */
+    async function detectUserRole() {
+        if (currentUserRole) {
+            return currentUserRole;
+        }
+        
+        try {
+            const memberstack = window.$memberstackDom;
+            if (!memberstack) {
+                console.warn('Memberstack not available, defaulting to teacher role');
+                currentUserRole = 'teacher';
+                return currentUserRole;
+            }
+            
+            const { data: memberData } = await memberstack.getCurrentMember();
+            if (!memberData) {
+                console.warn('No member data available, defaulting to teacher role');
+                currentUserRole = 'teacher';
+                return currentUserRole;
+            }
+            
+            // Detect role based on Memberstack plan using configuration
+            const planConnections = memberData.planConnections || [];
+            const activePlans = planConnections.filter(conn => conn.active && conn.status === 'ACTIVE');
+            const activePlanIds = activePlans.map(plan => plan.planId);
+            
+            // Check user role based on plan type (specific order matters)
+            const hasParentPlan = activePlanIds.some(planId => 
+                window.LM_CONFIG?.PLAN_HELPERS?.isParentPlan(planId)
+            );
+            
+            const hasTherapistPlan = activePlanIds.some(planId => 
+                window.LM_CONFIG?.PLAN_HELPERS?.isTherapistPlan(planId)
+            );
+            
+            const hasEducatorPlan = activePlanIds.some(planId => 
+                window.LM_CONFIG?.PLAN_HELPERS?.isEducatorPlan(planId)
+            );
+            
+            if (hasParentPlan) {
+                currentUserRole = 'parent';
+            } else if (hasTherapistPlan) {
+                currentUserRole = 'therapist';
+            } else if (hasEducatorPlan) {
+                currentUserRole = 'teacher';
+            } else {
+                // Fallback: check metadata for explicit role override
+                const metaRole = memberData.metaData?.role;
+                if (metaRole === 'parent' || metaRole === 'teacher' || metaRole === 'therapist') {
+                    currentUserRole = metaRole;
+                    console.log(`User role detected from metadata override: ${currentUserRole}`);
+                } else {
+                    console.warn(`No recognizable plan found in: [${activePlanIds.join(', ')}], defaulting to teacher role`);
+                    currentUserRole = 'teacher';
+                }
+            }
+            
+            console.log(`User role detected: ${currentUserRole} (active plans: [${activePlanIds.join(', ')}])`);
+            return currentUserRole;
+        } catch (error) {
+            console.error('Error detecting user role:', error);
+            currentUserRole = 'teacher';
+            return currentUserRole;
+        }
+    }
+
+    /**
+     * Get current user's Member ID for parent recordings
+     * @returns {Promise<string|null>} Member ID or null
+     */
+    async function getCurrentMemberId() {
+        try {
+            const memberstack = window.$memberstackDom;
+            if (!memberstack) {
+                return null;
+            }
+            
+            const { data: memberData } = await memberstack.getCurrentMember();
+            return memberData?.id || null;
+        } catch (error) {
+            console.error('Error getting member ID:', error);
+            return null;
+        }
+    }
+    
     /**
      * Convert recordings to audioSegments format for combine-audio API
-     * This is a simplified version of convertRecordingsToAudioSegments from audio-utils.js
+     * Now supports separate generation for kids and parent recordings
+     * @param {Array} recordings - Array of recording objects
+     * @param {string} world - World name
+     * @param {string} programType - 'kids' or 'parent' or 'both'
+     * @returns {Object} Audio segments object with kids and/or parent programs
      */
-    function convertRecordingsToAudioSegments(recordings, world) {
+    function convertRecordingsToAudioSegments(recordings, world, programType = 'both') {
+        // Separate recordings by type
+        const kidsRecordings = recordings.filter(rec => 
+            rec.filename && rec.filename.startsWith('kids-world_')
+        );
+        const parentRecordings = recordings.filter(rec => 
+            rec.filename && rec.filename.includes('parent_')
+        );
+        
+        const result = {};
+        
+        // Generate kids program if requested and recordings exist
+        if ((programType === 'kids' || programType === 'both') && kidsRecordings.length > 0) {
+            result.kids = generateAudioSegmentsForType(kidsRecordings, world, 'kids');
+        }
+        
+        // Generate parent program if requested and recordings exist
+        if ((programType === 'parent' || programType === 'both') && parentRecordings.length > 0) {
+            result.parent = generateAudioSegmentsForType(parentRecordings, world, 'parent');
+        }
+        
+        return result;
+    }
+    
+    /**
+     * Generate audio segments for a specific recording type
+     * @param {Array} recordings - Recordings of specific type
+     * @param {string} world - World name
+     * @param {string} type - 'kids' or 'parent'
+     * @returns {Array} Audio segments array
+     */
+    function generateAudioSegmentsForType(recordings, world, type) {
         const audioSegments = [];
         
         // Group recordings by questionId
@@ -108,7 +234,8 @@
                 type: 'combine_with_background',
                 answerUrls: sortedAnswers.map(recording => recording.url || recording.cloudUrl),
                 backgroundUrl: `https://little-microphones.b-cdn.net/audio/other/monkeys.mp3?t=${backgroundTimestamp}`,
-                questionId: questionId
+                questionId: questionId,
+                recordingType: type // Add type identifier
             });
         });
         
@@ -512,9 +639,9 @@
     /**
      * Setup audio player using RecordingUI module from recording-ui.js
      */
-    function setupAudioPlayer(audioUrl, radioData) {
+    function setupAudioPlayer(audioUrl, radioData, customContainer = null) {
         // Get the player container
-        const playerContainer = document.getElementById('player-state');
+        const playerContainer = customContainer || document.getElementById('player-state');
         if (!playerContainer) {
             console.error('Player container not found');
             return;
@@ -645,22 +772,158 @@
     }
 
     /**
-     * Show existing program
+     * Show existing program - now checks for dual programs
      */
-    function showExistingProgram(data) {
+    async function showExistingProgram(data) {
         console.log('✅ Showing existing program');
         
-        const audioUrl = data.lastManifest.programUrl;
+        const userRole = await detectUserRole();
+        
+        // Check if we have dual programs in manifest
+        if (data.lastManifest.kidsProgram || data.lastManifest.parentProgram) {
+            const programs = {};
+            if (data.lastManifest.kidsProgram) {
+                programs.kids = { url: data.lastManifest.kidsProgram };
+            }
+            if (data.lastManifest.parentProgram) {
+                programs.parent = { url: data.lastManifest.parentProgram };
+            }
+            
+            showDualPlayerState(programs, data, userRole);
+        } else {
+            // Legacy single program support
+            const audioUrl = data.lastManifest.programUrl;
+            const radioData = {
+                world: data.world,
+                recordingCount: data.currentRecordings?.length || 0
+            };
+            
+            showPlayerState(audioUrl, radioData);
+        }
+    }
+    
+    /**
+     * Show dual player state based on user role and available programs
+     * @param {Object} programs - Object with kids and/or parent program URLs
+     * @param {Object} data - Radio data
+     * @param {string} userRole - Current user role
+     */
+    function showDualPlayerState(programs, data, userRole) {
+        hideAllStates();
+        showState('player-state');
+        
+        // Get the player container
+        const playerContainer = document.getElementById('player-state');
+        if (!playerContainer) {
+            console.error('Player container not found');
+            return;
+        }
+        
+        // Clear the container
+        playerContainer.innerHTML = '';
+        
         const radioData = {
             world: data.world,
             recordingCount: data.currentRecordings?.length || 0
         };
         
-        showPlayerState(audioUrl, radioData);
+        if (userRole === 'parent') {
+            // Parents see only kids program
+            if (programs.kids) {
+                createSinglePlayer(playerContainer, programs.kids.url, radioData, 'Kids Program');
+            } else {
+                playerContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">No kids recordings available yet.</div>';
+            }
+        } else {
+            // Teachers and therapists see both programs if available
+            const availablePrograms = [];
+            
+            if (programs.kids) {
+                availablePrograms.push({
+                    url: programs.kids.url,
+                    title: 'Kids Program',
+                    description: 'Student recordings'
+                });
+            }
+            
+            if (programs.parent) {
+                availablePrograms.push({
+                    url: programs.parent.url,
+                    title: 'Parent Program', 
+                    description: 'Parent recordings'
+                });
+            }
+            
+            if (availablePrograms.length === 0) {
+                playerContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">No recordings available yet.</div>';
+            } else if (availablePrograms.length === 1) {
+                // Single program available
+                createSinglePlayer(playerContainer, availablePrograms[0].url, radioData, availablePrograms[0].title);
+            } else {
+                // Multiple programs available - create dual player
+                createDualPlayer(playerContainer, availablePrograms, radioData);
+            }
+        }
+        
+        currentState = 'player';
+    }
+    
+    /**
+     * Create a single audio player
+     * @param {HTMLElement} container - Container element
+     * @param {string} audioUrl - Audio URL
+     * @param {Object} radioData - Radio data
+     * @param {string} title - Player title
+     */
+    function createSinglePlayer(container, audioUrl, radioData, title) {
+        // Create title if provided
+        if (title) {
+            const titleDiv = document.createElement('div');
+            titleDiv.style.cssText = 'margin-bottom: 16px; font-weight: bold; text-align: center; color: #333;';
+            titleDiv.textContent = title;
+            container.appendChild(titleDiv);
+        }
+        
+        setupAudioPlayer(audioUrl, radioData, container);
+    }
+    
+    /**
+     * Create dual audio players for teachers/therapists
+     * @param {HTMLElement} container - Container element
+     * @param {Array} programs - Array of program objects
+     * @param {Object} radioData - Radio data
+     */
+    function createDualPlayer(container, programs, radioData) {
+        programs.forEach((program, index) => {
+            // Create program section
+            const programSection = document.createElement('div');
+            programSection.style.cssText = `margin-bottom: ${index === programs.length - 1 ? '0' : '24px'};`;
+            
+            // Create title
+            const titleDiv = document.createElement('div');
+            titleDiv.style.cssText = 'margin-bottom: 12px; font-weight: bold; text-align: center; color: #333; font-size: 16px;';
+            titleDiv.textContent = program.title;
+            
+            // Create description
+            const descDiv = document.createElement('div');
+            descDiv.style.cssText = 'margin-bottom: 16px; text-align: center; color: #666; font-size: 14px;';
+            descDiv.textContent = program.description;
+            
+            // Create player container
+            const playerDiv = document.createElement('div');
+            
+            programSection.appendChild(titleDiv);
+            programSection.appendChild(descDiv);
+            programSection.appendChild(playerDiv);
+            container.appendChild(programSection);
+            
+            // Setup audio player
+            setupAudioPlayer(program.url, radioData, playerDiv);
+        });
     }
 
     /**
-     * Generate new program
+     * Generate new program - now supports dual programs for different user roles
      */
     async function generateNewProgram(data) {
         console.log('⚙️ Generating new program');
@@ -668,36 +931,87 @@
         showGeneratingState();
         
         try {
-            // Convert recordings to audioSegments format
-            const audioSegments = convertRecordingsToAudioSegments(data.currentRecordings, data.world);
-
-            // Call combine API
-            const combineResponse = await fetch(`${API_BASE_URL}/api/combine-audio`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    lmid: data.lmid,
-                    world: data.world,
-                    audioSegments: audioSegments
-                })
-            });
+            // Detect user role to determine what to generate
+            const userRole = await detectUserRole();
+            const currentMemberId = await getCurrentMemberId();
             
-            if (!combineResponse.ok) {
-                throw new Error('Failed to generate radio program');
+            // Determine what program type to generate
+            let programType = 'kids'; // Default for teachers/therapists
+            
+            if (userRole === 'parent') {
+                programType = 'parent';
+            } else {
+                // Teachers and therapists get both programs if both types exist
+                programType = 'both';
             }
             
-            const combineResult = await combineResponse.json();
+            // Convert recordings to audioSegments format
+            const audioSegmentsResult = convertRecordingsToAudioSegments(data.currentRecordings, data.world, programType);
+            
+            // Check if we have any programs to generate
+            if (!audioSegmentsResult.kids && !audioSegmentsResult.parent) {
+                throw new Error('No recordings found to generate radio program');
+            }
+            
+            const generatedPrograms = {};
+            
+            // Generate kids program if available
+            if (audioSegmentsResult.kids) {
+                updateGeneratingMessage('Generating kids program...');
+                
+                const kidsResponse = await fetch(`${API_BASE_URL}/api/combine-audio`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        lmid: data.lmid,
+                        world: data.world,
+                        audioSegments: audioSegmentsResult.kids,
+                        programType: 'kids'
+                    })
+                });
+                
+                if (kidsResponse.ok) {
+                    const kidsResult = await kidsResponse.json();
+                    generatedPrograms.kids = {
+                        url: kidsResult.url || kidsResult.programUrl,
+                        manifest: kidsResult.manifest
+                    };
+                    console.log('✅ Kids program generated successfully');
+                }
+            }
+            
+            // Generate parent program if available
+            if (audioSegmentsResult.parent) {
+                updateGeneratingMessage('Generating parent program...');
+                
+                const parentResponse = await fetch(`${API_BASE_URL}/api/combine-audio`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        lmid: data.lmid,
+                        world: data.world,
+                        audioSegments: audioSegmentsResult.parent,
+                        programType: 'parent'
+                    })
+                });
+                
+                if (parentResponse.ok) {
+                    const parentResult = await parentResponse.json();
+                    generatedPrograms.parent = {
+                        url: parentResult.url || parentResult.programUrl,
+                        manifest: parentResult.manifest
+                    };
+                    console.log('✅ Parent program generated successfully');
+                }
+            }
             
             // Stop generating messages
             stopGeneratingMessages();
-            updateGeneratingMessage('Program generated successfully!');
+            updateGeneratingMessage('Programs generated successfully!');
             
-            // Wait a moment then show player
+            // Wait a moment then show player(s)
             setTimeout(() => {
-                showExistingProgram({
-                    ...data,
-                    lastManifest: { programUrl: combineResult.url || combineResult.programUrl }
-                });
+                showDualPlayerState(generatedPrograms, data, userRole);
             }, 1000);
             
         } catch (error) {

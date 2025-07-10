@@ -110,12 +110,21 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { world, lmid, audioSegments } = req.body;
+        const { world, lmid, audioSegments, programType } = req.body;
 
         // Validation
         if (!world || !lmid || !audioSegments) {
             return res.status(400).json({ 
                 error: 'Missing required parameters: world, lmid, audioSegments' 
+            });
+        }
+        
+        // Validate programType if provided
+        const validProgramTypes = ['kids', 'parent'];
+        const type = programType || 'kids'; // Default to kids for backward compatibility
+        if (!validProgramTypes.includes(type)) {
+            return res.status(400).json({ 
+                error: 'Invalid programType. Must be "kids" or "parent"' 
             });
         }
 
@@ -138,7 +147,7 @@ export default async function handler(req, res) {
             });
         }
 
-        console.log(`🎵 Starting radio program generation for ${world}/${lmid}`);
+        console.log(`🎵 Starting radio program generation for ${world}/${lmid} (${type} program)`);
         console.log(`📊 Processing ${audioSegments.length} audio segments`);
 
         // No audio processing - just basic concatenation
@@ -146,20 +155,30 @@ export default async function handler(req, res) {
 
         // Try to combine audio using FFmpeg
         try {
-            const combinedAudioUrl = await combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams);
+            const combinedAudioUrl = await combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams, type);
             
-            // Count only user answer audio files for recordingCount
+            // Count recordings by type for recordingCount
             let recordingCount = 0;
             try {
                 const response = await fetch(`https://little-microphones.vercel.app/api/list-recordings?world=${world}&lmid=${lmid}`);
                 if (response.ok) {
                     const data = await response.json();
-                    // Only count files matching the user answer pattern
-                    const userAnswerPattern = new RegExp(`^kids-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.mp3$`);
-                    const userFiles = (data.recordings || []).filter(
-                        file => userAnswerPattern.test(file.filename)
-                    );
-                    recordingCount = userFiles.length;
+                    
+                    if (type === 'kids') {
+                        // Count kids recordings
+                        const kidsPattern = new RegExp(`^kids-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.mp3$`);
+                        const kidsFiles = (data.recordings || []).filter(
+                            file => kidsPattern.test(file.filename)
+                        );
+                        recordingCount = kidsFiles.length;
+                    } else if (type === 'parent') {
+                        // Count parent recordings
+                        const parentPattern = new RegExp(`^parent_[^-]+-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.mp3$`);
+                        const parentFiles = (data.recordings || []).filter(
+                            file => parentPattern.test(file.filename)
+                        );
+                        recordingCount = parentFiles.length;
+                    }
                 } else {
                     console.warn(`Failed to fetch recording count for manifest: ${response.status}`);
                 }
@@ -167,17 +186,25 @@ export default async function handler(req, res) {
                 console.warn('Error fetching recording count for manifest:', err);
             }
             
-            // Create and save last-program-manifest.json (simplified)
+            // Create and save program manifest with type-specific data
             const manifestData = {
                 generatedAt: new Date().toISOString(),
                 world: world,
                 lmid: lmid,
-                programUrl: combinedAudioUrl,
+                programType: type,
                 recordingCount: recordingCount,
-                version: '5.3.0'
+                version: '5.4.0'
             };
             
-            await uploadManifestToBunny(manifestData, world, lmid);
+            // Set program URL based on type
+            if (type === 'kids') {
+                manifestData.kidsProgram = combinedAudioUrl;
+                manifestData.programUrl = combinedAudioUrl; // Legacy compatibility
+            } else if (type === 'parent') {
+                manifestData.parentProgram = combinedAudioUrl;
+            }
+            
+            await uploadManifestToBunny(manifestData, world, lmid, type);
             
             return res.status(200).json({
                 success: true,
@@ -208,7 +235,7 @@ export default async function handler(req, res) {
 /**
  * Combine audio files using FFmpeg with proper answer grouping
  */
-async function combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams) {
+async function combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams, programType = 'kids') {
     try {
         const ffmpegPath = ffmpegInstaller.path;
         ffmpeg.setFfmpegPath(ffmpegPath);
@@ -312,11 +339,11 @@ async function combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams) {
         
         // Final assembly of all segments IN ORDER
         console.log('🎼 Assembling final radio program in correct order...');
-        const outputPath = path.join(tempDir, `radio-program-${world}-${lmid}.mp3`);
+        const outputPath = path.join(tempDir, `radio-program-${programType}-${world}-${lmid}.mp3`);
         await assembleFinalProgram(processedSegments, outputPath);
         
         // Upload to Bunny.net
-        const uploadUrl = await uploadToBunny(outputPath, world, lmid);
+        const uploadUrl = await uploadToBunny(outputPath, world, lmid, programType);
         
         // Cleanup temp files
         await cleanupTempDirectory(tempDir);
@@ -505,9 +532,9 @@ function downloadFile(url, filePath) {
  * Upload combined audio to Bunny.net
  * FIXED: Use consistent filename (no timestamp versioning) with heavy cache-busting instead
  */
-async function uploadToBunny(filePath, world, lmid) {
-    // NO timestamp in filename - same program always gets same filename
-    const fileName = `radio-program-${world}-${lmid}.mp3`;
+async function uploadToBunny(filePath, world, lmid, programType = 'kids') {
+    // Include program type in filename to distinguish kids vs parent programs
+    const fileName = `radio-program-${programType}-${world}-${lmid}.mp3`;
     const uploadPath = `/${lmid}/${world}/${fileName}`;
     
     console.log(`📤 Uploading to Bunny.net: ${uploadPath} (overwriting existing)`);
@@ -575,10 +602,61 @@ async function cleanupTempDirectory(tempDir) {
  * @param {Object} manifestData - Manifest data to save
  * @param {string} world - World name
  * @param {string} lmid - LMID
+ * @param {string} programType - Program type ('kids' or 'parent')
  */
-async function uploadManifestToBunny(manifestData, world, lmid) {
+async function uploadManifestToBunny(manifestData, world, lmid, programType = 'kids') {
+    try {
+        // Save type-specific manifest
+        const typeManifestPath = `/${lmid}/${world}/last-program-manifest-${programType}.json`;
+        await saveManifestFile(manifestData, typeManifestPath);
+        
+        // Load existing combined manifest or create new one
+        const combinedManifestPath = `/${lmid}/${world}/last-program-manifest.json`;
+        let combinedManifest = {};
+        
+        try {
+            // Try to load existing combined manifest
+            const existingResponse = await fetch(`${process.env.BUNNY_CDN_URL}${combinedManifestPath}`);
+            if (existingResponse.ok) {
+                combinedManifest = await existingResponse.json();
+            }
+        } catch (error) {
+            console.log('No existing combined manifest found, creating new one');
+        }
+        
+        // Update combined manifest with new program data
+        combinedManifest.generatedAt = manifestData.generatedAt;
+        combinedManifest.world = manifestData.world;
+        combinedManifest.lmid = manifestData.lmid;
+        combinedManifest.version = manifestData.version;
+        
+        // Add program-specific data
+        if (programType === 'kids') {
+            combinedManifest.kidsProgram = manifestData.kidsProgram;
+            combinedManifest.kidsRecordingCount = manifestData.recordingCount;
+            combinedManifest.programUrl = manifestData.programUrl; // Legacy compatibility
+        } else if (programType === 'parent') {
+            combinedManifest.parentProgram = manifestData.parentProgram;
+            combinedManifest.parentRecordingCount = manifestData.recordingCount;
+        }
+        
+        // Save updated combined manifest
+        await saveManifestFile(combinedManifest, combinedManifestPath);
+        
+        console.log(`✅ Manifests saved successfully for ${programType} program`);
+    } catch (error) {
+        console.warn(`⚠️ Manifest save error: ${error.message}`);
+        // Don't throw - manifest save failure shouldn't fail the whole process
+    }
+}
+
+/**
+ * Helper function to save a manifest file to Bunny.net
+ * @param {Object} manifestData - Manifest data to save
+ * @param {string} uploadPath - Upload path
+ */
+async function saveManifestFile(manifestData, uploadPath) {
     const manifestJson = JSON.stringify(manifestData, null, 2);
-    const uploadPath = `/${lmid}/${world}/last-program-manifest.json`;
     
     console.log(`📄 Saving manifest to Bunny.net: ${uploadPath}`);
     
@@ -604,15 +682,13 @@ async function uploadManifestToBunny(manifestData, world, lmid) {
                 resolve();
             } else {
                 console.warn(`⚠️ Manifest save failed with status: ${res.statusCode}`);
-                // Don't reject - manifest save failure shouldn't fail the whole process
-                resolve();
+                resolve(); // Don't reject - treat as warning
             }
         });
         
         req.on('error', (error) => {
             console.warn(`⚠️ Manifest save error: ${error.message}`);
-            // Don't reject - manifest save failure shouldn't fail the whole process
-            resolve();
+            resolve(); // Don't reject - treat as warning
         });
         
         req.write(manifestJson);
