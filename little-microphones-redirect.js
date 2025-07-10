@@ -56,12 +56,10 @@
             } else {
                 console.log('[LM Redirect] User not logged in, saving ShareID for later');
                 saveShareIdForRedirect(shareId);
-                showInfoMessage('Aby uzyskać dostęp do programu, zarejestruj się lub zaloguj.');
             }
             
         } catch (error) {
             console.error('[LM Redirect] Error in handleParentShareIDVisit:', error);
-            showErrorMessage('Wystąpił błąd podczas przetwarzania linku.');
         }
     }
     
@@ -97,7 +95,6 @@
                     // If coming from email verification, show welcome message
                     if (isFromEmailVerification) {
                         console.log('[LM Redirect] Email verification detected, processing LMID assignment');
-                        showSuccessMessage('Email zweryfikowany pomyślnie! Dodajemy dostęp do programu...');
                         
                         // Clear saved data and stay on current ShareID page
                         clearSavedRedirectData();
@@ -143,7 +140,6 @@
             
             if (currentLmids.includes(worldInfo.original_lmid.toString())) {
                 console.log('[LM Redirect] Parent already has this LMID');
-                showSuccessMessage('Masz już dostęp do tego programu!');
                 
                 // Stay on the ShareID page - user can see the program
                 return;
@@ -156,19 +152,16 @@
             
             if (updateResult.success) {
                 console.log('[LM Redirect] LMID added successfully');
-                showSuccessMessage(`Dostęp do programu został dodany! Możesz teraz korzystać z programu.`);
                 
                 // Stay on the ShareID page - don't redirect to dashboard
                 // The user can now see the program content
             } else {
                 console.error('[LM Redirect] Failed to update parent metadata');
-                showErrorMessage('Nie udało się dodać dostępu do programu. Spróbuj ponownie.');
                 return;
             }
             
         } catch (error) {
             console.error('[LM Redirect] Error handling logged in parent:', error);
-            showErrorMessage('Wystąpił błąd podczas dodawania dostępu do programu.');
         }
     }
     
@@ -371,67 +364,7 @@
         localStorage.removeItem('lm_parent_redirect');
     }
     
-    /**
-     * Show success message to user
-     */
-    function showSuccessMessage(message) {
-        showMessage(message, '#10b981', '✅');
-    }
-    
-    /**
-     * Show error message to user
-     */
-    function showErrorMessage(message) {
-        showMessage(message, '#ef4444', '❌');
-    }
-    
-    /**
-     * Show info message to user
-     */
-    function showInfoMessage(message) {
-        showMessage(message, '#3b82f6', 'ℹ️');
-    }
-    
-    /**
-     * Show message to user
-     */
-    function showMessage(message, backgroundColor, icon) {
-        // Remove existing message
-        const existingMessage = document.getElementById('lm-parent-message');
-        if (existingMessage) {
-            existingMessage.remove();
-        }
-        
-        // Create message element
-        const messageEl = document.createElement('div');
-        messageEl.id = 'lm-parent-message';
-        messageEl.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: ${backgroundColor};
-            color: white;
-            padding: 16px 24px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            z-index: 10000;
-            font-family: system-ui, -apple-system, sans-serif;
-            font-size: 14px;
-            max-width: 400px;
-            line-height: 1.4;
-        `;
-        messageEl.innerHTML = `${icon} ${message}`;
-        
-        document.body.appendChild(messageEl);
-        
-        // Auto-hide after delay
-        const hideDelay = backgroundColor === '#ef4444' ? 7000 : 5000;
-        setTimeout(() => {
-            if (messageEl && messageEl.parentNode) {
-                messageEl.parentNode.removeChild(messageEl);
-            }
-        }, hideDelay);
-    }
+
     
     /**
      * Initialize parent redirect system
