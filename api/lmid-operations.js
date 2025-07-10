@@ -181,38 +181,18 @@ async function handleDeleteLmid(memberId, lmidToDelete, newLmidString) {
         if (!error && data) {
             teacherEmail = data.assigned_to_member_email;
             console.log(`📧 Teacher email for LMID ${lmidToDelete}: ${teacherEmail}`);
+        } else if (error) {
+            console.warn(`⚠️ Could not retrieve teacher email for LMID ${lmidToDelete} (this is non-critical):`, error.message);
         }
     } catch (error) {
         console.warn(`⚠️ Could not retrieve teacher email for LMID ${lmidToDelete}:`, error);
     }
     
-    // Delete LMID completely from database
-    const { error: deleteError } = await supabase
-        .from('lmids')
-        .delete()
-        .eq('lmid', lmidToDelete);
-
-    if (deleteError) {
-        throw new Error('Failed to delete LMID from database');
-    }
-
-    // Update teacher's Memberstack metadata after deletion
-    if (newLmidString !== null) {
-        const memberstackUpdated = await updateMemberstackMetadata(memberId, newLmidString);
-        if (!memberstackUpdated) {
-            console.warn(`⚠️ LMID ${lmidToDelete} deleted from Supabase but teacher Memberstack metadata update failed`);
-        }
-        console.log(`✅ LMID ${lmidToDelete} deleted from Supabase and teacher Memberstack metadata ${memberstackUpdated ? 'updated' : 'update failed'}.`);
-    } else {
-        console.log(`✅ LMID ${lmidToDelete} deleted from Supabase.`);
-    }
-
-    // Clean up parent metadata - remove deleted LMID from all parent accounts (OPTIMIZED!)
+    // STEP 1: Clean up parent metadata FIRST, while the LMID record still exists.
     console.log(`🚀 [handleDeleteLmid] Starting OPTIMIZED parent cleanup for deleted LMID ${lmidToDelete}`);
     let parentCleanupResult = null;
     
     try {
-        // Import and call OPTIMIZED parent cleanup function with teacher Member ID to exclude
         const { cleanupParentMetadataOptimized } = await import('./parent-cleanup-optimized.js');
         parentCleanupResult = await cleanupParentMetadataOptimized(lmidToDelete, memberId);
         
@@ -223,12 +203,33 @@ async function handleDeleteLmid(memberId, lmidToDelete, newLmidString) {
         }
     } catch (error) {
         console.error(`❌ [handleDeleteLmid] OPTIMIZED parent cleanup error:`, error);
-        // Don't fail the main operation if parent cleanup fails
         parentCleanupResult = {
             success: false,
             cleanedParents: 0,
             message: `OPTIMIZED parent cleanup failed: ${error.message}`
         };
+    }
+
+    // STEP 2: Now that parents are cleaned, delete the LMID completely from the database.
+    const { error: deleteError } = await supabase
+        .from('lmids')
+        .delete()
+        .eq('lmid', lmidToDelete);
+
+    if (deleteError) {
+        console.error(`🔥🔥 CRITICAL: FAILED TO DELETE LMID ${lmidToDelete} FROM DATABASE AFTER PARENT CLEANUP. MANUAL INTERVENTION REQUIRED. Error: ${deleteError.message}`);
+        throw new Error('Failed to delete LMID from database after attempting parent cleanup.');
+    }
+
+    // STEP 3: Update the teacher's Memberstack metadata.
+    if (newLmidString !== null) {
+        const memberstackUpdated = await updateMemberstackMetadata(memberId, newLmidString);
+        if (!memberstackUpdated) {
+            console.warn(`⚠️ LMID ${lmidToDelete} deleted from Supabase but teacher Memberstack metadata update failed`);
+        }
+        console.log(`✅ LMID ${lmidToDelete} deleted from Supabase and teacher Memberstack metadata ${memberstackUpdated ? 'updated' : 'update failed'}.`);
+    } else {
+        console.log(`✅ LMID ${lmidToDelete} deleted from Supabase.`);
     }
 
     return {

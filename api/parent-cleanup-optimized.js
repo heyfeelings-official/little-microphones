@@ -29,7 +29,7 @@ async function getAssociatedParentMemberIds(lmidToFind) {
             .from('lmids')
             .select('associated_parent_member_ids')
             .eq('lmid', lmidToFind)
-            .single();
+            .maybeSingle();
             
         if (error) {
             console.error(`❌ Database error:`, error);
