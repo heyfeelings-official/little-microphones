@@ -92,18 +92,17 @@
                 
                 if (isParent) {
                     
-                    // If coming from email verification, show welcome message
+                    // If coming from email verification, redirect to ShareID page
                     if (isFromEmailVerification) {
-                        console.log('[LM Redirect] Email verification detected, processing LMID assignment');
+                        console.log('[LM Redirect] Email verification detected, redirecting to ShareID page');
                         
-                        // Clear saved data and stay on current ShareID page
+                        // Clear saved data
                         clearSavedRedirectData();
                         
-                        // Wait a moment then process LMID assignment on current page
-                        setTimeout(() => {
-                            // Re-run the ShareID handler to process LMID assignment
-                            handleParentShareIDVisit();
-                        }, 2000);
+                        // Redirect to ShareID page immediately
+                        const redirectUrl = `/little-microphones?ID=${savedData.shareId}`;
+                        console.log('[LM Redirect] Redirecting to ShareID page:', redirectUrl);
+                        window.location.href = redirectUrl;
                     } else {
                         // Normal redirect without delay
                         clearSavedRedirectData();
