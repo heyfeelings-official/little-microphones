@@ -651,8 +651,9 @@
         if (!window.RecordingUI || !window.RecordingUI.createRecordingElement) {
             console.error('RecordingUI module not loaded. Make sure recording-ui.js is included.');
             // Fallback to simple audio element
+            const bgColor = playerContainer.style.background.includes('#FFD700') ? 'rgba(255,215,0,0.9)' : 'rgba(255,255,255,0.9)';
             playerContainer.innerHTML = `
-                <div style="background: rgba(255,255,255,0.9); border-radius: 12px; padding: 16px; text-align: center;">
+                <div style="background: ${bgColor}; border-radius: 12px; padding: 16px; text-align: center;">
                     <audio controls style="width: 100%;" preload="metadata">
                         <source src="${audioUrl}" type="audio/mpeg">
                         Your browser does not support the audio element.
@@ -677,6 +678,9 @@
         const deleteRecording = () => {}; // No delete on radio page
         const dispatchUploadStatusEvent = () => {}; // No upload status on radio page
 
+        // Check if container has yellow background for parent programs
+        const isParentProgram = playerContainer.style.background.includes('#FFD700');
+        
         // Create the recording element using RecordingUI
         window.RecordingUI.createRecordingElement(
             recordingData,
@@ -691,9 +695,10 @@
         ).then(playerElement => {
             if (playerElement) {
                 // Add some styling to make it fit better in the radio context
-                const playerDiv = playerElement.querySelector('div[style*="background: white"]');
+                const playerDiv = playerElement.querySelector('div[style*="background: white"], div[style*="background: #ffffff"]');
                 if (playerDiv) {
-                    playerDiv.style.background = '#ffffff';
+                    // Use yellow background for parent programs, white for kids programs
+                    playerDiv.style.background = isParentProgram ? '#FFD700' : '#ffffff';
                     playerDiv.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
                     playerDiv.style.width = '100%';
                 }
@@ -710,8 +715,9 @@
         }).catch(error => {
             console.error('Error creating RecordingUI player:', error);
             // Fallback to simple audio element
+            const bgColor = isParentProgram ? 'rgba(255,215,0,0.9)' : 'rgba(255,255,255,0.9)';
             playerContainer.innerHTML = `
-                <div style="background: rgba(255,255,255,0.9); border-radius: 12px; padding: 16px; text-align: center;">
+                <div style="background: ${bgColor}; border-radius: 12px; padding: 16px; text-align: center;">
                     <audio controls style="width: 100%;" preload="metadata">
                         <source src="${audioUrl}" type="audio/mpeg">
                         Your browser does not support the audio element.
@@ -750,16 +756,24 @@
             currentRadioData = data;
             
             if (data.success) {
-                // Check if new program generation is needed (API tells us)
-                if (data.needsNewProgram === true) {
-                    console.log('🔄 New program generation needed - files have changed');
-                    generateNewProgram(data);
-                } else if (data.lastManifest?.programUrl) {
-                    console.log('✅ Using existing program - no changes detected');
+                // Check what programs need generation based on detailed API response
+                const needsKids = data.needsKidsProgram || false;
+                const needsParent = data.needsParentProgram || false;
+                const hasKidsRecordings = data.hasKidsRecordings || false;
+                const hasParentRecordings = data.hasParentRecordings || false;
+                
+                console.log(`📊 Generation status: Kids(${needsKids ? 'GENERATE' : 'EXISTS'}), Parent(${needsParent ? 'GENERATE' : 'EXISTS'})`);
+                console.log(`📊 Recordings available: Kids(${hasKidsRecordings}), Parent(${hasParentRecordings})`);
+                
+                if (needsKids || needsParent) {
+                    console.log('🔄 Program generation needed');
+                    generateNewProgram(data, { needsKids, needsParent, hasKidsRecordings, hasParentRecordings });
+                } else if (data.lastManifest?.kidsProgram || data.lastManifest?.parentProgram || data.lastManifest?.programUrl) {
+                    console.log('✅ Using existing programs - no changes detected');
                     showExistingProgram(data);
                 } else {
-                    console.log('⚙️ No existing program found - generating first program');
-                    generateNewProgram(data);
+                    console.log('⚙️ No existing programs found - generating first programs');
+                    generateNewProgram(data, { needsKids: hasKidsRecordings, needsParent: hasParentRecordings, hasKidsRecordings, hasParentRecordings });
                 }
             } else {
                 throw new Error(data.error || 'Failed to fetch radio data');
@@ -780,18 +794,22 @@
         const userRole = await detectUserRole();
         
         // Check if we have dual programs in manifest
-        if (data.lastManifest.kidsProgram || data.lastManifest.parentProgram) {
+        if (data.lastManifest && (data.lastManifest.kidsProgram || data.lastManifest.parentProgram)) {
             const programs = {};
             if (data.lastManifest.kidsProgram) {
                 programs.kids = { url: data.lastManifest.kidsProgram };
+                console.log('📻 Found kids program in manifest:', data.lastManifest.kidsProgram);
             }
             if (data.lastManifest.parentProgram) {
                 programs.parent = { url: data.lastManifest.parentProgram };
+                console.log('📻 Found parent program in manifest:', data.lastManifest.parentProgram);
             }
             
+            console.log('📻 Showing dual player state with programs:', programs);
             showDualPlayerState(programs, data, userRole);
-        } else {
+        } else if (data.lastManifest && data.lastManifest.programUrl) {
             // Legacy single program support
+            console.log('📻 Using legacy single program:', data.lastManifest.programUrl);
             const audioUrl = data.lastManifest.programUrl;
             const radioData = {
                 world: data.world,
@@ -799,6 +817,12 @@
             };
             
             showPlayerState(audioUrl, radioData);
+        } else {
+            console.log('📻 No programs found in manifest:', data.lastManifest);
+            const playerContainer = document.getElementById('player-state');
+            if (playerContainer) {
+                playerContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">No radio programs available yet.</div>';
+            }
         }
     }
     
@@ -829,9 +853,11 @@
         
         if (userRole === 'parent') {
             // Parents see only kids program
-            if (programs.kids) {
+            if (programs.kids && programs.kids.url) {
+                console.log('👨‍👩‍👧‍👦 Parent user - showing kids program:', programs.kids.url);
                 createSinglePlayer(playerContainer, programs.kids.url, radioData, 'Kids Program');
             } else {
+                console.log('👨‍👩‍👧‍👦 Parent user - no kids program available:', programs);
                 playerContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">No kids recordings available yet.</div>';
             }
         } else {
@@ -909,8 +935,13 @@
             descDiv.style.cssText = 'margin-bottom: 16px; text-align: center; color: #666; font-size: 14px;';
             descDiv.textContent = program.description;
             
-            // Create player container
+            // Create player container with conditional styling for parent programs
             const playerDiv = document.createElement('div');
+            
+            // Add yellow background for parent programs
+            if (program.title && program.title.includes('Parent')) {
+                playerDiv.style.cssText = 'background: #FFD700; border-radius: 12px; padding: 8px;';
+            }
             
             programSection.appendChild(titleDiv);
             programSection.appendChild(descDiv);
@@ -925,7 +956,7 @@
     /**
      * Generate new program - now supports dual programs for different user roles
      */
-    async function generateNewProgram(data) {
+    async function generateNewProgram(data, generationNeeds = {}) {
         console.log('⚙️ Generating new program');
         
         showGeneratingState();
@@ -935,18 +966,30 @@
             const userRole = await detectUserRole();
             const currentMemberId = await getCurrentMemberId();
             
-            // Determine what program type to generate
-            let programType = 'kids'; // Default for teachers/therapists
+            // Use API-provided generation needs or determine from user role
+            const needsKids = generationNeeds.needsKids !== undefined ? generationNeeds.needsKids : true;
+            const needsParent = generationNeeds.needsParent !== undefined ? generationNeeds.needsParent : true;
+            const hasKidsRecordings = generationNeeds.hasKidsRecordings !== undefined ? generationNeeds.hasKidsRecordings : true;
+            const hasParentRecordings = generationNeeds.hasParentRecordings !== undefined ? generationNeeds.hasParentRecordings : true;
             
-            if (userRole === 'parent') {
-                programType = 'parent';
-            } else {
-                // Teachers and therapists get both programs if both types exist
-                programType = 'both';
+            console.log(`🎯 Generation plan: Kids(${needsKids && hasKidsRecordings ? 'YES' : 'NO'}), Parent(${needsParent && hasParentRecordings ? 'YES' : 'NO'})`);
+            
+            // Convert recordings to audioSegments format based on what we need to generate
+            const audioSegmentsResult = {};
+            
+            if (needsKids && hasKidsRecordings) {
+                const kidsSegments = convertRecordingsToAudioSegments(data.currentRecordings, data.world, 'kids');
+                if (kidsSegments.kids) {
+                    audioSegmentsResult.kids = kidsSegments.kids;
+                }
             }
             
-            // Convert recordings to audioSegments format
-            const audioSegmentsResult = convertRecordingsToAudioSegments(data.currentRecordings, data.world, programType);
+            if (needsParent && hasParentRecordings) {
+                const parentSegments = convertRecordingsToAudioSegments(data.currentRecordings, data.world, 'parent');
+                if (parentSegments.parent) {
+                    audioSegmentsResult.parent = parentSegments.parent;
+                }
+            }
             
             // Check if we have any programs to generate
             if (!audioSegmentsResult.kids && !audioSegmentsResult.parent) {

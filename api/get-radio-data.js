@@ -93,34 +93,60 @@ async function fetchLastProgramManifest(world, lmid) {
 }
 
 /**
- * Check if files have changed since last program generation
+ * Check if files have changed since last program generation for kids and parent programs
  * @param {Array} currentRecordings - Current recordings from cloud
  * @param {Object|null} manifest - Last program manifest
- * @returns {boolean} True if new program generation needed (files added or deleted)
+ * @returns {Object} Object with needsKids and needsParent flags
  */
 function needsNewProgram(currentRecordings, manifest, world, lmid) {
-    // Only count files matching the user answer pattern
-    const userAnswerPattern = new RegExp(`^kids-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.mp3$`);
-    const filteredRecordings = currentRecordings.filter(
-        file => userAnswerPattern.test(file.filename)
-    );
-    // If no manifest exists, we definitely need a new program
-    if (!manifest || typeof manifest.recordingCount !== 'number') {
-        console.log('📝 No manifest or missing recordingCount - new program needed');
-        return true;
+    // Filter recordings by type (exclude JSON files and other non-audio files)
+    const kidsPattern = new RegExp(`^kids-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.mp3$`);
+    const parentPattern = new RegExp(`^parent_[^-]+-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.mp3$`);
+    
+    const kidsRecordings = currentRecordings.filter(file => kidsPattern.test(file.filename));
+    const parentRecordings = currentRecordings.filter(file => parentPattern.test(file.filename));
+    
+    console.log(`📊 Found ${kidsRecordings.length} kids recordings, ${parentRecordings.length} parent recordings`);
+    
+    // Check kids program generation needs
+    let needsKids = false;
+    const currentKidsCount = kidsRecordings.length;
+    const previousKidsCount = manifest?.kidsRecordingCount || manifest?.recordingCount || 0; // Legacy fallback
+    
+    if (!manifest || !manifest.kidsProgram) {
+        if (currentKidsCount > 0) {
+            console.log('📝 No kids program exists but recordings found - kids generation needed');
+            needsKids = true;
+        }
+    } else if (currentKidsCount !== previousKidsCount) {
+        console.log(`🔄 Kids recording count changed: was ${previousKidsCount}, now ${currentKidsCount}`);
+        needsKids = true;
     }
     
-    // Compare only the count of user recordings
-    const currentCount = filteredRecordings.length;
-    const previousCount = manifest.recordingCount;
+    // Check parent program generation needs
+    let needsParent = false;
+    const currentParentCount = parentRecordings.length;
+    const previousParentCount = manifest?.parentRecordingCount || 0;
     
-    if (currentCount !== previousCount) {
-        console.log(`🔄 Recording count changed: was ${previousCount}, now ${currentCount}`);
-        return true;
+    if (!manifest || !manifest.parentProgram) {
+        if (currentParentCount > 0) {
+            console.log('📝 No parent program exists but recordings found - parent generation needed');
+            needsParent = true;
+        }
+    } else if (currentParentCount !== previousParentCount) {
+        console.log(`🔄 Parent recording count changed: was ${previousParentCount}, now ${currentParentCount}`);
+        needsParent = true;
     }
     
-    // No change in recording count, no need to regenerate
-    return false;
+    // Return object with specific needs for each program type
+    return {
+        needsKids,
+        needsParent,
+        kidsCount: currentKidsCount,
+        parentCount: currentParentCount,
+        hasKidsRecordings: currentKidsCount > 0,
+        hasParentRecordings: currentParentCount > 0
+    };
 }
 
 export default async function handler(req, res) {
@@ -228,7 +254,7 @@ export default async function handler(req, res) {
         const lastManifest = await fetchLastProgramManifest(world, lmid);
         
         // Determine if new program generation is needed
-        const needsNew = needsNewProgram(currentRecordings, lastManifest, world, lmid);
+        const generationNeeds = needsNewProgram(currentRecordings, lastManifest, world, lmid);
 
         return res.status(200).json({
             success: true,
@@ -236,7 +262,13 @@ export default async function handler(req, res) {
             world: world,
             currentRecordings: currentRecordings,
             lastManifest: lastManifest,
-            needsNewProgram: needsNew,
+            needsNewProgram: generationNeeds.needsKids || generationNeeds.needsParent, // Legacy compatibility
+            needsKidsProgram: generationNeeds.needsKids,
+            needsParentProgram: generationNeeds.needsParent,
+            kidsRecordingCount: generationNeeds.kidsCount,
+            parentRecordingCount: generationNeeds.parentCount,
+            hasKidsRecordings: generationNeeds.hasKidsRecordings,
+            hasParentRecordings: generationNeeds.hasParentRecordings,
             recordingCount: currentRecordings.length,
             shareId: shareId
         });
