@@ -12,6 +12,14 @@ System przekierowania rodziców umożliwia:
 - Przekierowanie z powrotem do oryginalnej strony ShareID
 - Obsługę zarówno zalogowanych jak i niezalogowanych użytkowników
 
+### Zalety Hostowanych Skryptów
+
+✅ **Łatwe aktualizacje** - Skrypty są hostowane na Vercel i mogą być aktualizowane bez zmian w Webflow  
+✅ **Wersjonowanie** - Każdy skrypt ma numer wersji widoczny w console.log  
+✅ **Centralne zarządzanie** - Wszystkie zmiany w jednym miejscu  
+✅ **Automatyczne wdrożenia** - Vercel automatycznie wdraża nowe wersje  
+✅ **Backup i historia** - Pełna historia zmian w Git
+
 ## Flow Systemu
 
 ### Scenariusz 1: Zalogowany rodzic
@@ -39,9 +47,7 @@ System przekierowania rodziców umożliwia:
 5. W sekcji "Before </body> tag" wklej poniższy kod:
 
 ```html
-<script>
-// Skopiuj całą zawartość pliku webflow-scripts/little-microphones-redirect.js
-</script>
+<script src="https://little-microphones.vercel.app/little-microphones-redirect.js"></script>
 ```
 
 ### Krok 2: Dodanie skryptu do strony `/members/emotion-worlds`
@@ -53,9 +59,7 @@ System przekierowania rodziców umożliwia:
 5. W sekcji "Before </body> tag" wklej poniższy kod:
 
 ```html
-<script>
-// Skopiuj całą zawartość pliku webflow-scripts/emotion-worlds-redirect.js
-</script>
+<script src="https://little-microphones.vercel.app/emotion-worlds-redirect.js"></script>
 ```
 
 ### Krok 3: Publikacja zmian
