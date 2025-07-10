@@ -143,23 +143,28 @@ export default async function handler(req, res) {
         const fileList = await response.json();
         
         // Filter files for the specific question ID or all questions if questionId not provided
+        // Support both teacher (kids-world_) and parent (parent_memberid-world_) formats
         let matchingFiles;
         if (questionId) {
-            // Filter for specific question
-            const questionPattern = new RegExp(`kids-world_${world}-lmid_${lmid}-question_${questionId}-.*\\.mp3$`);
+            // Filter for specific question - support both formats
+            const teacherPattern = new RegExp(`kids-world_${world}-lmid_${lmid}-question_${questionId}-.*\\.mp3$`);
+            const parentPattern = new RegExp(`parent_[^-]+-world_${world}-lmid_${lmid}-question_${questionId}-.*\\.mp3$`);
+            
             matchingFiles = fileList.filter(file => 
                 file.IsDirectory === false && 
-                questionPattern.test(file.ObjectName)
+                (teacherPattern.test(file.ObjectName) || parentPattern.test(file.ObjectName))
             );
-            console.log(`Found ${matchingFiles.length} recordings for question ${questionId}`);
+            console.log(`Found ${matchingFiles.length} recordings for question ${questionId} (teacher + parent)`);
         } else {
-            // Get all recordings for this world/lmid
-            const allPattern = new RegExp(`kids-world_${world}-lmid_${lmid}-question_.*\\.mp3$`);
+            // Get all recordings for this world/lmid - support both formats
+            const teacherPattern = new RegExp(`kids-world_${world}-lmid_${lmid}-question_.*\\.mp3$`);
+            const parentPattern = new RegExp(`parent_[^-]+-world_${world}-lmid_${lmid}-question_.*\\.mp3$`);
+            
             matchingFiles = fileList.filter(file => 
                 file.IsDirectory === false && 
-                allPattern.test(file.ObjectName)
+                (teacherPattern.test(file.ObjectName) || parentPattern.test(file.ObjectName))
             );
-            console.log(`Found ${matchingFiles.length} total recordings for ${world}/${lmid}`);
+            console.log(`Found ${matchingFiles.length} total recordings for ${world}/${lmid} (teacher + parent)`);
         }
 
         // Transform file list to recording objects
@@ -167,7 +172,10 @@ export default async function handler(req, res) {
             // Extract questionId from filename if not provided
             let extractedQuestionId = questionId;
             if (!questionId) {
-                const match = file.ObjectName.match(/question_(\d+)-/);
+                // Support both teacher and parent filename formats
+                const teacherMatch = file.ObjectName.match(/kids-world_.*-question_(\d+)-/);
+                const parentMatch = file.ObjectName.match(/parent_.*-question_(\d+)-/);
+                const match = teacherMatch || parentMatch;
                 extractedQuestionId = match ? match[1] : 'unknown';
             }
             

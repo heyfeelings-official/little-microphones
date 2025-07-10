@@ -71,6 +71,70 @@
 // --- Global initialization tracking ---
 const initializedWorlds = new Set();
 
+// --- User Role Detection ---
+let currentUserRole = null;
+
+/**
+ * Detect user role (parent or teacher) from Memberstack
+ * @returns {Promise<string>} User role ('parent' or 'teacher')
+ */
+async function detectUserRole() {
+    if (currentUserRole) {
+        return currentUserRole;
+    }
+    
+    try {
+        const memberstack = window.$memberstackDom;
+        if (!memberstack) {
+            console.warn('Memberstack not available, defaulting to teacher role');
+            currentUserRole = 'teacher';
+            return currentUserRole;
+        }
+        
+        const { data: memberData } = await memberstack.getCurrentMember();
+        if (!memberData) {
+            console.warn('No member data available, defaulting to teacher role');
+            currentUserRole = 'teacher';
+            return currentUserRole;
+        }
+        
+        // Check role field in customFields
+        const role = memberData.customFields?.role;
+        if (role === 'parent' || role === 'teacher') {
+            currentUserRole = role;
+            console.log(`User role detected: ${currentUserRole}`);
+        } else {
+            console.warn(`Unknown role "${role}", defaulting to teacher`);
+            currentUserRole = 'teacher';
+        }
+        
+        return currentUserRole;
+    } catch (error) {
+        console.error('Error detecting user role:', error);
+        currentUserRole = 'teacher';
+        return currentUserRole;
+    }
+}
+
+/**
+ * Get current user's Member ID for parent recordings
+ * @returns {Promise<string|null>} Member ID or null
+ */
+async function getCurrentMemberId() {
+    try {
+        const memberstack = window.$memberstackDom;
+        if (!memberstack) {
+            return null;
+        }
+        
+        const { data: memberData } = await memberstack.getCurrentMember();
+        return memberData?.id || null;
+    } catch (error) {
+        console.error('Error getting member ID:', error);
+        return null;
+    }
+}
+
 // --- SIMPLIFIED LOGGING SYSTEM ---
 const LOG_CONFIG = {
     ENABLED: true,
@@ -210,9 +274,22 @@ async function createRecordingElement(recordingData, questionId, allIds) {
         return li; 
     }
     
+    // Check if this is a parent recording and current user is teacher
+    const isParentRecording = recordingData.id.includes('parent_');
+    const currentUserRole = await detectUserRole();
+    const shouldShowParentLabel = isParentRecording && currentUserRole === 'teacher';
+    
     // Main player container
     const playerContainer = document.createElement('div');
     playerContainer.style.cssText = `width: 100%; height: 48px; position: relative; background: white; border-radius: 122px; display: flex; align-items: center; padding: 0 16px; box-sizing: border-box;`;
+    
+    // Add parent label if needed
+    if (shouldShowParentLabel) {
+        const parentLabel = document.createElement('div');
+        parentLabel.style.cssText = `position: absolute; top: -8px; right: 16px; background: #FFD700; color: #333; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: bold; z-index: 10;`;
+        parentLabel.textContent = 'Parent';
+        li.appendChild(parentLabel);
+    }
     
     // Hidden audio element
     const audio = document.createElement('audio');
@@ -875,10 +952,23 @@ function initializeAudioRecorder(recorderWrapper) {
                     const world = window.currentRecordingParams?.world || urlParams.get('world') || 'unknown-world';
                     const lmid = window.currentRecordingParams?.lmid || urlParams.get('lmid') || 'unknown-lmid';
 
-                    // --- Use timestamp for unique ID ---
+                    // --- Generate ID based on user role ---
                     const timestamp = Date.now();
-                    const newId = `kids-world_${world}-lmid_${lmid}-question_${questionId}-tm_${timestamp}`;
-                    console.log(`[${questionId}] Generated ID: ${newId}`);
+                    const userRole = await detectUserRole();
+                    let newId;
+                    
+                    if (userRole === 'parent') {
+                        const memberId = await getCurrentMemberId();
+                        if (!memberId) {
+                            throw new Error('Member ID required for parent recordings');
+                        }
+                        newId = `parent_${memberId}-world_${world}-lmid_${lmid}-question_${questionId}-tm_${timestamp}`;
+                    } else {
+                        // Default teacher format
+                        newId = `kids-world_${world}-lmid_${lmid}-question_${questionId}-tm_${timestamp}`;
+                    }
+                    
+                    console.log(`[${questionId}] Generated ID for ${userRole}: ${newId}`);
 
                     const recordingData = {
                         id: newId,
@@ -1267,32 +1357,52 @@ function updateRecordingInDB(recordingData) {
 }
 
 /**
- * Load recordings from database filtered by questionId, world, and lmid
+ * Load recordings from database filtered by questionId, world, lmid and user role
  * @param {string} questionId - The question ID to filter by
  * @param {string} world - The world to filter by
  * @param {string} lmid - The lmid to filter by
  */
-function loadRecordingsFromDB(questionId, world, lmid) {
-    return new Promise((resolve) => {
-        withDB(db => {
-            const transaction = db.transaction("audioRecordings", "readonly");
-            const store = transaction.objectStore("audioRecordings");
-            const request = store.getAll();
+async function loadRecordingsFromDB(questionId, world, lmid) {
+    return new Promise(async (resolve) => {
+        try {
+            const userRole = await detectUserRole();
+            const currentMemberId = await getCurrentMemberId();
+            
+            withDB(db => {
+                const transaction = db.transaction("audioRecordings", "readonly");
+                const store = transaction.objectStore("audioRecordings");
+                const request = store.getAll();
 
-            request.onsuccess = () => {
-                const allRecordings = request.result;
-                // Filter recordings by questionId, world, and lmid
-                const filteredRecordings = allRecordings.filter(rec => {
-                    return rec.questionId === questionId && 
-                           rec.id.includes(`kids-world_${world}-lmid_${lmid}-`);
-                });
-                resolve(filteredRecordings);
-            };
-            request.onerror = () => {
-                console.error(`[${questionId}] Error loading recordings from DB`);
-                resolve([]); // Return empty array on error
-            };
-        });
+                request.onsuccess = () => {
+                    const allRecordings = request.result;
+                    
+                    // Filter recordings by questionId, world, and lmid
+                    let filteredRecordings = allRecordings.filter(rec => {
+                        return rec.questionId === questionId && 
+                               (rec.id.includes(`kids-world_${world}-lmid_${lmid}-`) || 
+                                rec.id.includes(`parent_`) && rec.id.includes(`-world_${world}-lmid_${lmid}-`));
+                    });
+                    
+                    // Apply role-based filtering
+                    if (userRole === 'parent' && currentMemberId) {
+                        // Parents see only their own recordings
+                        filteredRecordings = filteredRecordings.filter(rec => {
+                            return rec.id.includes(`parent_${currentMemberId}-`);
+                        });
+                    }
+                    // Teachers see all recordings (no additional filtering needed)
+                    
+                    resolve(filteredRecordings);
+                };
+                request.onerror = () => {
+                    console.error(`[${questionId}] Error loading recordings from DB`);
+                    resolve([]); // Return empty array on error
+                };
+            });
+        } catch (error) {
+            console.error(`[${questionId}] Error in loadRecordingsFromDB:`, error);
+            resolve([]);
+        }
     });
 }
 
@@ -2090,8 +2200,7 @@ function stopFunStatusMessages() {
 }
 
 /**
- * Load recordings from cloud storage only
- * Simplified approach - cloud is the single source of truth
+ * Load recordings from cloud storage with role-based filtering
  * @param {string} questionId - The question ID
  * @param {string} world - The world slug
  * @param {string} lmid - The LMID
@@ -2099,7 +2208,8 @@ function stopFunStatusMessages() {
  */
 async function loadRecordingsFromCloud(questionId, world, lmid) {
     try {
-        // Removed per-question cloud loading log
+        const userRole = await detectUserRole();
+        const currentMemberId = await getCurrentMemberId();
         
         // Fetch from cloud API
         const response = await fetch(`https://little-microphones.vercel.app/api/list-recordings?world=${world}&lmid=${lmid}&questionId=${questionId}`);
@@ -2110,8 +2220,16 @@ async function loadRecordingsFromCloud(questionId, world, lmid) {
         }
         
         const cloudData = await response.json();
-        const cloudRecordings = cloudData.recordings || [];
-        // Removed per-question cloud count log
+        let cloudRecordings = cloudData.recordings || [];
+        
+        // Apply role-based filtering
+        if (userRole === 'parent' && currentMemberId) {
+            // Parents see only their own recordings
+            cloudRecordings = cloudRecordings.filter(cloudRec => {
+                return cloudRec.filename.includes(`parent_${currentMemberId}-`);
+            });
+        }
+        // Teachers see all recordings (no additional filtering needed)
         
         // Transform cloud recordings to our format
         const recordings = cloudRecordings.map(cloudRec => ({
