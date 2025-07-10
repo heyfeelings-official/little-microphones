@@ -263,9 +263,10 @@ export async function validateLmidOwnership(memberId, lmidsToValidate) {
  * Update Memberstack member metadata using Admin API (with validation)
  * @param {string} memberId - Memberstack member ID
  * @param {string} newLmidString - New LMID string
+ * @param {boolean} skipValidation - Skip LMID ownership validation (for parent sharing)
  * @returns {Promise<boolean>} Success status
  */
-export async function updateMemberstackMetadata(memberId, newLmidString) {
+export async function updateMemberstackMetadata(memberId, newLmidString, skipValidation = false) {
     const MEMBERSTACK_SECRET_KEY = process.env.MEMBERSTACK_SECRET_KEY;
     
     console.log(`🔧 [updateMemberstackMetadata] === STARTING METADATA UPDATE ===`);
@@ -278,18 +279,22 @@ export async function updateMemberstackMetadata(memberId, newLmidString) {
     }
     console.log('🔑 MEMBERSTACK_SECRET_KEY is configured.');
 
-    // 🔒 SECURITY: Validate LMID ownership before updating metadata
-    console.log(`🔍 [updateMemberstackMetadata] Starting LMID ownership validation...`);
-    const validation = await validateLmidOwnership(memberId, newLmidString);
-    console.log(`🔍 [updateMemberstackMetadata] Validation result:`, JSON.stringify(validation, null, 2));
-    
-    if (!validation.valid) {
-        console.error(`❌ [updateMemberstackMetadata] SECURITY VIOLATION: Member ${memberId} attempted to set invalid LMIDs: ${validation.invalidLmids?.join(', ')}`);
-        console.error(`❌ [updateMemberstackMetadata] Actual owned LMIDs: ${validation.validLmids?.join(', ')}`);
-        console.error(`❌ [updateMemberstackMetadata] Validation error: ${validation.error || 'Unknown error'}`);
-        return false;
+    // 🔒 SECURITY: Validate LMID ownership before updating metadata (unless skipped for parent sharing)
+    if (!skipValidation) {
+        console.log(`🔍 [updateMemberstackMetadata] Starting LMID ownership validation...`);
+        const validation = await validateLmidOwnership(memberId, newLmidString);
+        console.log(`🔍 [updateMemberstackMetadata] Validation result:`, JSON.stringify(validation, null, 2));
+        
+        if (!validation.valid) {
+            console.error(`❌ [updateMemberstackMetadata] SECURITY VIOLATION: Member ${memberId} attempted to set invalid LMIDs: ${validation.invalidLmids?.join(', ')}`);
+            console.error(`❌ [updateMemberstackMetadata] Actual owned LMIDs: ${validation.validLmids?.join(', ')}`);
+            console.error(`❌ [updateMemberstackMetadata] Validation error: ${validation.error || 'Unknown error'}`);
+            return false;
+        }
+        console.log('🔒 [updateMemberstackMetadata] LMID ownership validated successfully.');
+    } else {
+        console.log('🔓 [updateMemberstackMetadata] Skipping LMID ownership validation (parent sharing mode).');
     }
-    console.log('🔒 [updateMemberstackMetadata] LMID ownership validated successfully.');
 
     const requestBody = {
         metaData: {

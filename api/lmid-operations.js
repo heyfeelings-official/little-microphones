@@ -204,7 +204,8 @@ async function handleUpdateParentMetadata(memberId, newLmidString) {
     console.log(`🔄 [handleUpdateParentMetadata] Updating parent metadata for ${memberId} with LMIDs: ${newLmidString}`);
     
     // Update Memberstack metadata directly (no database changes needed for parents)
-    const memberstackUpdated = await updateMemberstackMetadata(memberId, newLmidString);
+    // Skip validation since parents share teacher's LMID (they're not owners in database)
+    const memberstackUpdated = await updateMemberstackMetadata(memberId, newLmidString, true);
     
     if (!memberstackUpdated) {
         throw new Error('Failed to update parent metadata in Memberstack');
