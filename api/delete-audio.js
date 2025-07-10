@@ -136,9 +136,12 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'Missing required fields: world, lmid, and questionId' });
         }
 
-        // Validate filename format for security
-        if (!filename.includes(`kids-world_${world}-lmid_${lmid}-question_${questionId}`)) {
-            return res.status(400).json({ error: 'Invalid filename format' });
+        // Validate filename format for security - support both teacher and parent formats
+        const teacherFormat = filename.includes(`kids-world_${world}-lmid_${lmid}-question_${questionId}`);
+        const parentFormat = filename.match(new RegExp(`^parent_[^-]+-world_${world}-lmid_${lmid}-question_${questionId}-tm_\\d+\\.mp3$`));
+        
+        if (!teacherFormat && !parentFormat) {
+            return res.status(400).json({ error: 'Invalid filename format - must be either teacher (kids-world_...) or parent (parent_memberid-world_...) format' });
         }
 
         // Delete from Bunny.net with folder structure: lmid/world/filename
