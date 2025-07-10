@@ -186,10 +186,10 @@ async function handleDeleteLmid(memberId, lmidToDelete, newLmidString) {
         console.warn(`⚠️ Could not retrieve teacher email for LMID ${lmidToDelete}:`, error);
     }
     
-    // Mark LMID as deleted in database
+    // Delete LMID completely from database
     const { error: deleteError } = await supabase
         .from('lmids')
-        .update({ status: 'deleted' })
+        .delete()
         .eq('lmid', lmidToDelete);
 
     if (deleteError) {
