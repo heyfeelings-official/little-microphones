@@ -196,10 +196,12 @@ export default async function handler(req, res) {
                 version: '5.4.0'
             };
             
-            // Set program URL based on type
+            // Set program URL - use programUrl for both types in individual manifests
+            manifestData.programUrl = combinedAudioUrl;
+            
+            // Also set type-specific field for combined manifest
             if (type === 'kids') {
                 manifestData.kidsProgram = combinedAudioUrl;
-                manifestData.programUrl = combinedAudioUrl; // Legacy compatibility
             } else if (type === 'parent') {
                 manifestData.parentProgram = combinedAudioUrl;
             }
@@ -641,7 +643,7 @@ async function uploadManifestToBunny(manifestData, world, lmid, programType = 'k
         
         // Add program-specific data WITHOUT removing existing data
         if (programType === 'kids') {
-            combinedManifest.kidsProgram = manifestData.kidsProgram;
+            combinedManifest.kidsProgram = manifestData.programUrl; // Use programUrl from individual manifest
             combinedManifest.kidsRecordingCount = manifestData.recordingCount;
             combinedManifest.programUrl = manifestData.programUrl; // Legacy compatibility
             combinedManifest.recordingCount = manifestData.recordingCount; // Legacy compatibility
@@ -649,7 +651,7 @@ async function uploadManifestToBunny(manifestData, world, lmid, programType = 'k
             // combinedManifest.parentProgram remains unchanged
             // combinedManifest.parentRecordingCount remains unchanged
         } else if (programType === 'parent') {
-            combinedManifest.parentProgram = manifestData.parentProgram;
+            combinedManifest.parentProgram = manifestData.programUrl; // Use programUrl from individual manifest
             combinedManifest.parentRecordingCount = manifestData.recordingCount;
             // Preserve kids data if it exists
             // combinedManifest.kidsProgram remains unchanged

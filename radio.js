@@ -790,38 +790,62 @@
      */
     async function showExistingProgram(data) {
         console.log('✅ Showing existing program');
+        console.log('📊 Manifest data:', data.lastManifest);
+        console.log('📊 Kids manifest:', data.kidsManifest);
+        console.log('📊 Parent manifest:', data.parentManifest);
         
         const userRole = await detectUserRole();
         
-        // Check if we have dual programs in manifest
-        if (data.lastManifest && (data.lastManifest.kidsProgram || data.lastManifest.parentProgram)) {
-            const programs = {};
-            if (data.lastManifest.kidsProgram) {
-                programs.kids = { url: data.lastManifest.kidsProgram };
-                console.log('📻 Found kids program in manifest:', data.lastManifest.kidsProgram);
-            }
-            if (data.lastManifest.parentProgram) {
-                programs.parent = { url: data.lastManifest.parentProgram };
-                console.log('📻 Found parent program in manifest:', data.lastManifest.parentProgram);
-            }
-            
-            console.log('📻 Showing dual player state with programs:', programs);
+        // Build programs object from available manifests
+        const programs = {};
+        
+        // Check for kids program - try multiple sources
+        if (data.kidsManifest?.programUrl) {
+            programs.kids = { url: data.kidsManifest.programUrl };
+            console.log('📻 Found kids program in kids manifest:', data.kidsManifest.programUrl);
+        } else if (data.lastManifest?.kidsProgram) {
+            programs.kids = { url: data.lastManifest.kidsProgram };
+            console.log('📻 Found kids program in combined manifest:', data.lastManifest.kidsProgram);
+        } else if (data.lastManifest?.programUrl && data.hasKidsRecordings) {
+            // Legacy fallback for kids program
+            programs.kids = { url: data.lastManifest.programUrl };
+            console.log('📻 Using legacy kids program:', data.lastManifest.programUrl);
+        }
+        
+        // Check for parent program - try multiple sources
+        if (data.parentManifest?.programUrl) {
+            programs.parent = { url: data.parentManifest.programUrl };
+            console.log('📻 Found parent program in parent manifest:', data.parentManifest.programUrl);
+        } else if (data.lastManifest?.parentProgram) {
+            programs.parent = { url: data.lastManifest.parentProgram };
+            console.log('📻 Found parent program in combined manifest:', data.lastManifest.parentProgram);
+        }
+        
+        // Check if we have any programs to show
+        if (Object.keys(programs).length > 0) {
+            console.log('📻 Showing programs:', programs);
             showDualPlayerState(programs, data, userRole);
-        } else if (data.lastManifest && data.lastManifest.programUrl) {
-            // Legacy single program support
-            console.log('📻 Using legacy single program:', data.lastManifest.programUrl);
-            const audioUrl = data.lastManifest.programUrl;
-            const radioData = {
-                world: data.world,
-                recordingCount: data.currentRecordings?.length || 0
-            };
-            
-            showPlayerState(audioUrl, radioData);
         } else {
-            console.log('📻 No programs found in manifest:', data.lastManifest);
-            const playerContainer = document.getElementById('player-state');
-            if (playerContainer) {
-                playerContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">No radio programs available yet.</div>';
+            console.log('📻 No programs found, checking for available recordings...');
+            console.log('📊 Has kids recordings:', data.hasKidsRecordings);
+            console.log('📊 Has parent recordings:', data.hasParentRecordings);
+            
+            if (data.hasKidsRecordings || data.hasParentRecordings) {
+                console.log('📻 Recordings available but no programs - triggering generation');
+                generateNewProgram(data, { 
+                    needsKids: data.hasKidsRecordings, 
+                    needsParent: data.hasParentRecordings,
+                    hasKidsRecordings: data.hasKidsRecordings,
+                    hasParentRecordings: data.hasParentRecordings 
+                });
+            } else {
+                hideAllStates();
+                showState('player-state');
+                const playerContainer = document.getElementById('player-state');
+                if (playerContainer) {
+                    playerContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">No radio programs available yet.</div>';
+                }
+                currentState = 'player';
             }
         }
     }

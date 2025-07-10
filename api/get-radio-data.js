@@ -58,15 +58,17 @@ async function fetchAllRecordingsFromCloud(world, lmid) {
 }
 
 /**
- * Fetch last program manifest from cloud storage
+ * Fetch last program manifest from cloud storage - now supports separate manifests
  * @param {string} world - World identifier  
  * @param {string} lmid - LMID number
+ * @param {string} type - Program type ('kids' or 'parent')
  * @returns {Promise<Object|null>} Manifest object or null if doesn't exist
  */
-async function fetchLastProgramManifest(world, lmid) {
+async function fetchLastProgramManifest(world, lmid, type = '') {
     return new Promise((resolve) => {
-        // Add cache-busting query parameter
-        const manifestUrl = `https://little-microphones.b-cdn.net/${lmid}/${world}/last-program-manifest.json?v=${Date.now()}`;
+        // Use separate manifest files for kids and parent programs
+        const manifestName = type ? `last-program-manifest-${type}.json` : 'last-program-manifest.json';
+        const manifestUrl = `https://little-microphones.b-cdn.net/${lmid}/${world}/${manifestName}?v=${Date.now()}`;
         
         https.get(manifestUrl, (response) => {
             if (response.statusCode === 200) {
@@ -77,7 +79,7 @@ async function fetchLastProgramManifest(world, lmid) {
                         const manifest = JSON.parse(data);
                         resolve(manifest);
                     } catch (parseError) {
-                        console.warn('Failed to parse manifest JSON:', parseError);
+                        console.warn(`Failed to parse ${manifestName} JSON:`, parseError);
                         resolve(null);
                     }
                 });
@@ -86,7 +88,7 @@ async function fetchLastProgramManifest(world, lmid) {
                 resolve(null);
             }
         }).on('error', (error) => {
-            console.warn('Error fetching manifest:', error);
+            console.warn(`Error fetching ${manifestName}:`, error);
             resolve(null);
         });
     });
@@ -95,47 +97,59 @@ async function fetchLastProgramManifest(world, lmid) {
 /**
  * Check if files have changed since last program generation for kids and parent programs
  * @param {Array} currentRecordings - Current recordings from cloud
- * @param {Object|null} manifest - Last program manifest
+ * @param {Object|null} kidsManifest - Last kids program manifest
+ * @param {Object|null} parentManifest - Last parent program manifest
+ * @param {string} world - World identifier
+ * @param {string} lmid - LMID number
  * @returns {Object} Object with needsKids and needsParent flags
  */
-function needsNewProgram(currentRecordings, manifest, world, lmid) {
-    // Filter recordings by type (exclude JSON files and other non-audio files)
+function needsNewProgram(currentRecordings, kidsManifest, parentManifest, world, lmid) {
+    // Filter recordings by type using EXACT patterns - exclude JSON files
     const kidsPattern = new RegExp(`^kids-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.mp3$`);
     const parentPattern = new RegExp(`^parent_[^-]+-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.mp3$`);
     
-    const kidsRecordings = currentRecordings.filter(file => kidsPattern.test(file.filename));
-    const parentRecordings = currentRecordings.filter(file => parentPattern.test(file.filename));
+    // Filter out non-MP3 files and apply patterns
+    const audioFiles = currentRecordings.filter(file => 
+        file.filename && 
+        file.filename.endsWith('.mp3') && 
+        !file.filename.includes('.json')
+    );
+    
+    const kidsRecordings = audioFiles.filter(file => kidsPattern.test(file.filename));
+    const parentRecordings = audioFiles.filter(file => parentPattern.test(file.filename));
     
     console.log(`📊 Found ${kidsRecordings.length} kids recordings, ${parentRecordings.length} parent recordings`);
+    console.log(`📊 Kids recordings:`, kidsRecordings.map(r => r.filename));
+    console.log(`📊 Parent recordings:`, parentRecordings.map(r => r.filename));
     
     // Check kids program generation needs
     let needsKids = false;
     const currentKidsCount = kidsRecordings.length;
-    const previousKidsCount = manifest?.kidsRecordingCount || manifest?.recordingCount || 0; // Legacy fallback
+    const previousKidsCount = kidsManifest?.recordingCount || 0;
     
-    if (!manifest || !manifest.kidsProgram) {
-        if (currentKidsCount > 0) {
-            console.log('📝 No kids program exists but recordings found - kids generation needed');
+    if (currentKidsCount > 0) {
+        if (!kidsManifest) {
+            console.log('📝 No kids manifest exists but recordings found - kids generation needed');
+            needsKids = true;
+        } else if (currentKidsCount !== previousKidsCount) {
+            console.log(`🔄 Kids recording count changed: was ${previousKidsCount}, now ${currentKidsCount}`);
             needsKids = true;
         }
-    } else if (currentKidsCount !== previousKidsCount) {
-        console.log(`🔄 Kids recording count changed: was ${previousKidsCount}, now ${currentKidsCount}`);
-        needsKids = true;
     }
     
     // Check parent program generation needs
     let needsParent = false;
     const currentParentCount = parentRecordings.length;
-    const previousParentCount = manifest?.parentRecordingCount || 0;
+    const previousParentCount = parentManifest?.recordingCount || 0;
     
-    if (!manifest || !manifest.parentProgram) {
-        if (currentParentCount > 0) {
-            console.log('📝 No parent program exists but recordings found - parent generation needed');
+    if (currentParentCount > 0) {
+        if (!parentManifest) {
+            console.log('📝 No parent manifest exists but recordings found - parent generation needed');
+            needsParent = true;
+        } else if (currentParentCount !== previousParentCount) {
+            console.log(`🔄 Parent recording count changed: was ${previousParentCount}, now ${currentParentCount}`);
             needsParent = true;
         }
-    } else if (currentParentCount !== previousParentCount) {
-        console.log(`🔄 Parent recording count changed: was ${previousParentCount}, now ${currentParentCount}`);
-        needsParent = true;
     }
     
     // Return object with specific needs for each program type
@@ -251,17 +265,33 @@ export default async function handler(req, res) {
         const currentRecordings = await fetchAllRecordingsFromCloud(world, lmid);
 
         // Fetch last program manifest
-        const lastManifest = await fetchLastProgramManifest(world, lmid);
+        const kidsManifest = await fetchLastProgramManifest(world, lmid, 'kids');
+        const parentManifest = await fetchLastProgramManifest(world, lmid, 'parent');
         
         // Determine if new program generation is needed
-        const generationNeeds = needsNewProgram(currentRecordings, lastManifest, world, lmid);
+        const generationNeeds = needsNewProgram(currentRecordings, kidsManifest, parentManifest, world, lmid);
+
+        // Build combined manifest structure for radio.js compatibility
+        const combinedManifest = {};
+        
+        if (kidsManifest) {
+            combinedManifest.kidsProgram = kidsManifest.programUrl;
+            combinedManifest.kidsRecordingCount = kidsManifest.recordingCount;
+        }
+        
+        if (parentManifest) {
+            combinedManifest.parentProgram = parentManifest.programUrl;
+            combinedManifest.parentRecordingCount = parentManifest.recordingCount;
+        }
 
         return res.status(200).json({
             success: true,
             lmid: parseInt(lmid),
             world: world,
             currentRecordings: currentRecordings,
-            lastManifest: lastManifest,
+            lastManifest: combinedManifest,
+            kidsManifest: kidsManifest,
+            parentManifest: parentManifest,
             needsNewProgram: generationNeeds.needsKids || generationNeeds.needsParent, // Legacy compatibility
             needsKidsProgram: generationNeeds.needsKids,
             needsParentProgram: generationNeeds.needsParent,
