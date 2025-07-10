@@ -396,6 +396,11 @@
     function initParentRedirectSystem() {
         console.log('[Parent Redirect] Initializing parent redirect system');
         
+        // Debug what's available in window
+        console.log('[DEBUG] All window properties with "member":', Object.keys(window).filter(key => key.toLowerCase().includes('member')));
+        console.log('[DEBUG] All window properties with "Member":', Object.keys(window).filter(key => key.includes('Member')));
+        console.log('[DEBUG] All window properties with "stack":', Object.keys(window).filter(key => key.toLowerCase().includes('stack')));
+        
         // Wait for DOM to be ready
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => {
