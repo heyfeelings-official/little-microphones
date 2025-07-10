@@ -1,10 +1,10 @@
 # Konfiguracja strony weryfikacji dla rodziców
 
 ## Problem
-Memberstack domyślnie przekierowuje na `/undefined` po weryfikacji emaila, co powoduje błąd 404.
+Memberstack domyślnie przekierowuje na `/verify` zamiast `/verify-parent`, mimo ustawienia w planie Parents Free.
 
 ## Rozwiązanie
-Stwórz dedykowaną stronę weryfikacji dla planu "Parents Free" + wykorzystaj istniejący system przekierowań.
+Użyj uniwersalnego skryptu na stronie `/verify` który wykrywa typ użytkownika i pokazuje odpowiedni komunikat.
 
 ## Strategia
 
@@ -12,40 +12,40 @@ Stwórz dedykowaną stronę weryfikacji dla planu "Parents Free" + wykorzystaj i
 ```
 1. Rodzic klika ShareID link → `/little-microphones?ID=abc123`
 2. Skrypt zapisuje ShareID w localStorage
-3. Rodzic się rejestruje → przekierowanie na `/verify-parent`
-4. Strona `/verify-parent` pokazuje komunikat o emailu
+3. Rodzic się rejestruje → przekierowanie na `/verify` (domyślne)
+4. Skrypt na `/verify` wykrywa że to rodzic → pokazuje komunikat dla rodziców
 5. Rodzic klika link z emaila → `/little-microphones?member=...&forceRefetch=true`
 6. Skrypt wykrywa weryfikację + localStorage → dodaje LMID → sukces
 ```
 
 ### 2. Kluczowe elementy
 - **localStorage**: przechowuje ShareID między sesjami
-- **Wykrywanie weryfikacji**: parametry `member` i `forceRefetch` w URL
-- **Jeden główny skrypt**: obsługuje wszystkie scenariusze
+- **Wykrywanie typu użytkownika**: jeśli jest ShareID w localStorage = rodzic
+- **Uniwersalny skrypt**: jeden skrypt obsługuje wszystkich użytkowników
+- **Różne komunikaty**: rodzice vs nauczyciele/terapeuci
 
 ## Kroki konfiguracji
 
 ### 1. W Memberstack Dashboard
 
+**Opcja A: Zostaw domyślne ustawienia**
+1. Przejdź do **Default Settings**
+2. Upewnij się że **On Verification Required** wskazuje na `/verify`
+3. **Nie zmieniaj** ustawień w planie Parents Free
+
+**Opcja B: Spróbuj ustawić plan-level redirect**
 1. Przejdź do **Plans** → **Parents Free**
 2. W sekcji **Redirects** ustaw:
    - **On Verification Required**: `/verify-parent`
-   - **On Signup**: `/little-microphones` (link z emaila będzie tu prowadzić)
+   - **On Signup**: `/little-microphones`
 
 ### 2. W Webflow
 
-#### Strona `/verify-parent`
-1. Stwórz nową stronę: **verify-parent**
-2. Dodaj podstawową strukturę:
+#### Strona `/verify` (uniwersalna)
+1. Otwórz stronę **verify** w Webflow
+2. W **Page Settings** → **Custom Code** → **Before </body> tag**:
    ```html
-   <div class="verify-container">
-     <h1>Rejestracja prawie ukończona!</h1>
-     <p>Sprawdź swoją skrzynkę pocztową...</p>
-   </div>
-   ```
-3. W **Page Settings** → **Custom Code** → **Before </body> tag**:
-   ```html
-   <script src="https://little-microphones.vercel.app/verify-parent-redirect.js"></script>
+   <script src="https://little-microphones.vercel.app/verify-universal-redirect.js"></script>
    ```
 
 #### Strona `/little-microphones`
@@ -56,10 +56,11 @@ Stwórz dedykowaną stronę weryfikacji dla planu "Parents Free" + wykorzystaj i
 
 ### 3. Jak to działa
 
-#### Skrypt `/verify-parent-redirect.js`
-- Pokazuje piękny komunikat o weryfikacji emaila
-- Instruuje użytkownika aby sprawdził email
-- Nie robi żadnych przekierowań
+#### Skrypt `/verify-universal-redirect.js`
+- **Sprawdza localStorage** - szuka zapisanego ShareID
+- **Jeśli ShareID istnieje** → pokazuje komunikat dla rodziców 👨‍👩‍👧‍👦
+- **Jeśli brak ShareID** → pokazuje standardowy komunikat 📧
+- **Nie robi przekierowań** - pozostawia to głównemu skryptowi
 
 #### Skrypt `/little-microphones-redirect.js`
 - **Pierwsza wizyta**: zapisuje ShareID, pokazuje komunikat o rejestracji
@@ -68,14 +69,21 @@ Stwórz dedykowaną stronę weryfikacji dla planu "Parents Free" + wykorzystaj i
 
 ## Komunikaty użytkownika
 
-### Na `/verify-parent`:
+### Dla rodziców na `/verify`:
+```
+👨‍👩‍👧‍👦 Sprawdź swoją skrzynkę pocztową!
+Wysłaliśmy Ci email z linkiem weryfikacyjnym.
+Kliknij w link, aby uzyskać dostęp do programu.
+
+💡 Po weryfikacji zostaniesz automatycznie 
+przekierowany z powrotem do programu
+```
+
+### Dla innych użytkowników na `/verify`:
 ```
 📧 Sprawdź swoją skrzynkę pocztową!
 Wysłaliśmy Ci email z linkiem weryfikacyjnym.
 Kliknij w link, aby dokończyć rejestrację.
-
-💡 Po weryfikacji zostaniesz automatycznie 
-przekierowany z powrotem do programu
 ```
 
 ### Po weryfikacji na `/little-microphones`:
@@ -84,30 +92,24 @@ przekierowany z powrotem do programu
 Dodajemy dostęp do programu...
 ```
 
-### Po dodaniu LMID:
-```
-✅ Dodano dostęp do programu! 
-Możesz teraz go zobaczyć w swoim panelu.
-```
-
 ## Testowanie
 
 1. **Otwórz** link ShareID jako niezalogowany użytkownik
 2. **Sprawdź** czy pojawia się komunikat o rejestracji
-3. **Zarejestruj się** - powinno przekierować na `/verify-parent`
-4. **Sprawdź** komunikat o emailu
+3. **Zarejestruj się** - powinno przekierować na `/verify`
+4. **Sprawdź** czy pojawia się komunikat dla rodziców (z ikoną rodziny)
 5. **Kliknij** link z emaila - powinno wrócić do `/little-microphones`
 6. **Sprawdź** komunikat o sukcesie i dodaniu LMID
 
 ## Rozwiązywanie problemów
 
-### Link z emaila nadal prowadzi do `/undefined`
-- Sprawdź ustawienia **On Signup** w planie Parents Free
-- Upewnij się że Default Settings mają prawidłowe przekierowanie
+### Nadal przekierowuje na `/verify` zamiast `/verify-parent`
+**To jest OK!** Uniwersalny skrypt na `/verify` wykryje że to rodzic i pokaże odpowiedni komunikat.
 
-### Nie ma komunikatu na `/verify-parent`
-- Sprawdź czy skrypt się ładuje w konsoli
-- Upewnij się że URL skryptu jest prawidłowy
+### Nie ma specjalnego komunikatu dla rodziców
+- Sprawdź localStorage w DevTools (`lm_parent_redirect`)
+- Upewnij się że ShareID został zapisany podczas pierwszej wizyty
+- Sprawdź konsolę czy skrypt się ładuje
 
 ### Nie dodaje LMID po weryfikacji
 - Sprawdź localStorage w DevTools (`lm_parent_redirect`)
@@ -116,5 +118,13 @@ Możesz teraz go zobaczyć w swoim panelu.
 
 ## URL skryptów
 
-- **Verify Parent**: `https://little-microphones.vercel.app/verify-parent-redirect.js`
-- **Little Microphones**: `https://little-microphones.vercel.app/little-microphones-redirect.js` 
+- **Universal Verify**: `https://little-microphones.vercel.app/verify-universal-redirect.js`
+- **Little Microphones**: `https://little-microphones.vercel.app/little-microphones-redirect.js`
+
+## Zalety tego rozwiązania
+
+✅ **Nie trzeba zmieniać istniejącej strony** `/verify-parent` w Webflow  
+✅ **Działa niezależnie od ustawień** Memberstack  
+✅ **Jeden skrypt obsługuje wszystkich** użytkowników  
+✅ **Różne komunikaty** dla różnych typów użytkowników  
+✅ **Łatwe utrzymanie** - mniej skomplikowanych konfiguracji 
