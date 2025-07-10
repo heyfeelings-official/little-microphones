@@ -145,9 +145,6 @@
         }
     };
     
-    // Log configuration load
-    if (window.LM_CONFIG.DEBUG_ENABLED) {
-        console.log('🔧 LM_CONFIG loaded:', window.LM_CONFIG);
-    }
+
     
 })(); 

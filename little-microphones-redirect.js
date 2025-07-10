@@ -151,6 +151,7 @@
             
             if (updateResult.success) {
                 console.log('[LM Redirect] LMID added successfully');
+            console.log('👨‍👩‍👧‍👦 Parent data updated successfully');
                 
                 // Stay on the ShareID page - don't redirect to dashboard
                 // The user can now see the program content

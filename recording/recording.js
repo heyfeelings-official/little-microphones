@@ -1318,14 +1318,11 @@ function initializeRecordersForWorld(world) {
         return;
     }
     const recorderWrappers = targetCollection.querySelectorAll('.faq1_accordion.lm');
-    log('info', `🎵 Initializing ${recorderWrappers.length} audio recorders for ${world}...`);
     recorderWrappers.forEach(wrapper => initializeAudioRecorder(wrapper));
-    log('info', `✅ All recorders initialized and loaded for ${world}`);
 }
 
 window.Webflow = window.Webflow || [];
 window.Webflow.push(function() {
-    console.log("Webflow ready. Waiting for world information...");
     // Don't initialize anything yet - wait for world info from rp.js
 });
 

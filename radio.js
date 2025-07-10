@@ -364,8 +364,6 @@
     function setWorldBackground(world, backgroundUrl) {
         if (!world) return;
         
-        console.log(`🎬 Setting background for world: ${world}, URL: ${backgroundUrl}`);
-        
         const worldBg = document.getElementById('world-bg');
         const programContainer = document.querySelector('.program-container');
         
@@ -373,12 +371,10 @@
         let videoUrl = backgroundUrl;
         if (!videoUrl) {
             videoUrl = window.LM_CONFIG?.WORLD_VIDEOS?.[world];
-            console.log(`📹 Using config video URL: ${videoUrl}`);
         }
         
         // Try video first
         if (videoUrl && videoUrl.endsWith('.mp4')) {
-            console.log(`🎥 Setting up video background: ${videoUrl}`);
             
             // Create or update video element for world-bg
             if (worldBg) {
@@ -391,7 +387,6 @@
             }
         } else {
             // Fallback to image
-            console.log(`🖼️ Falling back to image background for ${world}`);
             const imageUrl = backgroundUrl || window.LM_CONFIG?.WORLD_IMAGES?.[world];
             
             if (imageUrl) {
@@ -414,8 +409,6 @@
      * Setup video background for an element with image fallback
      */
     function setupVideoBackground(container, videoUrl, world) {
-        console.log(`🎬 Setting up video for container:`, container.id || container.className, `URL: ${videoUrl}`);
-        
         // Remove existing video if any
         const existingVideo = container.querySelector('.world-bg-video');
         if (existingVideo) {
@@ -466,13 +459,11 @@
         
         // Handle video load errors - fallback to image
         video.addEventListener('error', () => {
-            console.warn(`❌ Failed to load video background: ${videoUrl}, falling back to image`);
             video.remove();
             
             // Fallback to image
             const imageUrl = window.LM_CONFIG?.WORLD_IMAGES?.[world];
             if (imageUrl) {
-                console.log(`🖼️ Using image fallback: ${imageUrl}`);
                 container.style.backgroundImage = `url('${imageUrl}')`;
                 container.style.backgroundSize = 'cover';
                 container.style.backgroundPosition = 'center';
@@ -483,9 +474,7 @@
         
         // Ensure video starts playing
         video.addEventListener('loadeddata', () => {
-            console.log(`✅ Video loaded successfully: ${videoUrl}`);
             video.play().catch(error => {
-                console.warn('⚠️ Video autoplay failed:', error);
                 // Video will still be visible as first frame
             });
         });
@@ -494,7 +483,7 @@
         setTimeout(() => {
             if (video.paused) {
                 video.play().catch(error => {
-                    console.warn('⚠️ Delayed video play failed:', error);
+                    // Silent fallback
                 });
             }
         }, 500);
