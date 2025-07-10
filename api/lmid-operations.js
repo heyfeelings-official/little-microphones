@@ -157,7 +157,7 @@ async function handleAddLmid(memberId, memberEmail, currentLmids) {
 }
 
 /**
- * Handle DELETE LMID operation (existing functionality)
+ * Handle DELETE LMID operation (existing functionality + parent cleanup)
  * @param {string} memberId - Memberstack member ID
  * @param {number} lmidToDelete - LMID to delete
  * @param {string} newLmidString - New LMID string after deletion
@@ -176,21 +176,59 @@ async function handleDeleteLmid(memberId, lmidToDelete, newLmidString) {
         throw new Error('Failed to delete LMID from database');
     }
 
-    // Update Memberstack metadata after deletion
+    // Update teacher's Memberstack metadata after deletion
     if (newLmidString !== null) {
         const memberstackUpdated = await updateMemberstackMetadata(memberId, newLmidString);
         if (!memberstackUpdated) {
-            console.warn(`⚠️ LMID ${lmidToDelete} deleted from Supabase but Memberstack metadata update failed`);
+            console.warn(`⚠️ LMID ${lmidToDelete} deleted from Supabase but teacher Memberstack metadata update failed`);
         }
-        console.log(`✅ LMID ${lmidToDelete} deleted from Supabase and Memberstack metadata ${memberstackUpdated ? 'updated' : 'update failed'}.`);
+        console.log(`✅ LMID ${lmidToDelete} deleted from Supabase and teacher Memberstack metadata ${memberstackUpdated ? 'updated' : 'update failed'}.`);
     } else {
         console.log(`✅ LMID ${lmidToDelete} deleted from Supabase.`);
+    }
+
+    // Clean up parent metadata - remove deleted LMID from all parent accounts
+    console.log(`🧹 [handleDeleteLmid] Starting parent cleanup for deleted LMID ${lmidToDelete}`);
+    let parentCleanupResult = null;
+    
+    try {
+        const cleanupResponse = await fetch(`${process.env.VERCEL_URL || 'https://little-microphones.vercel.app'}/api/parent-cleanup`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                lmidToRemove: lmidToDelete,
+                teacherMemberId: memberId  // Exclude teacher from cleanup
+            })
+        });
+
+        if (cleanupResponse.ok) {
+            parentCleanupResult = await cleanupResponse.json();
+            console.log(`✅ [handleDeleteLmid] Parent cleanup completed: ${parentCleanupResult.cleanedParents} parents updated`);
+        } else {
+            console.warn(`⚠️ [handleDeleteLmid] Parent cleanup failed with status: ${cleanupResponse.status}`);
+            const errorData = await cleanupResponse.json();
+            console.warn(`⚠️ [handleDeleteLmid] Parent cleanup error:`, errorData);
+        }
+    } catch (error) {
+        console.error(`❌ [handleDeleteLmid] Parent cleanup error:`, error);
+        // Don't fail the main operation if parent cleanup fails
     }
 
     return {
         success: true,
         message: 'LMID deleted successfully',
-        newLmidString: newLmidString
+        newLmidString: newLmidString,
+        parentCleanup: parentCleanupResult ? {
+            success: parentCleanupResult.success,
+            cleanedParents: parentCleanupResult.cleanedParents || 0,
+            message: parentCleanupResult.message
+        } : {
+            success: false,
+            cleanedParents: 0,
+            message: 'Parent cleanup could not be performed'
+        }
     };
 }
 

@@ -248,6 +248,22 @@
             // Success - remove UI element
             itemToDelete.remove();
             console.log(`✅ Successfully deleted LMID ${lmidToDelete}`);
+            
+            // Log parent cleanup results
+            if (result.parentCleanup) {
+                if (result.parentCleanup.success && result.parentCleanup.cleanedParents > 0) {
+                    console.log(`👨‍👩‍👧‍👦 Parent cleanup: ${result.parentCleanup.cleanedParents} parent accounts updated`);
+                    showSuccessMessage(`Program deleted successfully. ${result.parentCleanup.cleanedParents} parent account(s) were also updated.`);
+                } else if (result.parentCleanup.cleanedParents === 0) {
+                    console.log(`👨‍👩‍👧‍👦 Parent cleanup: No parent accounts needed updating`);
+                    showSuccessMessage(`Program deleted successfully.`);
+                } else {
+                    console.warn(`⚠️ Parent cleanup failed: ${result.parentCleanup.message}`);
+                    showSuccessMessage(`Program deleted successfully, but parent cleanup may have failed.`);
+                }
+            } else {
+                showSuccessMessage(`Program deleted successfully.`);
+            }
 
         } catch (error) {
             console.error(`💥 Failed to delete LMID ${lmidToDelete}:`, error);
@@ -511,6 +527,65 @@
      */
     function showErrorMessage(message) {
         alert(message); // Simple implementation - could be enhanced with custom modal
+    }
+
+    /**
+     * Show success message to user
+     */
+    function showSuccessMessage(message) {
+        // Create a more pleasant success notification
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #4caf50;
+            color: white;
+            padding: 16px 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+            z-index: 10000;
+            font-family: Arial, sans-serif;
+            font-size: 16px;
+            max-width: 400px;
+            animation: slideIn 0.3s ease-out;
+        `;
+        
+        notification.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 20px;">✅</span>
+                <span>${message}</span>
+            </div>
+        `;
+        
+        // Add animation keyframes if not already added
+        if (!document.querySelector('#successNotificationStyles')) {
+            const style = document.createElement('style');
+            style.id = 'successNotificationStyles';
+            style.textContent = `
+                @keyframes slideIn {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+                @keyframes slideOut {
+                    from { transform: translateX(0); opacity: 1; }
+                    to { transform: translateX(100%); opacity: 0; }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        document.body.appendChild(notification);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            notification.style.animation = 'slideOut 0.3s ease-in';
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 300);
+        }, 5000);
     }
 
     /**

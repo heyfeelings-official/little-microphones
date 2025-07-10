@@ -515,7 +515,7 @@ NODE_ENV=production
 ---
 
 ### 3. lmid-operations.js
-**PURPOSE**: Handles LMID operations (add, delete) with Memberstack integration
+**PURPOSE**: Handles LMID operations (add, delete) with Memberstack integration and parent cleanup
 
 **METHOD**: POST `/api/lmid-operations`
 
@@ -543,6 +543,11 @@ NODE_ENV=production
     "amusement-park": "jkl24680",
     "big-city": "mno97531",
     "neighborhood": "pqr86420"
+  },
+  "parentCleanup": {
+    "success": true,
+    "cleanedParents": 3,
+    "message": "Parent cleanup completed: 3/3 successful"
   }
 }
 ```
@@ -553,9 +558,57 @@ NODE_ENV=production
 - Generates ShareIDs for add operations
 - Updates Memberstack metadata
 - Validates member existence
+- **NEW**: Automatic parent cleanup on LMID deletion
+- **NEW**: Removes deleted LMID from all parent metadata
 
 **USED BY**: `lm.js` for delete operations (add operations now use `/api/create-lmid`)
 
 **REPLACES**: "LMID CRUD" Make.com scenario
+
+---
+
+### 4. parent-cleanup.js
+**PURPOSE**: Remove deleted LMIDs from parent metadata when teachers delete their LMIDs
+
+**METHOD**: POST `/api/parent-cleanup`
+
+**REQUEST BODY**:
+```json
+{
+  "lmidToRemove": 123,
+  "teacherMemberId": "mem_teacher123"
+}
+```
+
+**RESPONSE**:
+```json
+{
+  "success": true,
+  "message": "Parent cleanup completed: 3/3 successful",
+  "cleanedParents": 3,
+  "totalFound": 3,
+  "details": [
+    {
+      "memberId": "mem_parent123",
+      "memberEmail": "parent@example.com",
+      "oldLmids": "1,2,3",
+      "newLmids": "1,3",
+      "success": true
+    }
+  ]
+}
+```
+
+**FEATURES**:
+- Find all Memberstack users with deleted LMID in metadata
+- Remove LMID from parent metadata strings
+- Skip teacher accounts (they're handled separately)
+- Comprehensive error handling and logging
+- Batch processing for efficiency
+- Detailed cleanup results with per-parent status
+
+**USED BY**: `lmid-operations.js` automatically during LMID deletion
+
+**DATABASE CHANGES**: None (only updates Memberstack metadata)
 
 --- 
