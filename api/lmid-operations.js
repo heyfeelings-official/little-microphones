@@ -63,7 +63,7 @@ import {
     getSupabaseClient
 } from '../utils/lmid-utils.js';
 
-// Import parent cleanup functionality directly
+// Import parent cleanup functionality
 import { cleanupParentMetadata } from './parent-cleanup.js';
 
 /**
@@ -169,6 +169,23 @@ async function handleAddLmid(memberId, memberEmail, currentLmids) {
 async function handleDeleteLmid(memberId, lmidToDelete, newLmidString) {
     const supabase = getSupabaseClient();
     
+    // Get teacher email for cleanup exclusion
+    let teacherEmail = null;
+    try {
+        const { data, error } = await supabase
+            .from('lmids')
+            .select('assigned_to_member_email')
+            .eq('lmid', lmidToDelete)
+            .single();
+            
+        if (!error && data) {
+            teacherEmail = data.assigned_to_member_email;
+            console.log(`📧 Teacher email for LMID ${lmidToDelete}: ${teacherEmail}`);
+        }
+    } catch (error) {
+        console.warn(`⚠️ Could not retrieve teacher email for LMID ${lmidToDelete}:`, error);
+    }
+    
     // Mark LMID as deleted in database
     const { error: deleteError } = await supabase
         .from('lmids')
@@ -191,12 +208,12 @@ async function handleDeleteLmid(memberId, lmidToDelete, newLmidString) {
     }
 
     // Clean up parent metadata - remove deleted LMID from all parent accounts
-    console.log(`🧹 [handleDeleteLmid] Starting parent cleanup for deleted LMID ${lmidToDelete}`);
+    console.log(`🚀 [handleDeleteLmid] Starting parent cleanup for deleted LMID ${lmidToDelete}`);
     let parentCleanupResult = null;
     
     try {
-        // Call parent cleanup function directly
-        parentCleanupResult = await cleanupParentMetadata(lmidToDelete, memberId);
+        // Call parent cleanup function with teacher email to exclude
+        parentCleanupResult = await cleanupParentMetadata(lmidToDelete, teacherEmail);
         
         if (parentCleanupResult && parentCleanupResult.success) {
             console.log(`✅ [handleDeleteLmid] Parent cleanup completed: ${parentCleanupResult.cleanedParents} parents updated`);
@@ -237,6 +254,56 @@ async function handleDeleteLmid(memberId, lmidToDelete, newLmidString) {
  */
 async function handleUpdateParentMetadata(memberId, newLmidString) {
     console.log(`🔄 [handleUpdateParentMetadata] Updating parent metadata for ${memberId} with LMIDs: ${newLmidString}`);
+    
+    const supabase = getSupabaseClient();
+    
+    // Get parent email from Memberstack
+    let parentEmail = null;
+    try {
+        const MEMBERSTACK_SECRET_KEY = process.env.MEMBERSTACK_SECRET_KEY;
+        if (MEMBERSTACK_SECRET_KEY) {
+            const response = await fetch(`https://admin.memberstack.com/members/${memberId}`, {
+                method: 'GET',
+                headers: {
+                    'x-api-key': MEMBERSTACK_SECRET_KEY,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                parentEmail = data.data?.auth?.email || data.data?.email;
+                console.log(`📧 Retrieved parent email: ${parentEmail}`);
+            }
+        }
+    } catch (error) {
+        console.warn(`⚠️ Could not retrieve parent email for ${memberId}:`, error);
+    }
+    
+    // Parse new LMIDs
+    const newLmids = newLmidString ? newLmidString.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id)) : [];
+    
+    // Track parent email associations in Supabase for fast cleanup later
+    if (parentEmail) {
+        for (const lmid of newLmids) {
+            try {
+                const { data, error } = await supabase.rpc('add_parent_email_to_lmid', {
+                    p_lmid: lmid,
+                    p_parent_email: parentEmail
+                });
+                
+                if (error) {
+                    console.warn(`⚠️ Failed to track parent email association for LMID ${lmid}:`, error);
+                } else {
+                    console.log(`✅ Tracked parent email ${parentEmail} association with LMID ${lmid}`);
+                }
+            } catch (error) {
+                console.error(`❌ Error tracking parent email association:`, error);
+            }
+        }
+    } else {
+        console.warn(`⚠️ Could not track parent associations - no email found for ${memberId}`);
+    }
     
     // Update Memberstack metadata directly (no database changes needed for parents)
     // Skip validation since parents share teacher's LMID (they're not owners in database)
