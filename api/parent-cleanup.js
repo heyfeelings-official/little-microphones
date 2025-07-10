@@ -56,23 +56,46 @@ async function findMembersWithLmid(lmidToFind, excludeMemberId = null) {
     console.log(`🔍 [findMembersWithLmid] Searching for members with LMID ${lmidToFind}`);
     
     try {
-        // Get all members from Memberstack (we'll need to paginate if there are many)
-        const response = await fetch('https://admin.memberstack.com/members', {
-            method: 'GET',
-            headers: {
-                'x-api-key': MEMBERSTACK_SECRET_KEY,
-                'Content-Type': 'application/json'
-            }
-        });
+        let allMembers = [];
+        let currentPage = 1;
+        const limit = 100; // Memberstack API default limit
         
-        if (!response.ok) {
-            throw new Error(`Memberstack API error: ${response.status}`);
+        // Paginate through all members
+        while (true) {
+            console.log(`🔍 [findMembersWithLmid] Fetching page ${currentPage} (limit: ${limit})`);
+            
+            const response = await fetch(`https://admin.memberstack.com/members?limit=${limit}&page=${currentPage}`, {
+                method: 'GET',
+                headers: {
+                    'x-api-key': MEMBERSTACK_SECRET_KEY,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Memberstack API error: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            const pageMembers = data.data || [];
+            
+            console.log(`🔍 [findMembersWithLmid] Page ${currentPage}: ${pageMembers.length} members`);
+            
+            if (pageMembers.length === 0) {
+                break; // No more members
+            }
+            
+            allMembers = allMembers.concat(pageMembers);
+            currentPage++;
+            
+            // Safety check to prevent infinite loops
+            if (currentPage > 100) {
+                console.warn(`🔍 [findMembersWithLmid] Stopped at page ${currentPage} to prevent infinite loop`);
+                break;
+            }
         }
         
-        const data = await response.json();
-        const allMembers = data.data || [];
-        
-        console.log(`🔍 [findMembersWithLmid] Retrieved ${allMembers.length} members from Memberstack`);
+        console.log(`🔍 [findMembersWithLmid] Retrieved total of ${allMembers.length} members from Memberstack`);
         
         // Filter members who have the LMID in their metadata
         const membersWithLmid = allMembers.filter(member => {
@@ -120,7 +143,7 @@ function removeLmidFromString(lmidString, lmidToRemove) {
  * @param {string} teacherMemberId - Teacher member ID to exclude from cleanup
  * @returns {Promise<Object>} Cleanup result
  */
-async function cleanupParentMetadata(lmidToRemove, teacherMemberId = null) {
+export async function cleanupParentMetadata(lmidToRemove, teacherMemberId = null) {
     console.log(`🧹 [cleanupParentMetadata] Starting cleanup for LMID ${lmidToRemove}`);
     
     try {

@@ -63,6 +63,9 @@ import {
     getSupabaseClient
 } from '../utils/lmid-utils.js';
 
+// Import parent cleanup functionality directly
+import { cleanupParentMetadata } from './parent-cleanup.js';
+
 /**
  * Handle CREATE LMID operation (replaces create-lmid.js functionality)
  * @param {string} memberId - Memberstack member ID
@@ -192,28 +195,22 @@ async function handleDeleteLmid(memberId, lmidToDelete, newLmidString) {
     let parentCleanupResult = null;
     
     try {
-        const cleanupResponse = await fetch(`${process.env.VERCEL_URL || 'https://little-microphones.vercel.app'}/api/parent-cleanup`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                lmidToRemove: lmidToDelete,
-                teacherMemberId: memberId  // Exclude teacher from cleanup
-            })
-        });
-
-        if (cleanupResponse.ok) {
-            parentCleanupResult = await cleanupResponse.json();
+        // Call parent cleanup function directly
+        parentCleanupResult = await cleanupParentMetadata(lmidToDelete, memberId);
+        
+        if (parentCleanupResult && parentCleanupResult.success) {
             console.log(`✅ [handleDeleteLmid] Parent cleanup completed: ${parentCleanupResult.cleanedParents} parents updated`);
         } else {
-            console.warn(`⚠️ [handleDeleteLmid] Parent cleanup failed with status: ${cleanupResponse.status}`);
-            const errorData = await cleanupResponse.json();
-            console.warn(`⚠️ [handleDeleteLmid] Parent cleanup error:`, errorData);
+            console.warn(`⚠️ [handleDeleteLmid] Parent cleanup failed:`, parentCleanupResult?.message || 'Unknown error');
         }
     } catch (error) {
         console.error(`❌ [handleDeleteLmid] Parent cleanup error:`, error);
         // Don't fail the main operation if parent cleanup fails
+        parentCleanupResult = {
+            success: false,
+            cleanedParents: 0,
+            message: `Parent cleanup failed: ${error.message}`
+        };
     }
 
     return {
