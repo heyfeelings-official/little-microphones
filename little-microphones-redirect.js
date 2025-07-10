@@ -19,7 +19,7 @@
 (function() {
     'use strict';
     
-    console.log('[Little Microphones Redirect] Script v1.0.0 loaded');
+    console.log('[LM Redirect] Script loaded');
     
     // Configuration
     const API_BASE_URL = 'https://little-microphones.vercel.app/api';
@@ -29,16 +29,13 @@
      */
     async function handleParentShareIDVisit() {
         try {
-            console.log('[Parent Redirect] Starting ShareID visit handler');
-            
             // Extract ShareID from URL
             const shareId = getShareIdFromUrl();
             if (!shareId) {
-                console.log('[Parent Redirect] No ShareID found in URL');
                 return;
             }
             
-            console.log('[Parent Redirect] ShareID found:', shareId);
+            console.log('[LM Redirect] Processing ShareID:', shareId);
             
             // Wait for Memberstack to load
             await waitForMemberstack();
@@ -51,20 +48,19 @@
                 const isParent = await checkIfUserIsParent();
                 
                 if (isParent) {
-                    console.log('[Parent Redirect] Parent user detected, processing LMID assignment');
+                    console.log('[LM Redirect] Parent user detected, processing LMID assignment');
                     await handleLoggedInParent(shareId);
                 } else {
-                    console.log('[Parent Redirect] Non-parent user detected, skipping LMID assignment');
                     // For teachers/other users, just show the program without LMID assignment
                 }
             } else {
-                console.log('[Parent Redirect] User not logged in, saving ShareID for later');
+                console.log('[LM Redirect] User not logged in, saving ShareID for later');
                 saveShareIdForRedirect(shareId);
                 showInfoMessage('Aby uzyskać dostęp do programu, zarejestruj się lub zaloguj.');
             }
             
         } catch (error) {
-            console.error('[Parent Redirect] Error in handleParentShareIDVisit:', error);
+            console.error('[LM Redirect] Error in handleParentShareIDVisit:', error);
             showErrorMessage('Wystąpił błąd podczas przetwarzania linku.');
         }
     }
@@ -74,19 +70,17 @@
      */
     async function handlePostVerificationRedirect() {
         try {
-            console.log('[Parent Redirect] Checking for post-verification redirect');
-            
             // Check if we're coming from email verification
             const isFromEmailVerification = checkIfFromEmailVerification();
             
             const savedData = getSavedRedirectData();
             if (!savedData) {
-                console.log('[Parent Redirect] No saved redirect data found');
                 return;
             }
             
-            console.log('[Parent Redirect] Found saved data:', savedData);
-            console.log('[Parent Redirect] Coming from email verification:', isFromEmailVerification);
+            if (isFromEmailVerification) {
+                console.log('[LM Redirect] Post-verification redirect detected, ShareID:', savedData.shareId);
+            }
             
             // Wait for Memberstack to load
             await waitForMemberstack();
@@ -99,39 +93,34 @@
                 const isParent = await checkIfUserIsParent();
                 
                 if (isParent) {
-                    console.log('[Parent Redirect] Parent user is now logged in');
                     
                     // If coming from email verification, show welcome message
                     if (isFromEmailVerification) {
+                        console.log('[LM Redirect] Email verification detected, processing LMID assignment');
                         showSuccessMessage('Email zweryfikowany pomyślnie! Dodajemy dostęp do programu...');
                         
-                        // Wait a moment before processing
+                        // Clear saved data and stay on current ShareID page
+                        clearSavedRedirectData();
+                        
+                        // Wait a moment then process LMID assignment on current page
                         setTimeout(() => {
-                            // Clear saved data
-                            clearSavedRedirectData();
-                            
-                            // Redirect to original ShareID page to process LMID assignment
-                            const redirectUrl = `/little-microphones?ID=${savedData.shareId}`;
-                            console.log('[Parent Redirect] Redirecting to:', redirectUrl);
-                            window.location.href = redirectUrl;
+                            // Re-run the ShareID handler to process LMID assignment
+                            handleParentShareIDVisit();
                         }, 2000);
                     } else {
                         // Normal redirect without delay
                         clearSavedRedirectData();
                         const redirectUrl = `/little-microphones?ID=${savedData.shareId}`;
-                        console.log('[Parent Redirect] Redirecting to:', redirectUrl);
+                        console.log('[LM Redirect] Redirecting to ShareID page:', redirectUrl);
                         window.location.href = redirectUrl;
                     }
                 } else {
-                    console.log('[Parent Redirect] Non-parent user logged in, clearing saved data');
                     clearSavedRedirectData();
                 }
-            } else {
-                console.log('[Parent Redirect] User still not logged in, keeping saved data');
             }
             
         } catch (error) {
-            console.error('[Parent Redirect] Error in handlePostVerificationRedirect:', error);
+            console.error('[LM Redirect] Error in handlePostVerificationRedirect:', error);
         }
     }
     
@@ -150,22 +139,13 @@
             
             // Check if parent already has this LMID
             const currentUser = await getCurrentMemberstackUser();
-            console.log('[DEBUG] Current user data:', currentUser);
-            console.log('[DEBUG] Current user metaData:', currentUser.metaData);
-            console.log('[DEBUG] Current user customFields:', currentUser.customFields);
-            
             const currentLmids = currentUser.metaData?.lmids || '';
-            console.log('[DEBUG] Current LMIDs:', currentLmids);
-            console.log('[DEBUG] World original LMID:', worldInfo.original_lmid);
             
             if (currentLmids.includes(worldInfo.original_lmid.toString())) {
-                console.log('[Parent Redirect] Parent already has this LMID');
+                console.log('[LM Redirect] Parent already has this LMID');
                 showSuccessMessage('Masz już dostęp do tego programu!');
                 
-                // Redirect to dashboard after delay
-                setTimeout(() => {
-                    window.location.href = '/members/little-microphones';
-                }, 2000);
+                // Stay on the ShareID page - user can see the program
                 return;
             }
             
@@ -175,21 +155,19 @@
             const updateResult = await updateParentMetadata(currentUser.id, newLmids);
             
             if (updateResult.success) {
-                console.log('[Parent Redirect] LMID added to parent metadata');
-                showSuccessMessage(`Dodano dostęp do programu! Możesz teraz go zobaczyć w swoim panelu.`);
+                console.log('[LM Redirect] LMID added successfully');
+                showSuccessMessage(`Dostęp do programu został dodany! Możesz teraz korzystać z programu.`);
                 
-                // Redirect to dashboard after delay
-                setTimeout(() => {
-                    window.location.href = '/members/little-microphones';
-                }, 3000);
+                // Stay on the ShareID page - don't redirect to dashboard
+                // The user can now see the program content
             } else {
-                console.error('[Parent Redirect] Failed to update parent metadata');
+                console.error('[LM Redirect] Failed to update parent metadata');
                 showErrorMessage('Nie udało się dodać dostępu do programu. Spróbuj ponownie.');
                 return;
             }
             
         } catch (error) {
-            console.error('[Parent Redirect] Error handling logged in parent:', error);
+            console.error('[LM Redirect] Error handling logged in parent:', error);
             showErrorMessage('Wystąpił błąd podczas dodawania dostępu do programu.');
         }
     }
@@ -199,12 +177,7 @@
      */
     function waitForMemberstack(timeout = 10000) {
         return new Promise((resolve, reject) => {
-            console.log('[DEBUG] Checking for Memberstack...');
-            console.log('[DEBUG] window.$memberstackDom exists:', typeof window.$memberstackDom !== 'undefined');
-            console.log('[DEBUG] window.MemberStack exists:', typeof window.MemberStack !== 'undefined');
-            
             if (typeof window.$memberstackDom !== 'undefined') {
-                console.log('[DEBUG] $memberstackDom found immediately');
                 resolve();
                 return;
             }
@@ -212,15 +185,11 @@
             const startTime = Date.now();
             const checkInterval = setInterval(() => {
                 const elapsed = Date.now() - startTime;
-                console.log('[DEBUG] Waiting for Memberstack... elapsed:', elapsed + 'ms');
                 
                 if (typeof window.$memberstackDom !== 'undefined') {
-                    console.log('[DEBUG] $memberstackDom found after', elapsed + 'ms');
                     clearInterval(checkInterval);
                     resolve();
                 } else if (elapsed > timeout) {
-                    console.log('[DEBUG] Memberstack timeout after', elapsed + 'ms');
-                    console.log('[DEBUG] Final check - window.$memberstackDom:', typeof window.$memberstackDom);
                     clearInterval(checkInterval);
                     reject(new Error('Memberstack loading timeout'));
                 }
@@ -243,7 +212,7 @@
             return data;
             
         } catch (error) {
-            console.error('[Parent Redirect] Error fetching world info:', error);
+            console.error('[LM Redirect] Error fetching world info:', error);
             throw error;
         }
     }
@@ -273,7 +242,7 @@
             return data;
             
         } catch (error) {
-            console.error('[Parent Redirect] Error updating parent metadata:', error);
+            console.error('[LM Redirect] Error updating parent metadata:', error);
             return { success: false, error: error.message };
         }
     }
@@ -284,15 +253,10 @@
     async function checkMemberstackLogin() {
         try {
             const member = await window.$memberstackDom.getCurrentMember();
-            console.log('[DEBUG] getCurrentMember() result:', member);
-            console.log('[DEBUG] Member data:', member?.data);
-            console.log('[DEBUG] Member ID:', member?.data?.id);
-            console.log('[DEBUG] Member logged in:', member?.data?.loggedIn);
-            
             return member && member.data && (member.data.id || member.data.loggedIn);
             
         } catch (error) {
-            console.error('[Parent Redirect] Error checking login status:', error);
+            console.error('[LM Redirect] Error checking login status:', error);
             return false;
         }
     }
@@ -305,19 +269,16 @@
             const member = await window.$memberstackDom.getCurrentMember();
             if (!member || !member.data) return false;
             
-            console.log('[DEBUG] Member planConnections:', member.data.planConnections);
-            
             // Check if user has parent plan
             const PARENT_PLAN_ID = 'pln_parents-y1ea03qk';
             const hasParentPlan = member.data.planConnections?.some(
                 connection => connection.planId === PARENT_PLAN_ID && connection.active
             );
             
-            console.log('[DEBUG] User has parent plan:', hasParentPlan);
             return hasParentPlan;
             
         } catch (error) {
-            console.error('[Parent Redirect] Error checking parent status:', error);
+            console.error('[LM Redirect] Error checking parent status:', error);
             return false;
         }
     }
@@ -330,7 +291,7 @@
             const member = await window.$memberstackDom.getCurrentMember();
             return member?.data || member;
         } catch (error) {
-            console.error('[Parent Redirect] Error getting current user:', error);
+            console.error('[LM Redirect] Error getting current user:', error);
             throw error;
         }
     }
@@ -357,7 +318,7 @@
                 const memberData = JSON.parse(decodeURIComponent(memberParam));
                 return memberData.verified === true;
             } catch (e) {
-                console.log('[Parent Redirect] Failed to parse member param');
+                // Failed to parse member param
             }
         }
         
@@ -375,7 +336,7 @@
         };
         
         localStorage.setItem('lm_parent_redirect', JSON.stringify(redirectData));
-        console.log('[Parent Redirect] Saved redirect data:', redirectData);
+        console.log('[LM Redirect] Saved redirect data for ShareID:', shareId);
     }
     
     /**
@@ -391,7 +352,6 @@
             // Check if data is not too old (24 hours max)
             const maxAge = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
             if (Date.now() - data.timestamp > maxAge) {
-                console.log('[Parent Redirect] Saved data is too old, clearing');
                 clearSavedRedirectData();
                 return null;
             }
@@ -399,7 +359,6 @@
             return data;
             
         } catch (error) {
-            console.error('[Parent Redirect] Error parsing saved redirect data:', error);
             clearSavedRedirectData();
             return null;
         }
@@ -410,7 +369,6 @@
      */
     function clearSavedRedirectData() {
         localStorage.removeItem('lm_parent_redirect');
-        console.log('[Parent Redirect] Cleared saved redirect data');
     }
     
     /**
@@ -479,13 +437,6 @@
      * Initialize parent redirect system
      */
     function initParentRedirectSystem() {
-        console.log('[Parent Redirect] Initializing parent redirect system');
-        
-        // Debug what's available in window
-        console.log('[DEBUG] All window properties with "member":', Object.keys(window).filter(key => key.toLowerCase().includes('member')));
-        console.log('[DEBUG] All window properties with "Member":', Object.keys(window).filter(key => key.includes('Member')));
-        console.log('[DEBUG] All window properties with "stack":', Object.keys(window).filter(key => key.toLowerCase().includes('stack')));
-        
         // Wait for DOM to be ready
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => {

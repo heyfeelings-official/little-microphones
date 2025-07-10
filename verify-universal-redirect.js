@@ -17,7 +17,7 @@
 (function() {
     'use strict';
     
-    console.log('[Universal Verify] Script v1.0.0 loaded');
+    console.log('[Universal Verify] Script loaded');
     
     /**
      * Get saved redirect data from localStorage
@@ -32,7 +32,6 @@
             // Check if data is not too old (24 hours max)
             const maxAge = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
             if (Date.now() - data.timestamp > maxAge) {
-                console.log('[Universal Verify] Saved data is too old, clearing');
                 localStorage.removeItem('lm_parent_redirect');
                 return null;
             }
@@ -40,7 +39,6 @@
             return data;
             
         } catch (error) {
-            console.error('[Universal Verify] Error parsing saved redirect data:', error);
             localStorage.removeItem('lm_parent_redirect');
             return null;
         }
@@ -110,15 +108,12 @@
      * Initialize verification page
      */
     function initVerificationPage() {
-        console.log('[Universal Verify] Initializing verification page');
-        
         // Check if this is a parent registration
         const savedData = getSavedRedirectData();
         const isParent = savedData && savedData.shareId;
         
-        console.log('[Universal Verify] Is parent registration:', isParent);
         if (isParent) {
-            console.log('[Universal Verify] ShareID found:', savedData.shareId);
+            console.log('[Universal Verify] Parent registration detected, ShareID:', savedData.shareId);
         }
         
         // Wait for DOM to be ready
