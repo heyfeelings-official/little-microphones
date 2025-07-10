@@ -306,17 +306,10 @@ async function createRecordingElement(recordingData, questionId, allIds) {
     const currentUserRole = await detectUserRole();
     const shouldShowParentLabel = isParentRecording && (currentUserRole === 'teacher' || currentUserRole === 'therapist');
     
-    // Main player container
+    // Main player container with conditional background for parent recordings
+    const backgroundColor = shouldShowParentLabel ? '#FFD700' : 'white';
     const playerContainer = document.createElement('div');
-    playerContainer.style.cssText = `width: 100%; height: 48px; position: relative; background: white; border-radius: 122px; display: flex; align-items: center; padding: 0 16px; box-sizing: border-box;`;
-    
-    // Add parent label if needed
-    if (shouldShowParentLabel) {
-        const parentLabel = document.createElement('div');
-        parentLabel.style.cssText = `position: absolute; top: -8px; right: 16px; background: #FFD700; color: #333; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: bold; z-index: 10;`;
-        parentLabel.textContent = 'Parent';
-        li.appendChild(parentLabel);
-    }
+    playerContainer.style.cssText = `width: 100%; height: 48px; position: relative; background: ${backgroundColor}; border-radius: 122px; display: flex; align-items: center; padding: 0 16px; box-sizing: border-box;`;
     
     // Hidden audio element
     const audio = document.createElement('audio');
