@@ -287,14 +287,11 @@ async function handleUpdateParentMetadata(memberId, newLmidString) {
     // Track parent Member ID associations in Supabase for OPTIMIZED cleanup later
     for (const lmid of newLmids) {
         try {
-            const { error } = await supabase
-                .from('parent_lmids')
-                .insert({
-                    parent_member_id: memberId,
-                    lmid: lmid
-                })
-                .onConflict('parent_member_id,lmid')
-                .ignore();
+            // Use RPC function to add Member ID to array
+            const { error } = await supabase.rpc('add_parent_member_id_to_lmid', {
+                p_lmid: lmid,
+                p_parent_member_id: memberId
+            });
             
             if (error) {
                 console.warn(`⚠️ Failed to track parent Member ID association for LMID ${lmid}:`, error);

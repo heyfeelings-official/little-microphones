@@ -5,7 +5,7 @@
  * DEPENDENCIES: Supabase, Memberstack Admin API
  * 
  * OPTIMIZATION:
- * - Uses parent_lmids table with Member IDs (not emails!)
+ * - Uses associated_parent_member_ids column with Member IDs (not emails!)
  * - Single database query to find affected parents
  * - Direct Memberstack API calls with Member ID
  * - No email lookups needed - MUCH FASTER!
@@ -26,16 +26,17 @@ async function getAssociatedParentMemberIds(lmidToFind) {
     
     try {
         const { data, error } = await supabase
-            .from('parent_lmids')
-            .select('parent_member_id')
-            .eq('lmid', lmidToFind);
+            .from('lmids')
+            .select('associated_parent_member_ids')
+            .eq('lmid', lmidToFind)
+            .single();
             
         if (error) {
             console.error(`❌ Database error:`, error);
             return [];
         }
         
-        const parentMemberIds = data?.map(row => row.parent_member_id) || [];
+        const parentMemberIds = data?.associated_parent_member_ids || [];
         console.log(`🔍 [getAssociatedParentMemberIds] Found ${parentMemberIds.length} associated parent Member IDs`);
         
         return parentMemberIds;
@@ -94,17 +95,17 @@ function removeLmidFromString(lmidString, lmidToRemove) {
 }
 
 /**
- * Remove parent Member ID from parent_lmids table
+ * Remove parent Member ID from associated_parent_member_ids array
  */
 async function removeParentMemberIdAssociation(lmid, parentMemberId) {
     const supabase = getSupabaseClient();
     
     try {
-        const { error } = await supabase
-            .from('parent_lmids')
-            .delete()
-            .eq('lmid', lmid)
-            .eq('parent_member_id', parentMemberId);
+        // Use RPC function to remove Member ID from array
+        const { error } = await supabase.rpc('remove_parent_member_id_from_lmid', {
+            p_lmid: lmid,
+            p_parent_member_id: parentMemberId
+        });
         
         if (error) {
             console.error(`❌ Failed to remove parent Member ID association:`, error);
