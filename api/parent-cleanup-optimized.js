@@ -121,19 +121,22 @@ async function removeParentMemberIdAssociation(lmid, parentMemberId) {
  * OPTIMIZED cleanup parent metadata using Member IDs (FAST!)
  */
 export async function cleanupParentMetadataOptimized(lmidToRemove, teacherMemberId = null) {
-    console.log(`🚀 [cleanupParentMetadataOptimized] Starting OPTIMIZED cleanup for LMID ${lmidToRemove}`);
+    console.log(`🚀 [OPTIMIZED-CLEANUP-START] Initiating cleanup for LMID: ${lmidToRemove}. Teacher to exclude: ${teacherMemberId || 'none'}`);
     
     try {
         // Get associated parent Member IDs from database (FAST!)
         const parentMemberIds = await getAssociatedParentMemberIds(lmidToRemove);
+        console.log(`[OPTIMIZED-CLEANUP-DB-QUERY] Found ${parentMemberIds.length} raw parent Member ID(s) associated in DB: [${parentMemberIds.join(', ')}]`);
         
         // Filter out teacher Member ID if needed
         const memberIdsToClean = teacherMemberId 
             ? parentMemberIds.filter(memberId => memberId !== teacherMemberId)
             : parentMemberIds;
         
+        console.log(`[OPTIMIZED-CLEANUP-FILTER] After filtering teacher, ${memberIdsToClean.length} parent account(s) will be processed: [${memberIdsToClean.join(', ')}]`);
+        
         if (memberIdsToClean.length === 0) {
-            console.log(`✅ [cleanupParentMetadataOptimized] No parent Member IDs to clean up`);
+            console.log(`✅ [OPTIMIZED-CLEANUP-COMPLETE] No parent Member IDs to clean up. Process finished.`);
             return {
                 success: true,
                 message: 'No parents to clean up',
@@ -159,7 +162,7 @@ export async function cleanupParentMetadataOptimized(lmidToRemove, teacherMember
                     const parent = await getParentMetadataByMemberId(parentMemberId);
                     
                     if (!parent) {
-                        console.warn(`⚠️ Could not fetch parent data for ${parentMemberId}`);
+                        console.warn(`⚠️ [OPTIMIZED-CLEANUP-PROCESS] Could not fetch parent data for Member ID: ${parentMemberId}. Skipping.`);
                         return {
                             memberId: parentMemberId,
                             memberEmail: 'unknown',
@@ -173,7 +176,7 @@ export async function cleanupParentMetadataOptimized(lmidToRemove, teacherMember
                     const oldLmids = parent.metaData?.lmids || '';
                     const newLmids = removeLmidFromString(oldLmids, lmidToRemove);
                     
-                    console.log(`🧹 Updating parent ${parentMemberId}: "${oldLmids}" → "${newLmids}"`);
+                    console.log(`🧹 [OPTIMIZED-CLEANUP-PROCESS] Updating parent ${parentMemberId} (${parent.email}). LMIDs: "${oldLmids}" → "${newLmids}"`);
                     
                     // Update Memberstack metadata (FAST - direct Member ID!)
                     const updateSuccess = await updateMemberstackMetadata(parentMemberId, newLmids, true);
@@ -182,9 +185,9 @@ export async function cleanupParentMetadataOptimized(lmidToRemove, teacherMember
                         // Remove from parent_lmids table
                         await removeParentMemberIdAssociation(lmidToRemove, parentMemberId);
                         successCount++;
-                        console.log(`✅ Successfully updated parent ${parentMemberId}`);
+                        console.log(`✅ [OPTIMIZED-CLEANUP-SUCCESS] Successfully updated parent ${parentMemberId}`);
                     } else {
-                        console.error(`❌ Failed to update parent ${parentMemberId}`);
+                        console.error(`❌ [OPTIMIZED-CLEANUP-FAILURE] Failed to update parent ${parentMemberId} via Memberstack API.`);
                     }
                     
                     return {
@@ -196,7 +199,7 @@ export async function cleanupParentMetadataOptimized(lmidToRemove, teacherMember
                     };
                     
                 } catch (error) {
-                    console.error(`❌ Error updating parent ${parentMemberId}:`, error);
+                    console.error(`❌ [OPTIMIZED-CLEANUP-ERROR] A critical error occurred while processing parent ${parentMemberId}:`, error);
                     return {
                         memberId: parentMemberId,
                         memberEmail: 'unknown',
@@ -212,7 +215,7 @@ export async function cleanupParentMetadataOptimized(lmidToRemove, teacherMember
             cleanupResults.push(...batchResults);
         }
         
-        console.log(`✅ [cleanupParentMetadataOptimized] OPTIMIZED cleanup completed: ${successCount}/${memberIdsToClean.length} successful`);
+        console.log(`✅ [OPTIMIZED-CLEANUP-SUMMARY] Cleanup finished. Success: ${successCount}/${memberIdsToClean.length}.`);
         
         return {
             success: true,
@@ -223,7 +226,7 @@ export async function cleanupParentMetadataOptimized(lmidToRemove, teacherMember
         };
         
     } catch (error) {
-        console.error(`❌ [cleanupParentMetadataOptimized] Error during cleanup:`, error);
+        console.error(`❌ [OPTIMIZED-CLEANUP-CRITICAL-FAILURE] The entire cleanup process failed critically:`, error);
         throw error;
     }
 }
