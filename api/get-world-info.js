@@ -57,10 +57,12 @@ async function getWorldInfoHandler(req, res, params) {
     // Get background URL for the world
     const backgroundUrl = WORLD_BACKGROUNDS[lmidData.world];
 
-    // Return optimized response data
+    // Return optimized response data for parent redirect system
     return {
         world: lmidData.world,
+        world_name: lmidData.world, // For display purposes
         lmid: lmidData.lmid,
+        original_lmid: lmidData.lmid, // Same as lmid - parents share teacher's LMID
         backgroundUrl: backgroundUrl || null
     };
 }

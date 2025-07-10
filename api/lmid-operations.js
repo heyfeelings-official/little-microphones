@@ -67,9 +67,11 @@ import {
  * Handle CREATE LMID operation (replaces create-lmid.js functionality)
  * @param {string} memberId - Memberstack member ID
  * @param {string} memberEmail - Member email
+ * @param {string} originatingShareId - Optional ShareID for parent registration
+ * @param {string} originatingLmid - Optional original LMID for parent registration
  * @returns {Promise<Object>} Operation result
  */
-async function handleCreateLmid(memberId, memberEmail) {
+async function handleCreateLmid(memberId, memberEmail, originatingShareId = null, originatingLmid = null) {
     // Find next available LMID
     const availableLmid = await findNextAvailableLmid();
     if (!availableLmid) {
@@ -192,6 +194,31 @@ async function handleDeleteLmid(memberId, lmidToDelete, newLmidString) {
     };
 }
 
+/**
+ * Handle UPDATE PARENT METADATA operation (for parent registration system)
+ * @param {string} memberId - Memberstack member ID
+ * @param {string} newLmidString - New LMID string to set
+ * @returns {Promise<Object>} Operation result
+ */
+async function handleUpdateParentMetadata(memberId, newLmidString) {
+    console.log(`🔄 [handleUpdateParentMetadata] Updating parent metadata for ${memberId} with LMIDs: ${newLmidString}`);
+    
+    // Update Memberstack metadata directly (no database changes needed for parents)
+    const memberstackUpdated = await updateMemberstackMetadata(memberId, newLmidString);
+    
+    if (!memberstackUpdated) {
+        throw new Error('Failed to update parent metadata in Memberstack');
+    }
+    
+    console.log(`✅ [handleUpdateParentMetadata] Parent metadata updated successfully for ${memberId}`);
+    
+    return {
+        success: true,
+        message: 'Parent metadata updated successfully',
+        newLmidString: newLmidString
+    };
+}
+
 export default async function handler(req, res) {
     // Set CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -256,10 +283,19 @@ export default async function handler(req, res) {
                 });
             }
             result = await handleDeleteLmid(memberId, lmidToDelete, newLmidString || '');
+        } else if (action === 'update_parent_metadata') {
+            // NEW: Handle parent metadata update (for parent registration system)
+            if (!newLmidString) {
+                return res.status(400).json({ 
+                    success: false, 
+                    error: 'Missing required parameter: newLmidString for update_parent_metadata action' 
+                });
+            }
+            result = await handleUpdateParentMetadata(memberId, newLmidString);
         } else {
             return res.status(400).json({ 
                 success: false, 
-                error: 'Invalid action. Use "create", "add", or "delete"' 
+                error: 'Invalid action. Use "create", "add", "delete", or "update_parent_metadata"' 
             });
         }
 
