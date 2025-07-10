@@ -351,21 +351,40 @@
      */
     function getSavedRedirectData() {
         try {
+            console.log('[LM Redirect] 🔍 Getting saved redirect data...');
             const saved = localStorage.getItem('lm_parent_redirect');
-            if (!saved) return null;
+            console.log('[LM Redirect] 🔍 Raw localStorage data:', saved);
+            
+            if (!saved) {
+                console.log('[LM Redirect] 🔍 No data in localStorage');
+                return null;
+            }
             
             const data = JSON.parse(saved);
+            console.log('[LM Redirect] 🔍 Parsed data:', data);
             
             // Check if data is not too old (24 hours max)
             const maxAge = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
-            if (Date.now() - data.timestamp > maxAge) {
+            const currentTime = Date.now();
+            const age = currentTime - data.timestamp;
+            
+            console.log('[LM Redirect] 🔍 Current time:', currentTime);
+            console.log('[LM Redirect] 🔍 Data timestamp:', data.timestamp);
+            console.log('[LM Redirect] 🔍 Data age (ms):', age);
+            console.log('[LM Redirect] 🔍 Max age (ms):', maxAge);
+            console.log('[LM Redirect] 🔍 Is data too old?', age > maxAge);
+            
+            if (age > maxAge) {
+                console.log('[LM Redirect] 🔍 Data too old, clearing...');
                 clearSavedRedirectData();
                 return null;
             }
             
+            console.log('[LM Redirect] 🔍 Returning valid data:', data);
             return data;
             
         } catch (error) {
+            console.error('[LM Redirect] 🔍 Error getting saved data:', error);
             clearSavedRedirectData();
             return null;
         }
