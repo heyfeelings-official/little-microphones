@@ -92,6 +92,7 @@ import https from 'https';
 import http from 'http';
 import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
 import { extractFilesUsed, STATIC_FILES } from '../utils/audio-utils.js';
+import { acquireGenerationLock, releaseLock } from '../utils/generation-lock.js';
 
 export default async function handler(req, res) {
     // Set CORS headers
@@ -149,6 +150,17 @@ export default async function handler(req, res) {
 
         console.log(`🎵 Starting radio program generation for ${world}/${lmid} (${type} program)`);
         console.log(`📊 Processing ${audioSegments.length} audio segments`);
+
+        // NEW: Try to acquire generation lock to prevent concurrent generations
+        const lockAcquired = await acquireGenerationLock(world, lmid, type, []);
+        if (!lockAcquired) {
+            console.log(`🔒 Generation already in progress for ${world}/${lmid}/${type}`);
+            return res.status(409).json({
+                success: false,
+                message: 'Generation already in progress. Please wait and try again.',
+                error: 'GENERATION_IN_PROGRESS'
+            });
+        }
 
         // No audio processing - just basic concatenation
         const audioParams = null;
@@ -208,6 +220,9 @@ export default async function handler(req, res) {
             
             await uploadManifestToBunny(manifestData, world, lmid, type);
             
+            // NEW: Release lock after successful generation
+            await releaseLock(world, lmid, type);
+            
             return res.status(200).json({
                 success: true,
                 message: 'Radio program generated successfully',
@@ -218,6 +233,9 @@ export default async function handler(req, res) {
         } catch (ffmpegError) {
             console.error('FFmpeg processing failed:', ffmpegError);
             
+            // NEW: Release lock on error
+            await releaseLock(world, lmid, type);
+            
             return res.status(500).json({
                 success: false,
                 message: 'Audio processing failed',
@@ -227,6 +245,12 @@ export default async function handler(req, res) {
 
     } catch (error) {
         console.error('❌ Error in combine-audio API:', error);
+        
+        // NEW: Release lock on any error
+        if (req.body?.world && req.body?.lmid && req.body?.programType) {
+            await releaseLock(req.body.world, req.body.lmid, req.body.programType || 'kids');
+        }
+        
         return res.status(500).json({ 
             error: 'Internal server error',
             details: error.message 

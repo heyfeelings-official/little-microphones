@@ -27,6 +27,7 @@
  */
 
 import { getSupabaseClient } from '../utils/lmid-utils.js';
+import { getGenerationStatus } from '../utils/generation-lock.js';
 import https from 'https';
 
 /**
@@ -271,6 +272,10 @@ export default async function handler(req, res) {
         // Determine if new program generation is needed
         const generationNeeds = needsNewProgram(currentRecordings, kidsManifest, parentManifest, world, lmid);
 
+        // Check generation status for both types
+        const kidsGenerationStatus = await getGenerationStatus(world, lmid, 'kids');
+        const parentGenerationStatus = await getGenerationStatus(world, lmid, 'parent');
+
         // Build combined manifest structure for radio.js compatibility
         const combinedManifest = {};
         
@@ -300,7 +305,12 @@ export default async function handler(req, res) {
             hasKidsRecordings: generationNeeds.hasKidsRecordings,
             hasParentRecordings: generationNeeds.hasParentRecordings,
             recordingCount: currentRecordings.length,
-            shareId: shareId
+            shareId: shareId,
+            // NEW: Generation status information
+            generationStatus: {
+                kids: kidsGenerationStatus,
+                parent: parentGenerationStatus
+            }
         });
 
     } catch (error) {
