@@ -434,14 +434,18 @@
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => {
                 setTimeout(() => {
-                    handlePostVerificationRedirect();
+                    // IMPORTANT: handleParentShareIDVisit must run FIRST to save data
+                    // Then handlePostVerificationRedirect can read the saved data
                     handleParentShareIDVisit();
+                    handlePostVerificationRedirect();
                 }, 500); // Small delay to ensure Memberstack loads
             });
         } else {
             setTimeout(() => {
-                handlePostVerificationRedirect();
+                // IMPORTANT: handleParentShareIDVisit must run FIRST to save data
+                // Then handlePostVerificationRedirect can read the saved data
                 handleParentShareIDVisit();
+                handlePostVerificationRedirect();
             }, 500);
         }
     }
