@@ -245,10 +245,11 @@
         try {
             const member = await window.$memberstackDom.getCurrentMember();
             console.log('[DEBUG] getCurrentMember() result:', member);
-            console.log('[DEBUG] Member ID:', member?.id);
-            console.log('[DEBUG] Member logged in:', member?.loggedIn);
+            console.log('[DEBUG] Member data:', member?.data);
+            console.log('[DEBUG] Member ID:', member?.data?.id);
+            console.log('[DEBUG] Member logged in:', member?.data?.loggedIn);
             
-            return member && (member.id || member.loggedIn);
+            return member && member.data && (member.data.id || member.data.loggedIn);
             
         } catch (error) {
             console.error('[Parent Redirect] Error checking login status:', error);
@@ -261,7 +262,8 @@
      */
     async function getCurrentMemberstackUser() {
         try {
-            return await window.$memberstackDom.getCurrentMember();
+            const member = await window.$memberstackDom.getCurrentMember();
+            return member?.data || member;
         } catch (error) {
             console.error('[Parent Redirect] Error getting current user:', error);
             throw error;

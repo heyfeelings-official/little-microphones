@@ -93,7 +93,7 @@
     async function checkMemberstackLogin() {
         try {
             const member = await window.$memberstackDom.getCurrentMember();
-            return member && (member.id || member.loggedIn);
+            return member && member.data && (member.data.id || member.data.loggedIn);
             
         } catch (error) {
             console.error('[Emotion Worlds] Error checking login status:', error);
