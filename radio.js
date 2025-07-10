@@ -966,25 +966,49 @@
             const userRole = await detectUserRole();
             const currentMemberId = await getCurrentMemberId();
             
-            // Use API-provided generation needs or determine from user role
-            const needsKids = generationNeeds.needsKids !== undefined ? generationNeeds.needsKids : true;
-            const needsParent = generationNeeds.needsParent !== undefined ? generationNeeds.needsParent : true;
-            const hasKidsRecordings = generationNeeds.hasKidsRecordings !== undefined ? generationNeeds.hasKidsRecordings : true;
-            const hasParentRecordings = generationNeeds.hasParentRecordings !== undefined ? generationNeeds.hasParentRecordings : true;
+            // Get generation needs from API
+            const needsKids = generationNeeds.needsKids || false;
+            const needsParent = generationNeeds.needsParent || false;
+            const hasKidsRecordings = generationNeeds.hasKidsRecordings || false;
+            const hasParentRecordings = generationNeeds.hasParentRecordings || false;
             
-            console.log(`🎯 Generation plan: Kids(${needsKids && hasKidsRecordings ? 'YES' : 'NO'}), Parent(${needsParent && hasParentRecordings ? 'YES' : 'NO'})`);
+            console.log(`🎯 API says - Needs generation: Kids(${needsKids}), Parent(${needsParent})`);
+            console.log(`🎯 API says - Has recordings: Kids(${hasKidsRecordings}), Parent(${hasParentRecordings})`);
+            
+            // Determine what we ACTUALLY need to generate
+            let generateKids = false;
+            let generateParent = false;
+            
+            // ONLY generate if API says we need to (new recordings detected)
+            if (needsKids && hasKidsRecordings) {
+                generateKids = true;
+            }
+            
+            if (needsParent && hasParentRecordings) {
+                generateParent = true;
+            }
+            
+            console.log(`🎯 Final generation plan: Kids(${generateKids ? 'YES' : 'NO'}), Parent(${generateParent ? 'YES' : 'NO'})`);
+            
+            // If nothing needs generation, show existing programs
+            if (!generateKids && !generateParent) {
+                console.log('📻 No generation needed, showing existing programs');
+                stopGeneratingMessages();
+                showExistingProgram(data);
+                return;
+            }
             
             // Convert recordings to audioSegments format based on what we need to generate
             const audioSegmentsResult = {};
             
-            if (needsKids && hasKidsRecordings) {
+            if (generateKids) {
                 const kidsSegments = convertRecordingsToAudioSegments(data.currentRecordings, data.world, 'kids');
                 if (kidsSegments.kids) {
                     audioSegmentsResult.kids = kidsSegments.kids;
                 }
             }
             
-            if (needsParent && hasParentRecordings) {
+            if (generateParent) {
                 const parentSegments = convertRecordingsToAudioSegments(data.currentRecordings, data.world, 'parent');
                 if (parentSegments.parent) {
                     audioSegmentsResult.parent = parentSegments.parent;
@@ -993,7 +1017,10 @@
             
             // Check if we have any programs to generate
             if (!audioSegmentsResult.kids && !audioSegmentsResult.parent) {
-                throw new Error('No recordings found to generate radio program');
+                console.log('📻 No audio segments to generate, showing existing programs');
+                stopGeneratingMessages();
+                showExistingProgram(data);
+                return;
             }
             
             const generatedPrograms = {};
@@ -1052,10 +1079,26 @@
             stopGeneratingMessages();
             updateGeneratingMessage('Programs generated successfully!');
             
-            // Wait a moment then show player(s)
-            setTimeout(() => {
+            // Wait a moment for manifests to update, then reload data to get fresh manifest
+            setTimeout(async () => {
+                try {
+                    // Reload radio data to get updated manifest
+                    const response = await fetch(`${API_BASE_URL}/api/get-radio-data?shareId=${currentShareId}`);
+                    if (response.ok) {
+                        const freshData = await response.json();
+                        if (freshData.success) {
+                            console.log('📻 Reloaded data with fresh manifest');
+                            showExistingProgram(freshData);
+                            return;
+                        }
+                    }
+                } catch (error) {
+                    console.warn('Failed to reload data, using generated programs directly');
+                }
+                
+                // Fallback: show generated programs directly
                 showDualPlayerState(generatedPrograms, data, userRole);
-            }, 1000);
+            }, 2000);
             
         } catch (error) {
             console.error('Error generating program:', error);

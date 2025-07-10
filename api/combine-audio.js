@@ -615,29 +615,46 @@ async function uploadManifestToBunny(manifestData, world, lmid, programType = 'k
         let combinedManifest = {};
         
         try {
-            // Try to load existing combined manifest
-            const existingResponse = await fetch(`${process.env.BUNNY_CDN_URL}${combinedManifestPath}`);
+            // Try to load existing combined manifest with cache-busting
+            const manifestUrl = `${process.env.BUNNY_CDN_URL}${combinedManifestPath}?v=${Date.now()}`;
+            console.log(`📄 Loading existing manifest: ${manifestUrl}`);
+            const existingResponse = await fetch(manifestUrl);
             if (existingResponse.ok) {
                 combinedManifest = await existingResponse.json();
+                console.log('📄 Existing manifest loaded:', {
+                    hasKidsProgram: !!combinedManifest.kidsProgram,
+                    hasParentProgram: !!combinedManifest.parentProgram,
+                    kidsCount: combinedManifest.kidsRecordingCount,
+                    parentCount: combinedManifest.parentRecordingCount
+                });
             }
         } catch (error) {
             console.log('No existing combined manifest found, creating new one');
         }
         
         // Update combined manifest with new program data
+        // IMPORTANT: Only update fields related to current program type, preserve others
         combinedManifest.generatedAt = manifestData.generatedAt;
         combinedManifest.world = manifestData.world;
         combinedManifest.lmid = manifestData.lmid;
         combinedManifest.version = manifestData.version;
         
-        // Add program-specific data
+        // Add program-specific data WITHOUT removing existing data
         if (programType === 'kids') {
             combinedManifest.kidsProgram = manifestData.kidsProgram;
             combinedManifest.kidsRecordingCount = manifestData.recordingCount;
             combinedManifest.programUrl = manifestData.programUrl; // Legacy compatibility
+            combinedManifest.recordingCount = manifestData.recordingCount; // Legacy compatibility
+            // Preserve parent data if it exists
+            // combinedManifest.parentProgram remains unchanged
+            // combinedManifest.parentRecordingCount remains unchanged
         } else if (programType === 'parent') {
             combinedManifest.parentProgram = manifestData.parentProgram;
             combinedManifest.parentRecordingCount = manifestData.recordingCount;
+            // Preserve kids data if it exists
+            // combinedManifest.kidsProgram remains unchanged
+            // combinedManifest.kidsRecordingCount remains unchanged
+            // combinedManifest.programUrl remains unchanged (legacy)
         }
         
         // Save updated combined manifest
