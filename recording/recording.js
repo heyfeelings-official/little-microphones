@@ -75,8 +75,8 @@ const initializedWorlds = new Set();
 let currentUserRole = null;
 
 /**
- * Detect user role (parent or teacher) from Memberstack plan
- * @returns {Promise<string>} User role ('parent' or 'teacher')
+ * Detect user role from Memberstack plan
+ * @returns {Promise<string>} User role ('parent', 'teacher', or 'therapist')
  */
 async function detectUserRole() {
     if (currentUserRole) {
@@ -103,24 +103,29 @@ async function detectUserRole() {
         const activePlans = planConnections.filter(conn => conn.active && conn.status === 'ACTIVE');
         const activePlanIds = activePlans.map(plan => plan.planId);
         
-        // Check if user has any parent plan
+        // Check user role based on plan type (specific order matters)
         const hasParentPlan = activePlanIds.some(planId => 
             window.LM_CONFIG?.PLAN_HELPERS?.isParentPlan(planId)
         );
         
-        // Check if user has any teacher plan (educator or therapist)
-        const hasTeacherPlan = activePlanIds.some(planId => 
-            window.LM_CONFIG?.PLAN_HELPERS?.isTeacherPlan(planId)
+        const hasTherapistPlan = activePlanIds.some(planId => 
+            window.LM_CONFIG?.PLAN_HELPERS?.isTherapistPlan(planId)
+        );
+        
+        const hasEducatorPlan = activePlanIds.some(planId => 
+            window.LM_CONFIG?.PLAN_HELPERS?.isEducatorPlan(planId)
         );
         
         if (hasParentPlan) {
             currentUserRole = 'parent';
-        } else if (hasTeacherPlan) {
+        } else if (hasTherapistPlan) {
+            currentUserRole = 'therapist';
+        } else if (hasEducatorPlan) {
             currentUserRole = 'teacher';
         } else {
             // Fallback: check metadata for explicit role override
             const metaRole = memberData.metaData?.role;
-            if (metaRole === 'parent' || metaRole === 'teacher') {
+            if (metaRole === 'parent' || metaRole === 'teacher' || metaRole === 'therapist') {
                 currentUserRole = metaRole;
                 console.log(`User role detected from metadata override: ${currentUserRole}`);
             } else {
@@ -296,10 +301,10 @@ async function createRecordingElement(recordingData, questionId, allIds) {
         return li; 
     }
     
-    // Check if this is a parent recording and current user is teacher
+    // Check if this is a parent recording and current user is teacher or therapist
     const isParentRecording = recordingData.id.includes('parent_');
     const currentUserRole = await detectUserRole();
-    const shouldShowParentLabel = isParentRecording && currentUserRole === 'teacher';
+    const shouldShowParentLabel = isParentRecording && (currentUserRole === 'teacher' || currentUserRole === 'therapist');
     
     // Main player container
     const playerContainer = document.createElement('div');
@@ -986,7 +991,7 @@ function initializeAudioRecorder(recorderWrapper) {
                         }
                         newId = `parent_${memberId}-world_${world}-lmid_${lmid}-question_${questionId}-tm_${timestamp}`;
                     } else {
-                        // Default teacher format
+                        // Default format for teachers and therapists
                         newId = `kids-world_${world}-lmid_${lmid}-question_${questionId}-tm_${timestamp}`;
                     }
                     
@@ -1412,7 +1417,7 @@ async function loadRecordingsFromDB(questionId, world, lmid) {
                             return rec.id.includes(`parent_${currentMemberId}-`);
                         });
                     }
-                    // Teachers see all recordings (no additional filtering needed)
+                    // Teachers and therapists see all recordings (no additional filtering needed)
                     
                     resolve(filteredRecordings);
                 };
@@ -2251,7 +2256,7 @@ async function loadRecordingsFromCloud(questionId, world, lmid) {
                 return cloudRec.filename.includes(`parent_${currentMemberId}-`);
             });
         }
-        // Teachers see all recordings (no additional filtering needed)
+        // Teachers and therapists see all recordings (no additional filtering needed)
         
         // Transform cloud recordings to our format
         const recordings = cloudRecordings.map(cloudRec => ({

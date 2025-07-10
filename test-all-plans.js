@@ -35,12 +35,15 @@ const PLAN_HELPERS = window.LM_CONFIG?.PLAN_HELPERS || {
  */
 function testPlanRoleDetection(planId, expectedRole) {
     const isParent = PLAN_HELPERS.isParentPlan(planId);
-    const isTeacher = PLAN_HELPERS.isTeacherPlan(planId);
+    const isTherapist = PLAN_HELPERS.isTherapistPlan(planId);
+    const isEducator = PLAN_HELPERS.isEducatorPlan(planId);
     
     let detectedRole;
     if (isParent) {
         detectedRole = 'parent';
-    } else if (isTeacher) {
+    } else if (isTherapist) {
+        detectedRole = 'therapist';
+    } else if (isEducator) {
         detectedRole = 'teacher';
     } else {
         detectedRole = 'unknown';
@@ -74,9 +77,9 @@ function runAllPlanTests() {
         { planId: MEMBERSTACK_PLANS.EDUCATORS.EDUCATORS_SINGLE_CLASSROOM, expectedRole: 'teacher' },
         
         // Therapist Plans
-        { planId: MEMBERSTACK_PLANS.THERAPISTS.THERAPISTS_FREE, expectedRole: 'teacher' },
-        { planId: MEMBERSTACK_PLANS.THERAPISTS.THERAPISTS_FREE_PROMO, expectedRole: 'teacher' },
-        { planId: MEMBERSTACK_PLANS.THERAPISTS.THERAPISTS_SINGLE_PRACTICE, expectedRole: 'teacher' },
+        { planId: MEMBERSTACK_PLANS.THERAPISTS.THERAPISTS_FREE, expectedRole: 'therapist' },
+        { planId: MEMBERSTACK_PLANS.THERAPISTS.THERAPISTS_FREE_PROMO, expectedRole: 'therapist' },
+        { planId: MEMBERSTACK_PLANS.THERAPISTS.THERAPISTS_SINGLE_PRACTICE, expectedRole: 'therapist' },
         
         // Test unknown plan
         { planId: 'pln_unknown-plan-xyz', expectedRole: 'unknown' }
