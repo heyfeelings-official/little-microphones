@@ -20,11 +20,42 @@
     console.log('[Emotion Worlds Redirect] Script v1.0.0 loaded');
     
     /**
+     * Check if we're coming from email verification
+     */
+    function isComingFromVerification() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const memberParam = urlParams.get('member');
+        const forceRefetch = urlParams.get('forceRefetch');
+        
+        // Check for verification parameters
+        // URL pattern: /members/emotion-worlds?member={...}&forceRefetch=true
+        if (memberParam && forceRefetch === 'true') {
+            try {
+                const memberData = JSON.parse(decodeURIComponent(memberParam));
+                console.log('[Emotion Worlds] Member param data:', memberData);
+                return memberData.verified === true;
+            } catch (e) {
+                console.log('[Emotion Worlds] Failed to parse member param');
+            }
+        }
+        
+        return false;
+    }
+    
+    /**
      * Handle redirect after email verification
      */
     async function handlePostVerificationRedirect() {
         try {
             console.log('[Emotion Worlds] Checking for post-verification redirect');
+            
+            // First check if we're coming from verification
+            if (!isComingFromVerification()) {
+                console.log('[Emotion Worlds] Not coming from email verification, skipping redirect');
+                return;
+            }
+            
+            console.log('[Emotion Worlds] Coming from email verification!');
             
             const savedData = getSavedRedirectData();
             if (!savedData) {

@@ -47,8 +47,16 @@
             const isLoggedIn = await checkMemberstackLogin();
             
             if (isLoggedIn) {
-                console.log('[Parent Redirect] User is logged in, processing LMID assignment');
-                await handleLoggedInParent(shareId);
+                // Check if user is a parent
+                const isParent = await checkIfUserIsParent();
+                
+                if (isParent) {
+                    console.log('[Parent Redirect] Parent user detected, processing LMID assignment');
+                    await handleLoggedInParent(shareId);
+                } else {
+                    console.log('[Parent Redirect] Non-parent user detected, skipping LMID assignment');
+                    // For teachers/other users, just show the program without LMID assignment
+                }
             } else {
                 console.log('[Parent Redirect] User not logged in, saving ShareID for later');
                 saveShareIdForRedirect(shareId);
@@ -83,15 +91,23 @@
             const isLoggedIn = await checkMemberstackLogin();
             
             if (isLoggedIn) {
-                console.log('[Parent Redirect] User is now logged in, redirecting to ShareID');
+                // Check if user is a parent
+                const isParent = await checkIfUserIsParent();
                 
-                // Clear saved data
-                clearSavedRedirectData();
-                
-                // Redirect to original ShareID page
-                const redirectUrl = `/little-microphones?ID=${savedData.shareId}`;
-                console.log('[Parent Redirect] Redirecting to:', redirectUrl);
-                window.location.href = redirectUrl;
+                if (isParent) {
+                    console.log('[Parent Redirect] Parent user is now logged in, redirecting to ShareID');
+                    
+                    // Clear saved data
+                    clearSavedRedirectData();
+                    
+                    // Redirect to original ShareID page
+                    const redirectUrl = `/little-microphones?ID=${savedData.shareId}`;
+                    console.log('[Parent Redirect] Redirecting to:', redirectUrl);
+                    window.location.href = redirectUrl;
+                } else {
+                    console.log('[Parent Redirect] Non-parent user logged in, clearing saved data');
+                    clearSavedRedirectData();
+                }
             } else {
                 console.log('[Parent Redirect] User still not logged in, keeping saved data');
             }
@@ -259,6 +275,31 @@
             
         } catch (error) {
             console.error('[Parent Redirect] Error checking login status:', error);
+            return false;
+        }
+    }
+    
+    /**
+     * Check if user is a parent (has parent plan)
+     */
+    async function checkIfUserIsParent() {
+        try {
+            const member = await window.$memberstackDom.getCurrentMember();
+            if (!member || !member.data) return false;
+            
+            console.log('[DEBUG] Member planConnections:', member.data.planConnections);
+            
+            // Check if user has parent plan
+            const PARENT_PLAN_ID = 'pln_parents-y1ea03qk';
+            const hasParentPlan = member.data.planConnections?.some(
+                connection => connection.planId === PARENT_PLAN_ID && connection.active
+            );
+            
+            console.log('[DEBUG] User has parent plan:', hasParentPlan);
+            return hasParentPlan;
+            
+        } catch (error) {
+            console.error('[Parent Redirect] Error checking parent status:', error);
             return false;
         }
     }
