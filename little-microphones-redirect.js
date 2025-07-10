@@ -116,7 +116,13 @@
             
             // Check if parent already has this LMID
             const currentUser = await getCurrentMemberstackUser();
-            const currentLmids = currentUser.customFields?.lmids || '';
+            console.log('[DEBUG] Current user data:', currentUser);
+            console.log('[DEBUG] Current user metaData:', currentUser.metaData);
+            console.log('[DEBUG] Current user customFields:', currentUser.customFields);
+            
+            const currentLmids = currentUser.metaData?.lmids || '';
+            console.log('[DEBUG] Current LMIDs:', currentLmids);
+            console.log('[DEBUG] World original LMID:', worldInfo.original_lmid);
             
             if (currentLmids.includes(worldInfo.original_lmid.toString())) {
                 console.log('[Parent Redirect] Parent already has this LMID');
