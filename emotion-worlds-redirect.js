@@ -69,14 +69,14 @@
      */
     function waitForMemberstack(timeout = 10000) {
         return new Promise((resolve, reject) => {
-            if (typeof window.MemberStack !== 'undefined') {
+            if (typeof window.$memberstackDom !== 'undefined') {
                 resolve();
                 return;
             }
             
             const startTime = Date.now();
             const checkInterval = setInterval(() => {
-                if (typeof window.MemberStack !== 'undefined') {
+                if (typeof window.$memberstackDom !== 'undefined') {
                     clearInterval(checkInterval);
                     resolve();
                 } else if (Date.now() - startTime > timeout) {
@@ -92,11 +92,8 @@
      */
     async function checkMemberstackLogin() {
         try {
-            const member = await window.MemberStack.onReady.then(() => {
-                return window.MemberStack.getCurrentMember();
-            });
-            
-            return member && member.id;
+            const member = await window.$memberstackDom.getCurrentMember();
+            return member && (member.id || member.loggedIn);
             
         } catch (error) {
             console.error('[Emotion Worlds] Error checking login status:', error);

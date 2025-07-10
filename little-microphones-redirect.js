@@ -244,7 +244,11 @@
     async function checkMemberstackLogin() {
         try {
             const member = await window.$memberstackDom.getCurrentMember();
-            return member && member.id;
+            console.log('[DEBUG] getCurrentMember() result:', member);
+            console.log('[DEBUG] Member ID:', member?.id);
+            console.log('[DEBUG] Member logged in:', member?.loggedIn);
+            
+            return member && (member.id || member.loggedIn);
             
         } catch (error) {
             console.error('[Parent Redirect] Error checking login status:', error);
