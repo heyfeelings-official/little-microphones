@@ -160,13 +160,11 @@
     function waitForMemberstack(timeout = 10000) {
         return new Promise((resolve, reject) => {
             console.log('[DEBUG] Checking for Memberstack...');
+            console.log('[DEBUG] window.$memberstackDom exists:', typeof window.$memberstackDom !== 'undefined');
             console.log('[DEBUG] window.MemberStack exists:', typeof window.MemberStack !== 'undefined');
-            console.log('[DEBUG] window.memberstack exists:', typeof window.memberstack !== 'undefined');
-            console.log('[DEBUG] window.Memberstack exists:', typeof window.Memberstack !== 'undefined');
-            console.log('[DEBUG] Available window properties:', Object.keys(window).filter(key => key.toLowerCase().includes('member')));
             
-            if (typeof window.MemberStack !== 'undefined') {
-                console.log('[DEBUG] MemberStack found immediately');
+            if (typeof window.$memberstackDom !== 'undefined') {
+                console.log('[DEBUG] $memberstackDom found immediately');
                 resolve();
                 return;
             }
@@ -176,15 +174,13 @@
                 const elapsed = Date.now() - startTime;
                 console.log('[DEBUG] Waiting for Memberstack... elapsed:', elapsed + 'ms');
                 
-                if (typeof window.MemberStack !== 'undefined') {
-                    console.log('[DEBUG] MemberStack found after', elapsed + 'ms');
+                if (typeof window.$memberstackDom !== 'undefined') {
+                    console.log('[DEBUG] $memberstackDom found after', elapsed + 'ms');
                     clearInterval(checkInterval);
                     resolve();
                 } else if (elapsed > timeout) {
                     console.log('[DEBUG] Memberstack timeout after', elapsed + 'ms');
-                    console.log('[DEBUG] Final check - window.MemberStack:', typeof window.MemberStack);
-                    console.log('[DEBUG] Final check - window.memberstack:', typeof window.memberstack);
-                    console.log('[DEBUG] Final check - window.Memberstack:', typeof window.Memberstack);
+                    console.log('[DEBUG] Final check - window.$memberstackDom:', typeof window.$memberstackDom);
                     clearInterval(checkInterval);
                     reject(new Error('Memberstack loading timeout'));
                 }
@@ -247,10 +243,7 @@
      */
     async function checkMemberstackLogin() {
         try {
-            const member = await window.MemberStack.onReady.then(() => {
-                return window.MemberStack.getCurrentMember();
-            });
-            
+            const member = await window.$memberstackDom.getCurrentMember();
             return member && member.id;
             
         } catch (error) {
@@ -264,7 +257,7 @@
      */
     async function getCurrentMemberstackUser() {
         try {
-            return await window.MemberStack.getCurrentMember();
+            return await window.$memberstackDom.getCurrentMember();
         } catch (error) {
             console.error('[Parent Redirect] Error getting current user:', error);
             throw error;
