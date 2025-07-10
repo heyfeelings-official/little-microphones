@@ -114,6 +114,37 @@
         QUESTION_FILE_PATTERN: '{world}/{world}-QID{questionId}.mp3'
     };
     
+    // Memberstack Plans Configuration
+    window.LM_CONFIG.MEMBERSTACK_PLANS = {
+        // Parent Plans
+        PARENTS: {
+            PARENTS_FREE: 'pln_parents-y1ea03qk'
+        },
+        
+        // Educator Plans
+        EDUCATORS: {
+            EDUCATORS_FREE: 'pln_free-plan-dhnb0ejd',
+            EDUCATORS_FREE_PROMO: 'pln_educators-free-promo-ebfw0xzj',
+            EDUCATORS_SCHOOL_BUNDLE: 'pln_educators-school-bundle-monthly-jqo20xap',
+            EDUCATORS_SINGLE_CLASSROOM: 'pln_educators-single-classroom-monthly-lkhq021n'
+        },
+        
+        // Therapist Plans
+        THERAPISTS: {
+            THERAPISTS_FREE: 'pln_therapists-free-t7k40ii1',
+            THERAPISTS_FREE_PROMO: 'pln_therapists-free-promo-i2kz0huu',
+            THERAPISTS_SINGLE_PRACTICE: 'pln_therapists-single-practice-juk60iii'
+        }
+    };
+
+    // Plan Helper Functions
+    window.LM_CONFIG.PLAN_HELPERS = {
+        isParentPlan: (planId) => Object.values(window.LM_CONFIG.MEMBERSTACK_PLANS.PARENTS).includes(planId),
+        isEducatorPlan: (planId) => Object.values(window.LM_CONFIG.MEMBERSTACK_PLANS.EDUCATORS).includes(planId),
+        isTherapistPlan: (planId) => Object.values(window.LM_CONFIG.MEMBERSTACK_PLANS.THERAPISTS).includes(planId),
+        isTeacherPlan: (planId) => window.LM_CONFIG.PLAN_HELPERS.isEducatorPlan(planId) || window.LM_CONFIG.PLAN_HELPERS.isTherapistPlan(planId)
+    };
+
     // Utility Functions
     window.LM_CONFIG.UTILS = {
         // Format world name for display (e.g., "spookyland" -> "Spookyland", "big-city" -> "Big City")

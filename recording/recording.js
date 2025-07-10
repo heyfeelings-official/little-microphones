@@ -98,40 +98,38 @@ async function detectUserRole() {
             return currentUserRole;
         }
         
-        // Detect role based on Memberstack plan
+        // Detect role based on Memberstack plan using configuration
         const planConnections = memberData.planConnections || [];
         const activePlans = planConnections.filter(conn => conn.active && conn.status === 'ACTIVE');
+        const activePlanIds = activePlans.map(plan => plan.planId);
         
         // Check if user has any parent plan
-        const hasParentPlan = activePlans.some(plan => 
-            plan.planId.includes('parent') || 
-            plan.planId === 'pln_parents-y1ea03qk'
+        const hasParentPlan = activePlanIds.some(planId => 
+            window.LM_CONFIG?.PLAN_HELPERS?.isParentPlan(planId)
         );
         
-        // Check if user has any educator/therapist plan
-        const hasEducatorPlan = activePlans.some(plan => 
-            plan.planId.includes('educator') || 
-            plan.planId.includes('therapist') ||
-            plan.planId.includes('free-plan')
+        // Check if user has any teacher plan (educator or therapist)
+        const hasTeacherPlan = activePlanIds.some(planId => 
+            window.LM_CONFIG?.PLAN_HELPERS?.isTeacherPlan(planId)
         );
         
         if (hasParentPlan) {
             currentUserRole = 'parent';
-        } else if (hasEducatorPlan) {
+        } else if (hasTeacherPlan) {
             currentUserRole = 'teacher';
         } else {
             // Fallback: check metadata for explicit role override
             const metaRole = memberData.metaData?.role;
             if (metaRole === 'parent' || metaRole === 'teacher') {
                 currentUserRole = metaRole;
-                console.log(`User role detected from metadata: ${currentUserRole}`);
+                console.log(`User role detected from metadata override: ${currentUserRole}`);
             } else {
-                console.warn('No recognizable plan found, defaulting to teacher role');
+                console.warn(`No recognizable plan found in: [${activePlanIds.join(', ')}], defaulting to teacher role`);
                 currentUserRole = 'teacher';
             }
         }
         
-        console.log(`User role detected from plan: ${currentUserRole} (plans: ${activePlans.map(p => p.planId).join(', ')})`);
+        console.log(`User role detected: ${currentUserRole} (active plans: [${activePlanIds.join(', ')}])`);
         return currentUserRole;
     } catch (error) {
         console.error('Error detecting user role:', error);
