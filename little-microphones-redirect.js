@@ -76,6 +76,9 @@
         try {
             console.log('[Parent Redirect] Checking for post-verification redirect');
             
+            // Check if we're coming from email verification
+            const isFromEmailVerification = checkIfFromEmailVerification();
+            
             const savedData = getSavedRedirectData();
             if (!savedData) {
                 console.log('[Parent Redirect] No saved redirect data found');
@@ -83,6 +86,7 @@
             }
             
             console.log('[Parent Redirect] Found saved data:', savedData);
+            console.log('[Parent Redirect] Coming from email verification:', isFromEmailVerification);
             
             // Wait for Memberstack to load
             await waitForMemberstack();
@@ -95,15 +99,29 @@
                 const isParent = await checkIfUserIsParent();
                 
                 if (isParent) {
-                    console.log('[Parent Redirect] Parent user is now logged in, redirecting to ShareID');
+                    console.log('[Parent Redirect] Parent user is now logged in');
                     
-                    // Clear saved data
-                    clearSavedRedirectData();
-                    
-                    // Redirect to original ShareID page
-                    const redirectUrl = `/little-microphones?ID=${savedData.shareId}`;
-                    console.log('[Parent Redirect] Redirecting to:', redirectUrl);
-                    window.location.href = redirectUrl;
+                    // If coming from email verification, show welcome message
+                    if (isFromEmailVerification) {
+                        showSuccessMessage('Email zweryfikowany pomyślnie! Dodajemy dostęp do programu...');
+                        
+                        // Wait a moment before processing
+                        setTimeout(() => {
+                            // Clear saved data
+                            clearSavedRedirectData();
+                            
+                            // Redirect to original ShareID page to process LMID assignment
+                            const redirectUrl = `/little-microphones?ID=${savedData.shareId}`;
+                            console.log('[Parent Redirect] Redirecting to:', redirectUrl);
+                            window.location.href = redirectUrl;
+                        }, 2000);
+                    } else {
+                        // Normal redirect without delay
+                        clearSavedRedirectData();
+                        const redirectUrl = `/little-microphones?ID=${savedData.shareId}`;
+                        console.log('[Parent Redirect] Redirecting to:', redirectUrl);
+                        window.location.href = redirectUrl;
+                    }
                 } else {
                     console.log('[Parent Redirect] Non-parent user logged in, clearing saved data');
                     clearSavedRedirectData();
@@ -323,6 +341,27 @@
     function getShareIdFromUrl() {
         const urlParams = new URLSearchParams(window.location.search);
         return urlParams.get('ID');
+    }
+    
+    /**
+     * Check if we're coming from email verification
+     */
+    function checkIfFromEmailVerification() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const memberParam = urlParams.get('member');
+        const forceRefetch = urlParams.get('forceRefetch');
+        
+        // Check for verification parameters
+        if (memberParam && forceRefetch === 'true') {
+            try {
+                const memberData = JSON.parse(decodeURIComponent(memberParam));
+                return memberData.verified === true;
+            } catch (e) {
+                console.log('[Parent Redirect] Failed to parse member param');
+            }
+        }
+        
+        return false;
     }
     
     /**
