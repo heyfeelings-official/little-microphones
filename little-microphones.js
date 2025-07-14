@@ -98,8 +98,8 @@
     // Global state
     let currentUserRole = null;
 
-    // Cache ShareIDs to avoid repeated API calls (optimization)
-    const shareIdCache = new Map();
+    // REMOVED: ShareID cache to ensure fresh data after radio play
+    // const shareIdCache = new Map();
 
     /**
      * Clean up inline styles that might interfere with Webflow styling
@@ -139,10 +139,21 @@
             /* Minimal essential styles - let Webflow handle most positioning */
             .program-container .badge-rec.w-inline-block {
                 cursor: pointer;
+                display: flex !important;
             }
             
             .program-container .new-rec.w-inline-block {
                 cursor: pointer;
+                display: flex !important;
+            }
+            
+            /* Ensure badge elements are always visible */
+            .badge-rec {
+                display: flex !important;
+            }
+            
+            .new-rec {
+                display: flex !important;
             }
         `;
         
@@ -456,14 +467,9 @@
                 console.warn(`⚠️ LMID ${lmid}, World ${world}: Missing new count element`);
             }
             
-            // Show/hide the new-rec container based on whether there are any recordings
-            if (totalRecordingCount > 0) {
-                newRecContainer.style.display = 'flex';
-                console.log(`✅ Showing new-rec container for ${world} (has recordings)`);
-            } else {
-                newRecContainer.style.display = 'none';
-                console.log(`ℹ️ Hiding new-rec container for ${world} (no recordings)`);
-            }
+            // Always show the new-rec container with counts (even if 0)
+            newRecContainer.style.display = 'flex';
+            console.log(`✅ Showing new-rec container for ${world} - Total:${totalRecordingCount}, New:${newRecordingCount}`);
             
             // Setup .badge-rec click to radio page with ShareID
             if (badgeRec && shareId) {
@@ -748,10 +754,10 @@
         if (currentMemberId) {
             updateUserLastVisitData(currentMemberId, lmid, 'radio_play');
             
-            // Refresh the badge for this LMID (should show 0 now)
-            updateNewRecordingBadge(lmid, 0);
+            // Refresh all indicators for this LMID (no cache, fresh data)
+            await refreshNewRecordingIndicators();
             
-            console.log(`✅ Marked LMID ${lmid} radio as played (new recording counter reset)`);
+            console.log(`✅ Marked LMID ${lmid} radio as played (refreshed all indicators)`);
         }
     }
 
@@ -933,13 +939,6 @@
      * @returns {Promise<string|null>} ShareID or null if not found
      */
     async function getShareIdForWorldLmid(world, lmid) {
-        const cacheKey = `${world}-${lmid}`; // Fix cache key collision
-        
-        if (shareIdCache.has(cacheKey)) {
-            console.log(`📋 Cache hit for ${cacheKey}`);
-            return shareIdCache.get(cacheKey);
-        }
-
         try {
             console.log(`🌐 Fetching ShareID for ${world}/${lmid}`);
             const response = await fetch(`${window.LM_CONFIG.API_BASE_URL}/api/get-share-link?lmid=${lmid}&world=${world}`);
@@ -948,8 +947,7 @@
                 const data = await response.json();
                 if (data.success) {
                     const shareId = data.shareId;
-                    shareIdCache.set(cacheKey, shareId);
-                    console.log(`✅ Cached ShareID for ${cacheKey}: ${shareId}`);
+                    console.log(`✅ Cached ShareID for ${world}-${lmid}: ${shareId}`);
                     return shareId;
                 }
             }
