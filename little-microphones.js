@@ -386,7 +386,6 @@
             for (const lmid of lmids) {
                 const lmidElement = document.querySelector(`[data-lmid="${lmid}"]`);
                 if (lmidElement) {
-                    console.log(`🔄 Setting up indicator for LMID ${lmid}`);
                     await setupNewRecordingIndicator(lmidElement, lmid);
                 } else {
                     console.warn(`⚠️ LMID element not found for ${lmid}`);
@@ -637,20 +636,13 @@
                         if (data.success) {
                             const currentRecordings = data.recordings || [];
                             
-                            console.log(`🔍 LMID ${lmid}, World ${world}: Found ${currentRecordings.length} recordings`);
-                            
                             // Filter recordings added since last visit
                             const lastVisitTimestamp = new Date(lastVisitData.timestamp).getTime();
-                            console.log(`📅 Last visit timestamp: ${lastVisitTimestamp} (${new Date(lastVisitTimestamp).toISOString()})`);
-                            
                             const newRecordings = currentRecordings.filter(recording => {
                                 const recordingTime = recording.lastModified || 0;
-                                const isNew = recordingTime > lastVisitTimestamp;
-                                console.log(`📁 Recording: ${recording.filename}, lastModified: ${recordingTime} (${new Date(recordingTime).toISOString()}), isNew: ${isNew}`);
-                                return isNew;
+                                return recordingTime > lastVisitTimestamp;
                             });
                             
-                            console.log(`📊 LMID ${lmid}, World ${world}: ${newRecordings.length} new recordings found`);
                             totalNewRecordings += newRecordings.length;
                         }
                     }
