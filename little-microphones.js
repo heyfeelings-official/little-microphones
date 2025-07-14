@@ -139,7 +139,6 @@
             /* Minimal essential styles - let Webflow handle most positioning */
             .program-container .badge-rec.w-inline-block {
                 cursor: pointer;
-                display: flex !important;
             }
             
             .program-container .new-rec.w-inline-block {
@@ -147,11 +146,7 @@
                 display: flex !important;
             }
             
-            /* Ensure badge elements are always visible */
-            .badge-rec {
-                display: flex !important;
-            }
-            
+            /* Ensure new-rec elements are always visible, badge-rec controlled by JS */
             .new-rec {
                 display: flex !important;
             }
@@ -471,8 +466,19 @@
             newRecContainer.style.display = 'flex';
             console.log(`✅ Showing new-rec container for ${world} - Total:${totalRecordingCount}, New:${newRecordingCount}`);
             
+            // Show/hide badge-rec based on whether there are any recordings
+            if (badgeRec) {
+                if (totalRecordingCount > 0) {
+                    badgeRec.style.display = 'flex';
+                    console.log(`✅ Showing badge-rec for ${world} (has ${totalRecordingCount} recordings)`);
+                } else {
+                    badgeRec.style.display = 'none';
+                    console.log(`ℹ️ Hiding badge-rec for ${world} (no recordings)`);
+                }
+            }
+            
             // Setup .badge-rec click to radio page with ShareID
-            if (badgeRec && shareId) {
+            if (badgeRec && shareId && totalRecordingCount > 0) {
                 // Remove any existing listeners to prevent duplicates
                 const newBadgeRec = badgeRec.cloneNode(true);
                 badgeRec.parentNode.replaceChild(newBadgeRec, badgeRec);
