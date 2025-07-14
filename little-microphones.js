@@ -297,12 +297,12 @@
         if (loadNewRecordings) {
             await setupNewRecordingIndicator(clone, lmid);
         } else {
-            // Hide badge initially for faster loading
+            // Hide badge initially for faster loading - preserve Webflow positioning
             const newRecContainer = clone.querySelector("#new-rec, .new-rec");
             if (newRecContainer) {
                 newRecContainer.removeAttribute("id");
+                newRecContainer.classList.add("new-rec"); // Ensure class exists
                 newRecContainer.style.display = 'none';
-                newRecContainer.style.visibility = 'hidden';
             }
         }
         
@@ -332,11 +332,14 @@
         
         console.log(`🔍 LMID ${lmid}: Found container:`, !!newRecContainer, 'Found number:', !!newRecNumber);
         
+        // Remove IDs and add classes for reliable selection later
         if (newRecContainer) {
             newRecContainer.removeAttribute("id");
+            newRecContainer.classList.add("new-rec"); // Ensure class exists
         }
         if (newRecNumber) {
             newRecNumber.removeAttribute("id");
+            newRecNumber.classList.add("new-rec-number"); // Ensure class exists
         }
         
         try {
@@ -346,20 +349,18 @@
             console.log(`📊 LMID ${lmid}: Calculated ${newRecordingCount} new recordings`);
             
             if (newRecordingCount > 0) {
-                // Show container and update number
+                // Show container and update number - preserve Webflow positioning
                 if (newRecContainer) {
                     newRecContainer.style.display = 'block';
-                    newRecContainer.style.visibility = 'visible';
                     console.log(`✅ LMID ${lmid}: Showing badge with ${newRecordingCount} new recordings`);
                 }
                 if (newRecNumber) {
                     newRecNumber.textContent = newRecordingCount.toString();
                 }
             } else {
-                // Hide container when no new recordings
+                // Hide container when no new recordings - preserve Webflow positioning
                 if (newRecContainer) {
                     newRecContainer.style.display = 'none';
-                    newRecContainer.style.visibility = 'hidden';
                     console.log(`🙈 LMID ${lmid}: Hiding badge (no new recordings)`);
                 }
             }
@@ -379,7 +380,7 @@
      * @param {Array<string>} lmids - Array of LMID strings
      */
     async function batchLoadNewRecordingIndicators(lmids) {
-        console.log(`⚡ Batch loading new recording indicators for ${lmids.length} LMIDs...`);
+        console.log(`⚡ Batch loading new recording indicators for ${lmids.length} LMIDs: [${lmids.join(', ')}]`);
         
         try {
             // Get all new recording counts in parallel (much faster)
@@ -395,10 +396,11 @@
             // Update UI elements quickly
             lmids.forEach((lmid, index) => {
                 const count = newRecordingCounts[index];
+                console.log(`📊 LMID ${lmid}: Processing count ${count}`);
                 updateNewRecordingBadge(lmid, count);
             });
             
-            console.log(`✅ Batch loaded indicators in parallel`);
+            console.log(`✅ Batch loaded indicators for all ${lmids.length} LMIDs`);
             
         } catch (error) {
             console.error('❌ Error in batch loading:', error);
@@ -417,24 +419,25 @@
             return;
         }
         
-        const newRecContainer = lmidElement.querySelector(".new-rec, [class*='new-rec']");
-        const newRecNumber = lmidElement.querySelector("#new-rec-number, [class*='new-rec-number']");
+        // Look for new-rec elements more broadly (class, data attributes, or ID remnants)
+        const newRecContainer = lmidElement.querySelector(".new-rec, [class*='new-rec'], [id*='new-rec']:not([id*='number'])");
+        const newRecNumber = lmidElement.querySelector(".new-rec-number, [class*='new-rec-number'], [id*='new-rec-number']");
+        
+        console.log(`🔍 LMID ${lmid} badge update: container found=${!!newRecContainer}, number found=${!!newRecNumber}`);
         
         if (count > 0) {
-            // Show badge
+            // Show badge - only change display, preserve Webflow positioning
             if (newRecContainer) {
                 newRecContainer.style.display = 'block';
-                newRecContainer.style.visibility = 'visible';
             }
             if (newRecNumber) {
                 newRecNumber.textContent = count.toString();
             }
             console.log(`✅ LMID ${lmid}: Showing badge with ${count} new recordings`);
         } else {
-            // Hide badge
+            // Hide badge - only change display, preserve Webflow positioning
             if (newRecContainer) {
                 newRecContainer.style.display = 'none';
-                newRecContainer.style.visibility = 'hidden';
             }
             console.log(`🙈 LMID ${lmid}: Hiding badge (no new recordings)`);
         }
