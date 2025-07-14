@@ -1269,6 +1269,40 @@
     });
 
     /**
+     * Mark LMID radio as played (reset new recording counter)
+     * Standalone implementation for radio page
+     * @param {string} lmid - LMID number
+     */
+    async function markLmidRadioPlayed(lmid) {
+        try {
+            const currentMemberId = await getCurrentMemberId();
+            if (!currentMemberId) {
+                console.warn('⚠️ No member ID available for radio play tracking');
+                return;
+            }
+            
+            // Update localStorage to reset new recording counter
+            const storageKey = `lm_user_visits_${currentMemberId}`;
+            const userData = JSON.parse(localStorage.getItem(storageKey) || '{}');
+            
+            const lmidKey = `lmid_${lmid}`;
+            if (!userData[lmidKey]) {
+                userData[lmidKey] = {};
+            }
+            
+            const now = new Date().toISOString();
+            userData[lmidKey].lastRadioPlay = now;
+            userData[lmidKey].lastRecordingCheck = now; // Reset counter
+            
+            localStorage.setItem(storageKey, JSON.stringify(userData));
+            
+            console.log(`📝 Updated radio play data for LMID ${lmid} (counter reset)`);
+        } catch (error) {
+            console.error('❌ Error marking LMID radio as played:', error);
+        }
+    }
+
+    /**
      * Setup play tracking for radio programs to reset new recording counter
      * @param {HTMLAudioElement} audioElement - The audio element to track
      */
@@ -1280,12 +1314,8 @@
                 hasTrackedPlay = true;
                 
                 // Reset new recording counter when user starts playing radio
-                if (window.LittleMicrophones?.markLmidRadioPlayed) {
-                    window.LittleMicrophones.markLmidRadioPlayed(currentRadioData.lmid.toString());
-                    console.log(`🎵 Radio play tracked for LMID ${currentRadioData.lmid} - new recording counter reset`);
-                } else {
-                    console.warn('⚠️ LittleMicrophones.markLmidRadioPlayed not available');
-                }
+                markLmidRadioPlayed(currentRadioData.lmid.toString());
+                console.log(`🎵 Radio play tracked for LMID ${currentRadioData.lmid} - new recording counter reset`);
             }
         };
         
