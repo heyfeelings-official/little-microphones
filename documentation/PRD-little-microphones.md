@@ -1,8 +1,8 @@
 # PRD - Little Microphones 🎙️
 
-**Data:** 6 stycznia 2025  
-**Wersja:** 4.4.0 Working - LMID DZIAŁA ✅  
-**Status:** ✅ Aktywna - Pełna Funkcjonalność + Naprawiona Synchronizacja LMID
+**Data:** 14 stycznia 2025  
+**Wersja:** 5.1.0 - Kids, Parents and Languages Working ✅  
+**Status:** ✅ Aktywna - Pełna Funkcjonalność + Lokalizacja + Soft Deletion
 
 ## Project Overview
 
@@ -14,8 +14,11 @@
 - **Zarządzanie Dostępem**: Rodzice używają ShareID do uzyskania dostępu dla dzieci
 - **Audio Content**: Pełny system audio dla wszystkich 6 światów
 - **Real-time Sync**: ✅ **DZIAŁAJĄCA synchronizacja LMID z Memberstack**
+- **Lokalizacja**: ✅ **Obsługa języków polskiego (pl) i angielskiego (en)**
+- **Soft Deletion**: ✅ **Bezpieczne usuwanie z zachowaniem danych historycznych**
 
 **Worlds Available:** Spookyland, Waterpark, Shopping Spree, Amusement Park, Big City, Neighborhood  
+**Languages:** Polish (pl), English (en)  
 **Architecture**: Serverless (Vercel) + Supabase + Memberstack  
 **Security**: Multi-layer authorization with Memberstack + metadata validation  
 **Scalability**: Serverless architecture with global CDN distribution
@@ -249,29 +252,39 @@ master: {
 
 ## 🚨 KRYTYCZNE NAPRAWY
 
-### Styczeń 2025: Naprawa Synchronizacji LMID z Memberstack ✅ SUKCES
+### Styczeń 2025: Wersja 5.1.0 - Kids, Parents and Languages Working ✅
 
-**Problem:**
-- System dodawał LMID do Supabase, ale nie aktualizował metadanych w Memberstack
-- API Memberstack wymaga `metaData` (camelCase), nie `metadata` (lowercase)  
-- Wszystkie aktualizacje metadanych były ciche failures
+**Zaimplementowane Funkcje:**
 
-**Naprawy:**
-- ✅ Zmieniono `metadata` na `metaData` w `utils/lmid-utils.js`
-- ✅ Zmieniono `metadata` na `metaData` w `api/test-memberstack.js`
-- ✅ Przetestowano - API działa poprawnie z `metaData`
-- ✅ Wszystkie endpointy synchronizują metadane z Memberstack
+#### 1. Lokalizacja (Obsługa Języków)
+- ✅ Wykrywanie języka z URL (`/pl/` vs `/en/`)
+- ✅ Lokalizowane pliki audio w strukturze `/{lang}/audio/{world}/`
+- ✅ Zachowanie parametrów językowych w przełącznikach
+- ✅ API akceptuje parametr `lang` dla wszystkich operacji
+
+#### 2. Bezpieczne Usuwanie (Soft Deletion)
+- ✅ Zastąpiono hard deletion (.delete()) soft deletion (.update())
+- ✅ LMID oznaczane jako `status: 'deleted'` zamiast usuwania wiersza
+- ✅ Zachowanie danych historycznych i ShareID
+- ✅ Integralność bazy danych i audyt operacji
+
+#### 3. Synchronizacja LMID z Memberstack
+- ✅ Pełna synchronizacja metadanych między Supabase a Memberstack
+- ✅ Prawidłowy format `metaData` dla API Memberstack
+- ✅ Walidacja właściciela LMID przed operacjami
+- ✅ Real-time aktualizacje metadanych użytkownika
 
 **Pliki Zmienione:**
-- `utils/lmid-utils.js` - funkcja `updateMemberstackMetadata()`
-- `api/test-memberstack.js` - endpoint testowy  
-- `api/memberstack-webhook.js` - webhook dla educatorów
-- `api/handle-new-member.js` - webhook dla rodziców
+- `config.js` - konfiguracja językowa
+- `api/lmid-operations.js` - soft deletion
+- `utils/lmid-utils.js` - synchronizacja Memberstack
+- Wszystkie główne pliki JS - obsługa języków
 
-**🎉 POTWIERDZONY SUKCES:**
-- ✅ LMID są teraz poprawnie synchronizowane między Supabase i Memberstack
-- ✅ Metadane są aktualizowane w czasie rzeczywistym
-- ✅ System działa zgodnie z oczekiwaniami
-- ✅ **WERSJA 4.4.0 Working - LMID DZIAŁA**
+**🎉 PEŁNY SUKCES - WERSJA 5.1.0:**
+- ✅ Nauczyciele mogą tworzyć i zarządzać LMID
+- ✅ Rodzice otrzymują dostęp przez ShareID
+- ✅ Dzieci mogą nagrywać w swoim języku
+- ✅ Wszystkie dane są bezpiecznie przechowywane
+- ✅ System jest gotowy do produkcji
 
-**Status:** 🟢 **KOMPLETNIE NAPRAWIONY** - Production Ready 
+**Status:** 🟢 **KOMPLETNIE FUNKCJONALNY** - Production Ready 

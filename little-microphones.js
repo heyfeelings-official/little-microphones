@@ -73,6 +73,11 @@
             // Fix for Webflow's locale switcher stripping URL params
             setupLocaleSwitcherFix();
             
+            // Setup world backgrounds for all containers
+            setTimeout(() => {
+                setupWorldBackgrounds();
+            }, 100); // Small delay to ensure DOM is fully ready
+            
             console.log("🎉 Dashboard initialization complete");
             
         } catch (error) {
@@ -736,6 +741,154 @@
                 window.scrollTo(0, currentScrollY);
             }
         });
+    }
+
+    /**
+     * Setup world background videos for all world containers on the main page
+     * Uses the same logic as radio.js but applies it to multiple containers
+     */
+    function setupWorldBackgrounds() {
+        // All available worlds from config
+        const worlds = Object.keys(window.LM_CONFIG?.WORLD_VIDEOS || {});
+        
+        console.log('🌍 Setting up world backgrounds for containers:', worlds);
+        
+        worlds.forEach(world => {
+            // Find container with data-world attribute
+            const container = document.querySelector(`.program-container[data-world="${world}"]`);
+            if (!container) {
+                console.warn(`⚠️ Container not found for world: ${world}`);
+                return;
+            }
+            
+            console.log(`🎬 Setting up background for world: ${world}`);
+            setWorldBackgroundForContainer(container, world);
+        });
+    }
+
+    /**
+     * Set world background video for a specific container
+     * Adapted from radio.js setWorldBackground and setupVideoBackground functions
+     * @param {HTMLElement} container - The container element
+     * @param {string} world - World name (e.g., 'spookyland')
+     */
+    function setWorldBackgroundForContainer(container, world) {
+        if (!world || !container) return;
+        
+        // Get video URL from config
+        const videoUrl = window.LM_CONFIG?.WORLD_VIDEOS?.[world];
+        
+        // Try video first
+        if (videoUrl && videoUrl.endsWith('.mp4')) {
+            setupVideoBackgroundForContainer(container, videoUrl, world);
+        } else {
+            // Fallback to image
+            const imageUrl = window.LM_CONFIG?.WORLD_IMAGES?.[world];
+            
+            if (imageUrl) {
+                container.style.backgroundImage = `url('${imageUrl}')`;
+                container.style.backgroundSize = 'cover';
+                container.style.backgroundPosition = 'center';
+                console.log(`🖼️ Set image background for ${world}:`, imageUrl);
+            } else {
+                console.warn(`⚠️ No background found for world: ${world}`);
+            }
+        }
+    }
+
+    /**
+     * Setup video background for a container with image fallback
+     * Adapted from radio.js setupVideoBackground function
+     * @param {HTMLElement} container - Container element
+     * @param {string} videoUrl - Video URL
+     * @param {string} world - World name for fallback
+     */
+    function setupVideoBackgroundForContainer(container, videoUrl, world) {
+        // Remove existing video if any
+        const existingVideo = container.querySelector('.world-bg-video');
+        if (existingVideo) {
+            existingVideo.remove();
+        }
+        
+        // Clear background image
+        container.style.backgroundImage = 'none';
+        
+        // Create video element
+        const video = document.createElement('video');
+        video.className = 'world-bg-video';
+        video.src = videoUrl;
+        video.autoplay = true;
+        video.loop = true;
+        video.muted = true;
+        video.playsInline = true;
+        video.preload = 'auto';
+        
+        // Style the video to cover the container
+        video.style.cssText = `
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 1;
+            pointer-events: none;
+        `;
+        
+        // Ensure container has relative positioning
+        if (getComputedStyle(container).position === 'static') {
+            container.style.position = 'relative';
+        }
+        
+        // Add video to container
+        container.appendChild(video);
+        
+        // Ensure all child elements are above the video
+        const children = container.children;
+        for (let i = 0; i < children.length; i++) {
+            if (children[i] !== video && !children[i].classList.contains('program-container-shadow')) {
+                children[i].style.position = 'relative';
+                children[i].style.zIndex = '33';
+            }
+        }
+        
+        // Handle video load errors - fallback to image
+        video.addEventListener('error', () => {
+            console.warn(`❌ Video failed to load for ${world}, falling back to image`);
+            video.remove();
+            
+            // Fallback to image
+            const imageUrl = window.LM_CONFIG?.WORLD_IMAGES?.[world];
+            if (imageUrl) {
+                container.style.backgroundImage = `url('${imageUrl}')`;
+                container.style.backgroundSize = 'cover';
+                container.style.backgroundPosition = 'center';
+                console.log(`🖼️ Fallback image set for ${world}:`, imageUrl);
+            } else {
+                container.style.backgroundColor = '#f0f0f0';
+                console.warn(`⚠️ No fallback image available for ${world}`);
+            }
+        });
+        
+        // Ensure video starts playing
+        video.addEventListener('loadeddata', () => {
+            video.play().catch(error => {
+                console.warn(`⚠️ Video autoplay failed for ${world}:`, error);
+                // Video will still be visible as first frame
+            });
+        });
+        
+        // Force play attempt after a short delay
+        setTimeout(() => {
+            if (video.paused) {
+                video.play().catch(error => {
+                    console.warn(`⚠️ Delayed video play failed for ${world}:`, error);
+                    // Silent fallback
+                });
+            }
+        }, 500);
+        
+        console.log(`🎬 Video background set for ${world}:`, videoUrl);
     }
 
     // Test function for Memberstack API debugging
