@@ -34,18 +34,19 @@ import https from 'https';
  * Fetch recordings from cloud storage for given world/lmid
  * @param {string} world - World identifier
  * @param {string} lmid - LMID number
+ * @param {string} lang - Language code
  * @returns {Promise<Array>} Array of recording objects
  */
-async function fetchAllRecordingsFromCloud(world, lmid) {
+async function fetchAllRecordingsFromCloud(world, lmid, lang) {
     try {
         // We need to get recordings for all questions, so we'll use the existing list-recordings API
         // but we need to discover all questions first
         
         // Get all recordings for this lmid/world combination by calling list-recordings without questionId
-        const response = await fetch(`https://little-microphones.vercel.app/api/list-recordings?world=${world}&lmid=${lmid}`);
+        const response = await fetch(`https://little-microphones.vercel.app/api/list-recordings?world=${world}&lmid=${lmid}&lang=${lang}`);
         
         if (!response.ok) {
-            console.warn(`Failed to fetch recordings for ${world}/${lmid}: ${response.status}`);
+            console.warn(`Failed to fetch recordings for ${lang}/${world}/${lmid}: ${response.status}`);
             return [];
         }
         
@@ -53,7 +54,7 @@ async function fetchAllRecordingsFromCloud(world, lmid) {
         return data.recordings || [];
         
     } catch (error) {
-        console.error(`Error fetching recordings for ${world}/${lmid}:`, error);
+        console.error(`Error fetching recordings for ${lang}/${world}/${lmid}:`, error);
         return [];
     }
 }
@@ -63,13 +64,14 @@ async function fetchAllRecordingsFromCloud(world, lmid) {
  * @param {string} world - World identifier  
  * @param {string} lmid - LMID number
  * @param {string} type - Program type ('kids' or 'parent')
+ * @param {string} lang - Language code
  * @returns {Promise<Object|null>} Manifest object or null if doesn't exist
  */
-async function fetchLastProgramManifest(world, lmid, type = '') {
+async function fetchLastProgramManifest(world, lmid, type = '', lang) {
     return new Promise((resolve) => {
         // Use separate manifest files for kids and parent programs
         const manifestName = type ? `last-program-manifest-${type}.json` : 'last-program-manifest.json';
-        const manifestUrl = `https://little-microphones.b-cdn.net/${lmid}/${world}/${manifestName}?v=${Date.now()}`;
+        const manifestUrl = `https://little-microphones.b-cdn.net/${lang}/${lmid}/${world}/${manifestName}?v=${Date.now()}`;
         
         https.get(manifestUrl, (response) => {
             if (response.statusCode === 200) {
@@ -182,13 +184,13 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { shareId, world: worldFromUrl } = req.query;
+        const { shareId, world: worldFromUrl, lang } = req.query;
 
-        // Validate ShareID parameter
-        if (!shareId) {
+        // Validate ShareID and lang parameters
+        if (!shareId || !lang) {
             return res.status(400).json({ 
                 success: false, 
-                error: 'Missing required parameter: shareId' 
+                error: 'Missing required parameters: shareId and lang' 
             });
         }
 
@@ -263,18 +265,18 @@ export default async function handler(req, res) {
         const lmid = lmidRecord.lmid.toString();
         
         // Fetch current recordings from cloud storage
-        const currentRecordings = await fetchAllRecordingsFromCloud(world, lmid);
+        const currentRecordings = await fetchAllRecordingsFromCloud(world, lmid, lang);
 
         // Fetch last program manifest
-        const kidsManifest = await fetchLastProgramManifest(world, lmid, 'kids');
-        const parentManifest = await fetchLastProgramManifest(world, lmid, 'parent');
+        const kidsManifest = await fetchLastProgramManifest(world, lmid, 'kids', lang);
+        const parentManifest = await fetchLastProgramManifest(world, lmid, 'parent', lang);
         
         // Determine if new program generation is needed
         const generationNeeds = needsNewProgram(currentRecordings, kidsManifest, parentManifest, world, lmid);
 
         // Check generation status for both types
-        const kidsGenerationStatus = await getGenerationStatus(world, lmid, 'kids');
-        const parentGenerationStatus = await getGenerationStatus(world, lmid, 'parent');
+        const kidsGenerationStatus = await getGenerationStatus(world, lmid, 'kids', lang);
+        const parentGenerationStatus = await getGenerationStatus(world, lmid, 'parent', lang);
 
         // Build combined manifest structure for radio.js compatibility
         const combinedManifest = {};

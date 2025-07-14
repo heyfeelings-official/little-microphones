@@ -775,7 +775,8 @@
      */
     async function loadRadioData() {
         try {
-            const response = await fetch(`${API_BASE_URL}/api/get-radio-data?shareId=${currentShareId}`);
+            const lang = window.LM_CONFIG.getCurrentLanguage();
+            const response = await fetch(`${API_BASE_URL}/api/get-radio-data?shareId=${currentShareId}&lang=${lang}`);
             
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
