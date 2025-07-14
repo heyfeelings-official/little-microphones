@@ -295,6 +295,7 @@ async function combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams, p
                 const fileName = `segment-${String(i).padStart(3, '0')}-single.mp3`;
                 const filePath = path.join(tempDir, fileName);
                 
+                // The URL for static files is already localized by the frontend (radio.js)
                 console.log(`📥 Downloading: ${segment.url}`);
                 await downloadFile(segment.url, filePath);
                 
@@ -337,7 +338,7 @@ async function combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams, p
                     answerPaths.push(answerPath);
                 }
                 
-                // Download background music
+                // Download background music - URL is already localized by frontend
                 const backgroundPath = path.join(tempDir, `background-${String(i).padStart(3, '0')}.mp3`);
                 console.log(`📥 Downloading background: ${segment.backgroundUrl}`);
                 await downloadFile(segment.backgroundUrl, backgroundPath);
