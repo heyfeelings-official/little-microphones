@@ -453,6 +453,7 @@
                 body: JSON.stringify({
                     deleteLmidFolder: true,
                     lmid: lmid
+                    // lang parameter will be handled by the backend iterating through all language folders
                 })
             });
 
