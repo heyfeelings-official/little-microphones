@@ -210,31 +210,35 @@ async function handleDeleteLmid(memberId, lmidToDelete, newLmidString) {
         };
     }
 
-    // STEP 2: Now that parents are cleaned, delete the LMID completely from the database.
+    // STEP 2: Now that parents are cleaned, mark the LMID as deleted instead of hard deletion
     const { error: deleteError } = await supabase
         .from('lmids')
-        .delete()
+        .update({ 
+            status: 'deleted',
+            deleted_at: new Date().toISOString(),
+            deleted_by_member_id: memberId
+        })
         .eq('lmid', lmidToDelete);
 
     if (deleteError) {
-        console.error(`🔥🔥 CRITICAL: FAILED TO DELETE LMID ${lmidToDelete} FROM DATABASE AFTER PARENT CLEANUP. MANUAL INTERVENTION REQUIRED. Error: ${deleteError.message}`);
-        throw new Error('Failed to delete LMID from database after attempting parent cleanup.');
+        console.error(`🔥🔥 CRITICAL: FAILED TO MARK LMID ${lmidToDelete} AS DELETED IN DATABASE AFTER PARENT CLEANUP. MANUAL INTERVENTION REQUIRED. Error: ${deleteError.message}`);
+        throw new Error('Failed to mark LMID as deleted in database after attempting parent cleanup.');
     }
 
     // STEP 3: Update the teacher's Memberstack metadata.
     if (newLmidString !== null) {
         const memberstackUpdated = await updateMemberstackMetadata(memberId, newLmidString);
         if (!memberstackUpdated) {
-            console.warn(`⚠️ LMID ${lmidToDelete} deleted from Supabase but teacher Memberstack metadata update failed`);
+            console.warn(`⚠️ LMID ${lmidToDelete} marked as deleted in Supabase but teacher Memberstack metadata update failed`);
         }
-        console.log(`✅ LMID ${lmidToDelete} deleted from Supabase and teacher Memberstack metadata ${memberstackUpdated ? 'updated' : 'update failed'}.`);
+        console.log(`✅ LMID ${lmidToDelete} marked as deleted in Supabase and teacher Memberstack metadata ${memberstackUpdated ? 'updated' : 'update failed'}.`);
     } else {
-        console.log(`✅ LMID ${lmidToDelete} deleted from Supabase.`);
+        console.log(`✅ LMID ${lmidToDelete} marked as deleted in Supabase.`);
     }
 
     return {
         success: true,
-        message: 'LMID deleted successfully',
+        message: 'LMID marked as deleted successfully (soft delete)',
         newLmidString: newLmidString,
         parentCleanup: parentCleanupResult ? {
             success: parentCleanupResult.success,
