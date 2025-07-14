@@ -246,9 +246,9 @@
 
         console.log(`🔄 Creating UI elements for ${lmids.length} LMID(s)`);
 
-        // Create UI elements for each LMID
+        // Create UI elements for each LMID (without slow new recording check)
         for (const lmid of lmids) {
-            const clone = await createLMIDElement(template, lmid);
+            const clone = await createLMIDElement(template, lmid, false); // Skip slow check initially
             if (clone) {
                 container.appendChild(clone);
             }
@@ -256,6 +256,11 @@
 
         // Reinitialize Webflow interactions
         reinitializeWebflow();
+        
+        // Now batch-load new recording indicators in background (fast)
+        setTimeout(() => {
+            batchLoadNewRecordingIndicators(lmids);
+        }, 100);
     }
 
     /**
@@ -263,9 +268,10 @@
      * 
      * @param {HTMLElement} template - Template element
      * @param {string} lmid - LMID to populate
+     * @param {boolean} loadNewRecordings - Whether to load new recording indicator (default: true)
      * @returns {HTMLElement} Populated clone
      */
-    async function createLMIDElement(template, lmid) {
+    async function createLMIDElement(template, lmid, loadNewRecordings = true) {
         const clone = template.cloneNode(true);
         
         // Configure clone
@@ -282,8 +288,18 @@
             console.warn(`⚠️ Could not find '#lmid-number' in template clone for LMID ${lmid}`);
         }
         
-        // Setup new recording count indicator
-        await setupNewRecordingIndicator(clone, lmid);
+        // Setup new recording count indicator (conditionally)
+        if (loadNewRecordings) {
+            await setupNewRecordingIndicator(clone, lmid);
+        } else {
+            // Hide badge initially for faster loading
+            const newRecContainer = clone.querySelector("#new-rec, .new-rec");
+            if (newRecContainer) {
+                newRecContainer.removeAttribute("id");
+                newRecContainer.style.display = 'none';
+                newRecContainer.style.visibility = 'hidden';
+            }
+        }
         
         // Hide delete buttons for parent users
         const userRole = await detectUserRole();
@@ -320,7 +336,7 @@
         
         try {
             // Get new recording count for this LMID
-            const newRecordingCount = await getNewRecordingCount(lmid);
+            const newRecordingCount = await getNewRecordingCountOptimized(lmid);
             
             console.log(`📊 LMID ${lmid}: Calculated ${newRecordingCount} new recordings`);
             
@@ -350,6 +366,98 @@
                 newRecContainer.style.visibility = 'hidden';
                 console.log(`🙈 LMID ${lmid}: Hiding badge (error)`);
             }
+        }
+    }
+
+    /**
+     * Batch load new recording indicators for all LMIDs (optimized)
+     * @param {Array<string>} lmids - Array of LMID strings
+     */
+    async function batchLoadNewRecordingIndicators(lmids) {
+        console.log(`⚡ Batch loading new recording indicators for ${lmids.length} LMIDs...`);
+        
+        try {
+            // Get all new recording counts in parallel (much faster)
+            const newRecordingPromises = lmids.map(lmid => 
+                getNewRecordingCountOptimized(lmid).catch(error => {
+                    console.warn(`⚠️ Failed to get count for LMID ${lmid}:`, error);
+                    return 0; // Return 0 on error
+                })
+            );
+            
+            const newRecordingCounts = await Promise.all(newRecordingPromises);
+            
+            // Update UI elements quickly
+            lmids.forEach((lmid, index) => {
+                const count = newRecordingCounts[index];
+                updateNewRecordingBadge(lmid, count);
+            });
+            
+            console.log(`✅ Batch loaded indicators in parallel`);
+            
+        } catch (error) {
+            console.error('❌ Error in batch loading:', error);
+        }
+    }
+
+    /**
+     * Update new recording badge for specific LMID (fast UI update)
+     * @param {string} lmid - LMID number
+     * @param {number} count - Count of new recordings
+     */
+    function updateNewRecordingBadge(lmid, count) {
+        const lmidElement = document.querySelector(`[data-lmid="${lmid}"]`);
+        if (!lmidElement) {
+            console.warn(`⚠️ LMID element not found for ${lmid}`);
+            return;
+        }
+        
+        const newRecContainer = lmidElement.querySelector(".new-rec, [class*='new-rec']");
+        const newRecNumber = lmidElement.querySelector("#new-rec-number, [class*='new-rec-number']");
+        
+        if (count > 0) {
+            // Show badge
+            if (newRecContainer) {
+                newRecContainer.style.display = 'block';
+                newRecContainer.style.visibility = 'visible';
+            }
+            if (newRecNumber) {
+                newRecNumber.textContent = count.toString();
+            }
+            console.log(`✅ LMID ${lmid}: Showing badge with ${count} new recordings`);
+        } else {
+            // Hide badge
+            if (newRecContainer) {
+                newRecContainer.style.display = 'none';
+                newRecContainer.style.visibility = 'hidden';
+            }
+            console.log(`🙈 LMID ${lmid}: Hiding badge (no new recordings)`);
+        }
+    }
+
+    /**
+     * Get count of new recordings for a specific LMID (optimized version)
+     * @param {string} lmid - LMID number
+     * @returns {Promise<number>} Count of new recordings
+     */
+    async function getNewRecordingCountOptimized(lmid) {
+        try {
+            // Use a single optimized API call instead of 6 separate calls
+            const response = await fetch(`${window.LM_CONFIG.API_BASE_URL}/api/get-lmid-new-recordings?lmid=${lmid}&lang=${window.LM_CONFIG.getCurrentLanguage()}`);
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    return data.totalNewRecordings || 0;
+                }
+            }
+            
+            // Fallback to old method if new API doesn't exist yet
+            return await getNewRecordingCount(lmid);
+            
+        } catch (error) {
+            console.warn(`⚠️ Error getting optimized count for LMID ${lmid}:`, error);
+            return 0;
         }
     }
 
@@ -814,7 +922,7 @@
             return;
         }
 
-        const clone = await createLMIDElement(template, newLmid);
+        const clone = await createLMIDElement(template, newLmid, true); // Load new recordings for the new LMID
         if (clone) {
             container.appendChild(clone);
         }
@@ -1148,15 +1256,13 @@
         console.log('🔄 Refreshing new recording indicators...');
         
         const lmidElements = document.querySelectorAll('[data-lmid]');
+        const lmids = Array.from(lmidElements).map(el => el.getAttribute('data-lmid')).filter(Boolean);
         
-        for (const element of lmidElements) {
-            const lmid = element.getAttribute('data-lmid');
-            if (lmid) {
-                await setupNewRecordingIndicator(element, lmid);
-            }
+        if (lmids.length > 0) {
+            await batchLoadNewRecordingIndicators(lmids);
         }
         
-        console.log(`✅ Refreshed ${lmidElements.length} LMID indicators`);
+        console.log(`✅ Refreshed ${lmids.length} LMID indicators`);
     }
 
     // Make refresh function available globally
