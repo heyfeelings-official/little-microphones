@@ -750,6 +750,18 @@
         
         console.log('🌍 Setting up world backgrounds for containers:', worlds);
         
+        // 🔍 DEBUG: Check what containers exist on the page
+        const allContainers = document.querySelectorAll('.program-container');
+        console.log('🔍 DEBUG: Found .program-container elements:', allContainers.length);
+        
+        allContainers.forEach((container, index) => {
+            console.log(`🔍 DEBUG: Container ${index + 1}:`, {
+                classes: container.className,
+                dataWorld: container.getAttribute('data-world'),
+                innerHTML: container.innerHTML.substring(0, 100) + '...'
+            });
+        });
+        
         // Method 1: Handle containers with explicit data-world attributes
         worlds.forEach(world => {
             const container = document.querySelector(`.program-container[data-world="${world}"]`);
@@ -757,19 +769,20 @@
             if (container) {
                 console.log(`🎬 Setting up background for world: ${world} (via data-world)`);
                 setWorldBackgroundForContainer(container, world);
+            } else {
+                console.log(`⚠️ No container found with data-world="${world}"`);
             }
         });
         
-        // Method 2: Handle containers without data-world by detecting world from text content
+        // Method 2: Handle containers without data-world by detecting from text content
         const containersWithoutDataWorld = document.querySelectorAll('.program-container:not([data-world])');
+        console.log(`🔍 DEBUG: Found ${containersWithoutDataWorld.length} containers without data-world`);
         
         containersWithoutDataWorld.forEach((container, index) => {
-            const textContent = container.textContent?.toLowerCase() || '';
+            const textContent = container.textContent.toLowerCase().trim();
+            console.log(`🔍 DEBUG: Container ${index + 1} text content:`, textContent);
             
             // Try to detect world from text content
-            let detectedWorld = null;
-            
-            // Map of text patterns to world names
             const worldPatterns = {
                 'spookyland': ['spookyland', 'spooky'],
                 'shopping-spree': ['shopping spree', 'shopping', 'spree'],
@@ -779,17 +792,12 @@
                 'amusement-park': ['amusement park', 'amusement', 'funfair']
             };
             
-            // Check each world pattern
             for (const [world, patterns] of Object.entries(worldPatterns)) {
                 if (patterns.some(pattern => textContent.includes(pattern))) {
-                    detectedWorld = world;
+                    console.log(`🎬 Setting up background for world: ${world} (via text detection: "${textContent}")`);
+                    setWorldBackgroundForContainer(container, world);
                     break;
                 }
-            }
-            
-            if (detectedWorld) {
-                console.log(`🎬 Setting up background for detected world: ${detectedWorld} (via text detection)`);
-                setWorldBackgroundForContainer(container, detectedWorld);
             }
         });
     }
