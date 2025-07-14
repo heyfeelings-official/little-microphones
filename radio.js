@@ -1264,7 +1264,8 @@
             setTimeout(async () => {
                 try {
                     // Reload radio data to get updated manifest
-                    const response = await fetch(`${API_BASE_URL}/api/get-radio-data?shareId=${currentShareId}`);
+                    const lang = window.LM_CONFIG.getCurrentLanguage();
+                    const response = await fetch(`${API_BASE_URL}/api/get-radio-data?shareId=${currentShareId}&lang=${lang}`);
                     if (response.ok) {
                         const freshData = await response.json();
                         if (freshData.success) {
