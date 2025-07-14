@@ -758,17 +758,34 @@
             console.log(`🔍 DEBUG: Container ${index + 1}:`, {
                 classes: container.className,
                 dataWorld: container.getAttribute('data-world'),
+                display: getComputedStyle(container).display,
+                visibility: getComputedStyle(container).visibility,
                 innerHTML: container.innerHTML.substring(0, 100) + '...'
             });
         });
         
-        // Method 1: Handle containers with explicit data-world attributes
+        // Method 1: Handle ALL containers with explicit data-world attributes (not just first)
         worlds.forEach(world => {
-            const container = document.querySelector(`.program-container[data-world="${world}"]`);
+            // Use querySelectorAll to get ALL containers for this world
+            const containers = document.querySelectorAll(`.program-container[data-world="${world}"]`);
             
-            if (container) {
-                console.log(`🎬 Setting up background for world: ${world} (via data-world)`);
-                setWorldBackgroundForContainer(container, world);
+            if (containers.length > 0) {
+                console.log(`🎬 Found ${containers.length} container(s) for world: ${world}`);
+                
+                containers.forEach((container, index) => {
+                    // Skip hidden templates (display: none or visibility: hidden)
+                    const styles = getComputedStyle(container);
+                    const isVisible = styles.display !== 'none' && 
+                                    styles.visibility !== 'hidden' && 
+                                    styles.opacity !== '0';
+                    
+                    if (isVisible) {
+                        console.log(`🎬 Setting up background for world: ${world} (container ${index + 1}/${containers.length})`);
+                        setWorldBackgroundForContainer(container, world);
+                    } else {
+                        console.log(`⚠️ Skipping hidden container for world: ${world} (container ${index + 1}/${containers.length})`);
+                    }
+                });
             } else {
                 console.log(`⚠️ No container found with data-world="${world}"`);
             }
@@ -779,6 +796,17 @@
         console.log(`🔍 DEBUG: Found ${containersWithoutDataWorld.length} containers without data-world`);
         
         containersWithoutDataWorld.forEach((container, index) => {
+            // Skip hidden templates
+            const styles = getComputedStyle(container);
+            const isVisible = styles.display !== 'none' && 
+                            styles.visibility !== 'hidden' && 
+                            styles.opacity !== '0';
+            
+            if (!isVisible) {
+                console.log(`⚠️ Skipping hidden container without data-world (${index + 1})`);
+                return;
+            }
+            
             const textContent = container.textContent.toLowerCase().trim();
             console.log(`🔍 DEBUG: Container ${index + 1} text content:`, textContent);
             
