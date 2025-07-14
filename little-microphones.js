@@ -328,12 +328,17 @@
     async function setupNewRecordingIndicator(clone, lmid) {
         // Look for elements by class only (since IDs were removed from Webflow)
         const newRecContainer = clone.querySelector(".new-rec");
-        const newRecNumber = clone.querySelector(".new-rec-number");
+        // Try multiple selectors for the number element
+        let newRecNumber = clone.querySelector(".new-rec-number");
+        if (!newRecNumber) {
+            // If .new-rec-number doesn't exist, look for text element inside .new-rec
+            newRecNumber = newRecContainer?.querySelector("div, span, p") || newRecContainer;
+        }
         
         console.log(`🔍 LMID ${lmid}: Found container:`, !!newRecContainer, 'Found number:', !!newRecNumber);
         
-        if (!newRecContainer || !newRecNumber) {
-            console.warn(`⚠️ LMID ${lmid}: Missing new recording elements`);
+        if (!newRecContainer) {
+            console.warn(`⚠️ LMID ${lmid}: Missing new recording container`);
             return;
         }
         
