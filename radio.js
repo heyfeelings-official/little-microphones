@@ -505,7 +505,7 @@
 }
 
     /**
-     * Set world background video - enhanced to use video backgrounds from API with image fallback
+     * Set world background image - simplified to use only static images
      */
     function setWorldBackground(world, backgroundUrl) {
         if (!world) return;
@@ -514,125 +514,42 @@
         const programContainer = document.querySelector('.program-container');
         
         // Use backgroundUrl from API first, then fallback to config
-        let videoUrl = backgroundUrl;
-        if (!videoUrl) {
-            videoUrl = window.LM_CONFIG?.WORLD_VIDEOS?.[world];
+        let imageUrl = backgroundUrl;
+        if (!imageUrl || imageUrl.endsWith('.mp4')) {
+            // If backgroundUrl is a video or missing, use static image from config
+            imageUrl = window.LM_CONFIG?.WORLD_IMAGES?.[world];
         }
         
-        // Try video first
-        if (videoUrl && videoUrl.endsWith('.mp4')) {
-            
-            // Create or update video element for world-bg
+        if (imageUrl) {
+            // Remove any existing video elements
             if (worldBg) {
-                setupVideoBackground(worldBg, videoUrl, world);
+                const existingVideo = worldBg.querySelector('.world-bg-video');
+                if (existingVideo) existingVideo.remove();
+                
+                worldBg.style.backgroundImage = `url('${imageUrl}')`;
+                worldBg.style.backgroundSize = 'cover';
+                worldBg.style.backgroundPosition = 'center';
+                worldBg.style.backgroundRepeat = 'no-repeat';
             }
             
-            // Create or update video element for program-container
             if (programContainer) {
-                setupVideoBackground(programContainer, videoUrl, world);
+                const existingVideo = programContainer.querySelector('.world-bg-video');
+                if (existingVideo) existingVideo.remove();
+                
+                programContainer.style.backgroundImage = `url('${imageUrl}')`;
+                programContainer.style.backgroundSize = 'cover';
+                programContainer.style.backgroundPosition = 'center';
+                programContainer.style.backgroundRepeat = 'no-repeat';
             }
         } else {
-            // Fallback to image
-            const imageUrl = backgroundUrl || window.LM_CONFIG?.WORLD_IMAGES?.[world];
-            
-            if (imageUrl) {
-                if (worldBg) {
-                    worldBg.style.backgroundImage = `url('${imageUrl}')`;
-                    worldBg.style.backgroundSize = 'cover';
-                    worldBg.style.backgroundPosition = 'center';
-                }
-                
-                if (programContainer) {
-                    programContainer.style.backgroundImage = `url('${imageUrl}')`;
-                    programContainer.style.backgroundSize = 'cover';
-                    programContainer.style.backgroundPosition = 'center';
-                }
+            // Fallback to default background
+            if (worldBg) {
+                worldBg.style.backgroundColor = '#f0f0f0';
+            }
+            if (programContainer) {
+                programContainer.style.backgroundColor = '#f0f0f0';
             }
         }
-    }
-
-    /**
-     * Setup video background for an element with image fallback
-     */
-    function setupVideoBackground(container, videoUrl, world) {
-        // Remove existing video if any
-        const existingVideo = container.querySelector('.world-bg-video');
-        if (existingVideo) {
-            existingVideo.remove();
-        }
-        
-        // Clear background image
-        container.style.backgroundImage = 'none';
-        
-        // Create video element
-        const video = document.createElement('video');
-        video.className = 'world-bg-video';
-        video.src = videoUrl;
-        video.autoplay = true;
-        video.loop = true;
-        video.muted = true;
-        video.playsInline = true;
-        video.preload = 'auto';
-        
-        // Style the video to cover the container
-        video.style.cssText = `
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            z-index: 1;
-            pointer-events: none;
-        `;
-        
-        // Ensure container has relative positioning
-        if (getComputedStyle(container).position === 'static') {
-            container.style.position = 'relative';
-        }
-        
-        // Add video to container
-        container.appendChild(video);
-        
-        // Ensure all child elements are above the video
-        const children = container.children;
-        for (let i = 0; i < children.length; i++) {
-            if (children[i] !== video && !children[i].classList.contains('program-container-shadow')) {
-                children[i].style.position = 'relative';
-                children[i].style.zIndex = '33';
-            }
-        }
-        
-        // Handle video load errors - fallback to image
-        video.addEventListener('error', () => {
-            video.remove();
-            
-            // Fallback to image
-            const imageUrl = window.LM_CONFIG?.WORLD_IMAGES?.[world];
-            if (imageUrl) {
-                container.style.backgroundImage = `url('${imageUrl}')`;
-                container.style.backgroundSize = 'cover';
-                container.style.backgroundPosition = 'center';
-            } else {
-                container.style.backgroundColor = '#f0f0f0';
-            }
-        });
-        
-        // Ensure video starts playing
-        video.addEventListener('loadeddata', () => {
-            video.play().catch(error => {
-                // Video will still be visible as first frame
-            });
-        });
-        
-        // Force play attempt after a short delay
-        setTimeout(() => {
-            if (video.paused) {
-                video.play().catch(error => {
-                    // Silent fallback
-                });
-            }
-        }, 500);
     }
 
     /**

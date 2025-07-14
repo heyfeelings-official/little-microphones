@@ -905,7 +905,7 @@
      */
     function setupWorldBackgrounds() {
         // All available worlds from config
-        const worlds = Object.keys(window.LM_CONFIG?.WORLD_VIDEOS || {});
+        const worlds = Object.keys(window.LM_CONFIG?.WORLD_IMAGES || {});
         
         console.log('🌍 Setting up world backgrounds for containers');
         
@@ -973,107 +973,34 @@
     function setWorldBackgroundForContainer(container, world) {
         if (!world || !container) return;
         
-        // Get video URL from config
-        const videoUrl = window.LM_CONFIG?.WORLD_VIDEOS?.[world];
+        // Get image URL from config
+        const imageUrl = window.LM_CONFIG?.WORLD_IMAGES?.[world];
         
-        // Try video first
-        if (videoUrl && videoUrl.endsWith('.mp4')) {
-            setupVideoBackgroundForContainer(container, videoUrl, world);
+        if (imageUrl) {
+            // Remove any existing video elements
+            const existingVideo = container.querySelector('.world-bg-video');
+            if (existingVideo) {
+                existingVideo.remove();
+            }
+            
+            // Set static background image
+            container.style.backgroundImage = `url('${imageUrl}')`;
+            container.style.backgroundSize = 'cover';
+            container.style.backgroundPosition = 'center';
+            container.style.backgroundRepeat = 'no-repeat';
+            
+            // Ensure child elements are properly positioned
+            const children = container.children;
+            for (let i = 0; i < children.length; i++) {
+                if (!children[i].classList.contains('program-container-shadow')) {
+                    children[i].style.position = 'relative';
+                    children[i].style.zIndex = '33';
+                }
+            }
         } else {
-            // Fallback to image
-            const imageUrl = window.LM_CONFIG?.WORLD_IMAGES?.[world];
-            
-            if (imageUrl) {
-                container.style.backgroundImage = `url('${imageUrl}')`;
-                container.style.backgroundSize = 'cover';
-                container.style.backgroundPosition = 'center';
-                console.log(`🖼️ Set image background for ${world}:`, imageUrl);
-            } else {
-                console.warn(`⚠️ No background found for world: ${world}`);
-            }
+            console.warn(`No image found for world: ${world}`);
+            container.style.backgroundColor = '#f0f0f0';
         }
-    }
-
-    /**
-     * Setup video background for a container with image fallback
-     * EXACT COPY from radio.js setupVideoBackground function (WORKING VERSION)
-     * @param {HTMLElement} container - Container element
-     * @param {string} videoUrl - Video URL
-     * @param {string} world - World name for fallback
-     */
-    function setupVideoBackgroundForContainer(container, videoUrl, world) {
-        // Remove existing video if any
-        const existingVideo = container.querySelector('.world-bg-video');
-        if (existingVideo) {
-            existingVideo.remove();
-        }
-        
-        // Clear background image
-        container.style.backgroundImage = 'none';
-        
-        // Create video element with optimized loading
-        const video = document.createElement('video');
-        video.className = 'world-bg-video';
-        video.src = videoUrl;
-        video.autoplay = true;
-        video.loop = true;
-        video.muted = true;
-        video.playsInline = true;
-        video.preload = 'metadata'; // Changed from 'auto' to 'metadata' for faster initial load
-        
-        // Style the video to cover the container - EXACT COPY from radio.js
-        video.style.cssText = `
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            z-index: 1;
-            pointer-events: none;
-        `;
-        
-        // Ensure container has relative positioning
-        if (getComputedStyle(container).position === 'static') {
-            container.style.position = 'relative';
-        }
-        
-        // Add video to container immediately
-        container.appendChild(video);
-        
-        // Ensure all child elements are above the video - EXACT COPY from radio.js
-        const children = container.children;
-        for (let i = 0; i < children.length; i++) {
-            if (children[i] !== video && !children[i].classList.contains('program-container-shadow')) {
-                children[i].style.position = 'relative';
-                children[i].style.zIndex = '33';
-            }
-        }
-        
-        // Handle video load errors - fallback to image (simplified)
-        video.addEventListener('error', () => {
-            video.remove();
-            
-            // Fallback to image
-            const imageUrl = window.LM_CONFIG?.WORLD_IMAGES?.[world];
-            if (imageUrl) {
-                container.style.backgroundImage = `url('${imageUrl}')`;
-                container.style.backgroundSize = 'cover';
-                container.style.backgroundPosition = 'center';
-            } else {
-                container.style.backgroundColor = '#f0f0f0';
-            }
-        });
-        
-        // Optimized video loading
-        video.addEventListener('loadeddata', () => {
-            video.play().catch(() => {
-                // Silent fallback - video is still visible
-            });
-        });
-        
-        // Start loading video immediately
-        video.load();
     }
 
     // Test function for Memberstack API debugging
