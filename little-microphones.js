@@ -92,6 +92,9 @@
     // Global state
     let currentUserRole = null;
 
+    // Cache ShareIDs to avoid repeated API calls (optimization)
+    const shareIdCache = new Map();
+
     // --- User Role Detection Functions ---
     
     /**
@@ -334,13 +337,16 @@
             return;
         }
         
-        // Setup badge for each world container
-        for (const worldContainer of worldContainers) {
+        // Setup badge for each world container in parallel (OPTIMIZED)
+        const worldSetupPromises = Array.from(worldContainers).map(async (worldContainer) => {
             const world = worldContainer.getAttribute('data-world');
-            if (!world) continue;
+            if (!world) return;
             
-            await setupWorldNewRecordingIndicator(worldContainer, lmid, world);
-        }
+            return setupWorldNewRecordingIndicator(worldContainer, lmid, world);
+        }).filter(Boolean);
+        
+        // Wait for all worlds to complete in parallel
+        await Promise.all(worldSetupPromises);
     }
     
     /**
@@ -350,13 +356,11 @@
      * @param {string} world - World name
      */
     async function setupWorldNewRecordingIndicator(worldContainer, lmid, world) {
-        // Look for badge elements in this world container
+        // Look for new elements in this world container
         const newRecContainer = worldContainer.querySelector(".new-rec");
-        let newRecNumber = worldContainer.querySelector(".new-rec-number");
-        if (!newRecNumber) {
-            // If .new-rec-number doesn't exist, look for text element inside .new-rec
-            newRecNumber = newRecContainer?.querySelector("div, span, p") || newRecContainer;
-        }
+        const newRecNumber = worldContainer.querySelector(".new-rec-number");
+        const totalRecNumber = worldContainer.querySelector(".new-rec-numb .total");
+        const badgeRec = worldContainer.querySelector(".badge-rec");
         
         if (!newRecContainer) {
             console.warn(`⚠️ LMID ${lmid}, World ${world}: Missing new recording container`);
@@ -364,25 +368,48 @@
         }
         
         try {
-            // Get new recording count for this specific world
-            const newRecordingCount = await getNewRecordingCountForWorld(lmid, world);
+            // Get recording counts for this specific world (parallel calls)
+            const [newRecordingCount, totalRecordingCount, shareId] = await Promise.all([
+                getNewRecordingCountForWorld(lmid, world),
+                getTotalRecordingCountForWorld(lmid, world),
+                getShareIdForWorldLmid(world, lmid)
+            ]);
             
-            console.log(`📊 LMID ${lmid}, World ${world}: Calculated ${newRecordingCount} new recordings`);
-            
-            if (newRecordingCount > 0) {
-                // Show container and update number - use block display temporarily
-                newRecContainer.style.display = 'block';
+            // Update new recordings count (show 0 if no new recordings)
+            if (newRecNumber) {
                 newRecNumber.textContent = newRecordingCount.toString();
-                console.log(`✅ LMID ${lmid}, World ${world}: Showing badge with ${newRecordingCount} new recordings`);
-            } else {
-                // Hide container when no new recordings
-                newRecContainer.style.display = 'none';
-                console.log(`🙈 LMID ${lmid}, World ${world}: Hiding badge (no new recordings)`);
             }
+            
+            // Update total recordings count
+            if (totalRecNumber) {
+                totalRecNumber.textContent = totalRecordingCount.toString();
+            }
+            
+            // Setup .badge-rec click to radio page with ShareID
+            if (badgeRec && shareId) {
+                badgeRec.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const radioUrl = `/little-microphones?ID=${shareId}`;
+                    console.log(`🎵 Opening radio: ${radioUrl}`);
+                    window.location.href = radioUrl;
+                });
+            }
+            
+            // Setup .new-rec click to recording page
+            if (newRecContainer) {
+                newRecContainer.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    markLmidWorldVisited(lmid);
+                    const recordingUrl = `/members/record?world=${world}&lmid=${lmid}`;
+                    console.log(`🎙️ Opening recording: ${recordingUrl}`);
+                    window.location.href = recordingUrl;
+                });
+            }
+            
         } catch (error) {
-            console.error(`❌ Error getting new recording count for LMID ${lmid}, World ${world}:`, error);
-            // Hide container on error
-            newRecContainer.style.display = 'none';
+            console.error(`❌ Error setting up indicators for LMID ${lmid}, World ${world}:`, error);
         }
     }
 
@@ -743,6 +770,40 @@
     }
 
     /**
+     * Get total count of recordings for a specific world
+     * @param {string} lmid - LMID number
+     * @param {string} world - World name
+     * @returns {Promise<number>} Total count of recordings for this world
+     */
+    async function getTotalRecordingCountForWorld(lmid, world) {
+        try {
+            const lang = window.LM_CONFIG.getCurrentLanguage();
+            
+            // Get ShareID for this world/LMID combination
+            const shareId = await getShareIdForWorldLmid(world, lmid);
+            if (!shareId) {
+                return 0; // No ShareID means no recordings possible
+            }
+            
+            // Get all recordings for this world
+            const response = await fetch(`${window.LM_CONFIG.API_BASE_URL}/api/list-recordings?world=${world}&lmid=${lmid}&lang=${lang}`);
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    const allRecordings = data.recordings || [];
+                    return allRecordings.length;
+                }
+            }
+            
+            return 0;
+        } catch (error) {
+            console.warn(`⚠️ Error getting total count for world ${world}, LMID ${lmid}:`, error);
+            return 0;
+        }
+    }
+
+    /**
      * Initialize dashboard view tracking (called on page load)
      */
     async function initializeDashboardTracking() {
@@ -768,13 +829,19 @@
      * @returns {Promise<string|null>} ShareID or null if not found
      */
     async function getShareIdForWorldLmid(world, lmid) {
+        if (shareIdCache.has(world + lmid)) {
+            return shareIdCache.get(world + lmid);
+        }
+
         try {
             const response = await fetch(`${window.LM_CONFIG.API_BASE_URL}/api/get-share-link?lmid=${lmid}&world=${world}`);
             
             if (response.ok) {
                 const data = await response.json();
                 if (data.success) {
-                    return data.shareId;
+                    const shareId = data.shareId;
+                    shareIdCache.set(world + lmid, shareId);
+                    return shareId;
                 }
             }
             return null;
@@ -795,8 +862,8 @@
         // Secure deletion flow
         document.body.addEventListener("click", handleDeleteClick);
         
-        // World link redirection
-        document.body.addEventListener("click", handleWorldNavigation);
+        // Remove old world navigation - now handled by individual elements
+        // document.body.addEventListener("click", handleWorldNavigation);
         
         // Add new LMID
         const addButton = document.getElementById("add-lmid");
