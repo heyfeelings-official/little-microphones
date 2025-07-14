@@ -214,9 +214,7 @@ async function handleDeleteLmid(memberId, lmidToDelete, newLmidString) {
     const { error: deleteError } = await supabase
         .from('lmids')
         .update({ 
-            status: 'deleted',
-            deleted_at: new Date().toISOString(),
-            deleted_by_member_id: memberId
+            status: 'deleted'
         })
         .eq('lmid', lmidToDelete);
 
