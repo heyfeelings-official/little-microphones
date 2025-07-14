@@ -252,27 +252,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
 /**
  * Preserves URL parameters when user switches language via Webflow's locale switcher.
- * This version uses event delegation to intercept clicks, making it more robust.
  */
 function setupLocaleSwitcherFix() {
-    if (!window.location.search) {
-        return;
-    }
-
-    console.log("🔗 Setting up robust locale switcher fix...");
-
+    if (!window.location.search) return;
     document.body.addEventListener('click', function(event) {
         const link = event.target.closest('a.w-loc.w-dropdown-link');
         if (link) {
             event.preventDefault();
             event.stopPropagation();
-            const currentParams = window.location.search;
-            const destinationHref = link.getAttribute('href');
-            if (destinationHref) {
-                const newUrl = destinationHref.includes('?') ? destinationHref : destinationHref + currentParams;
-                console.log(`🚀 Locale link clicked. Redirecting to: ${newUrl}`);
-                window.location.href = newUrl;
-            }
+            const newUrl = `${link.getAttribute('href')}${window.location.search}`;
+            window.location.href = newUrl;
         }
     }, true);
 }

@@ -369,44 +369,19 @@
 
     /**
      * Preserves URL parameters when user switches language via Webflow's locale switcher.
-     * This version uses event delegation to intercept clicks, making it more robust
-     * against script loading order issues with Webflow.
+     * This version uses event delegation to intercept clicks, making it more robust.
      */
     function setupLocaleSwitcherFix() {
-        // Only run if there are parameters to preserve
-        if (!window.location.search) {
-            return;
-        }
-
-        console.log("🔗 Setting up robust locale switcher fix...");
-
+        if (!window.location.search) return;
         document.body.addEventListener('click', function(event) {
-            // Find the link that was clicked by traversing up the DOM tree
             const link = event.target.closest('a.w-loc.w-dropdown-link');
-
-            // If a locale link was clicked
             if (link) {
-                // Prevent the default link behavior
                 event.preventDefault();
                 event.stopPropagation();
-
-                const currentParams = window.location.search; // e.g., "?ID=ywaiy057"
-                const destinationHref = link.getAttribute('href');
-
-                if (destinationHref) {
-                    // Construct the new URL
-                    // Avoids duplicating params if they are somehow already there
-                    const newUrl = destinationHref.includes('?') 
-                        ? destinationHref 
-                        : destinationHref + currentParams;
-                    
-                    console.log(`🚀 Locale link clicked. Redirecting to: ${newUrl}`);
-                    
-                    // Redirect to the new URL
-                    window.location.href = newUrl;
-                }
+                const newUrl = `${link.getAttribute('href')}${window.location.search}`;
+                window.location.href = newUrl;
             }
-        }, true); // Use capture phase to catch the event early
+        }, true);
     }
 
     /**
@@ -453,7 +428,6 @@
                 body: JSON.stringify({
                     deleteLmidFolder: true,
                     lmid: lmid
-                    // lang parameter will be handled by the backend iterating through all language folders
                 })
             });
 

@@ -64,32 +64,23 @@
     };
     
     // Language Detection Functions
-    window.LM_CONFIG.getLanguageFromUrl = function() {
+    window.LM_CONFIG.getCurrentLanguage = function() {
         const pathname = window.location.pathname;
-        
-        // Check if URL starts with a supported language code
         for (const lang of window.LM_CONFIG.LANGUAGES.SUPPORTED) {
             if (pathname.startsWith(`/${lang}/`) || pathname === `/${lang}`) {
                 return lang;
             }
         }
-        
-        // Return default language if no language prefix found
         return window.LM_CONFIG.LANGUAGES.DEFAULT;
-    };
-    
-    window.LM_CONFIG.getDefaultLanguage = function() {
-        return window.LM_CONFIG.LANGUAGES.DEFAULT;
-    };
-    
-    // Get current language (shorthand)
-    window.LM_CONFIG.getCurrentLanguage = function() {
-        return window.LM_CONFIG.getLanguageFromUrl();
     };
     
     // Build localized CDN URLs
-    window.LM_CONFIG.getLocalizedAudioUrl = function(path, language = null) {
-        const lang = language || window.LM_CONFIG.getCurrentLanguage();
+    window.LM_CONFIG.getLocalizedAudioUrl = function(path) {
+        const lang = window.LM_CONFIG.getCurrentLanguage();
+        // Ensure we don't double-prefix if the path already contains a language code
+        if (window.LM_CONFIG.LANGUAGES.SUPPORTED.some(l => path.startsWith(`/${l}/`))) {
+            return `${window.LM_CONFIG.CDN_BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
+        }
         const basePath = path.startsWith('/') ? path.substring(1) : path;
         return `${window.LM_CONFIG.CDN_BASE_URL}/${lang}/${basePath}`;
     };
@@ -111,7 +102,7 @@
         console.log('🌍 Language Detection Debug:');
         console.log(`📍 Current URL: ${window.location.pathname}`);
         console.log(`🔤 Detected Language: ${window.LM_CONFIG.getCurrentLanguage()}`);
-        console.log(`🎯 Default Language: ${window.LM_CONFIG.getDefaultLanguage()}`);
+        console.log(`🎯 Default Language: ${window.LM_CONFIG.LANGUAGES.DEFAULT}`);
         console.log(`🎵 Audio URL Example: ${window.LM_CONFIG.getLocalizedAudioUrl('audio/other/intro.mp3')}`);
     };
     
