@@ -78,6 +78,11 @@
             // Hide delete buttons for parent users
             await hideDeleteButtonsForParents();
             
+            // Additional safety: Re-hide buttons after a short delay to catch any dynamically added elements
+            setTimeout(async () => {
+                await hideDeleteButtonsForParents();
+            }, 500);
+            
         } catch (error) {
             console.error("💥 Dashboard initialization error:", error);
             showErrorMessage("Failed to initialize dashboard. Please refresh the page.");
@@ -508,7 +513,7 @@
             console.log(`✅ Created LMID ${newLmid} with ShareIDs:`, result.shareIds);
 
             // Add new UI element
-            addNewLMIDToUI(newLmid);
+            await addNewLMIDToUI(newLmid);
             
             console.log(`🎉 Successfully added LMID ${newLmid}`);
 
@@ -663,10 +668,7 @@
         button.textContent = text;
     }
 
-    /**
-     * Add new LMID element to UI
-     */
-    function addNewLMIDToUI(newLmid) {
+    async function addNewLMIDToUI(newLmid) {
         const template = document.getElementById("lm-slot");
         const container = template.parentNode;
         
@@ -675,10 +677,15 @@
             return;
         }
 
-        const clone = createLMIDElement(template, newLmid);
-        container.appendChild(clone);
+        const clone = await createLMIDElement(template, newLmid);
+        if (clone) {
+            container.appendChild(clone);
+        }
         
         reinitializeWebflow();
+        
+        // Ensure delete buttons are hidden for parent users in the new element
+        await hideDeleteButtonsForParents();
     }
 
     /**
