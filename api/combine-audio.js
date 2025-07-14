@@ -160,7 +160,17 @@ async function combineAnswersWithBackground(answerPaths, backgroundPath, outputP
         answerPaths.forEach(p => command.input(p));
         command.input(backgroundPath);
 
-        const filter = `[0:a]${answerPaths.length > 1 ? `concat=n=${answerPaths.length}:v=0:a=1[answers];[answers]` : ''}[${answerPaths.length}:a]amix=inputs=2:duration=first:dropout_transition=0`;
+        let filter;
+        const bgInputIndex = answerPaths.length;
+
+        if (answerPaths.length > 1) {
+            // If more than one answer, concatenate them first
+            const answerStreams = answerPaths.map((_, index) => `[${index}:a]`).join('');
+            filter = `${answerStreams}concat=n=${answerPaths.length}:v=0:a=1[answers];[answers][${bgInputIndex}:a]amix=inputs=2:duration=first:dropout_transition=0`;
+        } else {
+            // If only one answer, just mix it with the background
+            filter = `[0:a][${bgInputIndex}:a]amix=inputs=2:duration=first:dropout_transition=0`;
+        }
         
         command.complexFilter(filter)
             .audioCodec('libmp3lame')
@@ -262,10 +272,4 @@ async function saveManifestFile(manifestData, uploadPath) {
                 'Cache-Control': 'no-cache, no-store, must-revalidate',
             }
         }, res => {
-            res.statusCode === 201 ? resolve() : reject(new Error(`Manifest save failed: ${res.statusCode}`));
-        });
-        req.on('error', reject);
-        req.write(manifestJson);
-        req.end();
-    });
-} 
+            res.statusCode === 201 ? resolve() : reject(new Error(`
