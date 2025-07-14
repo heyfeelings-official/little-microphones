@@ -356,11 +356,15 @@
      * @param {string} world - World name
      */
     async function setupWorldNewRecordingIndicator(worldContainer, lmid, world) {
+        console.log(`🔧 Setting up indicators for LMID ${lmid}, World ${world}`);
+        
         // Look for new elements in this world container
         const newRecContainer = worldContainer.querySelector(".new-rec");
         const newRecNumber = worldContainer.querySelector(".new-rec-number");
         const totalRecNumber = worldContainer.querySelector(".new-rec-numb .total");
         const badgeRec = worldContainer.querySelector(".badge-rec");
+        
+        console.log(`🔍 LMID ${lmid}, World ${world}: Found elements - newRec:${!!newRecContainer}, newRecNum:${!!newRecNumber}, total:${!!totalRecNumber}, badge:${!!badgeRec}`);
         
         if (!newRecContainer) {
             console.warn(`⚠️ LMID ${lmid}, World ${world}: Missing new recording container`);
@@ -375,14 +379,18 @@
                 getShareIdForWorldLmid(world, lmid)
             ]);
             
+            console.log(`📊 LMID ${lmid}, World ${world}: Counts - New:${newRecordingCount}, Total:${totalRecordingCount}, ShareID:${shareId}`);
+            
             // Update new recordings count (show 0 if no new recordings)
             if (newRecNumber) {
                 newRecNumber.textContent = newRecordingCount.toString();
+                console.log(`✅ Updated new count for ${world}: ${newRecordingCount}`);
             }
             
             // Update total recordings count
             if (totalRecNumber) {
                 totalRecNumber.textContent = totalRecordingCount.toString();
+                console.log(`✅ Updated total count for ${world}: ${totalRecordingCount}`);
             }
             
             // Setup .badge-rec click to radio page with ShareID
@@ -394,6 +402,7 @@
                     console.log(`🎵 Opening radio: ${radioUrl}`);
                     window.location.href = radioUrl;
                 });
+                console.log(`✅ Added radio click for ${world} -> ${shareId}`);
             }
             
             // Setup .new-rec click to recording page
@@ -406,6 +415,7 @@
                     console.log(`🎙️ Opening recording: ${recordingUrl}`);
                     window.location.href = recordingUrl;
                 });
+                console.log(`✅ Added recording click for ${world}`);
             }
             
         } catch (error) {
@@ -829,18 +839,23 @@
      * @returns {Promise<string|null>} ShareID or null if not found
      */
     async function getShareIdForWorldLmid(world, lmid) {
-        if (shareIdCache.has(world + lmid)) {
-            return shareIdCache.get(world + lmid);
+        const cacheKey = `${world}-${lmid}`; // Fix cache key collision
+        
+        if (shareIdCache.has(cacheKey)) {
+            console.log(`📋 Cache hit for ${cacheKey}`);
+            return shareIdCache.get(cacheKey);
         }
 
         try {
+            console.log(`🌐 Fetching ShareID for ${world}/${lmid}`);
             const response = await fetch(`${window.LM_CONFIG.API_BASE_URL}/api/get-share-link?lmid=${lmid}&world=${world}`);
             
             if (response.ok) {
                 const data = await response.json();
                 if (data.success) {
                     const shareId = data.shareId;
-                    shareIdCache.set(world + lmid, shareId);
+                    shareIdCache.set(cacheKey, shareId);
+                    console.log(`✅ Cached ShareID for ${cacheKey}: ${shareId}`);
                     return shareId;
                 }
             }
