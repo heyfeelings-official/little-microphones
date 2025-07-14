@@ -326,19 +326,44 @@
      * @param {string} lmid - LMID number
      */
     async function setupNewRecordingIndicator(clone, lmid) {
-        // Look for elements by class only (since IDs were removed from Webflow)
-        const newRecContainer = clone.querySelector(".new-rec");
-        // Try multiple selectors for the number element
-        let newRecNumber = clone.querySelector(".new-rec-number");
+        // Find all world containers in this LMID clone
+        const worldContainers = clone.querySelectorAll('.program-container[data-world]');
+        
+        console.log(`🔍 LMID ${lmid}: Found ${worldContainers.length} world containers`);
+        
+        if (worldContainers.length === 0) {
+            console.warn(`⚠️ LMID ${lmid}: No world containers found`);
+            return;
+        }
+        
+        // Setup badge for each world container
+        for (const worldContainer of worldContainers) {
+            const world = worldContainer.getAttribute('data-world');
+            if (!world) continue;
+            
+            await setupWorldNewRecordingIndicator(worldContainer, lmid, world);
+        }
+    }
+    
+    /**
+     * Setup new recording indicator for a specific world container
+     * @param {HTMLElement} worldContainer - World container element
+     * @param {string} lmid - LMID number
+     * @param {string} world - World name
+     */
+    async function setupWorldNewRecordingIndicator(worldContainer, lmid, world) {
+        // Look for badge elements in this world container
+        const newRecContainer = worldContainer.querySelector(".new-rec");
+        let newRecNumber = worldContainer.querySelector(".new-rec-number");
         if (!newRecNumber) {
             // If .new-rec-number doesn't exist, look for text element inside .new-rec
             newRecNumber = newRecContainer?.querySelector("div, span, p") || newRecContainer;
         }
         
-        console.log(`🔍 LMID ${lmid}: Found container:`, !!newRecContainer, 'Found number:', !!newRecNumber);
+        console.log(`🔍 LMID ${lmid}, World ${world}: Found container:`, !!newRecContainer, 'Found number:', !!newRecNumber);
         
         if (!newRecContainer) {
-            console.warn(`⚠️ LMID ${lmid}: Missing new recording container`);
+            console.warn(`⚠️ LMID ${lmid}, World ${world}: Missing new recording container`);
             return;
         }
         
@@ -347,26 +372,26 @@
         newRecContainer.setAttribute('data-original-display', originalDisplay);
         
         try {
-            // Get new recording count for this LMID
-            const newRecordingCount = await getNewRecordingCountOptimized(lmid);
+            // Get new recording count for this specific world
+            const newRecordingCount = await getNewRecordingCountForWorld(lmid, world);
             
-            console.log(`📊 LMID ${lmid}: Calculated ${newRecordingCount} new recordings`);
+            console.log(`📊 LMID ${lmid}, World ${world}: Calculated ${newRecordingCount} new recordings`);
             
             if (newRecordingCount > 0) {
                 // Show container and update number - restore original Webflow display
                 newRecContainer.style.display = originalDisplay;
                 newRecNumber.textContent = newRecordingCount.toString();
-                console.log(`✅ LMID ${lmid}: Showing badge with ${newRecordingCount} new recordings`);
+                console.log(`✅ LMID ${lmid}, World ${world}: Showing badge with ${newRecordingCount} new recordings`);
             } else {
                 // Hide container when no new recordings
                 newRecContainer.style.display = 'none';
-                console.log(`🙈 LMID ${lmid}: Hiding badge (no new recordings)`);
+                console.log(`🙈 LMID ${lmid}, World ${world}: Hiding badge (no new recordings)`);
             }
         } catch (error) {
-            console.error(`❌ Error getting new recording count for LMID ${lmid}:`, error);
+            console.error(`❌ Error getting new recording count for LMID ${lmid}, World ${world}:`, error);
             // Hide container on error
             newRecContainer.style.display = 'none';
-            console.log(`🙈 LMID ${lmid}: Hiding badge (error)`);
+            console.log(`🙈 LMID ${lmid}, World ${world}: Hiding badge (error)`);
         }
     }
 
@@ -453,6 +478,33 @@
             
         } catch (error) {
             console.warn(`⚠️ Error getting optimized count for LMID ${lmid}:`, error);
+            return 0;
+        }
+    }
+    
+    /**
+     * Get count of new recordings for a specific world in LMID
+     * @param {string} lmid - LMID number
+     * @param {string} world - World name
+     * @returns {Promise<number>} Count of new recordings for this world since user's last visit
+     */
+    async function getNewRecordingCountForWorld(lmid, world) {
+        try {
+            const currentMemberId = await getCurrentMemberId();
+            
+            if (!currentMemberId) {
+                console.warn(`⚠️ No member ID available for new recording count`);
+                return 0;
+            }
+            
+            // Get user's last visit data from localStorage
+            const lastVisitData = getUserLastVisitData(currentMemberId, lmid);
+            
+            // Count new recordings for this specific world
+            return await getNewRecordingCountForSpecificWorld(lmid, world, currentMemberId, lastVisitData);
+            
+        } catch (error) {
+            console.warn(`⚠️ Error getting count for LMID ${lmid}, World ${world}:`, error);
             return 0;
         }
     }
@@ -651,6 +703,50 @@
             return totalNewRecordings;
         } catch (error) {
             console.error(`❌ Error calculating new recordings for LMID ${lmid}:`, error);
+            return 0;
+        }
+    }
+    
+    /**
+     * Get count of new recordings for a specific world
+     * @param {string} lmid - LMID number
+     * @param {string} world - World name
+     * @param {string} userId - User ID
+     * @param {Object} lastVisitData - Last visit data
+     * @returns {Promise<number>} Count of new recordings for this world
+     */
+    async function getNewRecordingCountForSpecificWorld(lmid, world, userId, lastVisitData) {
+        try {
+            const lang = window.LM_CONFIG.getCurrentLanguage();
+            
+            // Get ShareID for this world/LMID combination
+            const shareId = await getShareIdForWorldLmid(world, lmid);
+            if (!shareId) {
+                return 0; // No ShareID means no recordings possible
+            }
+            
+            // Get current recordings for this world
+            const response = await fetch(`${window.LM_CONFIG.API_BASE_URL}/api/list-recordings?world=${world}&lmid=${lmid}&lang=${lang}`);
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    const currentRecordings = data.recordings || [];
+                    
+                    // Filter recordings added since last visit
+                    const lastVisitTimestamp = new Date(lastVisitData.timestamp).getTime();
+                    const newRecordings = currentRecordings.filter(recording => {
+                        const recordingTime = recording.lastModified || 0;
+                        return recordingTime > lastVisitTimestamp;
+                    });
+                    
+                    return newRecordings.length;
+                }
+            }
+            
+            return 0;
+        } catch (error) {
+            console.warn(`⚠️ Error checking world ${world} for LMID ${lmid}:`, error);
             return 0;
         }
     }
