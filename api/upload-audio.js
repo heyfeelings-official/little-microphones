@@ -89,7 +89,7 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { audioData, filename, world, lmid, questionId } = req.body;
+        const { audioData, filename, world, lmid, questionId, lang } = req.body;
 
         // Validation
         if (!audioData || !filename) {
@@ -100,6 +100,10 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'Missing required fields: world, lmid, and questionId' });
         }
 
+        if (!lang) {
+            return res.status(400).json({ error: 'Missing required field: lang' });
+        }
+        
         // Validate filename format - support both teacher and parent formats
         const teacherFormat = filename.includes(`kids-world_${world}-lmid_${lmid}-question_${questionId}`);
         const parentFormat = filename.match(new RegExp(`^parent_[^-]+-world_${world}-lmid_${lmid}-question_${questionId}-tm_\\d+\\.mp3$`));
@@ -124,8 +128,8 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'Invalid audio data format' });
         }
 
-        // Upload to Bunny.net with folder structure: lmid/world/filename
-        const filePath = `${lmid}/${world}/${filename}`;
+        // Upload to Bunny.net with folder structure: lang/lmid/world/filename
+        const filePath = `${lang}/${lmid}/${world}/${filename}`;
         const uploadUrl = `https://storage.bunnycdn.com/${process.env.BUNNY_STORAGE_ZONE}/${filePath}`;
         
         console.log(`Uploading ${filename} to Bunny.net (${audioBuffer.length} bytes)`);

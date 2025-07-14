@@ -93,19 +93,19 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { world, lmid, questionId } = req.query;
+        const { world, lmid, questionId, lang } = req.query;
 
-        if (!world || !lmid) {
+        if (!world || !lmid || !lang) {
             return res.status(400).json({ 
                 success: false,
-                error: 'Missing required parameters: world, lmid' 
+                error: 'Missing required parameters: world, lmid, and lang' 
             });
         }
 
         // Construct the folder path where recordings are stored (matching upload API structure)
-        const folderPath = `${lmid}/${world}/`;
+        const folderPath = `${lang}/${lmid}/${world}/`;
         
-        console.log(`Listing recordings for ${world}/${lmid}/Q${questionId} in folder: ${folderPath}`);
+        console.log(`Listing recordings for ${lang}/${world}/${lmid}/Q${questionId} in folder: ${folderPath}`);
 
         // List files from Bunny.net
         const listUrl = `https://storage.bunnycdn.com/${process.env.BUNNY_STORAGE_ZONE}/${folderPath}`;

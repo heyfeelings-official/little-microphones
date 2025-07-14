@@ -94,7 +94,7 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { filename, world, lmid, questionId, deleteLmidFolder } = req.body;
+        const { filename, world, lmid, questionId, deleteLmidFolder, lang } = req.body;
 
         // Check environment variables
         if (!process.env.BUNNY_API_KEY || !process.env.BUNNY_STORAGE_ZONE) {
@@ -132,8 +132,8 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'Missing required field: filename' });
         }
 
-        if (!world || !lmid || !questionId) {
-            return res.status(400).json({ error: 'Missing required fields: world, lmid, and questionId' });
+        if (!world || !lmid || !questionId || !lang) {
+            return res.status(400).json({ error: 'Missing required fields: world, lmid, questionId, and lang' });
         }
 
         // Validate filename format for security - support both teacher and parent formats
@@ -144,8 +144,8 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'Invalid filename format - must be either teacher (kids-world_...) or parent (parent_memberid-world_...) format' });
         }
 
-        // Delete from Bunny.net with folder structure: lmid/world/filename
-        const filePath = `${lmid}/${world}/${filename}`;
+        // Delete from Bunny.net with folder structure: lang/lmid/world/filename
+        const filePath = `${lang}/${lmid}/${world}/${filename}`;
         const deleteUrl = `https://storage.bunnycdn.com/${process.env.BUNNY_STORAGE_ZONE}/${filePath}`;
         
         console.log(`Deleting ${filename} from Bunny.net`);
@@ -166,7 +166,7 @@ export default async function handler(req, res) {
             }
 
             // After successful file deletion, check and clean up empty folders
-            await cleanupEmptyFolders(lmid, world);
+            await cleanupEmptyFolders(lang, lmid, world);
 
             res.json({ 
                 success: true, 
@@ -189,64 +189,72 @@ export default async function handler(req, res) {
 }
 
 /**
- * Delete entire LMID folder and all its contents recursively
+ * Delete entire LMID folder and all its contents recursively across all language folders
  * @param {string} lmid - The LMID folder to delete
  */
 async function deleteLmidFolderRecursively(lmid) {
     try {
         const baseUrl = `https://storage.bunnycdn.com/${process.env.BUNNY_STORAGE_ZONE}`;
         const headers = { 'AccessKey': process.env.BUNNY_API_KEY };
-        const lmidFolderUrl = `${baseUrl}/${lmid}/`;
+        
+        // We need to check all possible language parent folders for the LMID
+        // For now, let's assume we know them ('en', 'pl'), but this could be dynamic in the future.
+        // A better approach would be to list the root and find folders containing the LMID,
+        // but Bunny.net API doesn't easily support that. We'll iterate known languages.
+        const knownLanguages = ['en', 'pl']; // This should ideally come from config
 
-        console.log(`Starting recursive deletion of LMID folder: ${lmid}/`);
+        for (const lang of knownLanguages) {
+            const lmidFolderUrl = `${baseUrl}/${lang}/${lmid}/`;
+            console.log(`Checking for LMID folder in language '${lang}': ${lmidFolderUrl}`);
 
-        // Step 1: List all contents in the LMID folder
-        const listResponse = await fetch(lmidFolderUrl, {
-            method: 'GET',
-            headers: headers
-        });
+            // Step 1: List all contents in the lang/{lmid} folder
+            const listResponse = await fetch(lmidFolderUrl, {
+                method: 'GET',
+                headers: headers
+            });
 
-        if (listResponse.ok) {
-            const contents = await listResponse.json();
-            
-            if (Array.isArray(contents)) {
-                console.log(`Found ${contents.length} items in LMID folder ${lmid}/`);
+            if (listResponse.ok) {
+                const contents = await listResponse.json();
                 
-                // Step 2: Delete all world subfolders and their contents
-                for (const item of contents) {
-                    if (item.IsDirectory) {
-                        const worldFolder = item.ObjectName;
-                        console.log(`Deleting world folder: ${lmid}/${worldFolder}/`);
-                        await deleteWorldFolderRecursively(lmid, worldFolder);
-                    } else {
-                        // Delete any files directly in the LMID folder
-                        const fileName = item.ObjectName;
-                        console.log(`Deleting file: ${lmid}/${fileName}`);
-                        await deleteFile(`${lmid}/${fileName}`);
+                if (Array.isArray(contents)) {
+                    console.log(`Found ${contents.length} items in LMID folder ${lang}/${lmid}/`);
+                    
+                    // Step 2: Delete all world subfolders and their contents
+                    for (const item of contents) {
+                        if (item.IsDirectory) {
+                            const worldFolder = item.ObjectName;
+                            console.log(`Deleting world folder: ${lang}/${lmid}/${worldFolder}/`);
+                            await deleteWorldFolderRecursively(lang, lmid, worldFolder);
+                        } else {
+                            // Delete any files directly in the LMID folder
+                            const fileName = item.ObjectName;
+                            console.log(`Deleting file: ${lang}/${lmid}/${fileName}`);
+                            await deleteFile(`${lang}/${lmid}/${fileName}`);
+                        }
                     }
                 }
+            } else if (listResponse.status === 404) {
+                console.log(`LMID folder ${lang}/${lmid}/ not found, skipping.`);
+                continue; // Move to the next language
+            } else {
+                const errorText = await listResponse.text();
+                console.warn(`Failed to list LMID folder contents: ${listResponse.status} - ${errorText}`);
             }
-        } else if (listResponse.status === 404) {
-            console.log(`LMID folder ${lmid}/ not found (already deleted)`);
-            return;
-        } else {
-            const errorText = await listResponse.text();
-            console.warn(`Failed to list LMID folder contents: ${listResponse.status} - ${errorText}`);
-        }
 
-        // Step 3: Delete the LMID folder itself
-        console.log(`Deleting LMID folder: ${lmid}/`);
-        const deleteFolderResponse = await fetch(lmidFolderUrl, {
-            method: 'DELETE',
-            headers: headers
-        });
+            // Step 3: Delete the LMID folder itself for the current language
+            console.log(`Deleting LMID folder: ${lang}/${lmid}/`);
+            const deleteFolderResponse = await fetch(lmidFolderUrl, {
+                method: 'DELETE',
+                headers: headers
+            });
 
-        if (deleteFolderResponse.ok) {
-            console.log(`Successfully deleted LMID folder: ${lmid}/`);
-        } else if (deleteFolderResponse.status === 404) {
-            console.log(`LMID folder ${lmid}/ not found (already deleted)`);
-        } else {
-            console.warn(`Failed to delete LMID folder ${lmid}/: ${deleteFolderResponse.status}`);
+            if (deleteFolderResponse.ok) {
+                console.log(`Successfully deleted LMID folder: ${lang}/${lmid}/`);
+            } else if (deleteFolderResponse.status === 404) {
+                // This is fine, it might have been deleted after its contents were removed
+            } else {
+                console.warn(`Failed to delete LMID folder ${lang}/${lmid}/: ${deleteFolderResponse.status}`);
+            }
         }
 
     } catch (error) {
@@ -257,14 +265,15 @@ async function deleteLmidFolderRecursively(lmid) {
 
 /**
  * Delete a world folder and all its contents
+ * @param {string} lang - The language folder
  * @param {string} lmid - The LMID folder
  * @param {string} world - The world folder to delete
  */
-async function deleteWorldFolderRecursively(lmid, world) {
+async function deleteWorldFolderRecursively(lang, lmid, world) {
     try {
         const baseUrl = `https://storage.bunnycdn.com/${process.env.BUNNY_STORAGE_ZONE}`;
         const headers = { 'AccessKey': process.env.BUNNY_API_KEY };
-        const worldFolderUrl = `${baseUrl}/${lmid}/${world}/`;
+        const worldFolderUrl = `${baseUrl}/${lang}/${lmid}/${world}/`;
 
         // List all files in the world folder
         const listResponse = await fetch(worldFolderUrl, {
@@ -280,8 +289,8 @@ async function deleteWorldFolderRecursively(lmid, world) {
                 for (const file of files) {
                     if (!file.IsDirectory) {
                         const fileName = file.ObjectName;
-                        console.log(`Deleting file: ${lmid}/${world}/${fileName}`);
-                        await deleteFile(`${lmid}/${world}/${fileName}`);
+                        console.log(`Deleting file: ${lang}/${lmid}/${world}/${fileName}`);
+                        await deleteFile(`${lang}/${lmid}/${world}/${fileName}`);
                     }
                 }
             }
@@ -294,15 +303,15 @@ async function deleteWorldFolderRecursively(lmid, world) {
         });
 
         if (deleteFolderResponse.ok) {
-            console.log(`Successfully deleted world folder: ${lmid}/${world}/`);
+            console.log(`Successfully deleted world folder: ${lang}/${lmid}/${world}/`);
         } else if (deleteFolderResponse.status === 404) {
-            console.log(`World folder ${lmid}/${world}/ not found (already deleted)`);
+            console.log(`World folder ${lang}/${lmid}/${world}/ not found (already deleted)`);
         } else {
-            console.warn(`Failed to delete world folder ${lmid}/${world}/: ${deleteFolderResponse.status}`);
+            console.warn(`Failed to delete world folder ${lang}/${lmid}/${world}/: ${deleteFolderResponse.status}`);
         }
 
     } catch (error) {
-        console.error(`Error deleting world folder ${lmid}/${world}:`, error);
+        console.error(`Error deleting world folder ${lang}/${lmid}/${world}:`, error);
         // Don't throw - continue with other deletions
     }
 }
@@ -338,17 +347,18 @@ async function deleteFile(filePath) {
 
 /**
  * Clean up empty folders after file deletion
+ * @param {string} lang - The language folder
  * @param {string} lmid - The lmid folder
  * @param {string} world - The world folder
  */
-async function cleanupEmptyFolders(lmid, world) {
+async function cleanupEmptyFolders(lang, lmid, world) {
     try {
         const baseUrl = `https://storage.bunnycdn.com/${process.env.BUNNY_STORAGE_ZONE}`;
         const headers = { 'AccessKey': process.env.BUNNY_API_KEY };
 
-        // Step 1: Check if world folder (lmid/world/) is empty
-        const worldFolderUrl = `${baseUrl}/${lmid}/${world}/`;
-        console.log(`Checking if world folder is empty: ${lmid}/${world}/`);
+        // Step 1: Check if world folder (lang/lmid/world/) is empty
+        const worldFolderUrl = `${baseUrl}/${lang}/${lmid}/${world}/`;
+        console.log(`Checking if world folder is empty: ${lang}/${lmid}/${world}/`);
         
         const worldListResponse = await fetch(worldFolderUrl, {
             method: 'GET',
@@ -360,7 +370,7 @@ async function cleanupEmptyFolders(lmid, world) {
             
             // If world folder is empty (no files), delete it
             if (Array.isArray(worldContents) && worldContents.length === 0) {
-                console.log(`World folder ${lmid}/${world}/ is empty, deleting...`);
+                console.log(`World folder ${lang}/${lmid}/${world}/ is empty, deleting...`);
                 
                 const deleteWorldResponse = await fetch(worldFolderUrl, {
                     method: 'DELETE',
@@ -368,11 +378,11 @@ async function cleanupEmptyFolders(lmid, world) {
                 });
 
                 if (deleteWorldResponse.ok) {
-                    console.log(`Successfully deleted empty world folder: ${lmid}/${world}/`);
+                    console.log(`Successfully deleted empty world folder: ${lang}/${lmid}/${world}/`);
                     
                     // Step 2: Check if lmid folder is now empty
-                    const lmidFolderUrl = `${baseUrl}/${lmid}/`;
-                    console.log(`Checking if lmid folder is empty: ${lmid}/`);
+                    const lmidFolderUrl = `${baseUrl}/${lang}/${lmid}/`;
+                    console.log(`Checking if lmid folder is empty: ${lang}/${lmid}/`);
                     
                     const lmidListResponse = await fetch(lmidFolderUrl, {
                         method: 'GET',
@@ -384,7 +394,7 @@ async function cleanupEmptyFolders(lmid, world) {
                         
                         // If lmid folder is empty (no subfolders), delete it
                         if (Array.isArray(lmidContents) && lmidContents.length === 0) {
-                            console.log(`LMID folder ${lmid}/ is empty, deleting...`);
+                            console.log(`LMID folder ${lang}/${lmid}/ is empty, deleting...`);
                             
                             const deleteLmidResponse = await fetch(lmidFolderUrl, {
                                 method: 'DELETE',
@@ -392,21 +402,21 @@ async function cleanupEmptyFolders(lmid, world) {
                             });
 
                             if (deleteLmidResponse.ok) {
-                                console.log(`Successfully deleted empty lmid folder: ${lmid}/`);
+                                console.log(`Successfully deleted empty lmid folder: ${lang}/${lmid}/`);
                             } else {
-                                console.warn(`Failed to delete lmid folder ${lmid}/: ${deleteLmidResponse.status}`);
+                                console.warn(`Failed to delete lmid folder ${lang}/${lmid}/: ${deleteLmidResponse.status}`);
                             }
                         } else {
-                            console.log(`LMID folder ${lmid}/ is not empty, keeping it`);
+                            console.log(`LMID folder ${lang}/${lmid}/ is not empty, keeping it`);
                         }
                     } else {
                         console.warn(`Failed to list lmid folder contents: ${lmidListResponse.status}`);
                     }
                 } else {
-                    console.warn(`Failed to delete world folder ${lmid}/${world}/: ${deleteWorldResponse.status}`);
+                    console.warn(`Failed to delete world folder ${lang}/${lmid}/${world}/: ${deleteWorldResponse.status}`);
                 }
             } else {
-                console.log(`World folder ${lmid}/${world}/ is not empty, keeping it`);
+                console.log(`World folder ${lang}/${lmid}/${world}/ is not empty, keeping it`);
             }
         } else {
             console.warn(`Failed to list world folder contents: ${worldListResponse.status}`);

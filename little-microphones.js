@@ -70,6 +70,9 @@
             // Setup event listeners with auth system
             setupEventListeners(authSystem);
             
+            // Fix for Webflow's locale switcher stripping URL params
+            preserveUrlParamsOnLocaleChange();
+            
             console.log("🎉 Dashboard initialization complete");
             
         } catch (error) {
@@ -364,6 +367,45 @@
         }
     }
 
+    /**
+     * Preserves URL parameters when user switches language via Webflow's locale switcher.
+     * Webflow's default behavior strips query parameters, which breaks our app.
+     * This function finds the locale links and appends the current URL's search params to them.
+     */
+    function preserveUrlParamsOnLocaleChange() {
+        try {
+            // Check if there are any params to preserve
+            if (!window.location.search) {
+                return;
+            }
+
+            const currentParams = window.location.search; // e.g., "?ID=ywaiy057"
+            
+            // Find all locale links. Based on Webflow's structure.
+            // This selector might need adjustment if Webflow changes its structure.
+            const localeLinks = document.querySelectorAll('a.w-loc.w-dropdown-link');
+
+            if (localeLinks.length === 0) {
+                return;
+            }
+
+            console.log(`🔗 Preserving URL params (${currentParams}) for ${localeLinks.length} locale links.`);
+
+            localeLinks.forEach(link => {
+                const originalHref = link.getAttribute('href');
+                if (originalHref) {
+                    // Check if params are already there to avoid duplication
+                    if (!originalHref.includes(currentParams)) {
+                         // Simple concatenation. Assumes clean URLs from Webflow.
+                        link.setAttribute('href', originalHref + currentParams);
+                    }
+                }
+            });
+        } catch (error) {
+            console.warn("⚠️ Failed to preserve URL parameters for locale switcher:", error);
+        }
+    }
+    
     /**
      * UTILITY FUNCTIONS
      */
