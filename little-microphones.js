@@ -38,7 +38,6 @@
 
     // Wait for DOM and required dependencies
     document.addEventListener("DOMContentLoaded", async () => {
-        console.log("🚀 Initializing Little Microphones Dashboard");
         
         // Wait for auth system to be available
         if (!window.LMAuth) {
@@ -75,12 +74,8 @@
             
             // Setup world backgrounds for all containers
             setTimeout(() => {
-                console.log('🔍 DEBUG: About to call setupWorldBackgrounds()');
                 setupWorldBackgrounds();
-                console.log('🔍 DEBUG: setupWorldBackgrounds() completed');
             }, 100); // Small delay to ensure DOM is fully ready
-            
-            console.log("🎉 Dashboard initialization complete");
             
         } catch (error) {
             console.error("💥 Dashboard initialization error:", error);
@@ -750,45 +745,14 @@
      * Uses the same logic as radio.js but applies it to multiple containers
      */
     function setupWorldBackgrounds() {
-        console.log('🔍 DEBUG: setupWorldBackgrounds() called');
-        
-        // Check if we're on the correct page
-        const currentPath = window.location.pathname;
-        console.log('🔍 DEBUG: Current path:', currentPath);
-        
-        // Check if config is available
-        console.log('🔍 DEBUG: LM_CONFIG available:', !!window.LM_CONFIG);
-        console.log('🔍 DEBUG: WORLD_VIDEOS available:', !!window.LM_CONFIG?.WORLD_VIDEOS);
-        
         // All available worlds from config
         const worlds = Object.keys(window.LM_CONFIG?.WORLD_VIDEOS || {});
-        console.log('🔍 DEBUG: Available worlds from config:', worlds);
-        
-        // Check what containers exist on the page
-        const allProgramContainers = document.querySelectorAll('.program-container');
-        console.log('🔍 DEBUG: Found .program-container elements:', allProgramContainers.length);
-        
-        allProgramContainers.forEach((container, index) => {
-            const dataWorld = container.getAttribute('data-world');
-            console.log(`🔍 DEBUG: Container ${index + 1}:`, {
-                element: container,
-                dataWorld: dataWorld,
-                classes: container.className,
-                id: container.id,
-                textContent: container.textContent?.trim().substring(0, 50)
-            });
-        });
-        
-        // Check for containers with data-world attributes
-        const containersWithDataWorld = document.querySelectorAll('.program-container[data-world]');
-        console.log('🔍 DEBUG: Containers with data-world attribute:', containersWithDataWorld.length);
         
         console.log('🌍 Setting up world backgrounds for containers:', worlds);
         
         // Method 1: Handle containers with explicit data-world attributes
         worlds.forEach(world => {
             const container = document.querySelector(`.program-container[data-world="${world}"]`);
-            console.log(`🔍 DEBUG: Looking for container with data-world="${world}":`, !!container);
             
             if (container) {
                 console.log(`🎬 Setting up background for world: ${world} (via data-world)`);
@@ -798,11 +762,9 @@
         
         // Method 2: Handle containers without data-world by detecting world from text content
         const containersWithoutDataWorld = document.querySelectorAll('.program-container:not([data-world])');
-        console.log('🔍 DEBUG: Containers without data-world:', containersWithoutDataWorld.length);
         
         containersWithoutDataWorld.forEach((container, index) => {
             const textContent = container.textContent?.toLowerCase() || '';
-            console.log(`🔍 DEBUG: Container ${index + 1} without data-world, text:`, textContent.substring(0, 100));
             
             // Try to detect world from text content
             let detectedWorld = null;
@@ -828,26 +790,6 @@
             if (detectedWorld) {
                 console.log(`🎬 Setting up background for detected world: ${detectedWorld} (via text detection)`);
                 setWorldBackgroundForContainer(container, detectedWorld);
-            } else {
-                console.warn(`⚠️ Could not detect world for container with text: "${textContent.substring(0, 50)}..."`);
-            }
-        });
-        
-        // Additional check: look for any containers that might have different naming
-        const alternativeSelectors = [
-            '.lm-worlds .program-container',
-            '[class*="program-container"]',
-            '[class*="world"]',
-            '.emotion-world'
-        ];
-        
-        alternativeSelectors.forEach(selector => {
-            const elements = document.querySelectorAll(selector);
-            if (elements.length > 0) {
-                console.log(`🔍 DEBUG: Found ${elements.length} elements with selector "${selector}"`);
-                elements.forEach((el, i) => {
-                    console.log(`  - Element ${i + 1}:`, el.className, el.getAttribute('data-world'));
-                });
             }
         });
     }
