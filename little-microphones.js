@@ -282,6 +282,9 @@
             console.warn(`⚠️ Could not find '#lmid-number' in template clone for LMID ${lmid}`);
         }
         
+        // Setup new recording count indicator
+        await setupNewRecordingIndicator(clone, lmid);
+        
         // Hide delete buttons for parent users
         const userRole = await detectUserRole();
         if (userRole === 'parent') {
@@ -294,6 +297,134 @@
         }
         
         return clone;
+    }
+
+    /**
+     * Setup new recording count indicator for LMID element
+     * @param {HTMLElement} clone - LMID element clone
+     * @param {string} lmid - LMID number
+     */
+    async function setupNewRecordingIndicator(clone, lmid) {
+        const newRecContainer = clone.querySelector("#new-rec");
+        const newRecNumber = clone.querySelector("#new-rec-number");
+        
+        if (newRecContainer) {
+            newRecContainer.removeAttribute("id");
+        }
+        if (newRecNumber) {
+            newRecNumber.removeAttribute("id");
+        }
+        
+        try {
+            // Get new recording count for this LMID
+            const newRecordingCount = await getNewRecordingCount(lmid);
+            
+            if (newRecordingCount > 0) {
+                // Show container and update number
+                if (newRecContainer) {
+                    newRecContainer.style.display = 'block';
+                    newRecContainer.style.visibility = 'visible';
+                }
+                if (newRecNumber) {
+                    newRecNumber.textContent = newRecordingCount.toString();
+                }
+                console.log(`📊 LMID ${lmid}: ${newRecordingCount} new recordings`);
+            } else {
+                // Hide container when no new recordings
+                if (newRecContainer) {
+                    newRecContainer.style.display = 'none';
+                    newRecContainer.style.visibility = 'hidden';
+                }
+                console.log(`📊 LMID ${lmid}: No new recordings`);
+            }
+        } catch (error) {
+            console.error(`❌ Error getting new recording count for LMID ${lmid}:`, error);
+            // Hide container on error
+            if (newRecContainer) {
+                newRecContainer.style.display = 'none';
+                newRecContainer.style.visibility = 'hidden';
+            }
+        }
+    }
+
+    /**
+     * Get count of new recordings for a specific LMID across all worlds
+     * @param {string} lmid - LMID number
+     * @returns {Promise<number>} Count of new recordings
+     */
+    async function getNewRecordingCount(lmid) {
+        try {
+            const lang = window.LM_CONFIG.getCurrentLanguage();
+            let totalNewRecordings = 0;
+            
+            // List of all worlds to check
+            const worlds = ['spookyland', 'waterpark', 'shopping-spree', 'amusement-park', 'big-city', 'neighborhood'];
+            
+            // Check each world for new recordings
+            for (const world of worlds) {
+                try {
+                    // Get ShareID for this world/LMID combination
+                    const shareId = await getShareIdForWorldLmid(world, lmid);
+                    if (!shareId) {
+                        continue; // Skip if no ShareID found
+                    }
+                    
+                    // Get radio data which includes new recording detection
+                    const response = await fetch(`${window.LM_CONFIG.API_BASE_URL}/api/get-radio-data?shareId=${shareId}&world=${world}&lang=${lang}`);
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.success) {
+                            // Count new recordings based on generation needs
+                            if (data.needsKidsProgram && data.hasKidsRecordings) {
+                                const kidsCount = data.kidsRecordingCount || 0;
+                                const previousKidsCount = data.kidsManifest?.recordingCount || 0;
+                                const newKidsRecordings = Math.max(0, kidsCount - previousKidsCount);
+                                totalNewRecordings += newKidsRecordings;
+                            }
+                            
+                            if (data.needsParentProgram && data.hasParentRecordings) {
+                                const parentCount = data.parentRecordingCount || 0;
+                                const previousParentCount = data.parentManifest?.recordingCount || 0;
+                                const newParentRecordings = Math.max(0, parentCount - previousParentCount);
+                                totalNewRecordings += newParentRecordings;
+                            }
+                        }
+                    }
+                } catch (worldError) {
+                    console.warn(`⚠️ Error checking world ${world} for LMID ${lmid}:`, worldError);
+                    // Continue checking other worlds
+                }
+            }
+            
+            return totalNewRecordings;
+        } catch (error) {
+            console.error(`❌ Error calculating new recordings for LMID ${lmid}:`, error);
+            return 0;
+        }
+    }
+
+    /**
+     * Get ShareID for a specific world/LMID combination
+     * @param {string} world - World name
+     * @param {string} lmid - LMID number
+     * @returns {Promise<string|null>} ShareID or null if not found
+     */
+    async function getShareIdForWorldLmid(world, lmid) {
+        try {
+            const response = await fetch(`${window.LM_CONFIG.API_BASE_URL}/api/get-share-link?lmid=${lmid}&world=${world}`);
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    return data.shareId;
+                }
+            }
+            return null;
+        } catch (error) {
+            console.warn(`⚠️ Error getting ShareID for ${world}/${lmid}:`, error);
+            return null;
+        }
     }
 
     /**
@@ -1002,6 +1133,29 @@
             container.style.backgroundColor = '#f0f0f0';
         }
     }
+
+    /**
+     * Refresh new recording indicators for all LMID elements
+     * This can be called after new recordings are added to update the counts
+     */
+    async function refreshNewRecordingIndicators() {
+        console.log('🔄 Refreshing new recording indicators...');
+        
+        const lmidElements = document.querySelectorAll('[data-lmid]');
+        
+        for (const element of lmidElements) {
+            const lmid = element.getAttribute('data-lmid');
+            if (lmid) {
+                await setupNewRecordingIndicator(element, lmid);
+            }
+        }
+        
+        console.log(`✅ Refreshed ${lmidElements.length} LMID indicators`);
+    }
+
+    // Make refresh function available globally
+    window.LittleMicrophones = window.LittleMicrophones || {};
+    window.LittleMicrophones.refreshNewRecordingIndicators = refreshNewRecordingIndicators;
 
     // Test function for Memberstack API debugging
     window.testMemberstackAPI = async function() {
