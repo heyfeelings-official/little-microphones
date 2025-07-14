@@ -328,7 +328,7 @@
     async function setupNewRecordingIndicator(clone, lmid) {
         // Look for elements with both ID and class selectors for flexibility
         const newRecContainer = clone.querySelector("#new-rec, .new-rec");
-        const newRecNumber = clone.querySelector("#new-rec-number");
+        const newRecNumber = clone.querySelector("#new-rec-number, .new-rec-number");
         
         console.log(`🔍 LMID ${lmid}: Found container:`, !!newRecContainer, 'Found number:', !!newRecNumber);
         
@@ -349,7 +349,7 @@
             console.log(`📊 LMID ${lmid}: Calculated ${newRecordingCount} new recordings`);
             
             if (newRecordingCount > 0) {
-                // Show container and update number - preserve Webflow positioning
+                // Show container and update number - ONLY change display
                 if (newRecContainer) {
                     newRecContainer.style.display = 'block';
                     console.log(`✅ LMID ${lmid}: Showing badge with ${newRecordingCount} new recordings`);
@@ -358,7 +358,7 @@
                     newRecNumber.textContent = newRecordingCount.toString();
                 }
             } else {
-                // Hide container when no new recordings - preserve Webflow positioning
+                // Hide container when no new recordings - ONLY change display
                 if (newRecContainer) {
                     newRecContainer.style.display = 'none';
                     console.log(`🙈 LMID ${lmid}: Hiding badge (no new recordings)`);
@@ -366,10 +366,9 @@
             }
         } catch (error) {
             console.error(`❌ Error getting new recording count for LMID ${lmid}:`, error);
-            // Hide container on error
+            // Hide container on error - ONLY change display
             if (newRecContainer) {
                 newRecContainer.style.display = 'none';
-                newRecContainer.style.visibility = 'hidden';
                 console.log(`🙈 LMID ${lmid}: Hiding badge (error)`);
             }
         }
@@ -383,22 +382,16 @@
         console.log(`⚡ Batch loading new recording indicators for ${lmids.length} LMIDs: [${lmids.join(', ')}]`);
         
         try {
-            // Get all new recording counts in parallel (much faster)
-            const newRecordingPromises = lmids.map(lmid => 
-                getNewRecordingCountOptimized(lmid).catch(error => {
-                    console.warn(`⚠️ Failed to get count for LMID ${lmid}:`, error);
-                    return 0; // Return 0 on error
-                })
-            );
-            
-            const newRecordingCounts = await Promise.all(newRecordingPromises);
-            
-            // Update UI elements quickly
-            lmids.forEach((lmid, index) => {
-                const count = newRecordingCounts[index];
-                console.log(`📊 LMID ${lmid}: Processing count ${count}`);
-                updateNewRecordingBadge(lmid, count);
-            });
+            // For each LMID, setup the indicator properly
+            for (const lmid of lmids) {
+                const lmidElement = document.querySelector(`[data-lmid="${lmid}"]`);
+                if (lmidElement) {
+                    console.log(`🔄 Setting up indicator for LMID ${lmid}`);
+                    await setupNewRecordingIndicator(lmidElement, lmid);
+                } else {
+                    console.warn(`⚠️ LMID element not found for ${lmid}`);
+                }
+            }
             
             console.log(`✅ Batch loaded indicators for all ${lmids.length} LMIDs`);
             
@@ -419,9 +412,9 @@
             return;
         }
         
-        // Look for new-rec elements more broadly (class, data attributes, or ID remnants)
-        const newRecContainer = lmidElement.querySelector(".new-rec, [class*='new-rec'], [id*='new-rec']:not([id*='number'])");
-        const newRecNumber = lmidElement.querySelector(".new-rec-number, [class*='new-rec-number'], [id*='new-rec-number']");
+        // Look for new-rec elements with class selectors (more reliable after setupNewRecordingIndicator)
+        const newRecContainer = lmidElement.querySelector(".new-rec");
+        const newRecNumber = lmidElement.querySelector(".new-rec-number");
         
         console.log(`🔍 LMID ${lmid} badge update: container found=${!!newRecContainer}, number found=${!!newRecNumber}`);
         
@@ -644,13 +637,20 @@
                         if (data.success) {
                             const currentRecordings = data.recordings || [];
                             
+                            console.log(`🔍 LMID ${lmid}, World ${world}: Found ${currentRecordings.length} recordings`);
+                            
                             // Filter recordings added since last visit
                             const lastVisitTimestamp = new Date(lastVisitData.timestamp).getTime();
+                            console.log(`📅 Last visit timestamp: ${lastVisitTimestamp} (${new Date(lastVisitTimestamp).toISOString()})`);
+                            
                             const newRecordings = currentRecordings.filter(recording => {
                                 const recordingTime = recording.lastModified || 0;
-                                return recordingTime > lastVisitTimestamp;
+                                const isNew = recordingTime > lastVisitTimestamp;
+                                console.log(`📁 Recording: ${recording.filename}, lastModified: ${recordingTime} (${new Date(recordingTime).toISOString()}), isNew: ${isNew}`);
+                                return isNew;
                             });
                             
+                            console.log(`📊 LMID ${lmid}, World ${world}: ${newRecordings.length} new recordings found`);
                             totalNewRecordings += newRecordings.length;
                         }
                     }
