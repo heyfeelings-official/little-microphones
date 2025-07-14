@@ -618,16 +618,11 @@
             // Check each world for recordings added since last visit
             for (const world of worlds) {
                 try {
-                    console.log(`🌍 Checking world ${world} for LMID ${lmid}`);
-                    
                     // Get ShareID for this world/LMID combination
                     const shareId = await getShareIdForWorldLmid(world, lmid);
                     if (!shareId) {
-                        console.log(`❌ No ShareID found for ${world}/LMID ${lmid} - skipping`);
                         continue; // Skip if no ShareID found
                     }
-                    
-                    console.log(`✅ ShareID found for ${world}/LMID ${lmid}: ${shareId}`);
                     
                     // Get current recordings for this world
                     const response = await fetch(`${window.LM_CONFIG.API_BASE_URL}/api/list-recordings?world=${world}&lmid=${lmid}&lang=${lang}`);
@@ -636,7 +631,6 @@
                         const data = await response.json();
                         if (data.success) {
                             const currentRecordings = data.recordings || [];
-                            console.log(`📁 Found ${currentRecordings.length} recordings in ${world} for LMID ${lmid}`);
                             
                             // Filter recordings added since last visit
                             const lastVisitTimestamp = new Date(lastVisitData.timestamp).getTime();
@@ -645,13 +639,8 @@
                                 return recordingTime > lastVisitTimestamp;
                             });
                             
-                            console.log(`🆕 Found ${newRecordings.length} new recordings in ${world} for LMID ${lmid}`);
                             totalNewRecordings += newRecordings.length;
-                        } else {
-                            console.warn(`❌ API error for ${world}/LMID ${lmid}:`, data.error);
                         }
-                    } else {
-                        console.warn(`❌ HTTP error ${response.status} for ${world}/LMID ${lmid}`);
                     }
                 } catch (worldError) {
                     console.warn(`⚠️ Error checking world ${world} for LMID ${lmid}:`, worldError);
