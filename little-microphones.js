@@ -329,8 +329,6 @@
         // Find all world containers in this LMID clone
         const worldContainers = clone.querySelectorAll('.program-container[data-world]');
         
-        console.log(`🔍 LMID ${lmid}: Found ${worldContainers.length} world containers`);
-        
         if (worldContainers.length === 0) {
             console.warn(`⚠️ LMID ${lmid}: No world containers found`);
             return;
@@ -360,8 +358,6 @@
             newRecNumber = newRecContainer?.querySelector("div, span, p") || newRecContainer;
         }
         
-        console.log(`🔍 LMID ${lmid}, World ${world}: Found container:`, !!newRecContainer, 'Found number:', !!newRecNumber);
-        
         if (!newRecContainer) {
             console.warn(`⚠️ LMID ${lmid}, World ${world}: Missing new recording container`);
             return;
@@ -375,23 +371,18 @@
             // Get new recording count for this specific world
             const newRecordingCount = await getNewRecordingCountForWorld(lmid, world);
             
-            console.log(`📊 LMID ${lmid}, World ${world}: Calculated ${newRecordingCount} new recordings`);
-            
             if (newRecordingCount > 0) {
                 // Show container and update number - restore original Webflow display
                 newRecContainer.style.display = originalDisplay;
                 newRecNumber.textContent = newRecordingCount.toString();
-                console.log(`✅ LMID ${lmid}, World ${world}: Showing badge with ${newRecordingCount} new recordings`);
             } else {
                 // Hide container when no new recordings
                 newRecContainer.style.display = 'none';
-                console.log(`🙈 LMID ${lmid}, World ${world}: Hiding badge (no new recordings)`);
             }
         } catch (error) {
             console.error(`❌ Error getting new recording count for LMID ${lmid}, World ${world}:`, error);
             // Hide container on error
             newRecContainer.style.display = 'none';
-            console.log(`🙈 LMID ${lmid}, World ${world}: Hiding badge (error)`);
         }
     }
 
