@@ -221,8 +221,8 @@
             const authSystem = window.LM_AUTH_SYSTEM;
             const memberData = await authSystem.memberData.getMemberForLMIDOperation();
             
-            // Delete associated files from cloud storage
-            await deleteCloudFiles(lmidToDelete);
+            // Delete associated files from cloud storage, now with language context
+            await deleteCloudFiles(lmidToDelete, window.LM_CONFIG.getCurrentLanguage());
             
             // Prepare new LMID string
             const newLmidString = authSystem.lmidManager.removeLMIDFromMetadata(
@@ -418,16 +418,17 @@
     /**
      * Delete files from cloud storage
      */
-    async function deleteCloudFiles(lmid) {
+    async function deleteCloudFiles(lmid, lang) {
         try {
-            console.log(`🗑️ Deleting cloud files for LMID ${lmid}`);
+            console.log(`🗑️ Deleting cloud files for LMID ${lmid} in lang ${lang}`);
             
             const deleteFilesResponse = await fetch(`${window.LM_CONFIG.API_BASE_URL}/api/delete-audio`, {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     deleteLmidFolder: true,
-                    lmid: lmid
+                    lmid: lmid,
+                    lang: lang
                 })
             });
 
