@@ -63,6 +63,9 @@
 
             console.log(`✅ User authenticated - ${authResult.lmidCount} LMID(s) found`);
             
+            // Clean up any inline styles that might interfere with Webflow
+            cleanupInlineStyles();
+            
             // Setup required CSS styles first
             setupRequiredStyles();
             
@@ -99,6 +102,28 @@
     const shareIdCache = new Map();
 
     /**
+     * Clean up inline styles that might interfere with Webflow styling
+     * This removes any position/z-index styles that were added by previous versions
+     */
+    function cleanupInlineStyles() {
+        // Remove inline styles from badge-rec elements
+        const badgeRecElements = document.querySelectorAll('.badge-rec');
+        badgeRecElements.forEach(element => {
+            element.style.removeProperty('position');
+            element.style.removeProperty('z-index');
+        });
+        
+        // Remove inline styles from new-rec elements  
+        const newRecElements = document.querySelectorAll('.new-rec');
+        newRecElements.forEach(element => {
+            element.style.removeProperty('position');
+            element.style.removeProperty('z-index');
+        });
+        
+        console.log(`✅ Cleaned up inline styles from ${badgeRecElements.length} badge-rec and ${newRecElements.length} new-rec elements`);
+    }
+
+    /**
      * Setup required CSS styles for badge-rec and new-rec elements
      * This ensures proper positioning and styling regardless of Webflow configuration
      */
@@ -111,38 +136,18 @@
         const style = document.createElement('style');
         style.id = 'lm-dashboard-styles';
         style.textContent = `
-            .badge-rec {
-                position: absolute;
-                inset: 1rem 1rem auto auto;
-                z-index: 55;
-                display: flex;
-                width: 4rem;
-                justify-content: center;
-                align-items: center;
-                aspect-ratio: 1 / 1;
-                border-radius: 100px;
-                background-color: var(--color-scheme-1--blue);
-                color: var(--color-scheme-1--background);
+            /* Minimal essential styles - let Webflow handle most positioning */
+            .program-container .badge-rec.w-inline-block {
+                cursor: pointer;
             }
             
-            .new-rec {
-                position: absolute;
-                bottom: 1rem;
-                z-index: 55;
-                display: flex;
-                height: 48px;
-                margin-top: 1rem;
-                justify-content: flex-start;
-                align-items: center;
-                border-radius: 100px;
-                background-color: var(--_primitives---colors--white);
-                color: var(--color-scheme-1--yellow);
-                width: calc(100% - 2rem);
+            .program-container .new-rec.w-inline-block {
+                cursor: pointer;
             }
         `;
         
         document.head.appendChild(style);
-        console.log('✅ Added required CSS styles for badge-rec and new-rec elements');
+        console.log('✅ Added minimal CSS styles for badge-rec and new-rec elements');
     }
 
     // --- User Role Detection Functions ---
@@ -1653,14 +1658,8 @@
             container.style.backgroundPosition = 'center';
             container.style.backgroundRepeat = 'no-repeat';
             
-            // Ensure child elements are properly positioned
-            const children = container.children;
-            for (let i = 0; i < children.length; i++) {
-                if (!children[i].classList.contains('program-container-shadow')) {
-                    children[i].style.position = 'relative';
-                    children[i].style.zIndex = '33';
-                }
-            }
+            // Don't modify child element styles - let Webflow handle positioning
+            console.log(`✅ Set background for ${world} container`);
         } else {
             console.warn(`No image found for world: ${world}`);
             container.style.backgroundColor = '#f0f0f0';
