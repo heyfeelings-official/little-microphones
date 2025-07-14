@@ -326,21 +326,20 @@
      * @param {string} lmid - LMID number
      */
     async function setupNewRecordingIndicator(clone, lmid) {
-        // Look for elements with both ID and class selectors for flexibility
-        const newRecContainer = clone.querySelector("#new-rec, .new-rec");
-        const newRecNumber = clone.querySelector("#new-rec-number, .new-rec-number");
+        // Look for elements by class only (since IDs were removed from Webflow)
+        const newRecContainer = clone.querySelector(".new-rec");
+        const newRecNumber = clone.querySelector(".new-rec-number");
         
         console.log(`🔍 LMID ${lmid}: Found container:`, !!newRecContainer, 'Found number:', !!newRecNumber);
         
-        // Remove IDs and add classes for reliable selection later
-        if (newRecContainer) {
-            newRecContainer.removeAttribute("id");
-            newRecContainer.classList.add("new-rec"); // Ensure class exists
+        if (!newRecContainer || !newRecNumber) {
+            console.warn(`⚠️ LMID ${lmid}: Missing new recording elements`);
+            return;
         }
-        if (newRecNumber) {
-            newRecNumber.removeAttribute("id");
-            newRecNumber.classList.add("new-rec-number"); // Ensure class exists
-        }
+        
+        // Store original display style from Webflow
+        const originalDisplay = getComputedStyle(newRecContainer).display;
+        newRecContainer.setAttribute('data-original-display', originalDisplay);
         
         try {
             // Get new recording count for this LMID
@@ -349,28 +348,20 @@
             console.log(`📊 LMID ${lmid}: Calculated ${newRecordingCount} new recordings`);
             
             if (newRecordingCount > 0) {
-                // Show container and update number - ONLY change display
-                if (newRecContainer) {
-                    newRecContainer.style.display = 'block';
-                    console.log(`✅ LMID ${lmid}: Showing badge with ${newRecordingCount} new recordings`);
-                }
-                if (newRecNumber) {
-                    newRecNumber.textContent = newRecordingCount.toString();
-                }
+                // Show container and update number - restore original Webflow display
+                newRecContainer.style.display = originalDisplay;
+                newRecNumber.textContent = newRecordingCount.toString();
+                console.log(`✅ LMID ${lmid}: Showing badge with ${newRecordingCount} new recordings`);
             } else {
-                // Hide container when no new recordings - ONLY change display
-                if (newRecContainer) {
-                    newRecContainer.style.display = 'none';
-                    console.log(`🙈 LMID ${lmid}: Hiding badge (no new recordings)`);
-                }
+                // Hide container when no new recordings
+                newRecContainer.style.display = 'none';
+                console.log(`🙈 LMID ${lmid}: Hiding badge (no new recordings)`);
             }
         } catch (error) {
             console.error(`❌ Error getting new recording count for LMID ${lmid}:`, error);
-            // Hide container on error - ONLY change display
-            if (newRecContainer) {
-                newRecContainer.style.display = 'none';
-                console.log(`🙈 LMID ${lmid}: Hiding badge (error)`);
-            }
+            // Hide container on error
+            newRecContainer.style.display = 'none';
+            console.log(`🙈 LMID ${lmid}: Hiding badge (error)`);
         }
     }
 
@@ -622,11 +613,16 @@
             // Check each world for recordings added since last visit
             for (const world of worlds) {
                 try {
+                    console.log(`🌍 Checking world ${world} for LMID ${lmid}`);
+                    
                     // Get ShareID for this world/LMID combination
                     const shareId = await getShareIdForWorldLmid(world, lmid);
                     if (!shareId) {
+                        console.log(`❌ No ShareID found for ${world}/LMID ${lmid} - skipping`);
                         continue; // Skip if no ShareID found
                     }
+                    
+                    console.log(`✅ ShareID found for ${world}/LMID ${lmid}: ${shareId}`);
                     
                     // Get current recordings for this world
                     const response = await fetch(`${window.LM_CONFIG.API_BASE_URL}/api/list-recordings?world=${world}&lmid=${lmid}&lang=${lang}`);
@@ -635,6 +631,7 @@
                         const data = await response.json();
                         if (data.success) {
                             const currentRecordings = data.recordings || [];
+                            console.log(`📁 Found ${currentRecordings.length} recordings in ${world} for LMID ${lmid}`);
                             
                             // Filter recordings added since last visit
                             const lastVisitTimestamp = new Date(lastVisitData.timestamp).getTime();
@@ -643,8 +640,13 @@
                                 return recordingTime > lastVisitTimestamp;
                             });
                             
+                            console.log(`🆕 Found ${newRecordings.length} new recordings in ${world} for LMID ${lmid}`);
                             totalNewRecordings += newRecordings.length;
+                        } else {
+                            console.warn(`❌ API error for ${world}/LMID ${lmid}:`, data.error);
                         }
+                    } else {
+                        console.warn(`❌ HTTP error ${response.status} for ${world}/LMID ${lmid}`);
                     }
                 } catch (worldError) {
                     console.warn(`⚠️ Error checking world ${world} for LMID ${lmid}:`, worldError);
