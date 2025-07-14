@@ -53,6 +53,47 @@
         'neighborhood'
     ];
     
+    // Language Configuration
+    window.LM_CONFIG.LANGUAGES = {
+        DEFAULT: 'en',
+        SUPPORTED: ['en', 'pl'],
+        CODES: {
+            'en': 'English',
+            'pl': 'Polski'
+        }
+    };
+    
+    // Language Detection Functions
+    window.LM_CONFIG.getLanguageFromUrl = function() {
+        const pathname = window.location.pathname;
+        
+        // Check if URL starts with a supported language code
+        for (const lang of window.LM_CONFIG.LANGUAGES.SUPPORTED) {
+            if (pathname.startsWith(`/${lang}/`) || pathname === `/${lang}`) {
+                return lang;
+            }
+        }
+        
+        // Return default language if no language prefix found
+        return window.LM_CONFIG.LANGUAGES.DEFAULT;
+    };
+    
+    window.LM_CONFIG.getDefaultLanguage = function() {
+        return window.LM_CONFIG.LANGUAGES.DEFAULT;
+    };
+    
+    // Get current language (shorthand)
+    window.LM_CONFIG.getCurrentLanguage = function() {
+        return window.LM_CONFIG.getLanguageFromUrl();
+    };
+    
+    // Build localized CDN URLs
+    window.LM_CONFIG.getLocalizedAudioUrl = function(path, language = null) {
+        const lang = language || window.LM_CONFIG.getCurrentLanguage();
+        const basePath = path.startsWith('/') ? path.substring(1) : path;
+        return `${window.LM_CONFIG.CDN_BASE_URL}/${lang}/${basePath}`;
+    };
+
     // World Videos (from HeyFeelings CDN) - replaces static images with dynamic videos
     window.LM_CONFIG.WORLD_VIDEOS = {
         'big-city': 'https://heyfeelings.b-cdn.net/Worlds/city-opt.mp4',
@@ -61,6 +102,17 @@
         'neighborhood': 'https://heyfeelings.b-cdn.net/Worlds/home-opt.mp4',
         'shopping-spree': 'https://heyfeelings.b-cdn.net/Worlds/mall-opt.mp4',
         'waterpark': 'https://heyfeelings.b-cdn.net/Worlds/waterpark-opt.mp4'
+    };
+    
+    // Debug function for language detection (only in development)
+    window.LM_CONFIG.debugLanguage = function() {
+        if (!window.LM_CONFIG.DEBUG_ENABLED) return;
+        
+        console.log('🌍 Language Detection Debug:');
+        console.log(`📍 Current URL: ${window.location.pathname}`);
+        console.log(`🔤 Detected Language: ${window.LM_CONFIG.getCurrentLanguage()}`);
+        console.log(`🎯 Default Language: ${window.LM_CONFIG.getDefaultLanguage()}`);
+        console.log(`🎵 Audio URL Example: ${window.LM_CONFIG.getLocalizedAudioUrl('audio/other/intro.mp3')}`);
     };
     
     // Legacy World Images (kept for fallback compatibility)
