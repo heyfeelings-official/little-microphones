@@ -66,16 +66,14 @@
             // Initialize UI with LMID data
             await initializeDashboardUI(authResult.lmids);
             
-            // Setup event listeners with auth system
+            // Setup world backgrounds for all containers - PRIORITY LOADING
+            setupWorldBackgrounds();
+            
+            // Setup event listeners
             setupEventListeners(authSystem);
             
             // Fix for Webflow's locale switcher stripping URL params
             setupLocaleSwitcherFix();
-            
-            // Setup world backgrounds for all containers
-            setTimeout(() => {
-                setupWorldBackgrounds();
-            }, 100); // Small delay to ensure DOM is fully ready
             
         } catch (error) {
             console.error("💥 Dashboard initialization error:", error);
@@ -748,30 +746,14 @@
         // All available worlds from config
         const worlds = Object.keys(window.LM_CONFIG?.WORLD_VIDEOS || {});
         
-        console.log('🌍 Setting up world backgrounds for containers:', worlds);
+        console.log('🌍 Setting up world backgrounds for containers');
         
-        // 🔍 DEBUG: Check what containers exist on the page
-        const allContainers = document.querySelectorAll('.program-container');
-        console.log('🔍 DEBUG: Found .program-container elements:', allContainers.length);
-        
-        allContainers.forEach((container, index) => {
-            console.log(`🔍 DEBUG: Container ${index + 1}:`, {
-                classes: container.className,
-                dataWorld: container.getAttribute('data-world'),
-                display: getComputedStyle(container).display,
-                visibility: getComputedStyle(container).visibility,
-                innerHTML: container.innerHTML.substring(0, 100) + '...'
-            });
-        });
-        
-        // Method 1: Handle ALL containers with explicit data-world attributes (not just first)
+        // Method 1: Handle ALL containers with explicit data-world attributes (prioritize visible ones)
         worlds.forEach(world => {
             // Use querySelectorAll to get ALL containers for this world
             const containers = document.querySelectorAll(`.program-container[data-world="${world}"]`);
             
             if (containers.length > 0) {
-                console.log(`🎬 Found ${containers.length} container(s) for world: ${world}`);
-                
                 containers.forEach((container, index) => {
                     // Skip hidden templates (display: none or visibility: hidden)
                     const styles = getComputedStyle(container);
@@ -780,20 +762,14 @@
                                     styles.opacity !== '0';
                     
                     if (isVisible) {
-                        console.log(`🎬 Setting up background for world: ${world} (container ${index + 1}/${containers.length})`);
                         setWorldBackgroundForContainer(container, world);
-                    } else {
-                        console.log(`⚠️ Skipping hidden container for world: ${world} (container ${index + 1}/${containers.length})`);
                     }
                 });
-            } else {
-                console.log(`⚠️ No container found with data-world="${world}"`);
             }
         });
         
         // Method 2: Handle containers without data-world by detecting from text content
         const containersWithoutDataWorld = document.querySelectorAll('.program-container:not([data-world])');
-        console.log(`🔍 DEBUG: Found ${containersWithoutDataWorld.length} containers without data-world`);
         
         containersWithoutDataWorld.forEach((container, index) => {
             // Skip hidden templates
@@ -803,12 +779,10 @@
                             styles.opacity !== '0';
             
             if (!isVisible) {
-                console.log(`⚠️ Skipping hidden container without data-world (${index + 1})`);
                 return;
             }
             
             const textContent = container.textContent.toLowerCase().trim();
-            console.log(`🔍 DEBUG: Container ${index + 1} text content:`, textContent);
             
             // Try to detect world from text content
             const worldPatterns = {
@@ -822,7 +796,6 @@
             
             for (const [world, patterns] of Object.entries(worldPatterns)) {
                 if (patterns.some(pattern => textContent.includes(pattern))) {
-                    console.log(`🎬 Setting up background for world: ${world} (via text detection: "${textContent}")`);
                     setWorldBackgroundForContainer(container, world);
                     break;
                 }
@@ -868,8 +841,6 @@
      * @param {string} world - World name for fallback
      */
     function setupVideoBackgroundForContainer(container, videoUrl, world) {
-        console.log(`🎬 Setting up video background for ${world}:`, videoUrl);
-        
         // Remove existing video if any
         const existingVideo = container.querySelector('.world-bg-video');
         if (existingVideo) {
@@ -879,7 +850,7 @@
         // Clear background image
         container.style.backgroundImage = 'none';
         
-        // Create video element
+        // Create video element with optimized loading
         const video = document.createElement('video');
         video.className = 'world-bg-video';
         video.src = videoUrl;
@@ -887,7 +858,7 @@
         video.loop = true;
         video.muted = true;
         video.playsInline = true;
-        video.preload = 'auto';
+        video.preload = 'metadata'; // Changed from 'auto' to 'metadata' for faster initial load
         
         // Style the video to cover the container - EXACT COPY from radio.js
         video.style.cssText = `
@@ -906,7 +877,7 @@
             container.style.position = 'relative';
         }
         
-        // Add video to container
+        // Add video to container immediately
         container.appendChild(video);
         
         // Ensure all child elements are above the video - EXACT COPY from radio.js
@@ -918,11 +889,8 @@
             }
         }
         
-        console.log(`🎬 Video background set for ${world}:`, videoUrl);
-        
-        // Handle video load errors - fallback to image
+        // Handle video load errors - fallback to image (simplified)
         video.addEventListener('error', () => {
-            console.log(`❌ Video failed to load for ${world}, falling back to image`);
             video.remove();
             
             // Fallback to image
@@ -931,28 +899,20 @@
                 container.style.backgroundImage = `url('${imageUrl}')`;
                 container.style.backgroundSize = 'cover';
                 container.style.backgroundPosition = 'center';
-                console.log(`🖼️ Image fallback set for ${world}:`, imageUrl);
             } else {
                 container.style.backgroundColor = '#f0f0f0';
-                console.log(`⚪ Default background set for ${world}`);
             }
         });
         
-        // Ensure video starts playing
+        // Optimized video loading
         video.addEventListener('loadeddata', () => {
-            video.play().catch(error => {
-                console.log(`⚠️ Video autoplay blocked for ${world}, but video is visible`);
+            video.play().catch(() => {
+                // Silent fallback - video is still visible
             });
         });
         
-        // Force play attempt after a short delay
-        setTimeout(() => {
-            if (video.paused) {
-                video.play().catch(error => {
-                    // Silent fallback - video will still be visible as first frame
-                });
-            }
-        }, 500);
+        // Start loading video immediately
+        video.load();
     }
 
     // Test function for Memberstack API debugging
