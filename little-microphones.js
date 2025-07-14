@@ -257,6 +257,11 @@
         // Reinitialize Webflow interactions
         reinitializeWebflow();
         
+        // Initialize dashboard tracking
+        setTimeout(() => {
+            initializeDashboardTracking();
+        }, 50);
+        
         // Now batch-load new recording indicators in background (fast)
         setTimeout(() => {
             batchLoadNewRecordingIndicators(lmids);
@@ -436,24 +441,24 @@
     }
 
     /**
-     * Get count of new recordings for a specific LMID (optimized version)
+     * Get count of new recordings for a specific LMID (localStorage only)
      * @param {string} lmid - LMID number
-     * @returns {Promise<number>} Count of new recordings
+     * @returns {Promise<number>} Count of new recordings since user's last visit
      */
     async function getNewRecordingCountOptimized(lmid) {
         try {
-            // Use a single optimized API call instead of 6 separate calls
-            const response = await fetch(`${window.LM_CONFIG.API_BASE_URL}/api/get-lmid-new-recordings?lmid=${lmid}&lang=${window.LM_CONFIG.getCurrentLanguage()}`);
+            const currentMemberId = await getCurrentMemberId();
             
-            if (response.ok) {
-                const data = await response.json();
-                if (data.success) {
-                    return data.totalNewRecordings || 0;
-                }
+            if (!currentMemberId) {
+                console.warn(`⚠️ No member ID available for new recording count`);
+                return 0;
             }
             
-            // Fallback to old method if new API doesn't exist yet
-            return await getNewRecordingCount(lmid);
+            // Get user's last visit data from localStorage (fast)
+            const lastVisitData = getUserLastVisitData(currentMemberId, lmid);
+            
+            // Count new recordings since last visit
+            return await getNewRecordingCountWithUserContext(lmid, currentMemberId, lastVisitData);
             
         } catch (error) {
             console.warn(`⚠️ Error getting optimized count for LMID ${lmid}:`, error);
@@ -462,11 +467,156 @@
     }
 
     /**
-     * Get count of new recordings for a specific LMID across all worlds
+     * Get user's last visit data from localStorage
+     * @param {string} userId - User/Member ID
      * @param {string} lmid - LMID number
+     * @returns {Object} Last visit data with timestamp for comparison
+     */
+    function getUserLastVisitData(userId, lmid) {
+        try {
+            const storageKey = `lm_user_visits_${userId}`;
+            const userData = JSON.parse(localStorage.getItem(storageKey) || '{}');
+            
+            const lmidKey = `lmid_${lmid}`;
+            const lmidData = userData[lmidKey] || {};
+            
+            // Use lastRecordingCheck as the baseline for "new" recordings
+            // This is updated when user clicks on world or listens to radio
+            const lastRecordingCheck = lmidData.lastRecordingCheck;
+            
+            // For new users, default to 7 days ago (show some recent activity)
+            const defaultTimestamp = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+            
+            return {
+                timestamp: lastRecordingCheck || defaultTimestamp,
+                isNewUser: !lastRecordingCheck,
+                lastDashboardView: lmidData.lastDashboardView,
+                lastWorldClick: lmidData.lastWorldClick,
+                lastRadioListen: lmidData.lastRadioListen
+            };
+        } catch (error) {
+            console.warn('Error reading user visit data:', error);
+            // Default to 7 days ago for new users
+            return {
+                timestamp: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+                isNewUser: true,
+                lastDashboardView: null,
+                lastWorldClick: null,
+                lastRadioListen: null
+            };
+        }
+    }
+
+    /**
+     * Update user's last visit data in localStorage
+     * @param {string} userId - User/Member ID
+     * @param {string} lmid - LMID number
+     * @param {string} context - Context of the visit ('dashboard', 'world_click', 'radio_listen')
+     */
+    function updateUserLastVisitData(userId, lmid, context = 'dashboard') {
+        try {
+            const storageKey = `lm_user_visits_${userId}`;
+            const userData = JSON.parse(localStorage.getItem(storageKey) || '{}');
+            
+            const lmidKey = `lmid_${lmid}`;
+            const now = new Date().toISOString();
+            
+            // Initialize if doesn't exist
+            if (!userData[lmidKey]) {
+                userData[lmidKey] = {
+                    firstVisit: now,
+                    lastDashboardView: null,
+                    lastWorldClick: null,
+                    lastRadioListen: null
+                };
+            }
+            
+            // Update specific context
+            switch (context) {
+                case 'dashboard':
+                    userData[lmidKey].lastDashboardView = now;
+                    break;
+                case 'world_click':
+                    userData[lmidKey].lastWorldClick = now;
+                    // This is when we mark recordings as "seen" 
+                    userData[lmidKey].lastRecordingCheck = now;
+                    break;
+                case 'radio_listen':
+                    userData[lmidKey].lastRadioListen = now;
+                    // This is when user listened to full radio program
+                    userData[lmidKey].lastRecordingCheck = now;
+                    break;
+            }
+            
+            userData[lmidKey].updatedAt = now;
+            localStorage.setItem(storageKey, JSON.stringify(userData));
+            
+            console.log(`📝 Updated visit data for LMID ${lmid}, context: ${context}`);
+            
+        } catch (error) {
+            console.warn('Error updating user visit data:', error);
+        }
+    }
+
+    /**
+     * Mark LMID as visited when user navigates to world/recording page
+     * @param {string} lmid - LMID number
+     */
+    async function markLmidWorldClicked(lmid) {
+        const currentMemberId = await getCurrentMemberId();
+        if (currentMemberId) {
+            updateUserLastVisitData(currentMemberId, lmid, 'world_click');
+            
+            // Refresh the badge for this LMID (should show 0 now)
+            updateNewRecordingBadge(lmid, 0);
+            
+            console.log(`✅ Marked LMID ${lmid} world as clicked (recordings marked as seen)`);
+        }
+    }
+
+    /**
+     * Mark LMID radio as listened when user finishes listening to radio program
+     * @param {string} lmid - LMID number
+     */
+    async function markLmidRadioListened(lmid) {
+        const currentMemberId = await getCurrentMemberId();
+        if (currentMemberId) {
+            updateUserLastVisitData(currentMemberId, lmid, 'radio_listen');
+            
+            // Refresh the badge for this LMID (should show 0 now)
+            updateNewRecordingBadge(lmid, 0);
+            
+            console.log(`✅ Marked LMID ${lmid} radio as listened (recordings marked as heard)`);
+        }
+    }
+
+    /**
+     * Get current member ID for user context
+     * @returns {Promise<string|null>} Member ID or null
+     */
+    async function getCurrentMemberId() {
+        try {
+            const memberstack = window.$memberstackDom;
+            if (!memberstack) {
+                return null;
+            }
+            
+            const { data: memberData } = await memberstack.getCurrentMember();
+            return memberData?.id || null;
+        } catch (error) {
+            console.error('Error getting member ID:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Fallback method for getting new recording count with user context
+     * @param {string} lmid - LMID number
+     * @param {string} userId - User/Member ID
+     * @param {Object} lastVisitData - User's last visit data
      * @returns {Promise<number>} Count of new recordings
      */
-    async function getNewRecordingCount(lmid) {
+    async function getNewRecordingCountWithUserContext(lmid, userId, lastVisitData) {
         try {
             const lang = window.LM_CONFIG.getCurrentLanguage();
             let totalNewRecordings = 0;
@@ -474,7 +624,7 @@
             // List of all worlds to check
             const worlds = ['spookyland', 'waterpark', 'shopping-spree', 'amusement-park', 'big-city', 'neighborhood'];
             
-            // Check each world for new recordings
+            // Check each world for recordings added since last visit
             for (const world of worlds) {
                 try {
                     // Get ShareID for this world/LMID combination
@@ -483,26 +633,22 @@
                         continue; // Skip if no ShareID found
                     }
                     
-                    // Get radio data which includes new recording detection
-                    const response = await fetch(`${window.LM_CONFIG.API_BASE_URL}/api/get-radio-data?shareId=${shareId}&world=${world}&lang=${lang}`);
+                    // Get current recordings for this world
+                    const response = await fetch(`${window.LM_CONFIG.API_BASE_URL}/api/list-recordings?world=${world}&lmid=${lmid}&lang=${lang}`);
                     
                     if (response.ok) {
                         const data = await response.json();
                         if (data.success) {
-                            // Count new recordings based on generation needs
-                            if (data.needsKidsProgram && data.hasKidsRecordings) {
-                                const kidsCount = data.kidsRecordingCount || 0;
-                                const previousKidsCount = data.kidsManifest?.recordingCount || 0;
-                                const newKidsRecordings = Math.max(0, kidsCount - previousKidsCount);
-                                totalNewRecordings += newKidsRecordings;
-                            }
+                            const currentRecordings = data.recordings || [];
                             
-                            if (data.needsParentProgram && data.hasParentRecordings) {
-                                const parentCount = data.parentRecordingCount || 0;
-                                const previousParentCount = data.parentManifest?.recordingCount || 0;
-                                const newParentRecordings = Math.max(0, parentCount - previousParentCount);
-                                totalNewRecordings += newParentRecordings;
-                            }
+                            // Filter recordings added since last visit
+                            const lastVisitTimestamp = new Date(lastVisitData.timestamp).getTime();
+                            const newRecordings = currentRecordings.filter(recording => {
+                                const recordingTime = recording.lastModified || 0;
+                                return recordingTime > lastVisitTimestamp;
+                            });
+                            
+                            totalNewRecordings += newRecordings.length;
                         }
                     }
                 } catch (worldError) {
@@ -515,6 +661,25 @@
         } catch (error) {
             console.error(`❌ Error calculating new recordings for LMID ${lmid}:`, error);
             return 0;
+        }
+    }
+
+    /**
+     * Initialize dashboard view tracking (called on page load)
+     */
+    async function initializeDashboardTracking() {
+        const currentMemberId = await getCurrentMemberId();
+        if (currentMemberId) {
+            // Get all LMIDs on page and mark dashboard view (but don't reset counters)
+            const lmidElements = document.querySelectorAll('[data-lmid]');
+            lmidElements.forEach(element => {
+                const lmid = element.getAttribute('data-lmid');
+                if (lmid) {
+                    updateUserLastVisitData(currentMemberId, lmid, 'dashboard');
+                }
+            });
+            
+            console.log(`📊 Initialized dashboard tracking for ${lmidElements.length} LMIDs`);
         }
     }
 
@@ -693,6 +858,10 @@
         }
 
         const lmid = programWrapper.getAttribute("data-lmid");
+        
+        // Mark this LMID as clicked (recordings become "seen")
+        markLmidWorldClicked(lmid);
+        
         const baseUrl = worldButton.getAttribute("href") || "/members/record";
         const newUrl = `${baseUrl}?world=${world}&lmid=${lmid}`;
         
@@ -1265,9 +1434,11 @@
         console.log(`✅ Refreshed ${lmids.length} LMID indicators`);
     }
 
-    // Make refresh function available globally
+    // Make functions available globally
     window.LittleMicrophones = window.LittleMicrophones || {};
     window.LittleMicrophones.refreshNewRecordingIndicators = refreshNewRecordingIndicators;
+    window.LittleMicrophones.markLmidWorldClicked = markLmidWorldClicked;
+    window.LittleMicrophones.markLmidRadioListened = markLmidRadioListened;
 
     // Test function for Memberstack API debugging
     window.testMemberstackAPI = async function() {
