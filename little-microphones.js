@@ -63,6 +63,9 @@
 
             console.log(`✅ User authenticated - ${authResult.lmidCount} LMID(s) found`);
             
+            // Setup required CSS styles first
+            setupRequiredStyles();
+            
             // Initialize UI with LMID data
             await initializeDashboardUI(authResult.lmids);
             
@@ -94,6 +97,53 @@
 
     // Cache ShareIDs to avoid repeated API calls (optimization)
     const shareIdCache = new Map();
+
+    /**
+     * Setup required CSS styles for badge-rec and new-rec elements
+     * This ensures proper positioning and styling regardless of Webflow configuration
+     */
+    function setupRequiredStyles() {
+        // Check if styles are already added
+        if (document.getElementById('lm-dashboard-styles')) {
+            return;
+        }
+        
+        const style = document.createElement('style');
+        style.id = 'lm-dashboard-styles';
+        style.textContent = `
+            .badge-rec {
+                position: absolute;
+                inset: 1rem 1rem auto auto;
+                z-index: 55;
+                display: flex;
+                width: 4rem;
+                justify-content: center;
+                align-items: center;
+                aspect-ratio: 1 / 1;
+                border-radius: 100px;
+                background-color: var(--color-scheme-1--blue);
+                color: var(--color-scheme-1--background);
+            }
+            
+            .new-rec {
+                position: absolute;
+                bottom: 1rem;
+                z-index: 55;
+                display: flex;
+                height: 48px;
+                margin-top: 1rem;
+                justify-content: flex-start;
+                align-items: center;
+                border-radius: 100px;
+                background-color: var(--_primitives---colors--white);
+                color: var(--color-scheme-1--yellow);
+                width: calc(100% - 2rem);
+            }
+        `;
+        
+        document.head.appendChild(style);
+        console.log('✅ Added required CSS styles for badge-rec and new-rec elements');
+    }
 
     // --- User Role Detection Functions ---
     
@@ -360,9 +410,13 @@
         
         // Look for new elements in this world container
         const newRecContainer = worldContainer.querySelector(".new-rec");
-        const newRecNumber = worldContainer.querySelector(".new-rec-number");
-        const totalRecNumber = worldContainer.querySelector(".new-rec-numb .total");
         const badgeRec = worldContainer.querySelector(".badge-rec");
+        
+        // Find specific number elements in the correct structure
+        // First .rec-text contains total answers count
+        const totalRecNumber = worldContainer.querySelector(".new-rec .rec-text:not(.new) .new-rec-number");
+        // Second .rec-text.new contains new answers count  
+        const newRecNumber = worldContainer.querySelector(".new-rec .rec-text.new .new-rec-number");
         
         console.log(`🔍 LMID ${lmid}, World ${world}: Found elements - newRec:${!!newRecContainer}, newRecNum:${!!newRecNumber}, total:${!!totalRecNumber}, badge:${!!badgeRec}`);
         
@@ -381,21 +435,38 @@
             
             console.log(`📊 LMID ${lmid}, World ${world}: Counts - New:${newRecordingCount}, Total:${totalRecordingCount}, ShareID:${shareId}`);
             
-            // Update new recordings count (show 0 if no new recordings)
-            if (newRecNumber) {
-                newRecNumber.textContent = newRecordingCount.toString();
-                console.log(`✅ Updated new count for ${world}: ${newRecordingCount}`);
-            }
-            
-            // Update total recordings count
+            // Update total recordings count (Answers)
             if (totalRecNumber) {
                 totalRecNumber.textContent = totalRecordingCount.toString();
                 console.log(`✅ Updated total count for ${world}: ${totalRecordingCount}`);
+            } else {
+                console.warn(`⚠️ LMID ${lmid}, World ${world}: Missing total count element`);
+            }
+            
+            // Update new recordings count (New)
+            if (newRecNumber) {
+                newRecNumber.textContent = newRecordingCount.toString();
+                console.log(`✅ Updated new count for ${world}: ${newRecordingCount}`);
+            } else {
+                console.warn(`⚠️ LMID ${lmid}, World ${world}: Missing new count element`);
+            }
+            
+            // Show/hide the new-rec container based on whether there are any recordings
+            if (totalRecordingCount > 0) {
+                newRecContainer.style.display = 'flex';
+                console.log(`✅ Showing new-rec container for ${world} (has recordings)`);
+            } else {
+                newRecContainer.style.display = 'none';
+                console.log(`ℹ️ Hiding new-rec container for ${world} (no recordings)`);
             }
             
             // Setup .badge-rec click to radio page with ShareID
             if (badgeRec && shareId) {
-                badgeRec.addEventListener('click', (e) => {
+                // Remove any existing listeners to prevent duplicates
+                const newBadgeRec = badgeRec.cloneNode(true);
+                badgeRec.parentNode.replaceChild(newBadgeRec, badgeRec);
+                
+                newBadgeRec.addEventListener('click', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     const radioUrl = `/little-microphones?ID=${shareId}`;
@@ -403,11 +474,29 @@
                     window.location.href = radioUrl;
                 });
                 console.log(`✅ Added radio click for ${world} -> ${shareId}`);
+            } else if (!shareId) {
+                console.warn(`⚠️ LMID ${lmid}, World ${world}: No ShareID available`);
             }
             
             // Setup .new-rec click to recording page
             if (newRecContainer) {
-                newRecContainer.addEventListener('click', (e) => {
+                // Remove any existing listeners to prevent duplicates
+                const newNewRecContainer = newRecContainer.cloneNode(true);
+                newRecContainer.parentNode.replaceChild(newNewRecContainer, newRecContainer);
+                
+                // Update number elements after cloning
+                const updatedTotalRecNumber = newNewRecContainer.querySelector(".rec-text:not(.new) .new-rec-number");
+                const updatedNewRecNumber = newNewRecContainer.querySelector(".rec-text.new .new-rec-number");
+                
+                // Re-apply the counts to the new elements
+                if (updatedTotalRecNumber) {
+                    updatedTotalRecNumber.textContent = totalRecordingCount.toString();
+                }
+                if (updatedNewRecNumber) {
+                    updatedNewRecNumber.textContent = newRecordingCount.toString();
+                }
+                
+                newNewRecContainer.addEventListener('click', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     markLmidWorldVisited(lmid);
