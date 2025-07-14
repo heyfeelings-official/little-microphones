@@ -774,7 +774,8 @@
                 element: container,
                 dataWorld: dataWorld,
                 classes: container.className,
-                id: container.id
+                id: container.id,
+                textContent: container.textContent?.trim().substring(0, 50)
             });
         });
         
@@ -784,18 +785,52 @@
         
         console.log('🌍 Setting up world backgrounds for containers:', worlds);
         
+        // Method 1: Handle containers with explicit data-world attributes
         worlds.forEach(world => {
-            // Find container with data-world attribute
             const container = document.querySelector(`.program-container[data-world="${world}"]`);
             console.log(`🔍 DEBUG: Looking for container with data-world="${world}":`, !!container);
             
-            if (!container) {
-                console.warn(`⚠️ Container not found for world: ${world}`);
-                return;
+            if (container) {
+                console.log(`🎬 Setting up background for world: ${world} (via data-world)`);
+                setWorldBackgroundForContainer(container, world);
+            }
+        });
+        
+        // Method 2: Handle containers without data-world by detecting world from text content
+        const containersWithoutDataWorld = document.querySelectorAll('.program-container:not([data-world])');
+        console.log('🔍 DEBUG: Containers without data-world:', containersWithoutDataWorld.length);
+        
+        containersWithoutDataWorld.forEach((container, index) => {
+            const textContent = container.textContent?.toLowerCase() || '';
+            console.log(`🔍 DEBUG: Container ${index + 1} without data-world, text:`, textContent.substring(0, 100));
+            
+            // Try to detect world from text content
+            let detectedWorld = null;
+            
+            // Map of text patterns to world names
+            const worldPatterns = {
+                'spookyland': ['spookyland', 'spooky'],
+                'shopping-spree': ['shopping spree', 'shopping', 'spree'],
+                'waterpark': ['waterpark', 'water park'],
+                'neighborhood': ['neighborhood', 'neighbourhood'],
+                'big-city': ['big city', 'city'],
+                'amusement-park': ['amusement park', 'amusement', 'funfair']
+            };
+            
+            // Check each world pattern
+            for (const [world, patterns] of Object.entries(worldPatterns)) {
+                if (patterns.some(pattern => textContent.includes(pattern))) {
+                    detectedWorld = world;
+                    break;
+                }
             }
             
-            console.log(`🎬 Setting up background for world: ${world}`);
-            setWorldBackgroundForContainer(container, world);
+            if (detectedWorld) {
+                console.log(`🎬 Setting up background for detected world: ${detectedWorld} (via text detection)`);
+                setWorldBackgroundForContainer(container, detectedWorld);
+            } else {
+                console.warn(`⚠️ Could not detect world for container with text: "${textContent.substring(0, 50)}..."`);
+            }
         });
         
         // Additional check: look for any containers that might have different naming
