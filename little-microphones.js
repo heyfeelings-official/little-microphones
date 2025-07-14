@@ -71,7 +71,7 @@
             setupEventListeners(authSystem);
             
             // Fix for Webflow's locale switcher stripping URL params
-            preserveUrlParamsOnLocaleChange();
+            setupLocaleSwitcherFix();
             
             console.log("🎉 Dashboard initialization complete");
             
@@ -369,43 +369,46 @@
 
     /**
      * Preserves URL parameters when user switches language via Webflow's locale switcher.
-     * Webflow's default behavior strips query parameters, which breaks our app.
-     * This function finds the locale links and appends the current URL's search params to them.
+     * This version uses event delegation to intercept clicks, making it more robust
+     * against script loading order issues with Webflow.
      */
-    function preserveUrlParamsOnLocaleChange() {
-        try {
-            // Check if there are any params to preserve
-            if (!window.location.search) {
-                return;
-            }
-
-            const currentParams = window.location.search; // e.g., "?ID=ywaiy057"
-            
-            // Find all locale links. Based on Webflow's structure.
-            // This selector might need adjustment if Webflow changes its structure.
-            const localeLinks = document.querySelectorAll('a.w-loc.w-dropdown-link');
-
-            if (localeLinks.length === 0) {
-                return;
-            }
-
-            console.log(`🔗 Preserving URL params (${currentParams}) for ${localeLinks.length} locale links.`);
-
-            localeLinks.forEach(link => {
-                const originalHref = link.getAttribute('href');
-                if (originalHref) {
-                    // Check if params are already there to avoid duplication
-                    if (!originalHref.includes(currentParams)) {
-                         // Simple concatenation. Assumes clean URLs from Webflow.
-                        link.setAttribute('href', originalHref + currentParams);
-                    }
-                }
-            });
-        } catch (error) {
-            console.warn("⚠️ Failed to preserve URL parameters for locale switcher:", error);
+    function setupLocaleSwitcherFix() {
+        // Only run if there are parameters to preserve
+        if (!window.location.search) {
+            return;
         }
+
+        console.log("🔗 Setting up robust locale switcher fix...");
+
+        document.body.addEventListener('click', function(event) {
+            // Find the link that was clicked by traversing up the DOM tree
+            const link = event.target.closest('a.w-loc.w-dropdown-link');
+
+            // If a locale link was clicked
+            if (link) {
+                // Prevent the default link behavior
+                event.preventDefault();
+                event.stopPropagation();
+
+                const currentParams = window.location.search; // e.g., "?ID=ywaiy057"
+                const destinationHref = link.getAttribute('href');
+
+                if (destinationHref) {
+                    // Construct the new URL
+                    // Avoids duplicating params if they are somehow already there
+                    const newUrl = destinationHref.includes('?') 
+                        ? destinationHref 
+                        : destinationHref + currentParams;
+                    
+                    console.log(`🚀 Locale link clicked. Redirecting to: ${newUrl}`);
+                    
+                    // Redirect to the new URL
+                    window.location.href = newUrl;
+                }
+            }
+        }, true); // Use capture phase to catch the event early
     }
-    
+
     /**
      * UTILITY FUNCTIONS
      */

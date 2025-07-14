@@ -194,7 +194,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Fix for Webflow's locale switcher stripping URL params
-  preserveUrlParamsOnLocaleChange();
+  setupLocaleSwitcherFix();
 
   // Check if this is a radio page - if so, don't run record.js
   if (window.location.pathname.includes('/little-microphones')) {
@@ -252,31 +252,29 @@ document.addEventListener("DOMContentLoaded", () => {
 
 /**
  * Preserves URL parameters when user switches language via Webflow's locale switcher.
+ * This version uses event delegation to intercept clicks, making it more robust.
  */
-function preserveUrlParamsOnLocaleChange() {
-    try {
-        if (!window.location.search) {
-            return;
-        }
-
-        const currentParams = window.location.search;
-        const localeLinks = document.querySelectorAll('a.w-loc.w-dropdown-link');
-
-        if (localeLinks.length === 0) {
-            return;
-        }
-
-        console.log(`🔗 Preserving URL params (${currentParams}) for ${localeLinks.length} locale links.`);
-
-        localeLinks.forEach(link => {
-            const originalHref = link.getAttribute('href');
-            if (originalHref && !originalHref.includes(currentParams)) {
-                link.setAttribute('href', originalHref + currentParams);
-            }
-        });
-    } catch (error) {
-        console.warn("⚠️ Failed to preserve URL parameters for locale switcher:", error);
+function setupLocaleSwitcherFix() {
+    if (!window.location.search) {
+        return;
     }
+
+    console.log("🔗 Setting up robust locale switcher fix...");
+
+    document.body.addEventListener('click', function(event) {
+        const link = event.target.closest('a.w-loc.w-dropdown-link');
+        if (link) {
+            event.preventDefault();
+            event.stopPropagation();
+            const currentParams = window.location.search;
+            const destinationHref = link.getAttribute('href');
+            if (destinationHref) {
+                const newUrl = destinationHref.includes('?') ? destinationHref : destinationHref + currentParams;
+                console.log(`🚀 Locale link clicked. Redirecting to: ${newUrl}`);
+                window.location.href = newUrl;
+            }
+        }
+    }, true);
 }
 
 /**
