@@ -363,21 +363,21 @@
             return;
         }
         
-        // Store original display style from Webflow
-        const originalDisplay = getComputedStyle(newRecContainer).display;
-        newRecContainer.setAttribute('data-original-display', originalDisplay);
-        
         try {
             // Get new recording count for this specific world
             const newRecordingCount = await getNewRecordingCountForWorld(lmid, world);
             
+            console.log(`📊 LMID ${lmid}, World ${world}: Calculated ${newRecordingCount} new recordings`);
+            
             if (newRecordingCount > 0) {
-                // Show container and update number - restore original Webflow display
-                newRecContainer.style.display = originalDisplay;
+                // Show container and update number - use block display temporarily
+                newRecContainer.style.display = 'block';
                 newRecNumber.textContent = newRecordingCount.toString();
+                console.log(`✅ LMID ${lmid}, World ${world}: Showing badge with ${newRecordingCount} new recordings`);
             } else {
                 // Hide container when no new recordings
                 newRecContainer.style.display = 'none';
+                console.log(`🙈 LMID ${lmid}, World ${world}: Hiding badge (no new recordings)`);
             }
         } catch (error) {
             console.error(`❌ Error getting new recording count for LMID ${lmid}, World ${world}:`, error);
