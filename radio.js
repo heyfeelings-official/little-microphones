@@ -271,8 +271,40 @@
         // Start loading - immediately load world info and teacher data
         showLoadingState();
         loadInitialData();
+        
+        // Fix for Webflow's locale switcher stripping URL params
+        preserveUrlParamsOnLocaleChange();
     });
 
+    /**
+     * Preserves URL parameters when user switches language via Webflow's locale switcher.
+     */
+    function preserveUrlParamsOnLocaleChange() {
+        try {
+            if (!window.location.search) {
+                return;
+            }
+
+            const currentParams = window.location.search;
+            const localeLinks = document.querySelectorAll('a.w-loc.w-dropdown-link');
+
+            if (localeLinks.length === 0) {
+                return;
+            }
+
+            console.log(`🔗 Preserving URL params (${currentParams}) for ${localeLinks.length} locale links.`);
+
+            localeLinks.forEach(link => {
+                const originalHref = link.getAttribute('href');
+                if (originalHref && !originalHref.includes(currentParams)) {
+                    link.setAttribute('href', originalHref + currentParams);
+                }
+            });
+        } catch (error) {
+            console.warn("⚠️ Failed to preserve URL parameters for locale switcher:", error);
+        }
+    }
+    
     /**
      * Load initial data (world info and teacher data) as fast as possible
      */
