@@ -826,38 +826,22 @@
 
     /**
      * Setup video background for a container with image fallback
-     * Adapted from radio.js setupVideoBackground function
+     * EXACT COPY from radio.js setupVideoBackground function (WORKING VERSION)
      * @param {HTMLElement} container - Container element
      * @param {string} videoUrl - Video URL
      * @param {string} world - World name for fallback
      */
     function setupVideoBackgroundForContainer(container, videoUrl, world) {
-        console.log(`🔍 DEBUG: setupVideoBackgroundForContainer called for ${world}`);
-        console.log(`🔍 DEBUG: Container:`, container);
-        console.log(`🔍 DEBUG: Video URL:`, videoUrl);
-        
-        // Check container initial state
-        const initialStyles = window.getComputedStyle(container);
-        console.log(`🔍 DEBUG: Container initial styles:`, {
-            position: initialStyles.position,
-            overflow: initialStyles.overflow,
-            zIndex: initialStyles.zIndex,
-            display: initialStyles.display,
-            visibility: initialStyles.visibility,
-            width: initialStyles.width,
-            height: initialStyles.height
-        });
+        console.log(`🎬 Setting up video background for ${world}:`, videoUrl);
         
         // Remove existing video if any
         const existingVideo = container.querySelector('.world-bg-video');
         if (existingVideo) {
-            console.log(`🔍 DEBUG: Removing existing video for ${world}`);
             existingVideo.remove();
         }
         
         // Clear background image
         container.style.backgroundImage = 'none';
-        console.log(`🔍 DEBUG: Cleared background image for ${world}`);
         
         // Create video element
         const video = document.createElement('video');
@@ -869,9 +853,7 @@
         video.playsInline = true;
         video.preload = 'auto';
         
-        console.log(`🔍 DEBUG: Created video element for ${world}:`, video);
-        
-        // Style the video to cover the container
+        // Style the video to cover the container - EXACT COPY from radio.js
         video.style.cssText = `
             position: absolute;
             top: 0;
@@ -883,53 +865,28 @@
             pointer-events: none;
         `;
         
-        console.log(`🔍 DEBUG: Applied video styles for ${world}`);
-        
         // Ensure container has relative positioning
         if (getComputedStyle(container).position === 'static') {
             container.style.position = 'relative';
-            console.log(`🔍 DEBUG: Set container position to relative for ${world}`);
         }
         
         // Add video to container
         container.appendChild(video);
-        console.log(`🔍 DEBUG: Appended video to container for ${world}`);
         
-        // Check if video was actually added
-        const addedVideo = container.querySelector('.world-bg-video');
-        console.log(`🔍 DEBUG: Video successfully added to DOM for ${world}:`, !!addedVideo);
-        
-        if (addedVideo) {
-            const videoStyles = window.getComputedStyle(addedVideo);
-            console.log(`🔍 DEBUG: Video computed styles for ${world}:`, {
-                position: videoStyles.position,
-                zIndex: videoStyles.zIndex,
-                width: videoStyles.width,
-                height: videoStyles.height,
-                display: videoStyles.display,
-                visibility: videoStyles.visibility,
-                opacity: videoStyles.opacity
-            });
-        }
-        
-        // Ensure all child elements are above the video
+        // Ensure all child elements are above the video - EXACT COPY from radio.js
         const children = container.children;
         for (let i = 0; i < children.length; i++) {
             if (children[i] !== video && !children[i].classList.contains('program-container-shadow')) {
                 children[i].style.position = 'relative';
                 children[i].style.zIndex = '33';
-                console.log(`🔍 DEBUG: Set z-index 33 for child ${i} in ${world}`);
             }
         }
         
+        console.log(`🎬 Video background set for ${world}:`, videoUrl);
+        
         // Handle video load errors - fallback to image
-        video.addEventListener('error', (e) => {
-            console.error(`❌ Video failed to load for ${world}:`, e);
-            console.log(`🔍 DEBUG: Video error details:`, {
-                error: e.target.error,
-                networkState: e.target.networkState,
-                readyState: e.target.readyState
-            });
+        video.addEventListener('error', () => {
+            console.log(`❌ Video failed to load for ${world}, falling back to image`);
             video.remove();
             
             // Fallback to image
@@ -938,53 +895,28 @@
                 container.style.backgroundImage = `url('${imageUrl}')`;
                 container.style.backgroundSize = 'cover';
                 container.style.backgroundPosition = 'center';
-                console.log(`🖼️ Fallback image set for ${world}:`, imageUrl);
+                console.log(`🖼️ Image fallback set for ${world}:`, imageUrl);
             } else {
                 container.style.backgroundColor = '#f0f0f0';
-                console.warn(`⚠️ No fallback image available for ${world}`);
+                console.log(`⚪ Default background set for ${world}`);
             }
         });
         
         // Ensure video starts playing
         video.addEventListener('loadeddata', () => {
-            console.log(`🎬 Video loaded for ${world}, attempting to play`);
-            video.play().then(() => {
-                console.log(`✅ Video playing successfully for ${world}`);
-            }).catch(error => {
-                console.warn(`⚠️ Video autoplay failed for ${world}:`, error);
-                // Video will still be visible as first frame
+            video.play().catch(error => {
+                console.log(`⚠️ Video autoplay blocked for ${world}, but video is visible`);
             });
-        });
-        
-        // Check video loading progress
-        video.addEventListener('loadstart', () => {
-            console.log(`📥 Video loading started for ${world}`);
-        });
-        
-        video.addEventListener('canplay', () => {
-            console.log(`🎬 Video can play for ${world}`);
-        });
-        
-        video.addEventListener('playing', () => {
-            console.log(`▶️ Video is playing for ${world}`);
-        });
-        
-        video.addEventListener('pause', () => {
-            console.log(`⏸️ Video paused for ${world}`);
         });
         
         // Force play attempt after a short delay
         setTimeout(() => {
             if (video.paused) {
-                console.log(`🔄 Attempting delayed play for ${world}`);
                 video.play().catch(error => {
-                    console.warn(`⚠️ Delayed video play failed for ${world}:`, error);
-                    // Silent fallback
+                    // Silent fallback - video will still be visible as first frame
                 });
             }
         }, 500);
-        
-        console.log(`🎬 Video background set for ${world}:`, videoUrl);
     }
 
     // Test function for Memberstack API debugging
