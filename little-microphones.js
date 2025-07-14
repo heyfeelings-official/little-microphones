@@ -305,8 +305,11 @@
      * @param {string} lmid - LMID number
      */
     async function setupNewRecordingIndicator(clone, lmid) {
-        const newRecContainer = clone.querySelector("#new-rec");
+        // Look for elements with both ID and class selectors for flexibility
+        const newRecContainer = clone.querySelector("#new-rec, .new-rec");
         const newRecNumber = clone.querySelector("#new-rec-number");
+        
+        console.log(`🔍 LMID ${lmid}: Found container:`, !!newRecContainer, 'Found number:', !!newRecNumber);
         
         if (newRecContainer) {
             newRecContainer.removeAttribute("id");
@@ -319,23 +322,25 @@
             // Get new recording count for this LMID
             const newRecordingCount = await getNewRecordingCount(lmid);
             
+            console.log(`📊 LMID ${lmid}: Calculated ${newRecordingCount} new recordings`);
+            
             if (newRecordingCount > 0) {
                 // Show container and update number
                 if (newRecContainer) {
                     newRecContainer.style.display = 'block';
                     newRecContainer.style.visibility = 'visible';
+                    console.log(`✅ LMID ${lmid}: Showing badge with ${newRecordingCount} new recordings`);
                 }
                 if (newRecNumber) {
                     newRecNumber.textContent = newRecordingCount.toString();
                 }
-                console.log(`📊 LMID ${lmid}: ${newRecordingCount} new recordings`);
             } else {
                 // Hide container when no new recordings
                 if (newRecContainer) {
                     newRecContainer.style.display = 'none';
                     newRecContainer.style.visibility = 'hidden';
+                    console.log(`🙈 LMID ${lmid}: Hiding badge (no new recordings)`);
                 }
-                console.log(`📊 LMID ${lmid}: No new recordings`);
             }
         } catch (error) {
             console.error(`❌ Error getting new recording count for LMID ${lmid}:`, error);
@@ -343,6 +348,7 @@
             if (newRecContainer) {
                 newRecContainer.style.display = 'none';
                 newRecContainer.style.visibility = 'hidden';
+                console.log(`🙈 LMID ${lmid}: Hiding badge (error)`);
             }
         }
     }
