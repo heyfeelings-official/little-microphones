@@ -75,11 +75,136 @@
             // Fix for Webflow's locale switcher stripping URL params
             setupLocaleSwitcherFix();
             
+            // Hide delete buttons for parent users
+            await hideDeleteButtonsForParents();
+            
         } catch (error) {
             console.error("💥 Dashboard initialization error:", error);
             showErrorMessage("Failed to initialize dashboard. Please refresh the page.");
         }
     });
+
+    // Global state
+    let currentUserRole = null;
+
+    // --- User Role Detection Functions ---
+    
+    /**
+     * Detect user role from Memberstack plan
+     * @returns {Promise<string>} User role ('parent', 'teacher', or 'therapist')
+     */
+    async function detectUserRole() {
+        if (currentUserRole) {
+            return currentUserRole;
+        }
+        
+        try {
+            const memberstack = window.$memberstackDom;
+            if (!memberstack) {
+                console.warn('Memberstack not available, defaulting to teacher role');
+                currentUserRole = 'teacher';
+                return currentUserRole;
+            }
+            
+            const { data: memberData } = await memberstack.getCurrentMember();
+            if (!memberData) {
+                console.warn('No member data available, defaulting to teacher role');
+                currentUserRole = 'teacher';
+                return currentUserRole;
+            }
+            
+            // Detect role based on Memberstack plan using configuration
+            const planConnections = memberData.planConnections || [];
+            const activePlans = planConnections.filter(conn => conn.active && conn.status === 'ACTIVE');
+            const activePlanIds = activePlans.map(plan => plan.planId);
+            
+            // Check user role based on plan type (specific order matters)
+            const hasParentPlan = activePlanIds.some(planId => 
+                window.LM_CONFIG?.PLAN_HELPERS?.isParentPlan(planId)
+            );
+            
+            const hasTherapistPlan = activePlanIds.some(planId => 
+                window.LM_CONFIG?.PLAN_HELPERS?.isTherapistPlan(planId)
+            );
+            
+            const hasEducatorPlan = activePlanIds.some(planId => 
+                window.LM_CONFIG?.PLAN_HELPERS?.isEducatorPlan(planId)
+            );
+            
+            if (hasParentPlan) {
+                currentUserRole = 'parent';
+            } else if (hasTherapistPlan) {
+                currentUserRole = 'therapist';
+            } else if (hasEducatorPlan) {
+                currentUserRole = 'teacher';
+            } else {
+                // Fallback: check metadata for explicit role override
+                const metaRole = memberData.metaData?.role;
+                if (metaRole === 'parent' || metaRole === 'teacher' || metaRole === 'therapist') {
+                    currentUserRole = metaRole;
+                    console.log(`User role detected from metadata override: ${currentUserRole}`);
+                } else {
+                    console.warn(`No recognizable plan found in: [${activePlanIds.join(', ')}], defaulting to teacher role`);
+                    currentUserRole = 'teacher';
+                }
+            }
+            
+            console.log(`User role detected: ${currentUserRole} (active plans: [${activePlanIds.join(', ')}])`);
+            return currentUserRole;
+        } catch (error) {
+            console.error('Error detecting user role:', error);
+            currentUserRole = 'teacher';
+            return currentUserRole;
+        }
+    }
+
+    /**
+     * Hide delete buttons and add LMID button for parent users
+     * Parents should not be able to delete or create LMIDs - only teachers and therapists can
+     */
+    async function hideDeleteButtonsForParents() {
+        const userRole = await detectUserRole();
+        
+        if (userRole === 'parent') {
+            console.log('👨‍👩‍👧‍👦 Parent user detected - hiding delete and add buttons');
+            
+            // Hide all delete buttons with ID #lm-delete
+            const deleteButtons = document.querySelectorAll('#lm-delete');
+            deleteButtons.forEach(button => {
+                button.style.display = 'none';
+                button.style.visibility = 'hidden';
+                button.setAttribute('aria-hidden', 'true');
+            });
+            
+            // Also hide any delete buttons with class .lm-delete
+            const deleteButtonsByClass = document.querySelectorAll('.lm-delete');
+            deleteButtonsByClass.forEach(button => {
+                button.style.display = 'none';
+                button.style.visibility = 'hidden';
+                button.setAttribute('aria-hidden', 'true');
+            });
+            
+            // Hide the "Add LMID" button
+            const addButton = document.getElementById('add-lmid');
+            if (addButton) {
+                addButton.style.display = 'none';
+                addButton.style.visibility = 'hidden';
+                addButton.setAttribute('aria-hidden', 'true');
+            }
+            
+            // Also hide any add buttons with class .add-lmid
+            const addButtonsByClass = document.querySelectorAll('.add-lmid');
+            addButtonsByClass.forEach(button => {
+                button.style.display = 'none';
+                button.style.visibility = 'hidden';
+                button.setAttribute('aria-hidden', 'true');
+            });
+            
+            console.log(`👨‍👩‍👧‍👦 Hidden ${deleteButtons.length + deleteButtonsByClass.length} delete button(s) and ${addButtonsByClass.length + (addButton ? 1 : 0)} add button(s) for parent user`);
+        } else {
+            console.log(`👨‍🏫 ${userRole} user detected - delete and add buttons remain visible`);
+        }
+    }
 
     /**
      * Initialize dashboard UI with LMID data
@@ -117,10 +242,12 @@
         console.log(`🔄 Creating UI elements for ${lmids.length} LMID(s)`);
 
         // Create UI elements for each LMID
-        lmids.forEach(lmid => {
-            const clone = createLMIDElement(template, lmid);
-            container.appendChild(clone);
-        });
+        for (const lmid of lmids) {
+            const clone = await createLMIDElement(template, lmid);
+            if (clone) {
+                container.appendChild(clone);
+            }
+        }
 
         // Reinitialize Webflow interactions
         reinitializeWebflow();
@@ -133,7 +260,7 @@
      * @param {string} lmid - LMID to populate
      * @returns {HTMLElement} Populated clone
      */
-    function createLMIDElement(template, lmid) {
+    async function createLMIDElement(template, lmid) {
         const clone = template.cloneNode(true);
         
         // Configure clone
@@ -148,6 +275,17 @@
             numberElement.removeAttribute("id");
         } else {
             console.warn(`⚠️ Could not find '#lmid-number' in template clone for LMID ${lmid}`);
+        }
+        
+        // Hide delete buttons for parent users
+        const userRole = await detectUserRole();
+        if (userRole === 'parent') {
+            const deleteButtons = clone.querySelectorAll('#lm-delete, .lm-delete');
+            deleteButtons.forEach(button => {
+                button.style.display = 'none';
+                button.style.visibility = 'hidden';
+                button.setAttribute('aria-hidden', 'true');
+            });
         }
         
         return clone;
@@ -192,6 +330,14 @@
         
         if (!deleteButton) return;
 
+        // SECURITY: Check user role - parents cannot delete LMIDs
+        const userRole = await detectUserRole();
+        if (userRole === 'parent') {
+            console.warn('👨‍👩‍👧‍👦 Parent user attempted to delete LMID - access denied');
+            showErrorMessage('Parents cannot delete programs. Please contact your teacher for assistance.');
+            return;
+        }
+
         const itemToDelete = deleteButton.closest("[data-lmid]");
         if (!itemToDelete) {
             console.error("❌ Could not find parent element with 'data-lmid' attribute");
@@ -204,7 +350,7 @@
             return;
         }
         
-        console.log(`🗑️ Delete request for LMID: ${lmidToDelete}`);
+        console.log(`🗑️ Delete request for LMID: ${lmidToDelete} by ${userRole}`);
         
         // Enhanced confirmation with validation
         const confirmed = await showDeleteConfirmationModal(lmidToDelete);
@@ -311,7 +457,15 @@
         const addButton = document.getElementById("add-lmid");
         
         try {
-            console.log("➕ Add LMID request");
+            // SECURITY: Check user role - parents cannot create LMIDs
+            const userRole = await detectUserRole();
+            if (userRole === 'parent') {
+                console.warn('👨‍👩‍👧‍👦 Parent user attempted to create LMID - access denied');
+                showErrorMessage('Parents cannot create new programs. Please contact your teacher for assistance.');
+                return;
+            }
+            
+            console.log(`➕ Add LMID request by ${userRole}`);
             
             // Get auth system and validate operation permissions
             const authSystem = window.LM_AUTH_SYSTEM;
