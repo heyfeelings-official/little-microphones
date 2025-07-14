@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Language Switcher</title>
+    <style>
+        /* Basic styles to mimic Webflow's look */
+        .custom-locales-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .custom-locale-list {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .custom-locale-item a {
+            padding: 2px 4px;
+            text-decoration: none;
+            color: #666;
+            border-radius: 3px;
+            text-transform: uppercase;
+        }
+
+        .custom-locale-item a.w--current {
+            background-color: #e0e0e0;
+            color: #000;
+            font-weight: bold;
+        }
+        
+        .custom-locale-item a:not(.w--current):hover {
+            background-color: #f0f0f0;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- CUSTOM LANGUAGE SWITCHER COMPONENT -->
+    <div id="custom-language-switcher-container">
+        <!-- This will be populated by JavaScript -->
+    </div>
+    <!-- END OF COMPONENT -->
+
+
+    <!-- The script needs access to LM_CONFIG, so ensure config.js is loaded before this component -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check if LM_CONFIG and its language settings are available
+            if (typeof window.LM_CONFIG === 'undefined' || typeof window.LM_CONFIG.LANGUAGES === 'undefined') {
+                console.error("LM_CONFIG is not available. Make sure config.js is loaded before the language switcher.");
+                return;
+            }
+
+            const config = window.LM_CONFIG;
+            const container = document.getElementById('custom-language-switcher-container');
+            if (!container) {
+                 console.error("Container for custom language switcher not found.");
+                return;
+            }
+
+            // --- Main Logic ---
+            
+            const supportedLangs = config.LANGUAGES.SUPPORTED;
+            const defaultLang = config.LANGUAGES.DEFAULT;
+            const currentParams = window.location.search;
+            const currentPath = window.location.pathname;
+
+            // Determine the base path of the URL, without the language code
+            let basePath = currentPath;
+            const pathParts = currentPath.split('/').filter(p => p); // filter to remove empty strings
+            if (pathParts.length > 0 && supportedLangs.includes(pathParts[0]) && pathParts[0] !== defaultLang) {
+                // It's a localized URL, so we remove the language part
+                basePath = '/' + pathParts.slice(1).join('/');
+            }
+
+
+            // Build the HTML for the switcher
+            let html = '<div class="custom-locales-wrapper">';
+            html += '<div>Language</div>';
+            html += '<div class="custom-locale-list">';
+
+            supportedLangs.forEach(lang => {
+                let newHref = '';
+                // Construct the new URL path
+                if (lang === defaultLang) {
+                    newHref = basePath;
+                } else {
+                    newHref = `/${lang}${basePath === '/' ? '' : basePath}`;
+                }
+
+                // Add the query parameters
+                newHref += currentParams;
+
+                // Determine if this is the current language
+                const isCurrent = (currentPath.startsWith(`/${lang}/`)) || (currentPath === `/${lang}`) || (currentPath === basePath && lang === defaultLang);
+
+                const currentClass = isCurrent ? 'w--current' : '';
+
+                html += `<div class="custom-locale-item">`;
+                html += `<a hreflang="${lang}" href="${newHref}" class="${currentClass}">${lang}</a>`;
+                html += `</div>`;
+            });
+
+            html += '</div></div>';
+
+            // Inject the generated HTML into the container
+            container.innerHTML = html;
+            
+            console.log("✅ Custom language switcher initialized.");
+        });
+    </script>
+
+</body>
+</html> 

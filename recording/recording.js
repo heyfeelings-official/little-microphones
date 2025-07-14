@@ -620,7 +620,8 @@ async function deleteFromBunny(recordingData, world, lmid, questionId) {
                 filename: filename,
                 world: world,
                 lmid: lmid,
-                questionId: questionId
+                questionId: questionId,
+                lang: window.LM_CONFIG.getCurrentLanguage()
             })
         });
 
@@ -1148,7 +1149,8 @@ function initializeAudioRecorder(recorderWrapper) {
                     filename: `${recordingData.id}.mp3`,
                     world: world,
                     lmid: lmid,
-                    questionId: questionId
+                    questionId: questionId,
+                    lang: window.LM_CONFIG.getCurrentLanguage()
                 })
             });
 
@@ -2230,9 +2232,10 @@ async function loadRecordingsFromCloud(questionId, world, lmid) {
     try {
         const userRole = await detectUserRole();
         const currentMemberId = await getCurrentMemberId();
+        const lang = window.LM_CONFIG.getCurrentLanguage();
         
         // Fetch from cloud API
-        const response = await fetch(`https://little-microphones.vercel.app/api/list-recordings?world=${world}&lmid=${lmid}&questionId=${questionId}`);
+        const response = await fetch(`https://little-microphones.vercel.app/api/list-recordings?world=${world}&lmid=${lmid}&questionId=${questionId}&lang=${lang}`);
         
         if (!response.ok) {
             console.warn(`[${questionId}] Cloud fetch failed (${response.status}), returning empty list`);

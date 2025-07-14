@@ -178,6 +178,7 @@
      */
     function generateAudioSegmentsForType(recordings, world, type) {
         const audioSegments = [];
+        const lang = window.LM_CONFIG.getCurrentLanguage();
         
         // Group recordings by questionId
         const recordingsByQuestion = {};
@@ -201,10 +202,9 @@
         const sortedQuestionIds = Object.keys(recordingsByQuestion).sort((a, b) => parseInt(a) - parseInt(b));
         
         // 1. Add intro
-        const introTimestamp = Date.now();
         audioSegments.push({
             type: 'single',
-            url: `https://little-microphones.b-cdn.net/audio/other/intro.mp3?t=${introTimestamp}`
+            url: window.LM_CONFIG.getLocalizedAudioUrl(`audio/other/intro.mp3?t=${Date.now()}`, lang)
         });
         
         // 2. Add questions and answers in order
@@ -215,7 +215,7 @@
             const cacheBustTimestamp = Date.now() + Math.random();
             audioSegments.push({
                 type: 'single',
-                url: `https://little-microphones.b-cdn.net/audio/${world}/${world}-QID${questionId}.mp3?t=${cacheBustTimestamp}`
+                url: window.LM_CONFIG.getLocalizedAudioUrl(`audio/${world}/${world}-QID${questionId}.mp3?t=${cacheBustTimestamp}`, lang)
             });
             
             // Sort answers by timestamp (first recorded = first played)
@@ -233,7 +233,7 @@
             audioSegments.push({
                 type: 'combine_with_background',
                 answerUrls: sortedAnswers.map(recording => recording.url || recording.cloudUrl),
-                backgroundUrl: `https://little-microphones.b-cdn.net/audio/other/monkeys.mp3?t=${backgroundTimestamp}`,
+                backgroundUrl: window.LM_CONFIG.getLocalizedAudioUrl(`audio/other/monkeys.mp3?t=${backgroundTimestamp}`, lang),
                 questionId: questionId,
                 recordingType: type // Add type identifier
             });
@@ -243,7 +243,7 @@
         const outroTimestamp = Date.now() + 1;
         audioSegments.push({
             type: 'single',
-            url: `https://little-microphones.b-cdn.net/audio/other/outro.mp3?t=${outroTimestamp}`
+            url: window.LM_CONFIG.getLocalizedAudioUrl(`audio/other/outro.mp3?t=${outroTimestamp}`, lang)
         });
         
         return audioSegments;
@@ -1208,7 +1208,8 @@
                         lmid: data.lmid,
                         world: data.world,
                         audioSegments: audioSegmentsResult.kids,
-                        programType: 'kids'
+                        programType: 'kids',
+                        lang: window.LM_CONFIG.getCurrentLanguage()
                     })
                 });
                 
@@ -1236,7 +1237,8 @@
                         lmid: data.lmid,
                         world: data.world,
                         audioSegments: audioSegmentsResult.parent,
-                        programType: 'parent'
+                        programType: 'parent',
+                        lang: window.LM_CONFIG.getCurrentLanguage()
                     })
                 });
                 

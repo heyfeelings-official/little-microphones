@@ -24,16 +24,17 @@ const MAX_WAIT_TIME_MS = 8 * 60 * 1000; // 8 minutes max wait
  * @param {string} lmid - LMID number
  * @param {string} type - Program type ('kids' or 'parent')
  * @param {Array} recordingSnapshot - Current recordings snapshot
+ * @param {string} lang - Language code ('en', 'pl', etc.)
  * @returns {Promise<boolean>} True if lock acquired, false if already locked
  */
-export async function acquireGenerationLock(world, lmid, type, recordingSnapshot = []) {
-    const lockKey = `${world}-${lmid}-${type}`;
-    const lockPath = `/${lmid}/${world}/generation-lock-${type}.json`;
+export async function acquireGenerationLock(world, lmid, type, recordingSnapshot = [], lang = 'en') {
+    const lockKey = `${lang}-${world}-${lmid}-${type}`;
+    const lockPath = `/${lang}/${lmid}/${world}/generation-lock-${type}.json`;
     
     console.log(`🔒 Attempting to acquire lock for ${lockKey}`);
     
     // Check if lock already exists
-    const existingLock = await checkLockStatus(world, lmid, type);
+    const existingLock = await checkLockStatus(world, lmid, type, lang);
     if (existingLock) {
         console.log(`🔒 Lock already exists for ${lockKey}, created at ${existingLock.createdAt}`);
         
@@ -41,7 +42,7 @@ export async function acquireGenerationLock(world, lmid, type, recordingSnapshot
         const lockAge = Date.now() - new Date(existingLock.createdAt).getTime();
         if (lockAge > LOCK_TIMEOUT_MS) {
             console.log(`🔒 Lock expired for ${lockKey}, removing old lock`);
-            await releaseLock(world, lmid, type);
+            await releaseLock(world, lmid, type, lang);
         } else {
             console.log(`🔒 Lock is still active for ${lockKey}, remaining: ${Math.round((LOCK_TIMEOUT_MS - lockAge) / 1000)}s`);
             return false;
@@ -53,6 +54,7 @@ export async function acquireGenerationLock(world, lmid, type, recordingSnapshot
         world,
         lmid,
         type,
+        lang,
         createdAt: new Date().toISOString(),
         status: 'generating',
         lockKey,
@@ -76,10 +78,11 @@ export async function acquireGenerationLock(world, lmid, type, recordingSnapshot
  * @param {string} world - World identifier
  * @param {string} lmid - LMID number
  * @param {string} type - Program type ('kids' or 'parent')
+ * @param {string} lang - Language code
  */
-export async function releaseLock(world, lmid, type) {
-    const lockKey = `${world}-${lmid}-${type}`;
-    const lockPath = `/${lmid}/${world}/generation-lock-${type}.json`;
+export async function releaseLock(world, lmid, type, lang = 'en') {
+    const lockKey = `${lang}-${world}-${lmid}-${type}`;
+    const lockPath = `/${lang}/${lmid}/${world}/generation-lock-${type}.json`;
     
     console.log(`🔓 Releasing lock for ${lockKey}`);
     
@@ -96,11 +99,12 @@ export async function releaseLock(world, lmid, type) {
  * @param {string} world - World identifier
  * @param {string} lmid - LMID number
  * @param {string} type - Program type ('kids' or 'parent')
+ * @param {string} lang - Language code
  * @returns {Promise<Object|null>} Lock data if exists, null otherwise
  */
-export async function checkLockStatus(world, lmid, type) {
+export async function checkLockStatus(world, lmid, type, lang = 'en') {
     return new Promise((resolve) => {
-        const lockUrl = `https://little-microphones.b-cdn.net/${lmid}/${world}/generation-lock-${type}.json?v=${Date.now()}`;
+        const lockUrl = `https://little-microphones.b-cdn.net/${lang}/${lmid}/${world}/generation-lock-${type}.json?v=${Date.now()}`;
         
         https.get(lockUrl, (response) => {
             if (response.statusCode === 200) {
@@ -131,9 +135,12 @@ export async function checkLockStatus(world, lmid, type) {
  * @param {Array} currentRecordings - Current recordings
  * @param {Object} lockData - Lock data with snapshot
  * @param {string} type - Program type to filter recordings
+ * @param {string} world - World identifier
+ * @param {string} lmid - LMID number
+ * @param {string} lang - Language code
  * @returns {boolean} True if recordings have changed
  */
-export function hasRecordingsChanged(currentRecordings, lockData, type, world, lmid) {
+export function hasRecordingsChanged(currentRecordings, lockData, type, world, lmid, lang) {
     if (!lockData || !lockData.recordingSnapshot) {
         return true; // No snapshot means we need to check
     }
@@ -178,16 +185,17 @@ export function hasRecordingsChanged(currentRecordings, lockData, type, world, l
  * @param {string} lmid - LMID number
  * @param {string} type - Program type ('kids' or 'parent')
  * @param {number} maxWaitMs - Maximum wait time in milliseconds
+ * @param {string} lang - Language code
  * @returns {Promise<Object>} Result object with status and data
  */
-export async function waitForGenerationComplete(world, lmid, type, maxWaitMs = MAX_WAIT_TIME_MS) {
-    const lockKey = `${world}-${lmid}-${type}`;
+export async function waitForGenerationComplete(world, lmid, type, maxWaitMs = MAX_WAIT_TIME_MS, lang = 'en') {
+    const lockKey = `${lang}-${world}-${lmid}-${type}`;
     const startTime = Date.now();
     
     console.log(`⏳ Waiting for generation to complete for ${lockKey}`);
     
     while (Date.now() - startTime < maxWaitMs) {
-        const lockStatus = await checkLockStatus(world, lmid, type);
+        const lockStatus = await checkLockStatus(world, lmid, type, lang);
         
         if (!lockStatus) {
             console.log(`✅ Generation completed for ${lockKey}`);
@@ -198,7 +206,7 @@ export async function waitForGenerationComplete(world, lmid, type, maxWaitMs = M
         const lockAge = Date.now() - new Date(lockStatus.createdAt).getTime();
         if (lockAge > LOCK_TIMEOUT_MS) {
             console.log(`🔒 Lock expired for ${lockKey}, assuming generation failed`);
-            await releaseLock(world, lmid, type);
+            await releaseLock(world, lmid, type, lang);
             return { completed: false, timedOut: true, expired: true };
         }
         
@@ -218,10 +226,11 @@ export async function waitForGenerationComplete(world, lmid, type, maxWaitMs = M
  * @param {string} world - World identifier
  * @param {string} lmid - LMID number
  * @param {string} type - Program type ('kids' or 'parent')
+ * @param {string} lang - Language code
  * @returns {Promise<Object>} Status object
  */
-export async function getGenerationStatus(world, lmid, type) {
-    const lockData = await checkLockStatus(world, lmid, type);
+export async function getGenerationStatus(world, lmid, type, lang = 'en') {
+    const lockData = await checkLockStatus(world, lmid, type, lang);
     
     if (!lockData) {
         return { status: 'ready', isGenerating: false };

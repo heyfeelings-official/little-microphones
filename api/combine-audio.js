@@ -111,12 +111,12 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { world, lmid, audioSegments, programType } = req.body;
+        const { world, lmid, audioSegments, programType, lang } = req.body;
 
         // Validation
-        if (!world || !lmid || !audioSegments) {
+        if (!world || !lmid || !audioSegments || !lang) {
             return res.status(400).json({ 
-                error: 'Missing required parameters: world, lmid, audioSegments' 
+                error: 'Missing required parameters: world, lmid, audioSegments, and lang' 
             });
         }
         
@@ -148,13 +148,13 @@ export default async function handler(req, res) {
             });
         }
 
-        console.log(`🎵 Starting radio program generation for ${world}/${lmid} (${type} program)`);
+        console.log(`🎵 Starting radio program generation for ${lang}/${world}/${lmid} (${type} program)`);
         console.log(`📊 Processing ${audioSegments.length} audio segments`);
 
         // NEW: Try to acquire generation lock to prevent concurrent generations
-        const lockAcquired = await acquireGenerationLock(world, lmid, type, []);
+        const lockAcquired = await acquireGenerationLock(world, lmid, type, [], lang);
         if (!lockAcquired) {
-            console.log(`🔒 Generation already in progress for ${world}/${lmid}/${type}`);
+            console.log(`🔒 Generation already in progress for ${lang}/${world}/${lmid}/${type}`);
             return res.status(409).json({
                 success: false,
                 message: 'Generation already in progress. Please wait and try again.',
@@ -167,12 +167,12 @@ export default async function handler(req, res) {
 
         // Try to combine audio using FFmpeg
         try {
-            const combinedAudioUrl = await combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams, type);
+            const combinedAudioUrl = await combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams, type, lang);
             
             // Count recordings by type for recordingCount
             let recordingCount = 0;
             try {
-                const response = await fetch(`https://little-microphones.vercel.app/api/list-recordings?world=${world}&lmid=${lmid}`);
+                const response = await fetch(`https://little-microphones.vercel.app/api/list-recordings?world=${world}&lmid=${lmid}&lang=${lang}`);
                 if (response.ok) {
                     const data = await response.json();
                     
@@ -218,10 +218,10 @@ export default async function handler(req, res) {
                 manifestData.parentProgram = combinedAudioUrl;
             }
             
-            await uploadManifestToBunny(manifestData, world, lmid, type);
+            await uploadManifestToBunny(manifestData, world, lmid, type, lang);
             
             // NEW: Release lock after successful generation
-            await releaseLock(world, lmid, type);
+            await releaseLock(world, lmid, type, lang);
             
             return res.status(200).json({
                 success: true,
@@ -234,7 +234,7 @@ export default async function handler(req, res) {
             console.error('FFmpeg processing failed:', ffmpegError);
             
             // NEW: Release lock on error
-            await releaseLock(world, lmid, type);
+            await releaseLock(world, lmid, type, lang);
             
             return res.status(500).json({
                 success: false,
@@ -248,7 +248,7 @@ export default async function handler(req, res) {
         
         // NEW: Release lock on any error
         if (req.body?.world && req.body?.lmid && req.body?.programType) {
-            await releaseLock(req.body.world, req.body.lmid, req.body.programType || 'kids');
+            await releaseLock(req.body.world, req.body.lmid, req.body.programType || 'kids', req.body.lang || 'en');
         }
         
         return res.status(500).json({ 
@@ -261,7 +261,7 @@ export default async function handler(req, res) {
 /**
  * Combine audio files using FFmpeg with proper answer grouping
  */
-async function combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams, programType = 'kids') {
+async function combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams, programType = 'kids', lang = 'en') {
     try {
         const ffmpegPath = ffmpegInstaller.path;
         ffmpeg.setFfmpegPath(ffmpegPath);
@@ -369,7 +369,7 @@ async function combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams, p
         await assembleFinalProgram(processedSegments, outputPath);
         
         // Upload to Bunny.net
-        const uploadUrl = await uploadToBunny(outputPath, world, lmid, programType);
+        const uploadUrl = await uploadToBunny(outputPath, world, lmid, programType, lang);
         
         // Cleanup temp files
         await cleanupTempDirectory(tempDir);
@@ -558,10 +558,10 @@ function downloadFile(url, filePath) {
  * Upload combined audio to Bunny.net
  * FIXED: Use consistent filename (no timestamp versioning) with heavy cache-busting instead
  */
-async function uploadToBunny(filePath, world, lmid, programType = 'kids') {
+async function uploadToBunny(filePath, world, lmid, programType = 'kids', lang = 'en') {
     // Include program type in filename to distinguish kids vs parent programs
     const fileName = `radio-program-${programType}-${world}-${lmid}.mp3`;
-    const uploadPath = `/${lmid}/${world}/${fileName}`;
+    const uploadPath = `/${lang}/${lmid}/${world}/${fileName}`;
     
     console.log(`📤 Uploading to Bunny.net: ${uploadPath} (overwriting existing)`);
     
@@ -629,15 +629,16 @@ async function cleanupTempDirectory(tempDir) {
  * @param {string} world - World name
  * @param {string} lmid - LMID
  * @param {string} programType - Program type ('kids' or 'parent')
+ * @param {string} lang - Language code
  */
-async function uploadManifestToBunny(manifestData, world, lmid, programType = 'kids') {
+async function uploadManifestToBunny(manifestData, world, lmid, programType = 'kids', lang = 'en') {
     try {
         // Save type-specific manifest
-        const typeManifestPath = `/${lmid}/${world}/last-program-manifest-${programType}.json`;
+        const typeManifestPath = `/${lang}/${lmid}/${world}/last-program-manifest-${programType}.json`;
         await saveManifestFile(manifestData, typeManifestPath);
         
         // Load existing combined manifest or create new one
-        const combinedManifestPath = `/${lmid}/${world}/last-program-manifest.json`;
+        const combinedManifestPath = `/${lang}/${lmid}/${world}/last-program-manifest.json`;
         let combinedManifest = {};
         
         try {
