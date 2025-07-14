@@ -210,38 +210,26 @@ async function handleDeleteLmid(memberId, lmidToDelete, newLmidString) {
         };
     }
 
-    // STEP 2: Now that parents are cleaned, RESET the LMID in the database instead of deleting.
-    const { error: updateError } = await supabase
+    // STEP 2: Now that parents are cleaned, delete the LMID completely from the database.
+    const { error: deleteError } = await supabase
         .from('lmids')
-        .update({ 
-            status: 'available',
-            assigned_to_member_id: null,
-            assigned_to_member_email: null,
-            assigned_at: null,
-            share_id_spookyland: null,
-            share_id_waterpark: null,
-            share_id_shopping_spree: null,
-            share_id_amusement_park: null,
-            share_id_big_city: null,
-            share_id_neighborhood: null,
-            parent_member_ids: [] // Reset the parent tracking array
-        })
+        .delete()
         .eq('lmid', lmidToDelete);
 
-    if (updateError) {
-        console.error(`🔥🔥 CRITICAL: FAILED TO RESET LMID ${lmidToDelete} IN DATABASE AFTER PARENT CLEANUP. MANUAL INTERVENTION REQUIRED. Error: ${updateError.message}`);
-        throw new Error('Failed to reset LMID in database after attempting parent cleanup.');
+    if (deleteError) {
+        console.error(`🔥🔥 CRITICAL: FAILED TO DELETE LMID ${lmidToDelete} FROM DATABASE AFTER PARENT CLEANUP. MANUAL INTERVENTION REQUIRED. Error: ${deleteError.message}`);
+        throw new Error('Failed to delete LMID from database after attempting parent cleanup.');
     }
 
     // STEP 3: Update the teacher's Memberstack metadata.
     if (newLmidString !== null) {
         const memberstackUpdated = await updateMemberstackMetadata(memberId, newLmidString);
         if (!memberstackUpdated) {
-            console.warn(`⚠️ LMID ${lmidToDelete} reset in Supabase but teacher Memberstack metadata update failed`);
+            console.warn(`⚠️ LMID ${lmidToDelete} deleted from Supabase but teacher Memberstack metadata update failed`);
         }
-        console.log(`✅ LMID ${lmidToDelete} reset in Supabase and teacher Memberstack metadata ${memberstackUpdated ? 'updated' : 'update failed'}.`);
+        console.log(`✅ LMID ${lmidToDelete} deleted from Supabase and teacher Memberstack metadata ${memberstackUpdated ? 'updated' : 'update failed'}.`);
     } else {
-        console.log(`✅ LMID ${lmidToDelete} reset in Supabase.`);
+        console.log(`✅ LMID ${lmidToDelete} deleted from Supabase.`);
     }
 
     return {
