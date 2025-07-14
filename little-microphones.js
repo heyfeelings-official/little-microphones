@@ -491,8 +491,8 @@
                 timestamp: lastRecordingCheck || defaultTimestamp,
                 isNewUser: !lastRecordingCheck,
                 lastDashboardView: lmidData.lastDashboardView,
-                lastWorldClick: lmidData.lastWorldClick,
-                lastRadioListen: lmidData.lastRadioListen
+                lastWorldVisit: lmidData.lastWorldVisit,
+                lastRadioPlay: lmidData.lastRadioPlay
             };
         } catch (error) {
             console.warn('Error reading user visit data:', error);
@@ -501,8 +501,8 @@
                 timestamp: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
                 isNewUser: true,
                 lastDashboardView: null,
-                lastWorldClick: null,
-                lastRadioListen: null
+                lastWorldVisit: null,
+                lastRadioPlay: null
             };
         }
     }
@@ -511,7 +511,7 @@
      * Update user's last visit data in localStorage
      * @param {string} userId - User/Member ID
      * @param {string} lmid - LMID number
-     * @param {string} context - Context of the visit ('dashboard', 'world_click', 'radio_listen')
+     * @param {string} context - Context of the visit ('dashboard', 'world_visit', 'radio_play')
      */
     function updateUserLastVisitData(userId, lmid, context = 'dashboard') {
         try {
@@ -526,8 +526,9 @@
                 userData[lmidKey] = {
                     firstVisit: now,
                     lastDashboardView: null,
-                    lastWorldClick: null,
-                    lastRadioListen: null
+                    lastWorldVisit: null,
+                    lastRadioPlay: null,
+                    lastRecordingCheck: null // This determines "new" recordings baseline
                 };
             }
             
@@ -535,15 +536,15 @@
             switch (context) {
                 case 'dashboard':
                     userData[lmidKey].lastDashboardView = now;
+                    // Dashboard view does NOT reset recording counter
                     break;
-                case 'world_click':
-                    userData[lmidKey].lastWorldClick = now;
-                    // This is when we mark recordings as "seen" 
-                    userData[lmidKey].lastRecordingCheck = now;
+                case 'world_visit':
+                    userData[lmidKey].lastWorldVisit = now;
+                    // World visit does NOT reset recording counter (user may not listen)
                     break;
-                case 'radio_listen':
-                    userData[lmidKey].lastRadioListen = now;
-                    // This is when user listened to full radio program
+                case 'radio_play':
+                    userData[lmidKey].lastRadioPlay = now;
+                    // Radio play DOES reset recording counter (user actively listened)
                     userData[lmidKey].lastRecordingCheck = now;
                     break;
             }
@@ -551,7 +552,8 @@
             userData[lmidKey].updatedAt = now;
             localStorage.setItem(storageKey, JSON.stringify(userData));
             
-            console.log(`📝 Updated visit data for LMID ${lmid}, context: ${context}`);
+            const resetNote = context === 'radio_play' ? ' (COUNTER RESET)' : ' (counter preserved)';
+            console.log(`📝 Updated visit data for LMID ${lmid}, context: ${context}${resetNote}`);
             
         } catch (error) {
             console.warn('Error updating user visit data:', error);
@@ -559,34 +561,32 @@
     }
 
     /**
-     * Mark LMID as visited when user navigates to world/recording page
+     * Mark LMID world as visited (for analytics only, doesn't reset new recording counter)
      * @param {string} lmid - LMID number
      */
-    async function markLmidWorldClicked(lmid) {
+    async function markLmidWorldVisited(lmid) {
         const currentMemberId = await getCurrentMemberId();
         if (currentMemberId) {
-            updateUserLastVisitData(currentMemberId, lmid, 'world_click');
+            updateUserLastVisitData(currentMemberId, lmid, 'world_visit');
             
-            // Refresh the badge for this LMID (should show 0 now)
-            updateNewRecordingBadge(lmid, 0);
-            
-            console.log(`✅ Marked LMID ${lmid} world as clicked (recordings marked as seen)`);
+            console.log(`📊 Marked LMID ${lmid} world as visited (counter NOT reset)`);
         }
     }
 
     /**
-     * Mark LMID radio as listened when user finishes listening to radio program
+     * Mark LMID radio as played when user clicks play on radio program
+     * This resets the new recording counter
      * @param {string} lmid - LMID number
      */
-    async function markLmidRadioListened(lmid) {
+    async function markLmidRadioPlayed(lmid) {
         const currentMemberId = await getCurrentMemberId();
         if (currentMemberId) {
-            updateUserLastVisitData(currentMemberId, lmid, 'radio_listen');
+            updateUserLastVisitData(currentMemberId, lmid, 'radio_play');
             
             // Refresh the badge for this LMID (should show 0 now)
             updateNewRecordingBadge(lmid, 0);
             
-            console.log(`✅ Marked LMID ${lmid} radio as listened (recordings marked as heard)`);
+            console.log(`✅ Marked LMID ${lmid} radio as played (new recording counter reset)`);
         }
     }
 
@@ -859,8 +859,9 @@
 
         const lmid = programWrapper.getAttribute("data-lmid");
         
-        // Mark this LMID as clicked (recordings become "seen")
-        markLmidWorldClicked(lmid);
+        // Only track world click for analytics, but DON'T reset new recording counter
+        // Counter will reset only when user clicks play on radio program
+        markLmidWorldVisited(lmid);
         
         const baseUrl = worldButton.getAttribute("href") || "/members/record";
         const newUrl = `${baseUrl}?world=${world}&lmid=${lmid}`;
@@ -1437,8 +1438,8 @@
     // Make functions available globally
     window.LittleMicrophones = window.LittleMicrophones || {};
     window.LittleMicrophones.refreshNewRecordingIndicators = refreshNewRecordingIndicators;
-    window.LittleMicrophones.markLmidWorldClicked = markLmidWorldClicked;
-    window.LittleMicrophones.markLmidRadioListened = markLmidRadioListened;
+    window.LittleMicrophones.markLmidWorldVisited = markLmidWorldVisited;
+    window.LittleMicrophones.markLmidRadioPlayed = markLmidRadioPlayed;
 
     // Test function for Memberstack API debugging
     window.testMemberstackAPI = async function() {

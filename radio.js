@@ -644,6 +644,11 @@
                 // Store reference to audio element
                 audioPlayer = playerElement.querySelector('audio');
                 
+                // Add play tracking for new recording counter reset
+                if (audioPlayer) {
+                    setupRadioPlayTracking(audioPlayer);
+                }
+                
                 console.log('✅ Radio player created using RecordingUI');
             } else {
                 console.error('Failed to create player element');
@@ -660,6 +665,12 @@
                     </audio>
                 </div>
             `;
+            
+            // Add play tracking to fallback player too
+            const fallbackAudio = playerContainer.querySelector('audio');
+            if (fallbackAudio) {
+                setupRadioPlayTracking(fallbackAudio);
+            }
         });
     }
 
@@ -1257,6 +1268,36 @@
         }
     });
 
+    /**
+     * Setup play tracking for radio programs to reset new recording counter
+     * @param {HTMLAudioElement} audioElement - The audio element to track
+     */
+    function setupRadioPlayTracking(audioElement) {
+        let hasTrackedPlay = false; // Only track first play per page load
+        
+        const handlePlay = () => {
+            if (!hasTrackedPlay && currentRadioData?.lmid) {
+                hasTrackedPlay = true;
+                
+                // Reset new recording counter when user starts playing radio
+                if (window.LittleMicrophones?.markLmidRadioPlayed) {
+                    window.LittleMicrophones.markLmidRadioPlayed(currentRadioData.lmid.toString());
+                    console.log(`🎵 Radio play tracked for LMID ${currentRadioData.lmid} - new recording counter reset`);
+                } else {
+                    console.warn('⚠️ LittleMicrophones.markLmidRadioPlayed not available');
+                }
+            }
+        };
+        
+        // Track when user clicks play
+        audioElement.addEventListener('play', handlePlay);
+        
+        // Cleanup listener if needed
+        audioElement.addEventListener('pause', () => {
+            // Optional: Could track pause events for analytics
+        });
+    }
+
     // Make functions available globally for testing
     window.RadioProgram = {
         showLoadingState,
@@ -1267,7 +1308,8 @@
         loadRadioData,
         stopGeneratingMessages,
         showWaitingForGeneration,
-        startGenerationPolling
+        startGenerationPolling,
+        setupRadioPlayTracking
     };
 
 })();
