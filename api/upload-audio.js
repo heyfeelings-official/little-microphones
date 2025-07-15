@@ -185,7 +185,7 @@ export default async function handler(req, res) {
                     await sendNewRecordingNotifications(lmid, world, questionId, lang, uploaderEmail, lmidData);
                     
                     emailNotificationStatus = 'sent';
-                    emailNotificationMessage = 'Powiadomienia email zostały wysłane do nauczyciela i innych rodziców';
+                    emailNotificationMessage = 'Email notifications sent';
                 } else {
                     console.log(`👨‍🏫 Teacher upload detected - skipping notifications`);
                     emailNotificationStatus = 'skipped_teacher';
@@ -193,7 +193,7 @@ export default async function handler(req, res) {
             } catch (emailError) {
                 console.error('❌ Email notification failed:', emailError);
                 emailNotificationStatus = 'failed';
-                emailNotificationMessage = 'Nagranie zostało zapisane, ale wystąpił problem z wysyłaniem powiadomień email.';
+                emailNotificationMessage = 'Upload successful, email notification failed';
             }
             
             res.json({ 
@@ -316,7 +316,7 @@ async function sendNewRecordingNotifications(lmid, world, questionId, lang, uplo
             teacherEmail: lmidData?.teacherEmail,
             parentEmailsCount: lmidData?.parentEmails?.length || 0
         });
-        throw new Error('Problem z wysyłaniem powiadomień email');
+        throw new Error('Email notification failed');
     }
 }
 
@@ -405,7 +405,12 @@ async function getLmidData(lmid) {
  * @param {Object} notificationData - Notification data
  */
 async function sendNotificationViaAPI(notificationData) {
-    const response = await fetch(`${process.env.VERCEL_URL || 'https://little-microphones.vercel.app'}/api/send-email-notifications`, {
+    // Use localhost for internal API calls to avoid deployment URL issues
+    const apiUrl = process.env.VERCEL_URL 
+        ? `https://${process.env.VERCEL_URL}/api/send-email-notifications`
+        : 'http://localhost:3000/api/send-email-notifications';
+    
+    const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'

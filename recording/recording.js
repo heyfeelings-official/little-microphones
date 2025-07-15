@@ -1137,11 +1137,7 @@ function initializeAudioRecorder(recorderWrapper) {
             await updateRecordingInDB(recordingData);
             dispatchUploadStatusEvent(recordingData.id, 'uploading');
 
-            // Show email notification for parent uploads
-            const isParentUpload = recordingData.id.includes('parent_');
-            if (isParentUpload) {
-                showEmailNotification('📧 Wysyłanie nagrania i powiadomień email...', 'info', 6000);
-            }
+            // Email notifications handled silently by server
 
             // Convert blob to base64
             const base64Audio = await blobToBase64(recordingData.audio);
@@ -1193,11 +1189,7 @@ function initializeAudioRecorder(recorderWrapper) {
             recordingData.uploadStatus = 'failed';
             console.error(`[${questionId}] Upload error:`, error);
             
-            // Show error notification for failed uploads
-            const isParentUpload = recordingData.id.includes('parent_');
-            if (isParentUpload) {
-                showEmailNotification('❌ Błąd wysyłania nagrania i powiadomień email', 'error', 8000);
-            }
+            // Upload failed - error logged to console
         }
 
         // Save the final state to the DB and notify the UI
