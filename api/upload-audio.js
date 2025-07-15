@@ -176,9 +176,15 @@ export default async function handler(req, res) {
                     
                     if (memberIdMatch) {
                         const parentMemberId = memberIdMatch[1];
+                        console.log(`📧 Attempting to identify uploader for Member ID: ${parentMemberId}`);
+                        console.log(`📧 Available data - parentMemberIdToEmail:`, lmidData.parentMemberIdToEmail);
+                        console.log(`📧 Available data - parentEmails:`, lmidData.parentEmails);
+                        
                         // Find uploader email from the cached mapping
                         uploaderEmail = findParentEmailByMemberId(parentMemberId, lmidData.parentMemberIdToEmail, lmidData.parentEmails);
                         console.log(`📧 Parent uploader identified: ${uploaderEmail} (Member ID: ${parentMemberId})`);
+                    } else {
+                        console.warn(`⚠️ Could not extract Member ID from filename: ${filename}`);
                     }
                     
                     console.log(`📧 About to send notifications with:`, {
@@ -198,9 +204,10 @@ export default async function handler(req, res) {
                     emailNotificationMessage = 'Powiadomienia email pomijane dla nagrań nauczyciela';
                 }
             } catch (emailError) {
-                console.warn('⚠️ Email notification failed (upload still successful):', emailError.message);
+                console.error('⚠️ Email notification failed (upload still successful):', emailError.message);
+                console.error('⚠️ Email notification error stack:', emailError.stack);
                 emailNotificationStatus = 'failed';
-                emailNotificationMessage = `Błąd wysyłania emaili: ${emailError.message}`;
+                emailNotificationMessage = 'Nagranie zostało zapisane, ale wystąpił problem z wysyłaniem powiadomień email';
                 // Don't fail the upload if email fails
             }
             
@@ -313,7 +320,18 @@ async function sendNewRecordingNotifications(lmid, world, questionId, lang, uplo
         console.log(`📊 Notification summary: ${totalRecipients} recipients (teacher + other parents), excluded uploader: ${uploaderEmail}`);
     } catch (error) {
         console.error('❌ Email notification error:', error);
-        throw error;
+        console.error('❌ Email notification error stack:', error.stack);
+        console.error('❌ Email notification error details:', {
+            lmid,
+            world,
+            questionId,
+            lang,
+            uploaderEmail,
+            lmidDataAvailable: !!lmidData,
+            teacherEmail: lmidData?.teacherEmail,
+            parentEmailsCount: lmidData?.parentEmails?.length || 0
+        });
+        throw new Error('Problem z wysyłaniem powiadomień email');
     }
 }
 
@@ -325,6 +343,12 @@ async function sendNewRecordingNotifications(lmid, world, questionId, lang, uplo
  * @returns {string|null} Parent email address
  */
 function findParentEmailByMemberId(memberId, parentMemberIdToEmail, parentEmails) {
+    // Check if mapping exists and is valid
+    if (!parentMemberIdToEmail || typeof parentMemberIdToEmail !== 'object') {
+        console.warn(`⚠️ Parent Member ID to Email mapping is null or invalid. Cannot identify uploader email from ${parentEmails?.length || 0} parent emails.`);
+        return null;
+    }
+    
     // Try mapping first
     const email = parentMemberIdToEmail[memberId];
     if (email) {
@@ -334,7 +358,7 @@ function findParentEmailByMemberId(memberId, parentMemberIdToEmail, parentEmails
     
     // If mapping doesn't work, we can't reliably identify which parent email belongs to this Member ID
     // This is a limitation when the database doesn't have synchronized arrays
-    console.warn(`⚠️ Member ID ${memberId} not found in parent mapping. Cannot identify uploader email from ${parentEmails.length} parent emails.`);
+    console.warn(`⚠️ Member ID ${memberId} not found in parent mapping. Cannot identify uploader email from ${parentEmails?.length || 0} parent emails.`);
     return null;
 }
 

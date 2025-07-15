@@ -381,17 +381,21 @@ async function handleGetLmidData(lmid) {
         }
         
         // Get parent emails directly from database (no API calls needed!)
-        const parentEmails = data.associated_parent_emails || [];
-        const parentMemberIds = data.associated_parent_member_ids || [];
+        const parentEmails = Array.isArray(data.associated_parent_emails) ? data.associated_parent_emails : [];
+        const parentMemberIds = Array.isArray(data.associated_parent_member_ids) ? data.associated_parent_member_ids : [];
         
         // Create mapping of Member ID to Email (if both arrays exist and have same length)
-        const parentMemberIdToEmail = {};
+        let parentMemberIdToEmail = null;
         if (parentMemberIds.length > 0 && parentEmails.length > 0 && parentMemberIds.length === parentEmails.length) {
+            parentMemberIdToEmail = {};
             parentMemberIds.forEach((memberId, index) => {
-                parentMemberIdToEmail[memberId] = parentEmails[index];
+                if (memberId && parentEmails[index]) {
+                    parentMemberIdToEmail[memberId] = parentEmails[index];
+                }
             });
             console.log(`📧 Created Member ID to Email mapping for ${parentMemberIds.length} parents`);
         } else {
+            console.log(`📧 Cannot create Member ID to Email mapping - arrays don't match (${parentMemberIds.length} member IDs vs ${parentEmails.length} emails)`);
             console.log(`📧 Using ${parentEmails.length} parent emails directly from database`);
         }
         
