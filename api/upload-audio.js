@@ -405,10 +405,10 @@ async function getLmidData(lmid) {
  * @param {Object} notificationData - Notification data
  */
 async function sendNotificationViaAPI(notificationData) {
-    // Use localhost for internal API calls to avoid deployment URL issues
-    const apiUrl = process.env.VERCEL_URL 
-        ? `https://${process.env.VERCEL_URL}/api/send-email-notifications`
-        : 'http://localhost:3000/api/send-email-notifications';
+    // Always use the main domain for internal API calls to avoid auth issues
+    const apiUrl = 'https://little-microphones.vercel.app/api/send-email-notifications';
+    
+    console.log(`📧 [sendNotificationViaAPI] Making API call to: ${apiUrl}`);
     
     const response = await fetch(apiUrl, {
         method: 'POST',
@@ -418,12 +418,17 @@ async function sendNotificationViaAPI(notificationData) {
         body: JSON.stringify(notificationData)
     });
     
+    console.log(`📧 [sendNotificationViaAPI] API response status: ${response.status}`);
+    
     if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`Email API error: ${response.status} - ${errorData.error}`);
+        const errorText = await response.text();
+        console.error(`❌ [sendNotificationViaAPI] API response error: ${response.status} - ${errorText}`);
+        throw new Error(`Email API error: ${response.status} - ${errorText}`);
     }
     
-    return await response.json();
+    const result = await response.json();
+    console.log(`✅ [sendNotificationViaAPI] API response success:`, result);
+    return result;
 }
 
 /**
