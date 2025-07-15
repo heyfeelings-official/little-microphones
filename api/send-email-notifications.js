@@ -17,10 +17,10 @@
  * - Secure logging without exposing personal data
  * 
  * TEMPLATE MAPPING:
- * - Teacher PL: Template ID 1
- * - Teacher EN: Template ID 2
+ * - Teacher PL: Template ID 2
+ * - Teacher EN: Template ID 4
  * - Parent PL: Template ID 3
- * - Parent EN: Template ID 4
+ * - Parent EN: Template ID 5
  * 
  * LAST UPDATED: January 2025
  * VERSION: 6.0.0
@@ -96,6 +96,7 @@ export default async function handler(req, res) {
         } = req.body;
         
         console.log(`📧 Email notification request - Type: ${notificationType}, Lang: ${language}`);
+        console.log(`📧 Request body:`, JSON.stringify(req.body, null, 2));
         
         // Validate required fields
         if (!recipientEmail || !recipientName || !notificationType || !language) {
@@ -136,11 +137,12 @@ export default async function handler(req, res) {
         apiInstance.setApiKey(TransactionalEmailsApiApiKeys.apiKey, brevoApiKey);
         
         // Determine template ID based on notification type and language
+        // IMPORTANT: These IDs must match actual Brevo template IDs
         let templateId;
         if (notificationType === 'teacher') {
-            templateId = language === 'pl' ? 1 : 2; // Polish: 1, English: 2
+            templateId = language === 'pl' ? 2 : 4; // Polish: 2, English: 4
         } else {
-            templateId = language === 'pl' ? 3 : 4; // Polish: 3, English: 4
+            templateId = language === 'pl' ? 3 : 5; // Polish: 3, English: 5
         }
         
         console.log(`📧 Selected template ${templateId} for ${notificationType} in ${language}`);

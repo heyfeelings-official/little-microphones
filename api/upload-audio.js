@@ -237,10 +237,12 @@ export default async function handler(req, res) {
  */
 async function sendNewRecordingNotifications(lmid, world, questionId, lang, uploaderEmail, lmidData) {
     try {
-        console.log(`📧 Processing notifications - LMID ${lmid}, World ${world}, Lang: ${lang}`);
+        const requestId = Math.random().toString(36).substring(2, 15);
+        console.log(`📧 [${requestId}] Processing notifications - LMID ${lmid}, World ${world}, Lang: ${lang}`);
+        console.log(`📧 [${requestId}] Uploader email: ${uploaderEmail ? 'provided' : 'not provided'}`);
         
         if (!lmidData) {
-            console.warn(`⚠️ No LMID data available, skipping notifications`);
+            console.warn(`⚠️ [${requestId}] No LMID data available, skipping notifications`);
             return;
         }
         
@@ -262,6 +264,7 @@ async function sendNewRecordingNotifications(lmid, world, questionId, lang, uplo
         
         // Send teacher notification (only parent uploads trigger notifications)
         if (lmidData.teacherEmail) {
+            console.log(`📧 [${requestId}] Sending teacher notification in ${lang}`);
             await sendNotificationViaAPI({
                 recipientEmail: lmidData.teacherEmail,
                 recipientName: lmidData.teacherName,
@@ -269,7 +272,7 @@ async function sendNewRecordingNotifications(lmid, world, questionId, lang, uplo
                 language: lang,
                 templateData: templateData
             });
-            console.log(`✅ Teacher notification sent`);
+            console.log(`✅ [${requestId}] Teacher notification sent`);
         }
         
         // Send parent notifications (exclude uploader)
@@ -277,6 +280,7 @@ async function sendNewRecordingNotifications(lmid, world, questionId, lang, uplo
             const filteredParentEmails = lmidData.parentEmails.filter(email => email !== uploaderEmail);
             
             if (filteredParentEmails.length > 0) {
+                console.log(`📧 [${requestId}] Sending parent notifications to ${filteredParentEmails.length} recipients in ${lang}`);
                 const parentPromises = filteredParentEmails.map(parentEmail => 
                     sendNotificationViaAPI({
                         recipientEmail: parentEmail,
@@ -288,9 +292,9 @@ async function sendNewRecordingNotifications(lmid, world, questionId, lang, uplo
                 );
                 
                 await Promise.all(parentPromises);
-                console.log(`✅ Parent notifications sent to ${filteredParentEmails.length} recipients`);
+                console.log(`✅ [${requestId}] Parent notifications sent to ${filteredParentEmails.length} recipients`);
             } else {
-                console.log(`⏭️ No parent notifications to send - uploader was only parent`);
+                console.log(`⏭️ [${requestId}] No parent notifications to send - uploader was only parent`);
             }
         }
         
@@ -298,11 +302,11 @@ async function sendNewRecordingNotifications(lmid, world, questionId, lang, uplo
         const totalRecipients = (lmidData.teacherEmail ? 1 : 0) +
                                (lmidData.parentEmails ? lmidData.parentEmails.filter(email => email !== uploaderEmail).length : 0);
         
-        console.log(`✅ All notifications sent - LMID ${lmid}, World ${world}, Lang ${lang}`);
-        console.log(`📊 Notification summary: ${totalRecipients} recipients sent`);
+        console.log(`✅ [${requestId}] All notifications sent - LMID ${lmid}, World ${world}, Lang ${lang}`);
+        console.log(`📊 [${requestId}] Notification summary: ${totalRecipients} recipients sent`);
     } catch (error) {
-        console.error('❌ Email notification error:', error.message);
-        console.error('❌ Email notification details:', {
+        console.error(`❌ [${requestId}] Email notification error:`, error.message);
+        console.error(`❌ [${requestId}] Email notification details:`, {
             lmid,
             world,
             questionId,
