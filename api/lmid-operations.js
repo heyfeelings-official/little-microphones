@@ -458,19 +458,28 @@ export default async function handler(req, res) {
     try {
         const { action, memberId, memberEmail, currentLmids, lmidToDelete, newLmidString } = req.body;
 
-        if (!action || !memberId) {
+        if (!action) {
             return res.status(400).json({ 
                 success: false, 
-                error: 'Missing required parameters: action and memberId' 
+                error: 'Missing required parameter: action' 
             });
         }
 
-        // Validate member ID format
-        if (!validateMemberId(memberId)) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Invalid member ID format' 
-            });
+        // Validate member ID format (skip for 'get' action which doesn't need memberId)
+        if (action !== 'get') {
+            if (!memberId) {
+                return res.status(400).json({ 
+                    success: false, 
+                    error: 'Missing required parameter: memberId' 
+                });
+            }
+            
+            if (!validateMemberId(memberId)) {
+                return res.status(400).json({ 
+                    success: false, 
+                    error: 'Invalid member ID format' 
+                });
+            }
         }
 
         let result;
