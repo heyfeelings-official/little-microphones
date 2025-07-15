@@ -58,7 +58,7 @@ export default async function handler(req, res) {
  */
 async function getLmidData(lmid) {
     try {
-        const apiUrl = `${process.env.VERCEL_URL || 'https://little-microphones.vercel.app'}/api/lmid-operations`;
+        const apiUrl = 'https://little-microphones.vercel.app/api/lmid-operations';
         console.log(`📡 Making API call to: ${apiUrl}`);
         
         const requestBody = {
