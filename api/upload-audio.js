@@ -204,10 +204,11 @@ export default async function handler(req, res) {
                     emailNotificationMessage = 'Powiadomienia email pomijane dla nagrań nauczyciela';
                 }
             } catch (emailError) {
+                const errorMessage = `Nagranie zostało zapisane, ale wystąpił problem z wysyłaniem powiadomień email. (Szczegóły: ${emailError.message})`;
                 console.error('⚠️ Email notification failed (upload still successful):', emailError.message);
                 console.error('⚠️ Email notification error stack:', emailError.stack);
                 emailNotificationStatus = 'failed';
-                emailNotificationMessage = 'Nagranie zostało zapisane, ale wystąpił problem z wysyłaniem powiadomień email';
+                emailNotificationMessage = errorMessage;
                 // Don't fail the upload if email fails
             }
             
