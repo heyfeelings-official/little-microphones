@@ -156,30 +156,31 @@ export default async function handler(req, res) {
             
             // Send email notifications after successful upload
             try {
-                // Determine who uploaded the recording based on filename
+                // Only send notifications for parent uploads (not teacher uploads)
                 const isParentUpload = filename.startsWith('parent_');
-                let uploaderEmail = null;
-                
-                // Get LMID data first (contains all emails)
-                const lmidData = await getLmidData(lmid);
                 
                 if (isParentUpload) {
+                    console.log(`📧 Parent upload detected - sending notifications`);
+                    
+                    // Get LMID data first (contains all emails)
+                    const lmidData = await getLmidData(lmid);
+                    
                     // Extract parent member ID from filename: parent_memberid-world_...
                     const memberIdMatch = filename.match(/^parent_([^-]+)-/);
+                    let uploaderEmail = null;
+                    
                     if (memberIdMatch) {
                         const parentMemberId = memberIdMatch[1];
                         // Find uploader email from the cached mapping
                         uploaderEmail = findParentEmailByMemberId(parentMemberId, lmidData.parentMemberIdToEmail, lmidData.parentEmails);
-                        console.log(`📧 Parent upload detected: ${uploaderEmail} (Member ID: ${parentMemberId})`);
+                        console.log(`📧 Parent uploader identified: ${uploaderEmail} (Member ID: ${parentMemberId})`);
                     }
+                    
+                    await sendNewRecordingNotifications(lmid, world, questionId, lang, uploaderEmail, lmidData);
+                    console.log(`✅ Email notifications sent for LMID ${lmid}, World ${world} (excluding uploader: ${uploaderEmail})`);
                 } else {
-                    // Teacher upload
-                    uploaderEmail = lmidData?.teacherEmail;
-                    console.log(`👨‍🏫 Teacher upload detected: ${uploaderEmail}`);
+                    console.log(`👨‍🏫 Teacher upload detected - skipping notifications (teacher uploads multiple messages)`);
                 }
-                
-                await sendNewRecordingNotifications(lmid, world, questionId, lang, uploaderEmail, lmidData);
-                console.log(`✅ Email notifications sent for LMID ${lmid}, World ${world} (excluding uploader: ${uploaderEmail})`);
             } catch (emailError) {
                 console.warn('⚠️ Email notification failed (upload still successful):', emailError.message);
                 // Don't fail the upload if email fails
@@ -215,17 +216,17 @@ export default async function handler(req, res) {
 // ===== EMAIL NOTIFICATION FUNCTIONS =====
 
 /**
- * Send email notifications for new recording
+ * Send email notifications for new recording (ONLY for parent uploads)
  * @param {string} lmid - LMID number
  * @param {string} world - World name
  * @param {string} questionId - Question ID
  * @param {string} lang - Language code from request
- * @param {string} uploaderEmail - Email of person who uploaded (to exclude from notifications)
+ * @param {string} uploaderEmail - Email of parent who uploaded (to exclude from notifications)
  * @param {Object} lmidData - Pre-fetched LMID data to avoid duplicate API calls
  */
 async function sendNewRecordingNotifications(lmid, world, questionId, lang, uploaderEmail, lmidData) {
     try {
-        console.log(`📧 Sending notifications for LMID ${lmid}, World ${world}, Language: ${lang}`);
+        console.log(`📧 Sending notifications for parent upload - LMID ${lmid}, World ${world}, Language: ${lang}`);
         
         if (!lmidData) {
             console.warn(`⚠️ No LMID data provided for ${lmid}, skipping notifications`);
@@ -248,8 +249,8 @@ async function sendNewRecordingNotifications(lmid, world, questionId, lang, uplo
             uploaderType: isTeacherUpload ? 'teacher' : 'parent'
         };
         
-        // Send teacher notification (exclude if teacher uploaded)
-        if (lmidData.teacherEmail && lmidData.teacherEmail !== uploaderEmail) {
+        // Send teacher notification (only parent uploads trigger notifications)
+        if (lmidData.teacherEmail) {
             await sendNotificationViaAPI({
                 recipientEmail: lmidData.teacherEmail,
                 recipientName: lmidData.teacherName,
@@ -258,8 +259,6 @@ async function sendNewRecordingNotifications(lmid, world, questionId, lang, uplo
                 templateData: templateData
             });
             console.log(`✅ Teacher notification sent to ${lmidData.teacherEmail}`);
-        } else if (lmidData.teacherEmail === uploaderEmail) {
-            console.log(`⏭️ Skipping teacher notification - teacher uploaded the recording`);
         }
         
         // Send parent notifications (exclude uploader)
@@ -285,11 +284,11 @@ async function sendNewRecordingNotifications(lmid, world, questionId, lang, uplo
         }
         
         // Summary logging
-        const totalRecipients = (lmidData.teacherEmail && lmidData.teacherEmail !== uploaderEmail ? 1 : 0) +
+        const totalRecipients = (lmidData.teacherEmail ? 1 : 0) +
                                (lmidData.parentEmails ? lmidData.parentEmails.filter(email => email !== uploaderEmail).length : 0);
         
-        console.log(`✅ All notifications sent for LMID ${lmid}, World ${world} in ${lang}`);
-        console.log(`📊 Notification summary: ${totalRecipients} recipients, excluded uploader: ${uploaderEmail}`);
+        console.log(`✅ All notifications sent for parent upload - LMID ${lmid}, World ${world} in ${lang}`);
+        console.log(`📊 Notification summary: ${totalRecipients} recipients (teacher + other parents), excluded uploader: ${uploaderEmail}`);
     } catch (error) {
         console.error('❌ Email notification error:', error);
         throw error;
