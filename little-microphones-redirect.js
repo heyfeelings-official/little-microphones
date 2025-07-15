@@ -148,7 +148,13 @@
             
             // Check if parent already has this LMID
             const currentUser = await getCurrentMemberstackUser();
+            console.log('[LM Redirect] Current user data:', currentUser);
+            
             const currentLmids = currentUser.metaData?.lmids || '';
+            const parentEmail = currentUser.auth?.email || currentUser.email;
+            
+            console.log('[LM Redirect] Parent email extracted:', parentEmail);
+            console.log('[LM Redirect] Current LMIDs:', currentLmids);
             
             if (currentLmids.includes(worldInfo.original_lmid.toString())) {
                 console.log('[LM Redirect] Parent already has this LMID');
@@ -160,7 +166,13 @@
             // Add LMID to parent's metadata using API call
             const newLmids = currentLmids ? `${currentLmids},${worldInfo.original_lmid}` : worldInfo.original_lmid.toString();
             
-            const updateResult = await updateParentMetadata(currentUser.id, newLmids, currentUser.auth?.email || currentUser.email);
+            console.log('[LM Redirect] Calling API with:', {
+                memberId: currentUser.id,
+                newLmids: newLmids,
+                parentEmail: parentEmail
+            });
+            
+            const updateResult = await updateParentMetadata(currentUser.id, newLmids, parentEmail);
             
             if (updateResult.success) {
                 console.log('[LM Redirect] LMID added successfully');
