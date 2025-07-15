@@ -163,59 +163,37 @@ export default async function handler(req, res) {
                 const isParentUpload = filename.startsWith('parent_');
                 
                 if (isParentUpload) {
-                    console.log(`📧 Parent upload detected - sending notifications`);
-                    console.log(`📧 Upload details: filename=${filename}, world=${world}, lmid=${lmid}, lang=${lang}`);
-                    
                     // Get LMID data first (contains all emails)
                     const lmidData = await getLmidData(lmid);
                     
                     if (!lmidData) {
-                        console.error(`❌ Cannot send notifications: LMID data not found for LMID ${lmid}`);
                         throw new Error(`LMID data not found for LMID ${lmid}`);
                     }
                     
-                    console.log(`📧 LMID data retrieved:`, JSON.stringify(lmidData, null, 2));
-                    
-                    // Extract parent member ID from filename: parent_memberid-world_...
+                    // Extract parent member ID from filename
                     const memberIdMatch = filename.match(/^parent_([^-]+)-/);
                     let uploaderEmail = null;
                     
                     if (memberIdMatch) {
                         const parentMemberId = memberIdMatch[1];
-                        console.log(`📧 Attempting to identify uploader for Member ID: ${parentMemberId}`);
-                        console.log(`📧 Available data - parentMemberIdToEmail:`, lmidData.parentMemberIdToEmail);
-                        console.log(`📧 Available data - parentEmails:`, lmidData.parentEmails);
-                        
                         // Find uploader email from the cached mapping
                         uploaderEmail = findParentEmailByMemberId(parentMemberId, lmidData.parentMemberIdToEmail, lmidData.parentEmails);
-                        console.log(`📧 Parent uploader identified: ${uploaderEmail} (Member ID: ${parentMemberId})`);
                     } else {
                         console.warn(`⚠️ Could not extract Member ID from filename: ${filename}`);
                     }
                     
-                    console.log(`📧 About to send notifications with:`, {
-                        lmid, world, questionId, lang, uploaderEmail,
-                        teacherEmail: lmidData?.teacherEmail,
-                        parentEmails: lmidData?.parentEmails
-                    });
-                    
                     await sendNewRecordingNotifications(lmid, world, questionId, lang, uploaderEmail, lmidData);
-                    console.log(`✅ Email notifications sent for LMID ${lmid}, World ${world} (excluding uploader: ${uploaderEmail})`);
                     
                     emailNotificationStatus = 'sent';
                     emailNotificationMessage = 'Powiadomienia email zostały wysłane do nauczyciela i innych rodziców';
                 } else {
-                    console.log(`👨‍🏫 Teacher upload detected - skipping notifications (teacher uploads multiple messages)`);
+                    console.log(`👨‍🏫 Teacher upload detected - skipping notifications`);
                     emailNotificationStatus = 'skipped_teacher';
-                    emailNotificationMessage = 'Powiadomienia email pomijane dla nagrań nauczyciela';
                 }
             } catch (emailError) {
-                const errorMessage = `Nagranie zostało zapisane, ale wystąpił problem z wysyłaniem powiadomień email. (Szczegóły: ${emailError.message})`;
-                console.error('⚠️ Email notification failed (upload still successful):', emailError.message);
-                console.error('⚠️ Email notification error stack:', emailError.stack);
+                console.error('❌ Email notification failed:', emailError);
                 emailNotificationStatus = 'failed';
-                emailNotificationMessage = errorMessage;
-                // Don't fail the upload if email fails
+                emailNotificationMessage = 'Nagranie zostało zapisane, ale wystąpił problem z wysyłaniem powiadomień email.';
             }
             
             res.json({ 
@@ -350,22 +328,17 @@ async function sendNewRecordingNotifications(lmid, world, questionId, lang, uplo
  * @returns {string|null} Parent email address
  */
 function findParentEmailByMemberId(memberId, parentMemberIdToEmail, parentEmails) {
-    // Check if mapping exists and is valid
     if (!parentMemberIdToEmail || typeof parentMemberIdToEmail !== 'object') {
-        console.warn(`⚠️ Parent Member ID to Email mapping is null or invalid. Cannot identify uploader email from ${parentEmails?.length || 0} parent emails.`);
+        console.warn(`⚠️ Parent Member ID to Email mapping is null or invalid.`);
         return null;
     }
     
-    // Try mapping first
     const email = parentMemberIdToEmail[memberId];
     if (email) {
-        console.log(`📧 Found uploader email ${email} for Member ID ${memberId} in cached mapping`);
         return email;
     }
     
-    // If mapping doesn't work, we can't reliably identify which parent email belongs to this Member ID
-    // This is a limitation when the database doesn't have synchronized arrays
-    console.warn(`⚠️ Member ID ${memberId} not found in parent mapping. Cannot identify uploader email from ${parentEmails?.length || 0} parent emails.`);
+    console.warn(`⚠️ Member ID ${memberId} not found in parent mapping.`);
     return null;
 }
 
