@@ -161,9 +161,11 @@ export default async function handler(req, res) {
                 
                 if (isParentUpload) {
                     console.log(`📧 Parent upload detected - sending notifications`);
+                    console.log(`📧 Upload details: filename=${filename}, world=${world}, lmid=${lmid}, lang=${lang}`);
                     
                     // Get LMID data first (contains all emails)
                     const lmidData = await getLmidData(lmid);
+                    console.log(`📧 LMID data retrieved:`, JSON.stringify(lmidData, null, 2));
                     
                     // Extract parent member ID from filename: parent_memberid-world_...
                     const memberIdMatch = filename.match(/^parent_([^-]+)-/);
@@ -175,6 +177,12 @@ export default async function handler(req, res) {
                         uploaderEmail = findParentEmailByMemberId(parentMemberId, lmidData.parentMemberIdToEmail, lmidData.parentEmails);
                         console.log(`📧 Parent uploader identified: ${uploaderEmail} (Member ID: ${parentMemberId})`);
                     }
+                    
+                    console.log(`📧 About to send notifications with:`, {
+                        lmid, world, questionId, lang, uploaderEmail,
+                        teacherEmail: lmidData?.teacherEmail,
+                        parentEmails: lmidData?.parentEmails
+                    });
                     
                     await sendNewRecordingNotifications(lmid, world, questionId, lang, uploaderEmail, lmidData);
                     console.log(`✅ Email notifications sent for LMID ${lmid}, World ${world} (excluding uploader: ${uploaderEmail})`);
