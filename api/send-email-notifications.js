@@ -145,25 +145,20 @@ export default async function handler(req, res) {
         apiInstance.setApiKey(TransactionalEmailsApiApiKeys.apiKey, brevoApiKey);
         
         // Determine template ID based on notification type and language
-        // Use environment variables with fallback to hardcoded values
+        // Use environment variables from Vercel
         let templateId;
-        let templateSource;
         
         if (notificationType === 'teacher') {
             if (language === 'pl') {
-                templateId = process.env.BREVO_TEACHER_TEMPLATE_PL || 2;
-                templateSource = process.env.BREVO_TEACHER_TEMPLATE_PL ? 'env:BREVO_TEACHER_TEMPLATE_PL' : 'fallback';
+                templateId = process.env.BREVO_TEACHER_TEMPLATE_PL;
             } else {
-                templateId = process.env.BREVO_TEACHER_TEMPLATE_EN || 4;
-                templateSource = process.env.BREVO_TEACHER_TEMPLATE_EN ? 'env:BREVO_TEACHER_TEMPLATE_EN' : 'fallback';
+                templateId = process.env.BREVO_TEACHER_TEMPLATE_EN;
             }
         } else {
             if (language === 'pl') {
-                templateId = process.env.BREVO_PARENT_TEMPLATE_PL || 3;
-                templateSource = process.env.BREVO_PARENT_TEMPLATE_PL ? 'env:BREVO_PARENT_TEMPLATE_PL' : 'fallback';
+                templateId = process.env.BREVO_PARENT_TEMPLATE_PL;
             } else {
-                templateId = process.env.BREVO_PARENT_TEMPLATE_EN || 6;
-                templateSource = process.env.BREVO_PARENT_TEMPLATE_EN ? 'env:BREVO_PARENT_TEMPLATE_EN' : 'fallback';
+                templateId = process.env.BREVO_PARENT_TEMPLATE_EN;
             }
         }
         
@@ -172,18 +167,17 @@ export default async function handler(req, res) {
         
         // Validate template ID
         if (isNaN(templateId) || templateId <= 0) {
-            console.error(`❌ Invalid template ID: ${templateId} from ${templateSource}`);
+            console.error(`❌ Invalid template ID: ${templateId} from environment variables`);
             return res.status(500).json({ 
                 error: 'Invalid email template configuration',
                 details: `Template ID "${templateId}" is not valid`
             });
         }
         
-        console.log(`📧 Selected template ${templateId} for ${notificationType} in ${language} (source: ${templateSource})`);
+        console.log(`📧 Selected template ${templateId} for ${notificationType} in ${language}`);
         console.log(`🔍 Environment variable debug:`, {
             BREVO_PARENT_TEMPLATE_EN: process.env.BREVO_PARENT_TEMPLATE_EN,
-            finalTemplateId: templateId,
-            templateSource: templateSource
+            finalTemplateId: templateId
         });
         
         // Prepare email data for Brevo SDK

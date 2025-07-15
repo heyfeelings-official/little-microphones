@@ -252,8 +252,8 @@ async function sendNewRecordingNotifications(lmid, world, questionId, lang, uplo
         const uploaderName = isTeacherUpload ? lmidData.teacherName : 'Rodzic';
         
         // Prepare template data
-        // Use environment variable for Hey Feelings domain with fallback
-        const heyFeelingsBaseUrl = process.env.HEY_FEELINGS_BASE_URL || 'https://hey-feelings-v2.webflow.io';
+        // Use environment variable for Hey Feelings domain
+        const heyFeelingsBaseUrl = process.env.HEY_FEELINGS_BASE_URL;
         
         const templateData = {
             teacherName: lmidData.teacherName,
