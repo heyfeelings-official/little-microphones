@@ -59,15 +59,25 @@
  * - Bunny.net CDN: Global file storage and content delivery
  * - Vercel Runtime: Serverless execution environment
  * - IndexedDB: Local storage coordination for upload status
+ * - send-email-notifications.js: Email notifications for parent uploads
+ * 
+ * EMAIL NOTIFICATIONS:
+ * - Automatic notifications for parent uploads only
+ * - Multi-language support (Polish/English) based on request language
+ * - Teacher notifications about new student recordings
+ * - Parent notifications to other parents (excluding uploader)
+ * - Brevo SDK integration with automatic contact creation
+ * - Secure logging without exposing personal information
  * 
  * MONITORING & LOGGING:
  * - Comprehensive upload logging with file metadata
  * - Error tracking with detailed diagnostic information
  * - Performance monitoring for upload speed optimization
  * - Success rate tracking for system reliability metrics
+ * - Secure logging without exposing personal data
  * 
  * LAST UPDATED: January 2025
- * VERSION: 2.4.0
+ * VERSION: 6.0.0
  * STATUS: Production Ready ✅
  */
 
@@ -132,11 +142,7 @@ export default async function handler(req, res) {
         const filePath = `${lang}/${lmid}/${world}/${filename}`;
         const uploadUrl = `https://storage.bunnycdn.com/${process.env.BUNNY_STORAGE_ZONE}/${filePath}`;
         
-        console.log(`Uploading ${filename} to Bunny.net (${audioBuffer.length} bytes)`);
-        console.log(`Upload path: ${filePath}`);
-        console.log(`Upload URL: ${uploadUrl}`);
-        console.log(`API Key present: ${!!process.env.BUNNY_API_KEY}`);
-        console.log(`Storage Zone: ${process.env.BUNNY_STORAGE_ZONE}`);
+        console.log(`📤 Uploading ${filename} (${audioBuffer.length} bytes)`);
         
         const response = await fetch(uploadUrl, {
             method: 'PUT',
@@ -147,12 +153,9 @@ export default async function handler(req, res) {
             body: audioBuffer
         });
 
-        console.log(`Bunny.net response status: ${response.status}`);
-        console.log(`Bunny.net response headers:`, Object.fromEntries(response.headers.entries()));
-
         if (response.ok) {
             const cdnUrl = `https://${process.env.BUNNY_CDN_URL}/${filePath}`;
-            console.log(`Successfully uploaded: ${cdnUrl}`);
+            console.log(`✅ Upload successful: ${audioBuffer.length} bytes`);
             
             // Send email notifications after successful upload
             let emailNotificationStatus = 'not_applicable';
@@ -179,7 +182,7 @@ export default async function handler(req, res) {
                         // Find uploader email from the cached mapping
                         uploaderEmail = findParentEmailByMemberId(parentMemberId, lmidData.parentMemberIdToEmail, lmidData.parentEmails);
                     } else {
-                        console.warn(`⚠️ Could not extract Member ID from filename: ${filename}`);
+                        console.warn(`⚠️ Could not extract Member ID from filename`);
                     }
                     
                     await sendNewRecordingNotifications(lmid, world, questionId, lang, uploaderEmail, lmidData);
@@ -187,11 +190,11 @@ export default async function handler(req, res) {
                     emailNotificationStatus = 'sent';
                     emailNotificationMessage = 'Email notifications sent';
                 } else {
-                    console.log(`👨‍🏫 Teacher upload detected - skipping notifications`);
+                    console.log(`👨‍🏫 Teacher upload - skipping notifications`);
                     emailNotificationStatus = 'skipped_teacher';
                 }
-            } catch (emailError) {
-                console.error('❌ Email notification failed:', emailError);
+                            } catch (emailError) {
+                console.error('❌ Email notification failed:', emailError.message);
                 emailNotificationStatus = 'failed';
                 emailNotificationMessage = 'Upload successful, email notification failed';
             }
@@ -208,13 +211,7 @@ export default async function handler(req, res) {
             });
         } else {
             const errorText = await response.text();
-            console.error(`Bunny.net upload failed: ${response.status} - ${errorText}`);
-            console.error(`Full response:`, {
-                status: response.status,
-                statusText: response.statusText,
-                headers: Object.fromEntries(response.headers.entries()),
-                body: errorText
-            });
+            console.error(`❌ Upload failed: ${response.status} - ${errorText}`);
             throw new Error(`Upload failed: ${response.status}`);
         }
 
@@ -240,10 +237,10 @@ export default async function handler(req, res) {
  */
 async function sendNewRecordingNotifications(lmid, world, questionId, lang, uploaderEmail, lmidData) {
     try {
-        console.log(`📧 Sending notifications for parent upload - LMID ${lmid}, World ${world}, Language: ${lang}`);
+        console.log(`📧 Processing notifications - LMID ${lmid}, World ${world}, Lang: ${lang}`);
         
         if (!lmidData) {
-            console.warn(`⚠️ No LMID data provided for ${lmid}, skipping notifications`);
+            console.warn(`⚠️ No LMID data available, skipping notifications`);
             return;
         }
         
@@ -272,7 +269,7 @@ async function sendNewRecordingNotifications(lmid, world, questionId, lang, uplo
                 language: lang,
                 templateData: templateData
             });
-            console.log(`✅ Teacher notification sent to ${lmidData.teacherEmail}`);
+            console.log(`✅ Teacher notification sent`);
         }
         
         // Send parent notifications (exclude uploader)
@@ -291,9 +288,9 @@ async function sendNewRecordingNotifications(lmid, world, questionId, lang, uplo
                 );
                 
                 await Promise.all(parentPromises);
-                console.log(`✅ Parent notifications sent to ${filteredParentEmails.length} recipients (excluded uploader)`);
+                console.log(`✅ Parent notifications sent to ${filteredParentEmails.length} recipients`);
             } else {
-                console.log(`⏭️ No parent notifications to send - uploader was the only parent or no parents registered`);
+                console.log(`⏭️ No parent notifications to send - uploader was only parent`);
             }
         }
         
@@ -301,19 +298,17 @@ async function sendNewRecordingNotifications(lmid, world, questionId, lang, uplo
         const totalRecipients = (lmidData.teacherEmail ? 1 : 0) +
                                (lmidData.parentEmails ? lmidData.parentEmails.filter(email => email !== uploaderEmail).length : 0);
         
-        console.log(`✅ All notifications sent for parent upload - LMID ${lmid}, World ${world} in ${lang}`);
-        console.log(`📊 Notification summary: ${totalRecipients} recipients (teacher + other parents), excluded uploader: ${uploaderEmail}`);
+        console.log(`✅ All notifications sent - LMID ${lmid}, World ${world}, Lang ${lang}`);
+        console.log(`📊 Notification summary: ${totalRecipients} recipients sent`);
     } catch (error) {
-        console.error('❌ Email notification error:', error);
-        console.error('❌ Email notification error stack:', error.stack);
-        console.error('❌ Email notification error details:', {
+        console.error('❌ Email notification error:', error.message);
+        console.error('❌ Email notification details:', {
             lmid,
             world,
             questionId,
             lang,
-            uploaderEmail,
-            lmidDataAvailable: !!lmidData,
-            teacherEmail: lmidData?.teacherEmail,
+            hasLmidData: !!lmidData,
+            hasTeacherEmail: !!lmidData?.teacherEmail,
             parentEmailsCount: lmidData?.parentEmails?.length || 0
         });
         throw new Error('Email notification failed');
@@ -329,7 +324,7 @@ async function sendNewRecordingNotifications(lmid, world, questionId, lang, uplo
  */
 function findParentEmailByMemberId(memberId, parentMemberIdToEmail, parentEmails) {
     if (!parentMemberIdToEmail || typeof parentMemberIdToEmail !== 'object') {
-        console.warn(`⚠️ Parent Member ID to Email mapping is null or invalid.`);
+        console.warn(`⚠️ Parent Member ID mapping is invalid`);
         return null;
     }
     
@@ -338,7 +333,7 @@ function findParentEmailByMemberId(memberId, parentMemberIdToEmail, parentEmails
         return email;
     }
     
-    console.warn(`⚠️ Member ID ${memberId} not found in parent mapping.`);
+    console.warn(`⚠️ Member ID not found in parent mapping`);
     return null;
 }
 
@@ -351,8 +346,7 @@ async function getLmidData(lmid) {
     try {
         // Always use the main domain for internal API calls to avoid auth issues
         const baseUrl = 'https://little-microphones.vercel.app';
-        
-        console.log(`📡 [getLmidData] Making API call to: ${baseUrl}/api/lmid-operations`);
+
         
         // Call the existing lmid-operations API to get LMID data
         const response = await fetch(`${baseUrl}/api/lmid-operations`, {
@@ -368,15 +362,14 @@ async function getLmidData(lmid) {
         
         if (!response.ok) {
             const errorText = await response.text();
-            console.error(`❌ [getLmidData] API response error: ${response.status} - ${errorText}`);
+            console.error(`❌ LMID API error: ${response.status} - ${errorText}`);
             throw new Error(`Failed to fetch LMID data: ${response.status}`);
         }
         
         const data = await response.json();
-        console.log(`📥 [getLmidData] API response data:`, data);
         
         if (!data.success) {
-            console.error(`❌ [getLmidData] API returned error: ${data.error}`);
+            console.error(`❌ LMID API returned error: ${data.error}`);
             throw new Error(`LMID data error: ${data.error}`);
         }
         
@@ -390,12 +383,11 @@ async function getLmidData(lmid) {
             shareId: data.data.shareId
         };
         
-        console.log(`✅ [getLmidData] Successfully processed LMID ${lmid} data:`, result);
+        console.log(`✅ LMID ${lmid} data retrieved successfully`);
         return result;
         
     } catch (error) {
-        console.error('❌ [getLmidData] Error fetching LMID data:', error);
-        console.error('❌ [getLmidData] Error stack:', error.stack);
+        console.error('❌ Error fetching LMID data:', error.message);
         return null;
     }
 }
@@ -408,8 +400,6 @@ async function sendNotificationViaAPI(notificationData) {
     // Always use the main domain for internal API calls to avoid auth issues
     const apiUrl = 'https://little-microphones.vercel.app/api/send-email-notifications';
     
-    console.log(`📧 [sendNotificationViaAPI] Making API call to: ${apiUrl}`);
-    
     const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
@@ -418,16 +408,14 @@ async function sendNotificationViaAPI(notificationData) {
         body: JSON.stringify(notificationData)
     });
     
-    console.log(`📧 [sendNotificationViaAPI] API response status: ${response.status}`);
-    
     if (!response.ok) {
         const errorText = await response.text();
-        console.error(`❌ [sendNotificationViaAPI] API response error: ${response.status} - ${errorText}`);
+        console.error(`❌ Email API error: ${response.status} - ${errorText}`);
         throw new Error(`Email API error: ${response.status} - ${errorText}`);
     }
     
     const result = await response.json();
-    console.log(`✅ [sendNotificationViaAPI] API response success:`, result);
+    console.log(`✅ Email API call successful`);
     return result;
 }
 

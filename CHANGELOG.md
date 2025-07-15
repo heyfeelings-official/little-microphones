@@ -1,5 +1,39 @@
 # Changelog - Little Microphones
 
+## [6.0.0] - 2025-01-15 - Email Notifications Working ✅
+
+### 🎉 Major Features Added
+- **Email Notifications System**: Complete Brevo integration for parent uploads
+- **Multi-language Email Templates**: Polish and English templates based on request language
+- **Automatic Contact Management**: Brevo contacts created automatically before sending emails
+- **Secure Logging**: Personal data removed from all console logs for privacy compliance
+
+### 📧 Email Notification Features
+- Teacher notifications when parents upload new recordings
+- Parent notifications to other parents (excluding uploader) 
+- Language-specific templates (PL: templates 1,3 / EN: templates 2,4)
+- Automatic contact creation in Brevo with proper attributes
+- Error resilience - upload succeeds even if email fails
+
+### 🔒 Security & Privacy Improvements
+- **Secure Logging**: All email addresses and personal data removed from logs
+- **Error Handling**: Improved error messages without exposing sensitive information
+- **Data Protection**: Console logs cleaned of personal identifiable information
+- **Template Security**: Proper template ID validation and secure API calls
+
+### 🛠️ Technical Improvements
+- Uses official Brevo SDK (@getbrevo/brevo) instead of custom implementation
+- Fixed internal API call URL issues preventing email delivery
+- Improved error handling with detailed debugging information
+- Streamlined logging for better monitoring without privacy concerns
+- Fixed JSON parsing errors in email notification API calls
+
+### 🧹 Code Quality
+- Removed all test files and unused code from development
+- Simplified console logging for production readiness
+- Updated documentation with email notification architecture
+- Version bump to 6.0.0 reflecting major email system completion
+
 ## [5.1.0] - 2025-01-14 - Kids, Parents and Languages Working ✅
 
 ### 🎉 Major Features Added

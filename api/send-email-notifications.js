@@ -12,10 +12,18 @@
  * - Parent notifications (new recording from child)
  * - Multi-language support (Polish/English)
  * - Brevo template system integration
- * - Uses official Brevo SDK
+ * - Uses official Brevo SDK (@getbrevo/brevo)
+ * - Automatic contact creation in Brevo
+ * - Secure logging without exposing personal data
+ * 
+ * TEMPLATE MAPPING:
+ * - Teacher PL: Template ID 1
+ * - Teacher EN: Template ID 2
+ * - Parent PL: Template ID 3
+ * - Parent EN: Template ID 4
  * 
  * LAST UPDATED: January 2025
- * VERSION: 3.0.0
+ * VERSION: 6.0.0
  * STATUS: Production Ready ✅
  */
 
@@ -36,12 +44,12 @@ async function ensureContactExists(email, name, brevoApiKey) {
         // Try to get contact first
         try {
             const contact = await contactsApi.getContactInfo(email);
-            console.log(`📧 Contact ${email} already exists in Brevo`);
+            console.log(`📧 Contact already exists in Brevo`);
             return true;
         } catch (error) {
             // Contact doesn't exist, create it
             if (error.status === 404) {
-                console.log(`📧 Creating new contact in Brevo: ${email}`);
+                console.log(`📧 Creating new contact in Brevo`);
                 
                 const createContact = new CreateContact();
                 createContact.email = email;
@@ -51,15 +59,15 @@ async function ensureContactExists(email, name, brevoApiKey) {
                 };
                 
                 await contactsApi.createContact(createContact);
-                console.log(`✅ Contact created successfully: ${email}`);
+                console.log(`✅ Contact created successfully`);
                 return true;
             } else {
-                console.error(`❌ Error checking contact ${email}:`, error);
+                console.error(`❌ Error checking contact:`, error.message);
                 return false;
             }
         }
     } catch (error) {
-        console.error(`❌ Error ensuring contact exists for ${email}:`, error);
+        console.error(`❌ Error ensuring contact exists:`, error.message);
         return false;
     }
 }
@@ -86,6 +94,8 @@ export default async function handler(req, res) {
             language, // 'pl' or 'en'
             templateData 
         } = req.body;
+        
+        console.log(`📧 Email notification request - Type: ${notificationType}, Lang: ${language}`);
         
         // Validate required fields
         if (!recipientEmail || !recipientName || !notificationType || !language) {
@@ -118,7 +128,7 @@ export default async function handler(req, res) {
         // Ensure contact exists in Brevo before sending email
         const contactExists = await ensureContactExists(recipientEmail, recipientName, brevoApiKey);
         if (!contactExists) {
-            console.warn(`⚠️ Could not ensure contact exists for ${recipientEmail}, proceeding anyway`);
+            console.warn(`⚠️ Could not ensure contact exists, proceeding anyway`);
         }
         
         // Initialize Brevo SDK
@@ -133,6 +143,8 @@ export default async function handler(req, res) {
             templateId = language === 'pl' ? 3 : 4; // Polish: 3, English: 4
         }
         
+        console.log(`📧 Selected template ${templateId} for ${notificationType} in ${language}`);
+        
         // Prepare email data for Brevo SDK
         const sendSmtpEmail = new SendSmtpEmail();
         sendSmtpEmail.to = [{
@@ -142,17 +154,12 @@ export default async function handler(req, res) {
         sendSmtpEmail.templateId = templateId;
         sendSmtpEmail.params = templateData || {};
         
-        console.log(`📧 Sending email via Brevo SDK:`, {
-            to: recipientEmail,
-            templateId: templateId,
-            params: templateData
-        });
+        console.log(`📧 Sending to Brevo - Template: ${templateId}`);
         
         // Send email via Brevo SDK
         const result = await apiInstance.sendTransacEmail(sendSmtpEmail);
         
-        console.log(`✅ Email notification sent successfully to ${recipientEmail} (${notificationType}, ${language})`);
-        console.log(`📧 Brevo response:`, result);
+        console.log(`✅ Email sent successfully`);
         
         return res.status(200).json({
             success: true,
@@ -161,12 +168,11 @@ export default async function handler(req, res) {
         });
         
     } catch (error) {
-        console.error('❌ Error sending email notification:', error);
-        console.error('❌ Error details:', error.response?.body || error.message);
+        console.error('❌ Error sending email notification:', error.message);
         
         return res.status(500).json({ 
             error: 'Failed to send email notification',
-            details: error.response?.body || error.message 
+            details: error.message 
         });
     }
 } 
