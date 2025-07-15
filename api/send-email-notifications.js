@@ -20,7 +20,7 @@
  * - Teacher PL: BREVO_TEACHER_TEMPLATE_PL (default: 2)
  * - Teacher EN: BREVO_TEACHER_TEMPLATE_EN (default: 4)
  * - Parent PL: BREVO_PARENT_TEMPLATE_PL (default: 3)
- * - Parent EN: BREVO_PARENT_TEMPLATE_EN (default: 5)
+ * - Parent EN: BREVO_PARENT_TEMPLATE_EN (default: 6)
  * 
  * ENVIRONMENT VARIABLES:
  * - BREVO_API_KEY: Brevo API key for authentication
@@ -162,7 +162,7 @@ export default async function handler(req, res) {
                 templateId = process.env.BREVO_PARENT_TEMPLATE_PL || 3;
                 templateSource = process.env.BREVO_PARENT_TEMPLATE_PL ? 'env:BREVO_PARENT_TEMPLATE_PL' : 'fallback';
             } else {
-                templateId = process.env.BREVO_PARENT_TEMPLATE_EN || 5;
+                templateId = process.env.BREVO_PARENT_TEMPLATE_EN || 6;
                 templateSource = process.env.BREVO_PARENT_TEMPLATE_EN ? 'env:BREVO_PARENT_TEMPLATE_EN' : 'fallback';
             }
         }
@@ -180,6 +180,11 @@ export default async function handler(req, res) {
         }
         
         console.log(`📧 Selected template ${templateId} for ${notificationType} in ${language} (source: ${templateSource})`);
+        console.log(`🔍 Environment variable debug:`, {
+            BREVO_PARENT_TEMPLATE_EN: process.env.BREVO_PARENT_TEMPLATE_EN,
+            finalTemplateId: templateId,
+            templateSource: templateSource
+        });
         
         // Prepare email data for Brevo SDK
         const sendSmtpEmail = new SendSmtpEmail();
