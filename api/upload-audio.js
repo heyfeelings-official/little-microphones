@@ -156,8 +156,27 @@ export default async function handler(req, res) {
             
             // Send email notifications after successful upload
             try {
-                await sendNewRecordingNotifications(lmid, world, questionId, lang);
-                console.log(`✅ Email notifications sent for LMID ${lmid}, World ${world}`);
+                // Determine who uploaded the recording based on filename
+                const isParentUpload = filename.startsWith('parent_');
+                let uploaderEmail = null;
+                
+                if (isParentUpload) {
+                    // Extract parent member ID from filename: parent_memberid-world_...
+                    const memberIdMatch = filename.match(/^parent_([^-]+)-/);
+                    if (memberIdMatch) {
+                        const parentMemberId = memberIdMatch[1];
+                        uploaderEmail = await getParentEmailFromMemberId(parentMemberId);
+                        console.log(`📧 Parent upload detected: ${uploaderEmail} (Member ID: ${parentMemberId})`);
+                    }
+                } else {
+                    // Teacher upload - get teacher email from LMID data
+                    const lmidData = await getLmidData(lmid);
+                    uploaderEmail = lmidData?.teacherEmail;
+                    console.log(`👨‍🏫 Teacher upload detected: ${uploaderEmail}`);
+                }
+                
+                await sendNewRecordingNotifications(lmid, world, questionId, lang, uploaderEmail);
+                console.log(`✅ Email notifications sent for LMID ${lmid}, World ${world} (excluding uploader: ${uploaderEmail})`);
             } catch (emailError) {
                 console.warn('⚠️ Email notification failed (upload still successful):', emailError.message);
                 // Don't fail the upload if email fails
@@ -198,8 +217,9 @@ export default async function handler(req, res) {
  * @param {string} world - World name
  * @param {string} questionId - Question ID
  * @param {string} lang - Language code from request
+ * @param {string} uploaderEmail - Email of person who uploaded (to exclude from notifications)
  */
-async function sendNewRecordingNotifications(lmid, world, questionId, lang) {
+async function sendNewRecordingNotifications(lmid, world, questionId, lang, uploaderEmail) {
     try {
         console.log(`📧 Sending notifications for LMID ${lmid}, World ${world}, Language: ${lang}`);
         
@@ -211,6 +231,10 @@ async function sendNewRecordingNotifications(lmid, world, questionId, lang) {
             return;
         }
         
+        // Determine who uploaded for template data
+        const isTeacherUpload = lmidData.teacherEmail === uploaderEmail;
+        const uploaderName = isTeacherUpload ? lmidData.teacherName : 'Rodzic';
+        
         // Prepare template data
         const templateData = {
             teacherName: lmidData.teacherName,
@@ -218,11 +242,13 @@ async function sendNewRecordingNotifications(lmid, world, questionId, lang) {
             lmid: lmid,
             schoolName: lmidData.schoolName,
             dashboardUrl: `https://hey-feelings-v2.webflow.io/${lang}/members/little-microphones`,
-            radioUrl: `https://little-microphones.vercel.app/radio?ID=${lmidData.shareId}`
+            radioUrl: `https://little-microphones.vercel.app/radio?ID=${lmidData.shareId}`,
+            uploaderName: uploaderName,
+            uploaderType: isTeacherUpload ? 'teacher' : 'parent'
         };
         
-        // Send teacher notification
-        if (lmidData.teacherEmail) {
+        // Send teacher notification (exclude if teacher uploaded)
+        if (lmidData.teacherEmail && lmidData.teacherEmail !== uploaderEmail) {
             await sendNotificationViaAPI({
                 recipientEmail: lmidData.teacherEmail,
                 recipientName: lmidData.teacherName,
@@ -231,28 +257,79 @@ async function sendNewRecordingNotifications(lmid, world, questionId, lang) {
                 templateData: templateData
             });
             console.log(`✅ Teacher notification sent to ${lmidData.teacherEmail}`);
+        } else if (lmidData.teacherEmail === uploaderEmail) {
+            console.log(`⏭️ Skipping teacher notification - teacher uploaded the recording`);
         }
         
-        // Send parent notifications
+        // Send parent notifications (exclude uploader)
         if (lmidData.parentEmails && lmidData.parentEmails.length > 0) {
-            const parentPromises = lmidData.parentEmails.map(parentEmail => 
-                sendNotificationViaAPI({
-                    recipientEmail: parentEmail,
-                    recipientName: 'Rodzic',
-                    notificationType: 'parent',
-                    language: lang,
-                    templateData: templateData
-                })
-            );
+            const filteredParentEmails = lmidData.parentEmails.filter(email => email !== uploaderEmail);
             
-            await Promise.all(parentPromises);
-            console.log(`✅ Parent notifications sent to ${lmidData.parentEmails.length} recipients`);
+            if (filteredParentEmails.length > 0) {
+                const parentPromises = filteredParentEmails.map(parentEmail => 
+                    sendNotificationViaAPI({
+                        recipientEmail: parentEmail,
+                        recipientName: 'Rodzic',
+                        notificationType: 'parent',
+                        language: lang,
+                        templateData: templateData
+                    })
+                );
+                
+                await Promise.all(parentPromises);
+                console.log(`✅ Parent notifications sent to ${filteredParentEmails.length} recipients (excluded uploader)`);
+            } else {
+                console.log(`⏭️ No parent notifications to send - uploader was the only parent or no parents registered`);
+            }
         }
+        
+        // Summary logging
+        const totalRecipients = (lmidData.teacherEmail && lmidData.teacherEmail !== uploaderEmail ? 1 : 0) +
+                               (lmidData.parentEmails ? lmidData.parentEmails.filter(email => email !== uploaderEmail).length : 0);
         
         console.log(`✅ All notifications sent for LMID ${lmid}, World ${world} in ${lang}`);
+        console.log(`📊 Notification summary: ${totalRecipients} recipients, excluded uploader: ${uploaderEmail}`);
     } catch (error) {
         console.error('❌ Email notification error:', error);
         throw error;
+    }
+}
+
+/**
+ * Get parent email from Memberstack Member ID
+ * @param {string} memberId - Memberstack Member ID
+ * @returns {Promise<string|null>} Parent email address
+ */
+async function getParentEmailFromMemberId(memberId) {
+    try {
+        const MEMBERSTACK_SECRET_KEY = process.env.MEMBERSTACK_SECRET_KEY;
+        if (!MEMBERSTACK_SECRET_KEY) {
+            console.warn('⚠️ MEMBERSTACK_SECRET_KEY not configured');
+            return null;
+        }
+        
+        const response = await fetch(`https://admin.memberstack.com/members/${memberId}`, {
+            method: 'GET',
+            headers: {
+                'x-api-key': MEMBERSTACK_SECRET_KEY,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            console.warn(`⚠️ Failed to fetch parent data from Memberstack: ${response.status}`);
+            return null;
+        }
+        
+        const memberData = await response.json();
+        const email = memberData.data?.auth?.email || memberData.data?.email;
+        
+        console.log(`📧 Retrieved parent email from Member ID ${memberId}: ${email}`);
+        return email;
+        
+    } catch (error) {
+        console.error('Error fetching parent email from Memberstack:', error);
+        return null;
     }
 }
 
