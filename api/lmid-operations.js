@@ -287,22 +287,36 @@ async function handleUpdateParentMetadata(memberId, newLmidString) {
     // Parse new LMIDs
     const newLmids = newLmidString ? newLmidString.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id)) : [];
     
-    // Track parent Member ID associations in Supabase for OPTIMIZED cleanup later
+    // Track parent Member ID and Email associations in Supabase for notifications and cleanup
     for (const lmid of newLmids) {
         try {
-            // Use RPC function to add Member ID to array
-            const { error } = await supabase.rpc('add_parent_member_id_to_lmid', {
+            // Add Member ID to array
+            const { error: memberIdError } = await supabase.rpc('add_parent_member_id_to_lmid', {
                 p_lmid: lmid,
                 p_parent_member_id: memberId
             });
             
-            if (error) {
-                console.warn(`⚠️ Failed to track parent Member ID association for LMID ${lmid}:`, error);
+            if (memberIdError) {
+                console.warn(`⚠️ Failed to track parent Member ID association for LMID ${lmid}:`, memberIdError);
             } else {
                 console.log(`✅ Tracked parent Member ID ${memberId} association with LMID ${lmid}`);
             }
+            
+            // Add Email to array (for email notifications)
+            if (parentEmail) {
+                const { error: emailError } = await supabase.rpc('add_parent_email_to_lmid', {
+                    p_lmid: lmid,
+                    p_parent_email: parentEmail
+                });
+                
+                if (emailError) {
+                    console.warn(`⚠️ Failed to track parent email association for LMID ${lmid}:`, emailError);
+                } else {
+                    console.log(`✅ Tracked parent email ${parentEmail} association with LMID ${lmid}`);
+                }
+            }
         } catch (error) {
-            console.error(`❌ Error tracking parent Member ID association:`, error);
+            console.error(`❌ Error tracking parent associations:`, error);
         }
     }
     
