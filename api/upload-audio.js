@@ -349,8 +349,15 @@ function findParentEmailByMemberId(memberId, parentMemberIdToEmail, parentEmails
  */
 async function getLmidData(lmid) {
     try {
+        // Build proper URL with https:// protocol
+        const baseUrl = process.env.VERCEL_URL 
+            ? `https://${process.env.VERCEL_URL}` 
+            : 'https://little-microphones.vercel.app';
+        
+        console.log(`📡 [getLmidData] Making API call to: ${baseUrl}/api/lmid-operations`);
+        
         // Call the existing lmid-operations API to get LMID data
-        const response = await fetch(`${process.env.VERCEL_URL || 'https://little-microphones.vercel.app'}/api/lmid-operations`, {
+        const response = await fetch(`${baseUrl}/api/lmid-operations`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -362,16 +369,20 @@ async function getLmidData(lmid) {
         });
         
         if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`❌ [getLmidData] API response error: ${response.status} - ${errorText}`);
             throw new Error(`Failed to fetch LMID data: ${response.status}`);
         }
         
         const data = await response.json();
+        console.log(`📥 [getLmidData] API response data:`, data);
         
         if (!data.success) {
+            console.error(`❌ [getLmidData] API returned error: ${data.error}`);
             throw new Error(`LMID data error: ${data.error}`);
         }
         
-        return {
+        const result = {
             lmid: lmid,
             teacherEmail: data.data.teacherEmail,
             teacherName: data.data.teacherName,
@@ -381,8 +392,12 @@ async function getLmidData(lmid) {
             shareId: data.data.shareId
         };
         
+        console.log(`✅ [getLmidData] Successfully processed LMID ${lmid} data:`, result);
+        return result;
+        
     } catch (error) {
-        console.error('Error fetching LMID data:', error);
+        console.error('❌ [getLmidData] Error fetching LMID data:', error);
+        console.error('❌ [getLmidData] Error stack:', error.stack);
         return null;
     }
 }
