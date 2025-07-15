@@ -156,27 +156,26 @@
             console.log('[LM Redirect] Parent email extracted:', parentEmail);
             console.log('[LM Redirect] Current LMIDs:', currentLmids);
             
-            if (currentLmids.includes(worldInfo.original_lmid.toString())) {
-                console.log('[LM Redirect] Parent already has this LMID');
-                
-                // Stay on the ShareID page - user can see the program
-                return;
-            }
-            
-            // Add LMID to parent's metadata using API call
-            const newLmids = currentLmids ? `${currentLmids},${worldInfo.original_lmid}` : worldInfo.original_lmid.toString();
+            // Always ensure parent email is tracked in database, even if they already have the LMID
+            const hasLmid = currentLmids.includes(worldInfo.original_lmid.toString());
+            const newLmids = hasLmid ? currentLmids : (currentLmids ? `${currentLmids},${worldInfo.original_lmid}` : worldInfo.original_lmid.toString());
             
             console.log('[LM Redirect] Calling API with:', {
                 memberId: currentUser.id,
                 newLmids: newLmids,
-                parentEmail: parentEmail
+                parentEmail: parentEmail,
+                hasLmid: hasLmid
             });
             
             const updateResult = await updateParentMetadata(currentUser.id, newLmids, parentEmail);
             
             if (updateResult.success) {
-                console.log('[LM Redirect] LMID added successfully');
-            console.log('👨‍👩‍👧‍👦 Parent data updated successfully');
+                if (hasLmid) {
+                    console.log('[LM Redirect] Parent email ensured in database (already had LMID)');
+                } else {
+                    console.log('[LM Redirect] LMID added successfully and parent email tracked');
+                }
+                console.log('👨‍👩‍👧‍👦 Parent data updated successfully');
                 
                 // Stay on the ShareID page - don't redirect to dashboard
                 // The user can now see the program content
