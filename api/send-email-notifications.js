@@ -71,10 +71,12 @@ export default async function handler(req, res) {
             return res.status(500).json({ error: 'Email service configuration error' });
         }
         
-        // Initialize Brevo API client
-        let apiInstance = new brevo.TransactionalEmailsApi();
-        let apiKey = apiInstance.authentications['api-key'];
+        // Initialize Brevo API client (v1.0.1 syntax for compatibility)
+        let defaultClient = brevo.ApiClient.instance;
+        let apiKey = defaultClient.authentications['api-key'];
         apiKey.apiKey = brevoApiKey;
+        
+        let apiInstance = new brevo.TransactionalEmailsApi();
         
         // Determine template ID based on notification type and language
         let templateId;
