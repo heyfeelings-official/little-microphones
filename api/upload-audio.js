@@ -349,10 +349,8 @@ function findParentEmailByMemberId(memberId, parentMemberIdToEmail, parentEmails
  */
 async function getLmidData(lmid) {
     try {
-        // Build proper URL with https:// protocol
-        const baseUrl = process.env.VERCEL_URL 
-            ? `https://${process.env.VERCEL_URL}` 
-            : 'https://little-microphones.vercel.app';
+        // Always use the main domain for internal API calls to avoid auth issues
+        const baseUrl = 'https://little-microphones.vercel.app';
         
         console.log(`📡 [getLmidData] Making API call to: ${baseUrl}/api/lmid-operations`);
         
