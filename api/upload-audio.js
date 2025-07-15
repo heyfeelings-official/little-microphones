@@ -155,6 +155,9 @@ export default async function handler(req, res) {
             console.log(`Successfully uploaded: ${cdnUrl}`);
             
             // Send email notifications after successful upload
+            let emailNotificationStatus = 'not_applicable';
+            let emailNotificationMessage = '';
+            
             try {
                 // Only send notifications for parent uploads (not teacher uploads)
                 const isParentUpload = filename.startsWith('parent_');
@@ -186,11 +189,18 @@ export default async function handler(req, res) {
                     
                     await sendNewRecordingNotifications(lmid, world, questionId, lang, uploaderEmail, lmidData);
                     console.log(`✅ Email notifications sent for LMID ${lmid}, World ${world} (excluding uploader: ${uploaderEmail})`);
+                    
+                    emailNotificationStatus = 'sent';
+                    emailNotificationMessage = 'Powiadomienia email zostały wysłane do nauczyciela i innych rodziców';
                 } else {
                     console.log(`👨‍🏫 Teacher upload detected - skipping notifications (teacher uploads multiple messages)`);
+                    emailNotificationStatus = 'skipped_teacher';
+                    emailNotificationMessage = 'Powiadomienia email pomijane dla nagrań nauczyciela';
                 }
             } catch (emailError) {
                 console.warn('⚠️ Email notification failed (upload still successful):', emailError.message);
+                emailNotificationStatus = 'failed';
+                emailNotificationMessage = `Błąd wysyłania emaili: ${emailError.message}`;
                 // Don't fail the upload if email fails
             }
             
@@ -198,7 +208,11 @@ export default async function handler(req, res) {
                 success: true, 
                 url: cdnUrl,
                 filename: filename,
-                size: audioBuffer.length
+                size: audioBuffer.length,
+                emailNotification: {
+                    status: emailNotificationStatus,
+                    message: emailNotificationMessage
+                }
             });
         } else {
             const errorText = await response.text();

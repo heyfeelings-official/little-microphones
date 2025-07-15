@@ -1137,6 +1137,12 @@ function initializeAudioRecorder(recorderWrapper) {
             await updateRecordingInDB(recordingData);
             dispatchUploadStatusEvent(recordingData.id, 'uploading');
 
+            // Show email notification for parent uploads
+            const isParentUpload = recordingData.id.includes('parent_');
+            if (isParentUpload) {
+                showEmailNotification('📧 Wysyłanie nagrania i powiadomień email...', 'info', 6000);
+            }
+
             // Convert blob to base64
             const base64Audio = await blobToBase64(recordingData.audio);
            
@@ -1161,6 +1167,19 @@ function initializeAudioRecorder(recorderWrapper) {
                     recordingData.uploadStatus = 'uploaded';
                     recordingData.audio = null; // Free up memory
                     console.log(`[${questionId}] Upload complete: ${result.url}`);
+                    
+                    // Handle email notification status
+                    if (result.emailNotification) {
+                        const { status, message } = result.emailNotification;
+                        
+                        if (status === 'sent') {
+                            showEmailNotification(`✅ ${message}`, 'success', 5000);
+                        } else if (status === 'failed') {
+                            showEmailNotification(`⚠️ ${message}`, 'error', 7000);
+                        } else if (status === 'skipped_teacher') {
+                            // Don't show notification for teacher uploads
+                        }
+                    }
                 } else {
                     throw new Error(result.error || 'Upload failed');
                 }
@@ -2333,4 +2352,103 @@ function dispatchUploadStatusEvent(recordingId, status) {
         }
     });
     document.dispatchEvent(event);
+}
+
+/**
+ * Show email notification to user
+ * @param {string} message - Notification message
+ * @param {string} type - Notification type ('info', 'success', 'error')
+ * @param {number} duration - How long to show notification (ms)
+ */
+function showEmailNotification(message, type = 'info', duration = 4000) {
+    // Remove existing notification if present
+    const existingNotification = document.getElementById('email-notification');
+    if (existingNotification) {
+        existingNotification.remove();
+    }
+    
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.id = 'email-notification';
+    
+    // Set colors based on type
+    let backgroundColor, textColor, borderColor;
+    switch (type) {
+        case 'success':
+            backgroundColor = '#d4edda';
+            textColor = '#155724';
+            borderColor = '#c3e6cb';
+            break;
+        case 'error':
+            backgroundColor = '#f8d7da';
+            textColor = '#721c24';
+            borderColor = '#f5c6cb';
+            break;
+        default: // info
+            backgroundColor = '#cce7ff';
+            textColor = '#004085';
+            borderColor = '#b3d9ff';
+    }
+    
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${backgroundColor};
+        color: ${textColor};
+        border: 1px solid ${borderColor};
+        border-radius: 8px;
+        padding: 12px 16px;
+        font-family: Arial, sans-serif;
+        font-size: 14px;
+        font-weight: 500;
+        max-width: 350px;
+        z-index: 10001;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        animation: slideInRight 0.3s ease-out;
+    `;
+    
+    // Add CSS animation if not already present
+    if (!document.getElementById('email-notification-styles')) {
+        const style = document.createElement('style');
+        style.id = 'email-notification-styles';
+        style.textContent = `
+            @keyframes slideInRight {
+                from {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+            }
+            @keyframes slideOutRight {
+                from {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+                to {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    // Auto-remove after duration
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.style.animation = 'slideOutRight 0.3s ease-out';
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 300);
+        }
+    }, duration);
 }
