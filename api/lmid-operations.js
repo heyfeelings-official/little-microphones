@@ -254,34 +254,38 @@ async function handleDeleteLmid(memberId, lmidToDelete, newLmidString) {
  * Handle UPDATE PARENT METADATA operation (for parent registration system)
  * @param {string} memberId - Memberstack member ID
  * @param {string} newLmidString - New LMID string to set
+ * @param {string} parentEmail - Parent email address (optional, will try to get from Memberstack if not provided)
  * @returns {Promise<Object>} Operation result
  */
-async function handleUpdateParentMetadata(memberId, newLmidString) {
+async function handleUpdateParentMetadata(memberId, newLmidString, parentEmail = null) {
     console.log(`🔄 [handleUpdateParentMetadata] Updating parent metadata for ${memberId} with LMIDs: ${newLmidString}`);
     
     const supabase = getSupabaseClient();
     
-    // Get parent email from Memberstack
-    let parentEmail = null;
-    try {
-        const MEMBERSTACK_SECRET_KEY = process.env.MEMBERSTACK_SECRET_KEY;
-        if (MEMBERSTACK_SECRET_KEY) {
-            const response = await fetch(`https://admin.memberstack.com/members/${memberId}`, {
-                method: 'GET',
-                headers: {
-                    'x-api-key': MEMBERSTACK_SECRET_KEY,
-                    'Content-Type': 'application/json'
+    // Use provided email or get from Memberstack as fallback
+    if (!parentEmail) {
+        try {
+            const MEMBERSTACK_SECRET_KEY = process.env.MEMBERSTACK_SECRET_KEY;
+            if (MEMBERSTACK_SECRET_KEY) {
+                const response = await fetch(`https://admin.memberstack.com/members/${memberId}`, {
+                    method: 'GET',
+                    headers: {
+                        'x-api-key': MEMBERSTACK_SECRET_KEY,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    parentEmail = data.data?.auth?.email || data.data?.email;
+                    console.log(`📧 Retrieved parent email from Memberstack: ${parentEmail}`);
                 }
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                parentEmail = data.data?.auth?.email || data.data?.email;
-                console.log(`📧 Retrieved parent email: ${parentEmail}`);
             }
+        } catch (error) {
+            console.warn(`⚠️ Could not retrieve parent email for ${memberId}:`, error);
         }
-    } catch (error) {
-        console.warn(`⚠️ Could not retrieve parent email for ${memberId}:`, error);
+    } else {
+        console.log(`📧 Using provided parent email: ${parentEmail}`);
     }
     
     // Parse new LMIDs
@@ -506,7 +510,8 @@ export default async function handler(req, res) {
                     error: 'Missing required parameter: newLmidString for update_parent_metadata action' 
                 });
             }
-            result = await handleUpdateParentMetadata(memberId, newLmidString);
+            const { parentEmail } = req.body;
+            result = await handleUpdateParentMetadata(memberId, newLmidString, parentEmail);
         } else if (action === 'get') {
             // NEW: Handle get LMID data (for email notifications)
             const { lmid } = req.body;

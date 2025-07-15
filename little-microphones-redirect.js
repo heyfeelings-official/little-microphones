@@ -160,7 +160,7 @@
             // Add LMID to parent's metadata using API call
             const newLmids = currentLmids ? `${currentLmids},${worldInfo.original_lmid}` : worldInfo.original_lmid.toString();
             
-            const updateResult = await updateParentMetadata(currentUser.id, newLmids);
+            const updateResult = await updateParentMetadata(currentUser.id, newLmids, currentUser.auth?.email || currentUser.email);
             
             if (updateResult.success) {
                 console.log('[LM Redirect] LMID added successfully');
@@ -226,7 +226,7 @@
     /**
      * Update parent metadata using lmid-operations API
      */
-    async function updateParentMetadata(memberId, newLmidString) {
+    async function updateParentMetadata(memberId, newLmidString, parentEmail = null) {
         try {
             const response = await fetch(`${API_BASE_URL}/lmid-operations`, {
                 method: 'POST',
@@ -236,7 +236,8 @@
                 body: JSON.stringify({
                     action: 'update_parent_metadata',
                     memberId: memberId,
-                    newLmidString: newLmidString
+                    newLmidString: newLmidString,
+                    parentEmail: parentEmail
                 })
             });
             
