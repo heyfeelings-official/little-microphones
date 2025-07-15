@@ -38,7 +38,7 @@ export default async function handler(req, res) {
             result: getLmidDataResult,
             env: {
                 VERCEL_URL: process.env.VERCEL_URL || 'not set',
-                usedUrl: `${process.env.VERCEL_URL || 'https://little-microphones.vercel.app'}/api/lmid-operations`
+                usedUrl: 'https://little-microphones.vercel.app/api/lmid-operations'
             }
         });
         
