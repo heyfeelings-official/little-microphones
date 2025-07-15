@@ -160,22 +160,25 @@ export default async function handler(req, res) {
                 const isParentUpload = filename.startsWith('parent_');
                 let uploaderEmail = null;
                 
+                // Get LMID data first (contains all emails)
+                const lmidData = await getLmidData(lmid);
+                
                 if (isParentUpload) {
                     // Extract parent member ID from filename: parent_memberid-world_...
                     const memberIdMatch = filename.match(/^parent_([^-]+)-/);
                     if (memberIdMatch) {
                         const parentMemberId = memberIdMatch[1];
-                        uploaderEmail = await getParentEmailFromMemberId(parentMemberId);
+                        // Find uploader email from the cached mapping
+                        uploaderEmail = findParentEmailByMemberId(parentMemberId, lmidData.parentMemberIdToEmail);
                         console.log(`📧 Parent upload detected: ${uploaderEmail} (Member ID: ${parentMemberId})`);
                     }
                 } else {
-                    // Teacher upload - get teacher email from LMID data
-                    const lmidData = await getLmidData(lmid);
+                    // Teacher upload
                     uploaderEmail = lmidData?.teacherEmail;
                     console.log(`👨‍🏫 Teacher upload detected: ${uploaderEmail}`);
                 }
                 
-                await sendNewRecordingNotifications(lmid, world, questionId, lang, uploaderEmail);
+                await sendNewRecordingNotifications(lmid, world, questionId, lang, uploaderEmail, lmidData);
                 console.log(`✅ Email notifications sent for LMID ${lmid}, World ${world} (excluding uploader: ${uploaderEmail})`);
             } catch (emailError) {
                 console.warn('⚠️ Email notification failed (upload still successful):', emailError.message);
@@ -218,16 +221,14 @@ export default async function handler(req, res) {
  * @param {string} questionId - Question ID
  * @param {string} lang - Language code from request
  * @param {string} uploaderEmail - Email of person who uploaded (to exclude from notifications)
+ * @param {Object} lmidData - Pre-fetched LMID data to avoid duplicate API calls
  */
-async function sendNewRecordingNotifications(lmid, world, questionId, lang, uploaderEmail) {
+async function sendNewRecordingNotifications(lmid, world, questionId, lang, uploaderEmail, lmidData) {
     try {
         console.log(`📧 Sending notifications for LMID ${lmid}, World ${world}, Language: ${lang}`);
         
-        // Get LMID data to determine recipients
-        const lmidData = await getLmidData(lmid);
-        
         if (!lmidData) {
-            console.warn(`⚠️ No LMID data found for ${lmid}, skipping notifications`);
+            console.warn(`⚠️ No LMID data provided for ${lmid}, skipping notifications`);
             return;
         }
         
@@ -296,39 +297,18 @@ async function sendNewRecordingNotifications(lmid, world, questionId, lang, uplo
 }
 
 /**
- * Get parent email from Memberstack Member ID
+ * Find parent email by Member ID from already retrieved mapping
  * @param {string} memberId - Memberstack Member ID
- * @returns {Promise<string|null>} Parent email address
+ * @param {Object} parentMemberIdToEmail - Mapping of Member ID to email
+ * @returns {string|null} Parent email address
  */
-async function getParentEmailFromMemberId(memberId) {
-    try {
-        const MEMBERSTACK_SECRET_KEY = process.env.MEMBERSTACK_SECRET_KEY;
-        if (!MEMBERSTACK_SECRET_KEY) {
-            console.warn('⚠️ MEMBERSTACK_SECRET_KEY not configured');
-            return null;
-        }
-        
-        const response = await fetch(`https://admin.memberstack.com/members/${memberId}`, {
-            method: 'GET',
-            headers: {
-                'x-api-key': MEMBERSTACK_SECRET_KEY,
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        if (!response.ok) {
-            console.warn(`⚠️ Failed to fetch parent data from Memberstack: ${response.status}`);
-            return null;
-        }
-        
-        const memberData = await response.json();
-        const email = memberData.data?.auth?.email || memberData.data?.email;
-        
-        console.log(`📧 Retrieved parent email from Member ID ${memberId}: ${email}`);
+function findParentEmailByMemberId(memberId, parentMemberIdToEmail) {
+    const email = parentMemberIdToEmail[memberId];
+    if (email) {
+        console.log(`📧 Found uploader email ${email} for Member ID ${memberId} in cached mapping`);
         return email;
-        
-    } catch (error) {
-        console.error('Error fetching parent email from Memberstack:', error);
+    } else {
+        console.warn(`⚠️ Member ID ${memberId} not found in parent mapping`);
         return null;
     }
 }
@@ -368,6 +348,7 @@ async function getLmidData(lmid) {
             teacherName: data.data.teacherName,
             schoolName: data.data.schoolName,
             parentEmails: data.data.parentEmails || [],
+            parentMemberIdToEmail: data.data.parentMemberIdToEmail || {},
             shareId: data.data.shareId
         };
         

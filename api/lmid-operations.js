@@ -361,8 +361,10 @@ async function handleGetLmidData(lmid) {
             throw new Error(`Database error: ${error.message}`);
         }
         
-        // Get parent emails from Member IDs
+        // Get parent emails from Member IDs and create mapping
         const parentEmails = [];
+        const parentMemberIdToEmail = {};
+        
         if (data.associated_parent_member_ids && data.associated_parent_member_ids.length > 0) {
             console.log(`📧 Getting parent emails for ${data.associated_parent_member_ids.length} Member IDs`);
             
@@ -380,17 +382,23 @@ async function handleGetLmidData(lmid) {
                         
                         if (response.ok) {
                             const memberData = await response.json();
-                            return memberData.data?.auth?.email || memberData.data?.email;
+                            const email = memberData.data?.auth?.email || memberData.data?.email;
+                            return { memberId, email };
                         }
-                        return null;
+                        return { memberId, email: null };
                     } catch (error) {
                         console.warn(`⚠️ Could not get email for Member ID ${memberId}:`, error);
-                        return null;
+                        return { memberId, email: null };
                     }
                 });
                 
-                const emails = await Promise.all(emailPromises);
-                parentEmails.push(...emails.filter(email => email !== null));
+                const memberEmailPairs = await Promise.all(emailPromises);
+                memberEmailPairs.forEach(pair => {
+                    if (pair.email) {
+                        parentEmails.push(pair.email);
+                        parentMemberIdToEmail[pair.memberId] = pair.email;
+                    }
+                });
             }
         }
         
@@ -411,6 +419,7 @@ async function handleGetLmidData(lmid) {
             teacherName: `${data.teacher_first_name || ''} ${data.teacher_last_name || ''}`.trim() || 'Teacher',
             schoolName: data.teacher_school_name || 'School',
             parentEmails: parentEmails,
+            parentMemberIdToEmail: parentMemberIdToEmail,
             shareId: shareId
         };
         
