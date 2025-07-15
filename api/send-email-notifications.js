@@ -28,6 +28,7 @@
  * - BREVO_TEACHER_TEMPLATE_EN: Template ID for English teacher notifications
  * - BREVO_PARENT_TEMPLATE_PL: Template ID for Polish parent notifications
  * - BREVO_PARENT_TEMPLATE_EN: Template ID for English parent notifications
+ * - HEY_FEELINGS_BASE_URL: Base URL for Hey Feelings website (default: https://hey-feelings-v2.webflow.io)
  * 
  * LAST UPDATED: January 2025
  * VERSION: 6.0.0

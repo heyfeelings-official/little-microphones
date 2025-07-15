@@ -68,6 +68,7 @@
  * - Parent notifications to other parents (excluding uploader)
  * - Brevo SDK integration with automatic contact creation
  * - Secure logging without exposing personal information
+ * - Configurable Hey Feelings domain via HEY_FEELINGS_BASE_URL environment variable
  * 
  * MONITORING & LOGGING:
  * - Comprehensive upload logging with file metadata
@@ -251,13 +252,16 @@ async function sendNewRecordingNotifications(lmid, world, questionId, lang, uplo
         const uploaderName = isTeacherUpload ? lmidData.teacherName : 'Rodzic';
         
         // Prepare template data
+        // Use environment variable for Hey Feelings domain with fallback
+        const heyFeelingsBaseUrl = process.env.HEY_FEELINGS_BASE_URL || 'https://hey-feelings-v2.webflow.io';
+        
         const templateData = {
             teacherName: lmidData.teacherName,
             world: translateWorldName(world, lang),
             lmid: lmid,
             schoolName: lmidData.schoolName,
-            dashboardUrl: `https://hey-feelings-v2.webflow.io/${lang}/members/little-microphones`,
-            radioUrl: `https://little-microphones.vercel.app/radio?ID=${lmidData.shareId}`,
+            dashboardUrl: `${heyFeelingsBaseUrl}/${lang}/members/little-microphones`,
+            radioUrl: `${heyFeelingsBaseUrl}/little-microphones?ID=${lmidData.shareId}`,
             uploaderName: uploaderName,
             uploaderType: isTeacherUpload ? 'teacher' : 'parent'
         };
