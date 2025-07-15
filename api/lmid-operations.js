@@ -343,6 +343,7 @@ async function handleGetLmidData(lmid) {
                 teacher_last_name,
                 teacher_school_name,
                 associated_parent_member_ids,
+                associated_parent_emails,
                 share_id_spookyland,
                 share_id_waterpark,
                 share_id_shopping_spree,
@@ -361,45 +362,19 @@ async function handleGetLmidData(lmid) {
             throw new Error(`Database error: ${error.message}`);
         }
         
-        // Get parent emails from Member IDs and create mapping
-        const parentEmails = [];
-        const parentMemberIdToEmail = {};
+        // Get parent emails directly from database (no API calls needed!)
+        const parentEmails = data.associated_parent_emails || [];
+        const parentMemberIds = data.associated_parent_member_ids || [];
         
-        if (data.associated_parent_member_ids && data.associated_parent_member_ids.length > 0) {
-            console.log(`📧 Getting parent emails for ${data.associated_parent_member_ids.length} Member IDs`);
-            
-            const MEMBERSTACK_SECRET_KEY = process.env.MEMBERSTACK_SECRET_KEY;
-            if (MEMBERSTACK_SECRET_KEY) {
-                const emailPromises = data.associated_parent_member_ids.map(async (memberId) => {
-                    try {
-                        const response = await fetch(`https://admin.memberstack.com/members/${memberId}`, {
-                            method: 'GET',
-                            headers: {
-                                'x-api-key': MEMBERSTACK_SECRET_KEY,
-                                'Content-Type': 'application/json'
-                            }
-                        });
-                        
-                        if (response.ok) {
-                            const memberData = await response.json();
-                            const email = memberData.data?.auth?.email || memberData.data?.email;
-                            return { memberId, email };
-                        }
-                        return { memberId, email: null };
-                    } catch (error) {
-                        console.warn(`⚠️ Could not get email for Member ID ${memberId}:`, error);
-                        return { memberId, email: null };
-                    }
-                });
-                
-                const memberEmailPairs = await Promise.all(emailPromises);
-                memberEmailPairs.forEach(pair => {
-                    if (pair.email) {
-                        parentEmails.push(pair.email);
-                        parentMemberIdToEmail[pair.memberId] = pair.email;
-                    }
-                });
-            }
+        // Create mapping of Member ID to Email (if both arrays exist and have same length)
+        const parentMemberIdToEmail = {};
+        if (parentMemberIds.length > 0 && parentEmails.length > 0 && parentMemberIds.length === parentEmails.length) {
+            parentMemberIds.forEach((memberId, index) => {
+                parentMemberIdToEmail[memberId] = parentEmails[index];
+            });
+            console.log(`📧 Created Member ID to Email mapping for ${parentMemberIds.length} parents`);
+        } else {
+            console.log(`📧 Using ${parentEmails.length} parent emails directly from database`);
         }
         
         // Find the ShareID for any world (we'll use the first one we find)

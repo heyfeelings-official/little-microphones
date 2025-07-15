@@ -169,7 +169,7 @@ export default async function handler(req, res) {
                     if (memberIdMatch) {
                         const parentMemberId = memberIdMatch[1];
                         // Find uploader email from the cached mapping
-                        uploaderEmail = findParentEmailByMemberId(parentMemberId, lmidData.parentMemberIdToEmail);
+                        uploaderEmail = findParentEmailByMemberId(parentMemberId, lmidData.parentMemberIdToEmail, lmidData.parentEmails);
                         console.log(`📧 Parent upload detected: ${uploaderEmail} (Member ID: ${parentMemberId})`);
                     }
                 } else {
@@ -300,17 +300,21 @@ async function sendNewRecordingNotifications(lmid, world, questionId, lang, uplo
  * Find parent email by Member ID from already retrieved mapping
  * @param {string} memberId - Memberstack Member ID
  * @param {Object} parentMemberIdToEmail - Mapping of Member ID to email
+ * @param {Array} parentEmails - Array of parent emails as fallback
  * @returns {string|null} Parent email address
  */
-function findParentEmailByMemberId(memberId, parentMemberIdToEmail) {
+function findParentEmailByMemberId(memberId, parentMemberIdToEmail, parentEmails) {
+    // Try mapping first
     const email = parentMemberIdToEmail[memberId];
     if (email) {
         console.log(`📧 Found uploader email ${email} for Member ID ${memberId} in cached mapping`);
         return email;
-    } else {
-        console.warn(`⚠️ Member ID ${memberId} not found in parent mapping`);
-        return null;
     }
+    
+    // If mapping doesn't work, we can't reliably identify which parent email belongs to this Member ID
+    // This is a limitation when the database doesn't have synchronized arrays
+    console.warn(`⚠️ Member ID ${memberId} not found in parent mapping. Cannot identify uploader email from ${parentEmails.length} parent emails.`);
+    return null;
 }
 
 /**
