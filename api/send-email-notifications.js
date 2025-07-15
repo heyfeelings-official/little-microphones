@@ -14,9 +14,11 @@
  * - Brevo template system integration
  * 
  * LAST UPDATED: January 2025
- * VERSION: 1.0.0
+ * VERSION: 2.0.0
  * STATUS: Production Ready ✅
  */
+
+const brevo = require('@getbrevo/brevo');
 
 export default async function handler(req, res) {
     // Set CORS headers
@@ -69,6 +71,11 @@ export default async function handler(req, res) {
             return res.status(500).json({ error: 'Email service configuration error' });
         }
         
+        // Initialize Brevo API client
+        let apiInstance = new brevo.TransactionalEmailsApi();
+        let apiKey = apiInstance.authentications['api-key'];
+        apiKey.apiKey = brevoApiKey;
+        
         // Determine template ID based on notification type and language
         let templateId;
         if (notificationType === 'teacher') {
@@ -77,47 +84,44 @@ export default async function handler(req, res) {
             templateId = language === 'pl' ? 3 : 4; // Polish: 3, English: 4
         }
         
-        // Prepare email data for Brevo
-        const emailData = {
-            to: [{
-                email: recipientEmail,
-                name: recipientName
-            }],
-            templateId: templateId,
-            params: templateData || {}
-        };
+        // Prepare email data using Brevo SDK
+        let sendSmtpEmail = new brevo.SendSmtpEmail();
+        sendSmtpEmail.to = [{
+            email: recipientEmail,
+            name: recipientName
+        }];
+        sendSmtpEmail.templateId = templateId;
+        sendSmtpEmail.params = templateData || {};
         
-        // Send email via Brevo API
-        const brevoResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'api-key': brevoApiKey
-            },
-            body: JSON.stringify(emailData)
+        console.log(`📧 Sending email via Brevo SDK:`, {
+            to: recipientEmail,
+            templateId: templateId,
+            params: templateData
         });
         
-        if (!brevoResponse.ok) {
-            const errorData = await brevoResponse.text();
-            console.error('Brevo API error:', errorData);
+        // Send email via Brevo SDK
+        try {
+            const result = await apiInstance.sendTransacEmail(sendSmtpEmail);
+            
+            console.log(`✅ Email notification sent successfully to ${recipientEmail} (${notificationType}, ${language})`);
+            console.log(`📧 Brevo response:`, result);
+            
+            return res.status(200).json({
+                success: true,
+                message: 'Email notification sent successfully',
+                messageId: result.messageId
+            });
+            
+        } catch (brevoError) {
+            console.error('❌ Brevo SDK error:', brevoError);
             return res.status(500).json({ 
                 error: 'Failed to send email notification',
-                details: errorData 
+                details: brevoError.message || 'Unknown Brevo error'
             });
         }
         
-        const result = await brevoResponse.json();
-        
-        console.log(`Email notification sent successfully to ${recipientEmail} (${notificationType}, ${language})`);
-        
-        return res.status(200).json({
-            success: true,
-            message: 'Email notification sent successfully',
-            messageId: result.messageId
-        });
-        
     } catch (error) {
-        console.error('Error sending email notification:', error);
+        console.error('❌ Error sending email notification:', error);
         return res.status(500).json({ 
             error: 'Internal server error',
             details: error.message 
