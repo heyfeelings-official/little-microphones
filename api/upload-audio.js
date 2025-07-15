@@ -154,6 +154,15 @@ export default async function handler(req, res) {
             const cdnUrl = `https://${process.env.BUNNY_CDN_URL}/${filePath}`;
             console.log(`Successfully uploaded: ${cdnUrl}`);
             
+            // Send email notifications after successful upload
+            try {
+                await sendNewRecordingNotifications(lmid, world, questionId, lang);
+                console.log(`✅ Email notifications sent for LMID ${lmid}, World ${world}`);
+            } catch (emailError) {
+                console.warn('⚠️ Email notification failed (upload still successful):', emailError.message);
+                // Don't fail the upload if email fails
+            }
+            
             res.json({ 
                 success: true, 
                 url: cdnUrl,
@@ -179,4 +188,164 @@ export default async function handler(req, res) {
             details: error.message 
         });
     }
+}
+
+// ===== EMAIL NOTIFICATION FUNCTIONS =====
+
+/**
+ * Send email notifications for new recording
+ * @param {string} lmid - LMID number
+ * @param {string} world - World name
+ * @param {string} questionId - Question ID
+ * @param {string} lang - Language code from request
+ */
+async function sendNewRecordingNotifications(lmid, world, questionId, lang) {
+    try {
+        console.log(`📧 Sending notifications for LMID ${lmid}, World ${world}, Language: ${lang}`);
+        
+        // Get LMID data to determine recipients
+        const lmidData = await getLmidData(lmid);
+        
+        if (!lmidData) {
+            console.warn(`⚠️ No LMID data found for ${lmid}, skipping notifications`);
+            return;
+        }
+        
+        // Prepare template data
+        const templateData = {
+            teacherName: lmidData.teacherName,
+            world: translateWorldName(world, lang),
+            lmid: lmid,
+            schoolName: lmidData.schoolName,
+            dashboardUrl: `https://hey-feelings-v2.webflow.io/${lang}/members/little-microphones`,
+            radioUrl: `https://little-microphones.vercel.app/radio?ID=${lmidData.shareId}`
+        };
+        
+        // Send teacher notification
+        if (lmidData.teacherEmail) {
+            await sendNotificationViaAPI({
+                recipientEmail: lmidData.teacherEmail,
+                recipientName: lmidData.teacherName,
+                notificationType: 'teacher',
+                language: lang,
+                templateData: templateData
+            });
+            console.log(`✅ Teacher notification sent to ${lmidData.teacherEmail}`);
+        }
+        
+        // Send parent notifications
+        if (lmidData.parentEmails && lmidData.parentEmails.length > 0) {
+            const parentPromises = lmidData.parentEmails.map(parentEmail => 
+                sendNotificationViaAPI({
+                    recipientEmail: parentEmail,
+                    recipientName: 'Rodzic',
+                    notificationType: 'parent',
+                    language: lang,
+                    templateData: templateData
+                })
+            );
+            
+            await Promise.all(parentPromises);
+            console.log(`✅ Parent notifications sent to ${lmidData.parentEmails.length} recipients`);
+        }
+        
+        console.log(`✅ All notifications sent for LMID ${lmid}, World ${world} in ${lang}`);
+    } catch (error) {
+        console.error('❌ Email notification error:', error);
+        throw error;
+    }
+}
+
+/**
+ * Get LMID data including teacher and parent email addresses
+ * @param {string} lmid - LMID number
+ * @returns {Promise<Object>} LMID data with email addresses
+ */
+async function getLmidData(lmid) {
+    try {
+        // Call the existing lmid-operations API to get LMID data
+        const response = await fetch(`${process.env.VERCEL_URL || 'https://little-microphones.vercel.app'}/api/lmid-operations`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                action: 'get',
+                lmid: lmid
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Failed to fetch LMID data: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (!data.success) {
+            throw new Error(`LMID data error: ${data.error}`);
+        }
+        
+        return {
+            lmid: lmid,
+            teacherEmail: data.data.teacherEmail,
+            teacherName: data.data.teacherName,
+            schoolName: data.data.schoolName,
+            parentEmails: data.data.parentEmails || [],
+            shareId: data.data.shareId
+        };
+        
+    } catch (error) {
+        console.error('Error fetching LMID data:', error);
+        return null;
+    }
+}
+
+/**
+ * Send notification via our centralized API
+ * @param {Object} notificationData - Notification data
+ */
+async function sendNotificationViaAPI(notificationData) {
+    const response = await fetch(`${process.env.VERCEL_URL || 'https://little-microphones.vercel.app'}/api/send-email-notifications`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(notificationData)
+    });
+    
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Email API error: ${response.status} - ${errorData.error}`);
+    }
+    
+    return await response.json();
+}
+
+/**
+ * Translate world name to specified language
+ * @param {string} world - World name
+ * @param {string} language - Language code
+ * @returns {string} Translated world name
+ */
+function translateWorldName(world, language) {
+    const translations = {
+        pl: {
+            'spookyland': 'Straszne Miasto',
+            'waterpark': 'Aquapark',
+            'shopping-spree': 'Centrum Handlowe',
+            'amusement-park': 'Wesołe Miasteczko',
+            'big-city': 'Wielkie Miasto',
+            'neighborhood': 'Dzielnica'
+        },
+        en: {
+            'spookyland': 'Spookyland',
+            'waterpark': 'Waterpark',
+            'shopping-spree': 'Shopping Spree',
+            'amusement-park': 'Amusement Park',
+            'big-city': 'Big City',
+            'neighborhood': 'Neighborhood'
+        }
+    };
+    
+    return translations[language]?.[world] || world;
 } 

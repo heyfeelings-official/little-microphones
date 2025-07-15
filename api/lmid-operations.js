@@ -323,6 +323,119 @@ async function handleUpdateParentMetadata(memberId, newLmidString) {
     };
 }
 
+/**
+ * Handle GET LMID DATA operation (for email notifications)
+ * @param {string} lmid - LMID number
+ * @returns {Promise<Object>} Operation result with LMID data
+ */
+async function handleGetLmidData(lmid) {
+    const supabase = getSupabaseClient();
+    
+    console.log(`🔍 [handleGetLmidData] Getting data for LMID ${lmid}`);
+    
+    try {
+        const { data, error } = await supabase
+            .from('lmids')
+            .select(`
+                lmid,
+                assigned_to_member_email,
+                teacher_first_name,
+                teacher_last_name,
+                teacher_school_name,
+                associated_parent_member_ids,
+                share_id_spookyland,
+                share_id_waterpark,
+                share_id_shopping_spree,
+                share_id_amusement_park,
+                share_id_big_city,
+                share_id_neighborhood
+            `)
+            .eq('lmid', lmid)
+            .eq('status', 'used')
+            .single();
+            
+        if (error) {
+            if (error.code === 'PGRST116') {
+                throw new Error(`LMID ${lmid} not found or not assigned`);
+            }
+            throw new Error(`Database error: ${error.message}`);
+        }
+        
+        // Get parent emails from Member IDs
+        const parentEmails = [];
+        if (data.associated_parent_member_ids && data.associated_parent_member_ids.length > 0) {
+            console.log(`📧 Getting parent emails for ${data.associated_parent_member_ids.length} Member IDs`);
+            
+            const MEMBERSTACK_SECRET_KEY = process.env.MEMBERSTACK_SECRET_KEY;
+            if (MEMBERSTACK_SECRET_KEY) {
+                const emailPromises = data.associated_parent_member_ids.map(async (memberId) => {
+                    try {
+                        const response = await fetch(`https://admin.memberstack.com/members/${memberId}`, {
+                            method: 'GET',
+                            headers: {
+                                'x-api-key': MEMBERSTACK_SECRET_KEY,
+                                'Content-Type': 'application/json'
+                            }
+                        });
+                        
+                        if (response.ok) {
+                            const memberData = await response.json();
+                            return memberData.data?.auth?.email || memberData.data?.email;
+                        }
+                        return null;
+                    } catch (error) {
+                        console.warn(`⚠️ Could not get email for Member ID ${memberId}:`, error);
+                        return null;
+                    }
+                });
+                
+                const emails = await Promise.all(emailPromises);
+                parentEmails.push(...emails.filter(email => email !== null));
+            }
+        }
+        
+        // Find the ShareID for any world (we'll use the first one we find)
+        let shareId = null;
+        const worlds = ['spookyland', 'waterpark', 'shopping_spree', 'amusement_park', 'big_city', 'neighborhood'];
+        for (const world of worlds) {
+            const worldColumn = `share_id_${world.replace('-', '_')}`;
+            if (data[worldColumn]) {
+                shareId = data[worldColumn];
+                break;
+            }
+        }
+        
+        const result = {
+            lmid: data.lmid,
+            teacherEmail: data.assigned_to_member_email,
+            teacherName: `${data.teacher_first_name || ''} ${data.teacher_last_name || ''}`.trim() || 'Teacher',
+            schoolName: data.teacher_school_name || 'School',
+            parentEmails: parentEmails,
+            shareId: shareId
+        };
+        
+        console.log(`✅ [handleGetLmidData] Retrieved data for LMID ${lmid}:`, {
+            teacherEmail: result.teacherEmail,
+            teacherName: result.teacherName,
+            schoolName: result.schoolName,
+            parentCount: result.parentEmails.length,
+            shareId: result.shareId
+        });
+        
+        return {
+            success: true,
+            data: result
+        };
+        
+    } catch (error) {
+        console.error(`❌ [handleGetLmidData] Error:`, error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+}
+
 export default async function handler(req, res) {
     // Set CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -396,10 +509,20 @@ export default async function handler(req, res) {
                 });
             }
             result = await handleUpdateParentMetadata(memberId, newLmidString);
+        } else if (action === 'get') {
+            // NEW: Handle get LMID data (for email notifications)
+            const { lmid } = req.body;
+            if (!lmid) {
+                return res.status(400).json({ 
+                    success: false, 
+                    error: 'Missing required parameter: lmid for get action' 
+                });
+            }
+            result = await handleGetLmidData(lmid);
         } else {
             return res.status(400).json({ 
                 success: false, 
-                error: 'Invalid action. Use "create", "add", "delete", or "update_parent_metadata"' 
+                error: 'Invalid action. Use "create", "add", "delete", "update_parent_metadata", or "get"' 
             });
         }
 
