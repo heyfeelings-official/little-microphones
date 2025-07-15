@@ -16,11 +16,18 @@
  * - Automatic contact creation in Brevo
  * - Secure logging without exposing personal data
  * 
- * TEMPLATE MAPPING:
- * - Teacher PL: Template ID 2
- * - Teacher EN: Template ID 4
- * - Parent PL: Template ID 3
- * - Parent EN: Template ID 5
+ * TEMPLATE MAPPING (via Environment Variables):
+ * - Teacher PL: BREVO_TEACHER_TEMPLATE_PL (default: 2)
+ * - Teacher EN: BREVO_TEACHER_TEMPLATE_EN (default: 4)
+ * - Parent PL: BREVO_PARENT_TEMPLATE_PL (default: 3)
+ * - Parent EN: BREVO_PARENT_TEMPLATE_EN (default: 5)
+ * 
+ * ENVIRONMENT VARIABLES:
+ * - BREVO_API_KEY: Brevo API key for authentication
+ * - BREVO_TEACHER_TEMPLATE_PL: Template ID for Polish teacher notifications
+ * - BREVO_TEACHER_TEMPLATE_EN: Template ID for English teacher notifications
+ * - BREVO_PARENT_TEMPLATE_PL: Template ID for Polish parent notifications
+ * - BREVO_PARENT_TEMPLATE_EN: Template ID for English parent notifications
  * 
  * LAST UPDATED: January 2025
  * VERSION: 6.0.0
@@ -137,15 +144,41 @@ export default async function handler(req, res) {
         apiInstance.setApiKey(TransactionalEmailsApiApiKeys.apiKey, brevoApiKey);
         
         // Determine template ID based on notification type and language
-        // IMPORTANT: These IDs must match actual Brevo template IDs
+        // Use environment variables with fallback to hardcoded values
         let templateId;
+        let templateSource;
+        
         if (notificationType === 'teacher') {
-            templateId = language === 'pl' ? 2 : 4; // Polish: 2, English: 4
+            if (language === 'pl') {
+                templateId = process.env.BREVO_TEACHER_TEMPLATE_PL || 2;
+                templateSource = process.env.BREVO_TEACHER_TEMPLATE_PL ? 'env:BREVO_TEACHER_TEMPLATE_PL' : 'fallback';
+            } else {
+                templateId = process.env.BREVO_TEACHER_TEMPLATE_EN || 4;
+                templateSource = process.env.BREVO_TEACHER_TEMPLATE_EN ? 'env:BREVO_TEACHER_TEMPLATE_EN' : 'fallback';
+            }
         } else {
-            templateId = language === 'pl' ? 3 : 5; // Polish: 3, English: 5
+            if (language === 'pl') {
+                templateId = process.env.BREVO_PARENT_TEMPLATE_PL || 3;
+                templateSource = process.env.BREVO_PARENT_TEMPLATE_PL ? 'env:BREVO_PARENT_TEMPLATE_PL' : 'fallback';
+            } else {
+                templateId = process.env.BREVO_PARENT_TEMPLATE_EN || 5;
+                templateSource = process.env.BREVO_PARENT_TEMPLATE_EN ? 'env:BREVO_PARENT_TEMPLATE_EN' : 'fallback';
+            }
         }
         
-        console.log(`📧 Selected template ${templateId} for ${notificationType} in ${language}`);
+        // Convert to number if it's a string from env vars
+        templateId = parseInt(templateId, 10);
+        
+        // Validate template ID
+        if (isNaN(templateId) || templateId <= 0) {
+            console.error(`❌ Invalid template ID: ${templateId} from ${templateSource}`);
+            return res.status(500).json({ 
+                error: 'Invalid email template configuration',
+                details: `Template ID "${templateId}" is not valid`
+            });
+        }
+        
+        console.log(`📧 Selected template ${templateId} for ${notificationType} in ${language} (source: ${templateSource})`);
         
         // Prepare email data for Brevo SDK
         const sendSmtpEmail = new SendSmtpEmail();

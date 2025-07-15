@@ -44,13 +44,16 @@
     window.LM_CONFIG.DEBUG_ENABLED = window.LM_CONFIG.IS_DEVELOPMENT;
     
     // Email Configuration (Brevo)
+    // NOTE: Template IDs are now managed via Vercel environment variables
+    // BREVO_TEACHER_TEMPLATE_PL=2, BREVO_TEACHER_TEMPLATE_EN=4
+    // BREVO_PARENT_TEMPLATE_PL=3, BREVO_PARENT_TEMPLATE_EN=5
     window.LM_CONFIG.EMAIL = {
         BREVO_API_URL: 'https://api.brevo.com/v3/smtp/email',
         TEMPLATES: {
-            TEACHER_NOTIFICATION_PL: 1, // Template ID for Polish teacher notifications
-            TEACHER_NOTIFICATION_EN: 2, // Template ID for English teacher notifications
+            TEACHER_NOTIFICATION_PL: 2, // Template ID for Polish teacher notifications
+            TEACHER_NOTIFICATION_EN: 4, // Template ID for English teacher notifications
             PARENT_NOTIFICATION_PL: 3,  // Template ID for Polish parent notifications
-            PARENT_NOTIFICATION_EN: 4   // Template ID for English parent notifications
+            PARENT_NOTIFICATION_EN: 5   // Template ID for English parent notifications
         }
     };
     
