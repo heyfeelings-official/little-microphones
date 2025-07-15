@@ -1173,11 +1173,16 @@ function initializeAudioRecorder(recorderWrapper) {
                         const { status, message } = result.emailNotification;
                         
                         if (status === 'sent') {
-                            showEmailNotification(`✅ ${message}`, 'success', 5000);
+                            console.log('✅ Email notifications sent successfully.');
+                            showEmailNotification(`✅ Powiadomienia email zostały wysłane!`, 'success', 5000);
                         } else if (status === 'failed') {
-                            showEmailNotification(`⚠️ ${message}`, 'error', 7000);
+                            console.error(`❌ Email notification failed: ${message}`);
+                            showEmailNotification('⚠️ Wystąpił problem z wysyłaniem powiadomień email.', 'error', 7000);
                         } else if (status === 'skipped_teacher') {
+                            console.log('👨‍🏫 Teacher upload, notifications skipped.');
                             // Don't show notification for teacher uploads
+                        } else {
+                            console.log(`ℹ️ Email notification status: ${status} - ${message}`);
                         }
                     }
                 } else {

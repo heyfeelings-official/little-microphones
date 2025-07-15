@@ -168,6 +168,12 @@ export default async function handler(req, res) {
                     
                     // Get LMID data first (contains all emails)
                     const lmidData = await getLmidData(lmid);
+                    
+                    if (!lmidData) {
+                        console.error(`❌ Cannot send notifications: LMID data not found for LMID ${lmid}`);
+                        throw new Error(`LMID data not found for LMID ${lmid}`);
+                    }
+                    
                     console.log(`📧 LMID data retrieved:`, JSON.stringify(lmidData, null, 2));
                     
                     // Extract parent member ID from filename: parent_memberid-world_...
