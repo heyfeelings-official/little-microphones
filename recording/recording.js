@@ -1192,6 +1192,12 @@ function initializeAudioRecorder(recorderWrapper) {
         } catch (error) {
             recordingData.uploadStatus = 'failed';
             console.error(`[${questionId}] Upload error:`, error);
+            
+            // Show error notification for failed uploads
+            const isParentUpload = recordingData.id.includes('parent_');
+            if (isParentUpload) {
+                showEmailNotification('❌ Błąd wysyłania nagrania i powiadomień email', 'error', 8000);
+            }
         }
 
         // Save the final state to the DB and notify the UI
