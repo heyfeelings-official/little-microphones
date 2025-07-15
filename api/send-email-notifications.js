@@ -31,7 +31,7 @@
  * - HEY_FEELINGS_BASE_URL: Base URL for Hey Feelings website (default: https://hey-feelings-v2.webflow.io)
  * 
  * LAST UPDATED: January 2025
- * VERSION: 6.0.0
+ * VERSION: 6.0.1
  * STATUS: Production Ready ✅
  */
 

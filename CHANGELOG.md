@@ -1,5 +1,24 @@
 # Changelog - Little Microphones
 
+## [6.0.1] - 2025-01-15 - Brevo Environment Variables Configuration ⚙️
+
+### 🔧 Configuration Improvements
+- **Removed Hardcoded Fallbacks**: All email template IDs now use Vercel environment variables only
+- **Centralized Configuration**: No need to update code for template changes - manage via Vercel dashboard
+- **Template Management**: Environment variables for all 4 Brevo templates (teacher/parent × PL/EN)
+- **Domain Configuration**: HEY_FEELINGS_BASE_URL fully configurable via environment variables
+
+### 📧 Email Template Progress
+- **First Template Complete**: Brevo email design implemented and configured
+- **Remaining Work**: Need to add 3 remaining email templates (teacher EN, parent PL, parent EN)
+- **Environment Variables**: All template IDs managed through Vercel configuration
+
+### 🧹 Code Quality
+- Removed templateSource tracking and fallback logic
+- Simplified template ID management
+- Cleaner error messages without fallback references
+- All configuration now centralized in Vercel environment variables
+
 ## [6.0.0] - 2025-01-15 - Email Notifications Working ✅
 
 ### 🎉 Major Features Added

@@ -78,7 +78,7 @@
  * - Secure logging without exposing personal data
  * 
  * LAST UPDATED: January 2025
- * VERSION: 6.0.0
+ * VERSION: 6.0.1
  * STATUS: Production Ready ✅
  */
 
