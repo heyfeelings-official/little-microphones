@@ -116,19 +116,7 @@ async function handleLoggedInParent(shareId) {
         } else {
             console.error('[Parent Redirect] Failed to update parent metadata:', updateResult.error);
             
-            // Check if this is a deleted LMID error
-            if (updateResult.error && updateResult.error.includes('deleted by teacher')) {
-                // Hide the program container to prevent loading and console errors
-                const programContainer = document.querySelector('.program-container');
-                if (programContainer) {
-                    programContainer.style.display = 'none';
-                    console.log('🔒 Program container hidden - program was deleted');
-                }
-                
-                alert('Radio Program deleted\n\nThis program has been removed by the teacher and is no longer available.');
-                window.location.href = 'https://heyfeelings.com';
-                return;
-            }
+
             
             showErrorMessage('Nie udało się dodać dostępu do programu. Spróbuj ponownie.');
             return;
@@ -142,19 +130,7 @@ async function handleLoggedInParent(shareId) {
     } catch (error) {
         console.error('[Parent Redirect] Error handling logged in parent:', error);
         
-        // Check if this is a deleted program
-        if (error.message && error.message.includes('deleted by teacher')) {
-            // Hide the program container to prevent loading and console errors
-            const programContainer = document.querySelector('.program-container');
-            if (programContainer) {
-                programContainer.style.display = 'none';
-                console.log('🔒 Program container hidden - program was deleted');
-            }
-            
-            alert('Radio Program deleted\n\nThis program has been removed by the teacher and is no longer available.');
-            window.location.href = 'https://heyfeelings.com';
-            return;
-        }
+
         
         showErrorMessage('Wystąpił błąd podczas dodawania dostępu do programu.');
     }

@@ -182,19 +182,7 @@
             } else {
                 console.error('[LM Redirect] Failed to update parent metadata:', updateResult.error);
                 
-                // Check if this is a deleted LMID error
-                if (updateResult.error && updateResult.error.includes('deleted by teacher')) {
-                    // Hide the program container to prevent loading and console errors
-                    const programContainer = document.querySelector('.program-container');
-                    if (programContainer) {
-                        programContainer.style.display = 'none';
-                        console.log('🔒 Program container hidden - program was deleted');
-                    }
-                    
-                    alert('Radio Program deleted\n\nThis program has been removed by the teacher and is no longer available.');
-                    window.location.href = 'https://heyfeelings.com';
-                    return;
-                }
+
                 
                 return;
             }
@@ -202,19 +190,7 @@
         } catch (error) {
             console.error('[LM Redirect] Error handling logged in parent:', error);
             
-            // Check if this is a deleted program
-            if (error.message && error.message.includes('deleted by teacher')) {
-                // Hide the program container to prevent loading and console errors
-                const programContainer = document.querySelector('.program-container');
-                if (programContainer) {
-                    programContainer.style.display = 'none';
-                    console.log('🔒 Program container hidden - program was deleted');
-                }
-                
-                alert('Radio Program deleted\n\nThis program has been removed by the teacher and is no longer available.');
-                window.location.href = 'https://heyfeelings.com';
-                return;
-            }
+
             
             // Other error handling
             console.error('[LM Redirect] Failed to process ShareID link');
