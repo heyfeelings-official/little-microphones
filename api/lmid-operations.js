@@ -443,10 +443,10 @@ async function handleGetLmidData(lmid) {
 }
 
 export default async function handler(req, res) {
-    // Set CORS headers
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    // Secure CORS headers
+    const { setCorsHeaders } = await import('../utils/api-utils.js');
+    const corsHandler = setCorsHeaders(res, ['POST', 'OPTIONS']);
+    corsHandler(req);
 
     if (req.method === 'OPTIONS') {
         return res.status(200).end();

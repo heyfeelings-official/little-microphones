@@ -95,10 +95,10 @@ import { extractFilesUsed, STATIC_FILES } from '../utils/audio-utils.js';
 import { acquireGenerationLock, releaseLock } from '../utils/generation-lock.js';
 
 export default async function handler(req, res) {
-    // Set CORS headers
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    // Secure CORS headers
+    const { setCorsHeaders } = await import('../utils/api-utils.js');
+    const corsHandler = setCorsHeaders(res, ['GET', 'POST', 'OPTIONS']);
+    corsHandler(req);
 
     // Handle preflight OPTIONS request
     if (req.method === 'OPTIONS') {

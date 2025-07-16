@@ -77,11 +77,10 @@
  */
 
 export default async function handler(req, res) {
-    // Set CORS headers for all requests first
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    // Secure CORS headers
+    const { setCorsHeaders } = await import('../utils/api-utils.js');
+    const corsHandler = setCorsHeaders(res, ['GET', 'OPTIONS']);
+    corsHandler(req);
 
     // Handle preflight requests
     if (req.method === 'OPTIONS') {
