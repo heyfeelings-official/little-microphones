@@ -51,16 +51,16 @@ export function validateMemberstackWebhook(req, options = {}) {
     const signature = req.headers['x-memberstack-signature'];
     const webhookSecret = process.env.MEMBERSTACK_WEBHOOK_SECRET;
     
-    // Jeśli brak secret - fallback na user agent (development)
+    // Wymagaj sekretu w produkcji - brak fallback
     if (!webhookSecret) {
-        const userAgent = req.headers['user-agent'] || '';
-        return {
-            valid: userAgent.includes('Memberstack'),
-            error: userAgent.includes('Memberstack') ? null : 'Invalid user agent'
+        console.error('🚨 MEMBERSTACK_WEBHOOK_SECRET not configured - webhook rejected');
+        return { 
+            valid: false, 
+            error: 'Webhook secret not configured' 
         };
     }
     
-    // Pełna weryfikacja podpisu
+    // Wymagaj podpisu
     if (!signature) {
         return { valid: false, error: 'Missing webhook signature' };
     }
