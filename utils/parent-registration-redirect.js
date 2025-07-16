@@ -126,6 +126,14 @@ async function handleLoggedInParent(shareId) {
         
     } catch (error) {
         console.error('[Parent Redirect] Error handling logged in parent:', error);
+        
+        // Check if this is a deleted program
+        if (error.message && error.message.includes('deleted by teacher')) {
+            alert('Radio Program deleted\n\nThis program has been removed by the teacher and is no longer available.');
+            window.location.href = 'https://heyfeelings.com';
+            return;
+        }
+        
         showErrorMessage('Wystąpił błąd podczas dodawania dostępu do programu.');
     }
 }

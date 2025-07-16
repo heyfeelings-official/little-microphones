@@ -742,6 +742,14 @@
             
         } catch (error) {
             console.error('Error loading radio data:', error);
+            
+            // Check if this is a deleted program
+            if (error.message && error.message.includes('deleted by teacher')) {
+                alert('Radio Program deleted\n\nThis program has been removed by the teacher and is no longer available.');
+                window.location.href = 'https://heyfeelings.com';
+                return;
+            }
+            
             showError(`Failed to load radio data: ${error.message}`);
         }
     }
@@ -831,6 +839,14 @@
                 
             } catch (error) {
                 console.error('Error during generation polling:', error);
+                
+                // Check if this is a deleted program
+                if (error.message && error.message.includes('deleted by teacher')) {
+                    clearInterval(pollInterval);
+                    alert('Radio Program deleted\n\nThis program has been removed by the teacher and is no longer available.');
+                    window.location.href = 'https://heyfeelings.com';
+                    return;
+                }
                 
                 // On error, stop polling and try to show existing programs
                 clearInterval(pollInterval);
@@ -1205,6 +1221,13 @@
                     }
                 } catch (error) {
                     console.warn('Failed to reload data, using generated programs directly');
+                    
+                    // Check if this is a deleted program
+                    if (error.message && error.message.includes('deleted by teacher')) {
+                        alert('Radio Program deleted\n\nThis program has been removed by the teacher and is no longer available.');
+                        window.location.href = 'https://heyfeelings.com';
+                        return;
+                    }
                 }
                 
                 // Fallback: show generated programs directly

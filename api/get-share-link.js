@@ -83,7 +83,7 @@ export default async function handler(req, res) {
         // Check if ShareID already exists for this LMID+world combination
         const { data: existingRecord, error: fetchError } = await supabase
             .from('lmids')
-            .select(worldColumn)
+            .select(`${worldColumn}, status`)
             .eq('lmid', lmidNumber)
             .single();
 
@@ -100,6 +100,24 @@ export default async function handler(req, res) {
             return res.status(404).json({ 
                 success: false, 
                 error: `LMID ${lmidNumber} not found in database` 
+            });
+        }
+
+        // SECURITY: Check if LMID was deleted
+        if (existingRecord?.status === 'deleted') {
+            return res.status(410).json({ 
+                success: false, 
+                error: 'LMID has been deleted',
+                code: 'LMID_DELETED'
+            });
+        }
+
+        // Ensure LMID is active and assigned
+        if (existingRecord?.status !== 'used') {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'LMID is not available',
+                code: 'LMID_NOT_AVAILABLE'
             });
         }
 

@@ -53,6 +53,22 @@ async function getWorldInfoHandler(req, res, params) {
         error.code = 'SHARE_ID_NOT_FOUND';
         throw error;
     }
+
+    // SECURITY: Check if LMID was deleted by teacher
+    if (lmidData.status === 'deleted') {
+        const error = new Error('Radio Program has been deleted by teacher');
+        error.status = 410; // 410 Gone - resource was deleted
+        error.code = 'PROGRAM_DELETED';
+        throw error;
+    }
+
+    // Ensure LMID is active and assigned
+    if (lmidData.status !== 'used') {
+        const error = new Error('Radio Program is not available');
+        error.status = 404;
+        error.code = 'PROGRAM_NOT_AVAILABLE';
+        throw error;
+    }
     
     // Get background URL for the world
     const backgroundUrl = WORLD_BACKGROUNDS[lmidData.world];

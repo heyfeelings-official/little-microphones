@@ -292,6 +292,24 @@ export default async function handler(req, res) {
             });
         }
 
+        // SECURITY: Check if LMID was deleted by teacher
+        if (lmidRecord.status === 'deleted') {
+            return res.status(410).json({ 
+                success: false, 
+                error: 'Radio Program has been deleted by teacher',
+                code: 'PROGRAM_DELETED'
+            });
+        }
+
+        // Ensure LMID is active and assigned
+        if (lmidRecord.status !== 'used') {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Radio Program is not available',
+                code: 'PROGRAM_NOT_AVAILABLE'
+            });
+        }
+
         const lmid = lmidRecord.lmid.toString();
         
         // Fetch current recordings from cloud storage

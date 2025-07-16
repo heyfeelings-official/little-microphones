@@ -186,6 +186,16 @@
             
         } catch (error) {
             console.error('[LM Redirect] Error handling logged in parent:', error);
+            
+            // Check if this is a deleted program
+            if (error.message && error.message.includes('deleted by teacher')) {
+                alert('Radio Program deleted\n\nThis program has been removed by the teacher and is no longer available.');
+                window.location.href = 'https://heyfeelings.com';
+                return;
+            }
+            
+            // Other error handling
+            console.error('[LM Redirect] Failed to process ShareID link');
         }
     }
     
