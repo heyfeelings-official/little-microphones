@@ -706,7 +706,6 @@
             <div style="background: rgba(255,255,255,0.1); border-radius: 15px; padding: 20px; margin-bottom: 30px;">
                 <audio controls style="width: 100%; margin-bottom: 15px;" preload="metadata">
                     <source src="${audioUrl}?_cb=${Date.now()}&_r=${Math.random()}" type="audio/webm">
-                    <source src="${audioUrl}?_cb=${Date.now()}&_r=${Math.random()}" type="audio/mpeg">
                     Your browser does not support the audio element.
                 </audio>
                 

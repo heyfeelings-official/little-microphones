@@ -117,7 +117,7 @@
         console.log(`📍 Current URL: ${window.location.pathname}`);
         console.log(`🔤 Detected Language: ${window.LM_CONFIG.getCurrentLanguage()}`);
         console.log(`🎯 Default Language: ${window.LM_CONFIG.LANGUAGES.DEFAULT}`);
-        console.log(`🎵 Audio URL Example: ${window.LM_CONFIG.getLocalizedAudioUrl('audio/other/intro.mp3')}`);
+        console.log(`🎵 Audio URL Example: ${window.LM_CONFIG.getLocalizedAudioUrl('audio/other/intro.webm')}`);
     };
     
     // Legacy World Images (kept for fallback compatibility)
@@ -165,10 +165,10 @@
     
     // Audio Configuration
     window.LM_CONFIG.AUDIO = {
-                INTRO_FILE: 'other/intro.mp3',
-        OUTRO_FILE: 'other/outro.mp3',
-        BACKGROUND_FILE: 'other/monkeys.mp3',
-        QUESTION_FILE_PATTERN: '{world}/{world}-QID{questionId}.mp3'
+                INTRO_FILE: 'other/intro.webm',
+        OUTRO_FILE: 'other/outro.webm',
+        BACKGROUND_FILE: 'other/monkeys.webm',
+        QUESTION_FILE_PATTERN: '{world}/{world}-QID{questionId}.webm'
     };
     
     // Memberstack Plans Configuration
