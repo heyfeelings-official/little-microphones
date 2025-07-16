@@ -31,6 +31,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { WORLDS } from './lmid-utils.js';
+import { validateShareId, validateWorldName } from './input-validator.js';
 
 // In-memory cache for frequently accessed data
 const cache = new Map();
@@ -130,6 +131,24 @@ export function cacheClear(pattern = null) {
  * @returns {Promise<Object|null>} LMID record or null if not found
  */
 export async function findLmidByShareId(shareId, world = null) {
+    // SECURITY: Validate shareId parameter
+    const shareIdValidation = validateShareId(shareId);
+    if (!shareIdValidation.valid) {
+        console.error('Invalid shareId parameter:', shareIdValidation.error);
+        return null;
+    }
+    shareId = shareIdValidation.sanitized;
+    
+    // SECURITY: Validate world parameter if provided
+    if (world !== null) {
+        const worldValidation = validateWorldName(world);
+        if (!worldValidation.valid) {
+            console.error('Invalid world parameter:', worldValidation.error);
+            return null;
+        }
+        world = worldValidation.sanitized;
+    }
+    
     const cacheKey = `lmid_by_share_${shareId}_${world || 'all'}`;
     
     // Check cache first

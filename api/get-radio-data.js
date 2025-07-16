@@ -28,6 +28,7 @@
 
 import { getSupabaseClient } from '../utils/lmid-utils.js';
 import { getGenerationStatus } from '../utils/generation-lock.js';
+import { validateShareId, validateWorldName } from '../utils/input-validator.js';
 import https from 'https';
 
 /**
@@ -200,21 +201,44 @@ export default async function handler(req, res) {
             });
         }
 
-        const supabase = getSupabaseClient();
+        // SECURITY: Validate shareId parameter
+        const shareIdValidation = validateShareId(shareId);
+        if (!shareIdValidation.valid) {
+            return res.status(400).json({ 
+                success: false, 
+                error: shareIdValidation.error 
+            });
+        }
+        const sanitizedShareId = shareIdValidation.sanitized;
+
+        // SECURITY: Validate world parameter if provided
+        let sanitizedWorld = null;
+        if (worldFromUrl) {
+            const worldValidation = validateWorldName(worldFromUrl);
+            if (!worldValidation.valid) {
+                return res.status(400).json({ 
+                    success: false, 
+                    error: worldValidation.error 
+                });
+            }
+            sanitizedWorld = worldValidation.sanitized;
+        }
+
+                const supabase = getSupabaseClient();
         let lmidRecord = null;
         let world = null;
 
-        if (worldFromUrl) {
+        if (sanitizedWorld) {
             // If world is provided, we can do a direct lookup
-            world = worldFromUrl;
+            world = sanitizedWorld;
             console.log(`🌍 Using world from URL parameter: ${world}`);
             
             // Look up LMID using the world-specific column
             const worldColumn = `share_id_${world.replace('-', '_')}`;
             const { data, error } = await supabase
-            .from('lmids')
-            .select('lmid, assigned_to_member_id')
-                .eq(worldColumn, shareId)
+                .from('lmids')
+                .select('lmid, assigned_to_member_id')
+                .eq(worldColumn, sanitizedShareId)
                 .single();
 
             if (error || !data) {
@@ -230,7 +254,7 @@ export default async function handler(req, res) {
             const { data, error } = await supabase
                 .from('lmids')
                 .select('lmid, assigned_to_member_id, share_id_spookyland, share_id_waterpark, share_id_shopping_spree, share_id_amusement_park, share_id_big_city, share_id_neighborhood')
-                .or(`share_id_spookyland.eq.${shareId},share_id_waterpark.eq.${shareId},share_id_shopping_spree.eq.${shareId},share_id_amusement_park.eq.${shareId},share_id_big_city.eq.${shareId},share_id_neighborhood.eq.${shareId}`)
+                .or(`share_id_spookyland.eq.${sanitizedShareId},share_id_waterpark.eq.${sanitizedShareId},share_id_shopping_spree.eq.${sanitizedShareId},share_id_amusement_park.eq.${sanitizedShareId},share_id_big_city.eq.${sanitizedShareId},share_id_neighborhood.eq.${sanitizedShareId}`)
             .single();
 
             if (error || !data) {
@@ -244,12 +268,12 @@ export default async function handler(req, res) {
             lmidRecord = data;
 
             // Determine which world this shareId belongs to
-            if (data.share_id_spookyland === shareId) world = 'spookyland';
-            else if (data.share_id_waterpark === shareId) world = 'waterpark';
-            else if (data.share_id_shopping_spree === shareId) world = 'shopping-spree';
-            else if (data.share_id_amusement_park === shareId) world = 'amusement-park';
-            else if (data.share_id_big_city === shareId) world = 'big-city';
-            else if (data.share_id_neighborhood === shareId) world = 'neighborhood';
+            if (data.share_id_spookyland === sanitizedShareId) world = 'spookyland';
+            else if (data.share_id_waterpark === sanitizedShareId) world = 'waterpark';
+            else if (data.share_id_shopping_spree === sanitizedShareId) world = 'shopping-spree';
+            else if (data.share_id_amusement_park === sanitizedShareId) world = 'amusement-park';
+            else if (data.share_id_big_city === sanitizedShareId) world = 'big-city';
+            else if (data.share_id_neighborhood === sanitizedShareId) world = 'neighborhood';
 
             if (!world) {
                 return res.status(404).json({ 
@@ -313,7 +337,7 @@ export default async function handler(req, res) {
             hasKidsRecordings: generationNeeds.hasKidsRecordings,
             hasParentRecordings: generationNeeds.hasParentRecordings,
             recordingCount: currentRecordings.length,
-            shareId: shareId,
+            shareId: sanitizedShareId,
             // NEW: Generation status information
             generationStatus: {
                 kids: kidsGenerationStatus,
