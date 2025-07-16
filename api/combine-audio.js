@@ -100,6 +100,12 @@ export default async function handler(req, res) {
     const corsHandler = setCorsHeaders(res, ['GET', 'POST', 'OPTIONS']);
     corsHandler(req);
 
+    // Rate limiting - 5 audio processing per minute
+    const { checkRateLimit } = await import('../utils/simple-rate-limiter.js');
+    if (!checkRateLimit(req, res, 'combine-audio', 5)) {
+        return; // Rate limit exceeded
+    }
+
     // Handle preflight OPTIONS request
     if (req.method === 'OPTIONS') {
         return res.status(200).end();

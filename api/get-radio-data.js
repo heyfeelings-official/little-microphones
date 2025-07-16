@@ -172,6 +172,12 @@ export default async function handler(req, res) {
     const corsHandler = setCorsHeaders(res, ['GET', 'OPTIONS']);
     corsHandler(req);
 
+    // Rate limiting - 30 requests per minute
+    const { checkRateLimit } = await import('../utils/simple-rate-limiter.js');
+    if (!checkRateLimit(req, res, 'get-radio-data', 30)) {
+        return; // Rate limit exceeded
+    }
+
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
     }

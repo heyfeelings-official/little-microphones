@@ -82,6 +82,12 @@ export default async function handler(req, res) {
     const corsHandler = setCorsHeaders(res, ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']);
     corsHandler(req);
 
+    // Rate limiting - 15 deletes per minute
+    const { checkRateLimit } = await import('../utils/simple-rate-limiter.js');
+    if (!checkRateLimit(req, res, 'delete-audio', 15)) {
+        return; // Rate limit exceeded
+    }
+
     // Handle preflight OPTIONS request
     if (req.method === 'OPTIONS') {
         res.status(200).end();

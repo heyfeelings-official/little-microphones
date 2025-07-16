@@ -448,6 +448,12 @@ export default async function handler(req, res) {
     const corsHandler = setCorsHeaders(res, ['POST', 'OPTIONS']);
     corsHandler(req);
 
+    // Rate limiting - 10 operations per minute
+    const { checkRateLimit } = await import('../utils/simple-rate-limiter.js');
+    if (!checkRateLimit(req, res, 'lmid-operations', 10)) {
+        return; // Rate limit exceeded
+    }
+
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
     }
