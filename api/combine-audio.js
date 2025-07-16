@@ -178,14 +178,14 @@ export default async function handler(req, res) {
                     
                     if (type === 'kids') {
                         // Count kids recordings
-                        const kidsPattern = new RegExp(`^kids-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.mp3$`);
+                        const kidsPattern = new RegExp(`^kids-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.(webm|mp3)$`);
                         const kidsFiles = (data.recordings || []).filter(
                             file => kidsPattern.test(file.filename)
                         );
                         recordingCount = kidsFiles.length;
                     } else if (type === 'parent') {
                         // Count parent recordings
-                        const parentPattern = new RegExp(`^parent_[^-]+-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.mp3$`);
+                        const parentPattern = new RegExp(`^parent_[^-]+-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.(webm|mp3)$`);
                         const parentFiles = (data.recordings || []).filter(
                             file => parentPattern.test(file.filename)
                         );
@@ -292,7 +292,7 @@ async function combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams, p
             
             if (segment.type === 'single' || segment.type === 'recording') {
                 // Single audio file (intro, outro, questions, recordings)
-                const fileName = `segment-${String(i).padStart(3, '0')}-single.mp3`;
+                const fileName = `segment-${String(i).padStart(3, '0')}-single.webm`;
                 const filePath = path.join(tempDir, fileName);
                 
                 // The URL for static files is already localized by the frontend (radio.js)
@@ -310,7 +310,7 @@ async function combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams, p
                 
             } else if (segment.type === 'question_intro' || segment.type === 'pause' || segment.type === 'question_transition') {
                 // Generate silent audio for intro/pause/transition segments
-                const fileName = `segment-${String(i).padStart(3, '0')}-${segment.type}.mp3`;
+                const fileName = `segment-${String(i).padStart(3, '0')}-${segment.type}.webm`;
                 const filePath = path.join(tempDir, fileName);
                 
                 const duration = segment.duration || 2; // default 2 seconds
@@ -332,19 +332,19 @@ async function combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams, p
                 // Download all answer files
                 const answerPaths = [];
                 for (let j = 0; j < segment.answerUrls.length; j++) {
-                    const answerPath = path.join(tempDir, `answers-${String(i).padStart(3, '0')}-${j}.mp3`);
+                    const answerPath = path.join(tempDir, `answers-${String(i).padStart(3, '0')}-${j}.webm`);
                     console.log(`📥 Downloading answer ${j + 1}/${segment.answerUrls.length}: ${segment.answerUrls[j]}`);
                     await downloadFile(segment.answerUrls[j], answerPath);
                     answerPaths.push(answerPath);
                 }
                 
                 // Download background music - URL is already localized by frontend
-                const backgroundPath = path.join(tempDir, `background-${String(i).padStart(3, '0')}.mp3`);
+                const backgroundPath = path.join(tempDir, `background-${String(i).padStart(3, '0')}.webm`);
                 console.log(`📥 Downloading background: ${segment.backgroundUrl}`);
                 await downloadFile(segment.backgroundUrl, backgroundPath);
                 
                 // Combine answers with background (no processing)
-                const combinedPath = path.join(tempDir, `segment-${String(i).padStart(3, '0')}-combined.mp3`);
+                const combinedPath = path.join(tempDir, `segment-${String(i).padStart(3, '0')}-combined.webm`);
                 await combineAnswersWithBackground(answerPaths, backgroundPath, combinedPath);
                 
                 processedSegments.push({
@@ -366,7 +366,7 @@ async function combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams, p
         
         // Final assembly of all segments IN ORDER
         console.log('🎼 Assembling final radio program in correct order...');
-        const outputPath = path.join(tempDir, `radio-program-${programType}-${world}-${lmid}.mp3`);
+        const outputPath = path.join(tempDir, `radio-program-${programType}-${world}-${lmid}.webm`);
         await assembleFinalProgram(processedSegments, outputPath);
         
         // Upload to Bunny.net
@@ -413,8 +413,8 @@ async function combineAnswersWithBackground(answerPaths, backgroundPath, outputP
         command
             .complexFilter(filters)
             .outputOptions(['-map', '[mixed]'])
-            .format('mp3')
-            .audioCodec('libmp3lame')
+            .format('webm')
+            .audioCodec('libvorbis')
             .on('start', (commandLine) => {
                 console.log(`🎵 Combining answers with background (no processing): ${commandLine}`);
             })
@@ -453,8 +453,8 @@ async function assembleFinalProgram(processedSegments, outputPath) {
                 '-b:a', '128k',
                 '-compression_level', '2'
             ])
-            .format('mp3')
-            .audioCodec('libmp3lame')
+            .format('webm')
+            .audioCodec('libvorbis')
             .on('start', (commandLine) => {
                 console.log('🎵 Final assembly command (no processing):', commandLine);
             })
@@ -483,11 +483,11 @@ async function generateSilentPlaceholder(filePath, duration = 3) {
             .input('anullsrc=channel_layout=stereo:sample_rate=44100')
             .inputOptions(['-f', 'lavfi'])
             .duration(duration)
-            .audioCodec('libmp3lame')
+            .audioCodec('libvorbis')
             .audioChannels(2)
             .audioFrequency(44100)
             .audioBitrate('128k')
-            .format('mp3')
+            .format('webm')
             .on('start', () => {
                 console.log(`🔧 Generating ${duration}s silent placeholder: ${path.basename(filePath)}`);
             })
@@ -518,11 +518,11 @@ function downloadFile(url, filePath) {
                     
                     // Determine appropriate duration based on file type
                     let duration = 3; // default
-                    if (url.includes('monkeys.mp3')) {
+                    if (url.includes('monkeys.webm') || url.includes('monkeys.mp3')) {
                         duration = 30; // background music needs to be longer
                     } else if (url.includes('-QID')) {
                         duration = 5; // question prompts
-                    } else if (url.includes('intro.mp3') || url.includes('outro.mp3')) {
+                    } else if (url.includes('intro.webm') || url.includes('intro.mp3') || url.includes('outro.webm') || url.includes('outro.mp3')) {
                         duration = 3; // intro/outro
                     }
                     
@@ -561,7 +561,7 @@ function downloadFile(url, filePath) {
  */
 async function uploadToBunny(filePath, world, lmid, programType = 'kids', lang = 'en') {
     // Include program type in filename to distinguish kids vs parent programs
-    const fileName = `radio-program-${programType}-${world}-${lmid}.mp3`;
+    const fileName = `radio-program-${programType}-${world}-${lmid}.webm`;
     const uploadPath = `/${lang}/${lmid}/${world}/${fileName}`;
     
     console.log(`📤 Uploading to Bunny.net: ${uploadPath} (overwriting existing)`);
@@ -576,7 +576,7 @@ async function uploadToBunny(filePath, world, lmid, programType = 'kids', lang =
             method: 'PUT',
             headers: {
                 'AccessKey': process.env.BUNNY_API_KEY,
-                'Content-Type': 'audio/mpeg',
+                'Content-Type': 'audio/webm',
                 'Content-Length': fileBuffer.length,
                 // HEAVY cache-busting headers
                 'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',

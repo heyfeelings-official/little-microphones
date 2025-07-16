@@ -340,7 +340,7 @@
     async function uploadToBunny(recordingData, world, lmid) {
         try {
             const base64Audio = await blobToBase64(recordingData.audio);
-            const filename = `kids-world_${world}-lmid_${lmid}-question_${recordingData.questionId}-tm_${recordingData.timestamp}.mp3`;
+            const filename = `kids-world_${world}-lmid_${lmid}-question_${recordingData.questionId}-tm_${recordingData.timestamp}.webm`;
 
             const apiBaseUrl = window.LM_CONFIG?.API_BASE_URL || 'https://little-microphones.vercel.app';
             const response = await fetch(`${apiBaseUrl}/api/upload-audio?_t=${Date.now()}&_r=${Math.random()}`, {
@@ -403,7 +403,7 @@
                     questionId,
                     recordingId: recordingData.id,
                     cloudUrl: recordingData.cloudUrl,
-                    filename: recordingData.id + '.mp3'
+                    filename: recordingData.id + '.webm'
                 })
             });
 

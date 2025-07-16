@@ -610,7 +610,7 @@ async function deleteFromBunny(recordingData, world, lmid, questionId) {
     }
 
     try {
-        const filename = `${recordingData.id}.mp3`;
+        const filename = `${recordingData.id}.webm`;
         console.log(`[${questionId}] Deleting: ${filename}`);
 
         const response = await fetch('https://little-microphones.vercel.app/api/delete-audio', {
@@ -659,7 +659,7 @@ async function deleteRecording(recordingId, questionId, elementToRemove) {
         // Create a minimal recording object for cloud deletion
         const recordingData = {
             id: recordingId,
-            cloudUrl: `https://little-microphones.b-cdn.net/${lmid}/${world}/${recordingId}.mp3`
+                            cloudUrl: `https://little-microphones.b-cdn.net/${lmid}/${world}/${recordingId}.webm`
         };
         
         console.log(`Deleting from cloud: ${recordingData.cloudUrl}`);
@@ -1148,7 +1148,7 @@ function initializeAudioRecorder(recorderWrapper) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     audioData: base64Audio,
-                    filename: `${recordingData.id}.mp3`,
+                    filename: `${recordingData.id}.webm`,
                     world: world,
                     lmid: lmid,
                     questionId: questionId,
@@ -1688,7 +1688,7 @@ async function generateRadioProgram(world, lmid) {
         
         // 1. Add intro
         const introTimestamp = Date.now();
-        const introUrl = `https://little-microphones.b-cdn.net/audio/other/intro.mp3?t=${introTimestamp}`;
+                    const introUrl = `https://little-microphones.b-cdn.net/audio/other/intro.webm?t=${introTimestamp}`;
         audioSegments.push({
             type: 'single',
             url: introUrl
@@ -1701,7 +1701,7 @@ async function generateRadioProgram(world, lmid) {
             
             // Add question prompt with cache-busting
             const cacheBustTimestamp = Date.now();
-            const questionUrl = `https://little-microphones.b-cdn.net/audio/${world}/${world}-QID${questionId}.mp3?t=${cacheBustTimestamp}`;
+                            const questionUrl = `https://little-microphones.b-cdn.net/audio/${world}/${world}-QID${questionId}.webm?t=${cacheBustTimestamp}`;
             audioSegments.push({
                 type: 'single',
                 url: questionUrl
@@ -1716,7 +1716,7 @@ async function generateRadioProgram(world, lmid) {
             
             // Combine answers with background music (cache-busted)
             const backgroundTimestamp = Date.now() + Math.random(); // Unique timestamp per question
-            const backgroundUrl = `https://little-microphones.b-cdn.net/audio/other/monkeys.mp3?t=${backgroundTimestamp}`;
+                                const backgroundUrl = `https://little-microphones.b-cdn.net/audio/other/monkeys.webm?t=${backgroundTimestamp}`;
             audioSegments.push({
                 type: 'combine_with_background',
                 answerUrls: answerUrls,
@@ -1727,7 +1727,7 @@ async function generateRadioProgram(world, lmid) {
         
         // 3. Add outro
         const outroTimestamp = Date.now() + 1;
-        const outroUrl = `https://little-microphones.b-cdn.net/audio/other/outro.mp3?t=${outroTimestamp}`;
+                    const outroUrl = `https://little-microphones.b-cdn.net/audio/other/outro.webm?t=${outroTimestamp}`;
         audioSegments.push({
             type: 'single',
             url: outroUrl
@@ -1972,8 +1972,8 @@ function showRadioProgramSuccess(audioUrl, world, lmid, questionCount, totalReco
         
         <div style="margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 8px;">
             <audio controls style="width: 100%; margin-bottom: 15px;" preload="metadata" crossorigin="anonymous">
-                <source src="${audioUrl}" type="audio/mpeg">
-                <source src="${audioUrl}" type="audio/mp3">
+                                    <source src="${audioUrl}" type="audio/webm">
+                    <source src="${audioUrl}" type="audio/mp3">
                 Your browser does not support the audio element.
             </audio>
         </div>
@@ -2273,7 +2273,7 @@ async function loadRecordingsFromCloud(questionId, world, lmid) {
         
         // Transform cloud recordings to our format
         const recordings = cloudRecordings.map(cloudRec => ({
-            id: cloudRec.filename.replace('.mp3', ''),
+                            id: cloudRec.filename.replace('.webm', '').replace('.mp3', ''),
             questionId: questionId,
             timestamp: cloudRec.lastModified || Date.now(),
             cloudUrl: cloudRec.url,

@@ -53,7 +53,7 @@ export function convertRecordingsToAudioSegments(recordings, world) {
     const introTimestamp = Date.now();
     audioSegments.push({
         type: 'single',
-        url: `https://little-microphones.b-cdn.net/audio/other/intro.mp3?t=${introTimestamp}`
+        url: `https://little-microphones.b-cdn.net/audio/other/intro.webm?t=${introTimestamp}`
     });
     
     // 2. Add questions and answers in order
@@ -64,7 +64,7 @@ export function convertRecordingsToAudioSegments(recordings, world) {
         const cacheBustTimestamp = Date.now() + Math.random();
         audioSegments.push({
             type: 'single',
-            url: `https://little-microphones.b-cdn.net/audio/${world}/${world}-QID${questionId}.mp3?t=${cacheBustTimestamp}`
+            url: `https://little-microphones.b-cdn.net/audio/${world}/${world}-QID${questionId}.webm?t=${cacheBustTimestamp}`
         });
         
         // Sort answers by filename timestamp (first recorded = first played)
@@ -79,7 +79,7 @@ export function convertRecordingsToAudioSegments(recordings, world) {
         audioSegments.push({
             type: 'combine_with_background',
             answerUrls: sortedAnswers.map(recording => recording.url),
-            backgroundUrl: `https://little-microphones.b-cdn.net/audio/other/monkeys.mp3?t=${backgroundTimestamp}`,
+                            backgroundUrl: `https://little-microphones.b-cdn.net/audio/other/monkeys.webm?t=${backgroundTimestamp}`,
             questionId: questionId
         });
     });
@@ -88,7 +88,7 @@ export function convertRecordingsToAudioSegments(recordings, world) {
     const outroTimestamp = Date.now() + 1;
     audioSegments.push({
         type: 'single',
-        url: `https://little-microphones.b-cdn.net/audio/other/outro.mp3?t=${outroTimestamp}`
+        url: `https://little-microphones.b-cdn.net/audio/other/outro.webm?t=${outroTimestamp}`
     });
     
     console.log(`🎼 Generated ${audioSegments.length} audio segments for ${sortedQuestionIds.length} questions`);
@@ -109,13 +109,14 @@ export function extractTimestampFromFilename(filename) {
  * Constants for audio processing
  */
 export const STATIC_FILES = {
-    intro: 'https://little-microphones.b-cdn.net/audio/other/intro.mp3',
-    outro: 'https://little-microphones.b-cdn.net/audio/other/outro.mp3',
-    monkeys: 'https://little-microphones.b-cdn.net/audio/other/monkeys.mp3'
+            intro: 'https://little-microphones.b-cdn.net/audio/other/intro.webm',
+        outro: 'https://little-microphones.b-cdn.net/audio/other/outro.webm',
+        monkeys: 'https://little-microphones.b-cdn.net/audio/other/monkeys.webm'
 };
 
 export const AUDIO_FORMATS = {
-    mp3: { extension: '.mp3', mimeType: 'audio/mpeg' },
+            webm: { extension: '.webm', mimeType: 'audio/webm' },
+        mp3: { extension: '.mp3', mimeType: 'audio/mpeg' },
     wav: { extension: '.wav', mimeType: 'audio/wav' },
     m4a: { extension: '.m4a', mimeType: 'audio/mp4' }
 };
@@ -297,7 +298,7 @@ export function getAudioFileSize(filename, durationSeconds = 30) {
         m4a: 12000   // ~96kbps AAC
     };
     
-    return (bytesPerSecond[format] || bytesPerSecond.mp3) * durationSeconds;
+            return (bytesPerSecond[format] || bytesPerSecond.webm) * durationSeconds;
 }
 
 /**
@@ -374,8 +375,8 @@ function estimateAudioDuration(audioSegments) {
     audioSegments.forEach(segment => {
         if (segment.type === 'single') {
             // Estimate based on file type
-            if (segment.url.includes('intro.mp3')) totalDuration += 3;
-            else if (segment.url.includes('outro.mp3')) totalDuration += 3;
+            if (segment.url.includes('intro.webm') || segment.url.includes('intro.mp3')) totalDuration += 3;
+            else if (segment.url.includes('outro.webm') || segment.url.includes('outro.mp3')) totalDuration += 3;
             else if (segment.url.includes('-QID')) totalDuration += 5; // Question prompts
         } else if (segment.type === 'combine_with_background') {
             // Estimate based on number of answers (30 seconds per answer)

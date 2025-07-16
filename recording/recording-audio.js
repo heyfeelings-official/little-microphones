@@ -528,7 +528,7 @@
          * Generate filename for upload
          */
         function generateFilename(recordingData) {
-            return `kids-world_${world}-lmid_${lmid}-question_${questionId}-tm_${recordingData.timestamp}.mp3`;
+            return `kids-world_${world}-lmid_${lmid}-question_${questionId}-tm_${recordingData.timestamp}.webm`;
         }
 
         /**

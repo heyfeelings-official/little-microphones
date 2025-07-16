@@ -705,7 +705,7 @@
             
             <div style="background: rgba(255,255,255,0.1); border-radius: 15px; padding: 20px; margin-bottom: 30px;">
                 <audio controls style="width: 100%; margin-bottom: 15px;" preload="metadata">
-                    <source src="${audioUrl}?_cb=${Date.now()}&_r=${Math.random()}" type="audio/mpeg">
+                    <source src="${audioUrl}?_cb=${Date.now()}&_r=${Math.random()}" type="audio/webm">
                     Your browser does not support the audio element.
                 </audio>
                 
@@ -759,7 +759,7 @@
         window.downloadRadioProgram = (url, world, lmid) => {
             const link = document.createElement('a');
             link.href = url;
-            link.download = `${world}-radio-program-${lmid}.mp3`;
+                            link.download = `${world}-radio-program-${lmid}.webm`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);

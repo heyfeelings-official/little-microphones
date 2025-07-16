@@ -204,7 +204,7 @@
         // 1. Add intro
         audioSegments.push({
             type: 'single',
-            url: window.LM_CONFIG.getLocalizedAudioUrl(`audio/other/intro.mp3?t=${Date.now()}`, lang)
+                            url: window.LM_CONFIG.getLocalizedAudioUrl(`audio/other/intro.webm?t=${Date.now()}`, lang)
         });
         
         // 2. Add questions and answers in order
@@ -215,7 +215,7 @@
             const cacheBustTimestamp = Date.now() + Math.random();
             audioSegments.push({
                 type: 'single',
-                url: window.LM_CONFIG.getLocalizedAudioUrl(`audio/${world}/${world}-QID${questionId}.mp3?t=${cacheBustTimestamp}`, lang)
+                                    url: window.LM_CONFIG.getLocalizedAudioUrl(`audio/${world}/${world}-QID${questionId}.webm?t=${cacheBustTimestamp}`, lang)
             });
             
             // Sort answers by timestamp (first recorded = first played)
@@ -233,7 +233,7 @@
             audioSegments.push({
                 type: 'combine_with_background',
                 answerUrls: sortedAnswers.map(recording => recording.url || recording.cloudUrl),
-                backgroundUrl: window.LM_CONFIG.getLocalizedAudioUrl(`audio/other/monkeys.mp3?t=${backgroundTimestamp}`, lang),
+                                    backgroundUrl: window.LM_CONFIG.getLocalizedAudioUrl(`audio/other/monkeys.webm?t=${backgroundTimestamp}`, lang),
                 questionId: questionId,
                 recordingType: type // Add type identifier
             });
@@ -243,7 +243,7 @@
         const outroTimestamp = Date.now() + 1;
         audioSegments.push({
             type: 'single',
-            url: window.LM_CONFIG.getLocalizedAudioUrl(`audio/other/outro.mp3?t=${outroTimestamp}`, lang)
+                            url: window.LM_CONFIG.getLocalizedAudioUrl(`audio/other/outro.webm?t=${outroTimestamp}`, lang)
         });
         
         return audioSegments;
@@ -591,7 +591,7 @@
             playerContainer.innerHTML = `
                 <div style="background: ${bgColor}; border-radius: 12px; padding: 16px; text-align: center;">
                     <audio controls style="width: 100%;" preload="metadata">
-                        <source src="${audioUrl}" type="audio/mpeg">
+                        <source src="${audioUrl}" type="audio/webm">
                         Your browser does not support the audio element.
                     </audio>
                 </div>
@@ -660,7 +660,7 @@
             playerContainer.innerHTML = `
                 <div style="background: ${bgColor}; border-radius: 12px; padding: 16px; text-align: center;">
                     <audio controls style="width: 100%;" preload="metadata">
-                        <source src="${audioUrl}" type="audio/mpeg">
+                        <source src="${audioUrl}" type="audio/webm">
                         Your browser does not support the audio element.
                     </audio>
                 </div>
