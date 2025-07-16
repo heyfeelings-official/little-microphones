@@ -222,8 +222,16 @@ export async function handleApiRequest(req, res, config, handler) {
     } = config;
     
     try {
-        // Set CORS headers
-        setCorsHeaders(res, allowedMethods);
+        // Set secure CORS headers
+        const corsHandler = setCorsHeaders(res, allowedMethods);
+        corsHandler(req);
+        
+        // Rate limiting (default 60 requests per minute)
+        const { checkRateLimit } = await import('./simple-rate-limiter.js');
+        const rateLimit = config.rateLimit || 60;
+        if (!checkRateLimit(req, res, endpoint, rateLimit)) {
+            return; // Rate limit exceeded
+        }
         
         // Handle OPTIONS
         if (handleOptionsRequest(req, res)) {
