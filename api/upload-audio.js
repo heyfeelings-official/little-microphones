@@ -106,7 +106,23 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { audioData, filename, world, lmid, questionId, lang } = req.body;
+        let { audioData, filename, world, lmid, questionId, lang } = req.body;
+
+        // SECURITY: Input sanitization
+        function sanitizeInput(data) {
+            if (typeof data !== 'string') return data;
+            
+            // Remove potentially dangerous characters and normalize
+            return data.replace(/[<>]/g, '').trim();
+        }
+
+        // Apply sanitization to all string inputs
+        filename = sanitizeInput(filename);
+        world = sanitizeInput(world);
+        lmid = sanitizeInput(lmid);
+        questionId = sanitizeInput(questionId);
+        lang = sanitizeInput(lang);
+        // Note: audioData is not sanitized as it's base64 encoded binary data
 
         // Validation
         if (!audioData || !filename) {
@@ -121,13 +137,7 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'Missing required field: lang' });
         }
         
-        // Validate filename format - support both teacher and parent formats with WebM and MP3
-        const teacherFormat = filename.includes(`kids-world_${world}-lmid_${lmid}-question_${questionId}`);
-        const parentFormat = filename.match(new RegExp(`^parent_[^-]+-world_${world}-lmid_${lmid}-question_${questionId}-tm_\\d+\\.(webm|mp3)$`));
-        
-        if (!teacherFormat && !parentFormat) {
-            return res.status(400).json({ error: 'Invalid filename format - must be either teacher (kids-world_...) or parent (parent_memberid-world_...) format with .webm or .mp3 extension' });
-        }
+        // Filename validation moved to enhanced security validation above
 
         // Check environment variables
         if (!process.env.BUNNY_API_KEY || !process.env.BUNNY_STORAGE_ZONE) {
@@ -143,6 +153,99 @@ export default async function handler(req, res) {
             audioBuffer = Buffer.from(base64Data, 'base64');
         } catch (error) {
             return res.status(400).json({ error: 'Invalid audio data format' });
+        }
+
+        // SECURITY: File size validation
+        const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+        const MIN_FILE_SIZE = 1000; // 1KB
+        
+        if (audioBuffer.length > MAX_FILE_SIZE) {
+            return res.status(400).json({ 
+                error: 'File too large. Maximum size is 50MB.',
+                size: audioBuffer.length,
+                maxSize: MAX_FILE_SIZE
+            });
+        }
+
+        if (audioBuffer.length < MIN_FILE_SIZE) {
+            return res.status(400).json({ 
+                error: 'File too small. Minimum size is 1KB.',
+                size: audioBuffer.length,
+                minSize: MIN_FILE_SIZE
+            });
+        }
+
+        // SECURITY: Audio file validation using magic numbers
+        function isValidAudioFile(buffer) {
+            const header = buffer.slice(0, 16);
+            
+            // WebM - EBML header
+            if (header[0] === 0x1A && header[1] === 0x45 && header[2] === 0xDF && header[3] === 0xA3) {
+                return { valid: true, format: 'webm' };
+            }
+            
+            // MP3 - ID3 tag or MPEG frame
+            if (header.toString('ascii', 0, 3) === 'ID3' || 
+                (header[0] === 0xFF && (header[1] & 0xE0) === 0xE0)) {
+                return { valid: true, format: 'mp3' };
+            }
+            
+            // WAV - RIFF header
+            if (header.toString('ascii', 0, 4) === 'RIFF' && 
+                header.toString('ascii', 8, 12) === 'WAVE') {
+                return { valid: true, format: 'wav' };
+            }
+            
+            // OGG - OggS header
+            if (header.toString('ascii', 0, 4) === 'OggS') {
+                return { valid: true, format: 'ogg' };
+            }
+            
+            return { valid: false, format: 'unknown' };
+        }
+
+        // Validate audio file format
+        const audioValidation = isValidAudioFile(audioBuffer);
+        if (!audioValidation.valid) {
+            return res.status(400).json({ 
+                error: 'Invalid file type. Only audio files are allowed.',
+                detectedFormat: audioValidation.format
+            });
+        }
+
+        // SECURITY: Filename validation with dangerous characters check
+        function validateAudioFilename(filename, world, lmid, questionId) {
+            // Check for dangerous characters
+            const dangerousChars = /[<>:"/\\|?*\x00-\x1F]/;
+            if (dangerousChars.test(filename)) {
+                return { valid: false, error: 'Filename contains invalid characters' };
+            }
+            
+            // Check filename length
+            if (filename.length > 255) {
+                return { valid: false, error: 'Filename too long (max 255 characters)' };
+            }
+            
+            // Check file extension (support WebM and MP3)
+            if (!filename.endsWith('.webm') && !filename.endsWith('.mp3')) {
+                return { valid: false, error: 'Only WebM and MP3 files are allowed' };
+            }
+            
+            // Validate filename format patterns
+            const teacherFormat = filename.includes(`kids-world_${world}-lmid_${lmid}-question_${questionId}`);
+            const parentFormat = filename.match(new RegExp(`^parent_[^-]+-world_${world}-lmid_${lmid}-question_${questionId}-tm_\\d+\\.(webm|mp3)$`));
+            
+            if (!teacherFormat && !parentFormat) {
+                return { valid: false, error: 'Invalid filename format - must be either teacher or parent format' };
+            }
+            
+            return { valid: true };
+        }
+
+        // Enhanced filename validation
+        const filenameValidation = validateAudioFilename(filename, world, lmid, questionId);
+        if (!filenameValidation.valid) {
+            return res.status(400).json({ error: filenameValidation.error });
         }
 
         // Upload to Bunny.net with folder structure: lang/lmid/world/filename
