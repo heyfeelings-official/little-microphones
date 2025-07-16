@@ -441,6 +441,61 @@ export async function generateSilentPlaceholder(filePath, duration = 3) {
 }
 
 /**
+ * Validate and convert audio file to MP3 format if needed
+ * @param {string} filePath - Path to the audio file
+ * @returns {Promise<void>}
+ */
+async function validateAndConvertAudio(filePath) {
+    return new Promise((resolve, reject) => {
+        // Use ffmpeg to probe the file and get its format
+        ffmpeg.ffprobe(filePath, async (err, metadata) => {
+            if (err) {
+                console.error(`❌ Cannot probe audio file ${filePath}:`, err);
+                return reject(err);
+            }
+            
+            const format = metadata.format.format_name;
+            const extension = path.extname(filePath).toLowerCase();
+            
+            // If file is already MP3, no conversion needed
+            if (format.includes('mp3') && extension === '.mp3') {
+                console.log(`✅ File ${path.basename(filePath)} is already valid MP3`);
+                return resolve();
+            }
+            
+            // File needs conversion
+            console.log(`🔄 Converting ${path.basename(filePath)} from ${format} to MP3...`);
+            
+            const tempPath = filePath + '.temp';
+            
+            ffmpeg(filePath)
+                .audioCodec('libmp3lame')
+                .audioBitrate('128k')
+                .audioFrequency(44100)
+                .audioChannels(2)
+                .format('mp3')
+                .output(tempPath)
+                .on('end', async () => {
+                    try {
+                        // Replace original file with converted one
+                        await fs.rename(tempPath, filePath);
+                        console.log(`✅ Converted ${path.basename(filePath)} to MP3`);
+                        resolve();
+                    } catch (renameError) {
+                        console.error(`❌ Failed to replace converted file:`, renameError);
+                        reject(renameError);
+                    }
+                })
+                .on('error', (convertError) => {
+                    console.error(`❌ Audio conversion failed for ${path.basename(filePath)}:`, convertError);
+                    reject(convertError);
+                })
+                .run();
+        });
+    });
+}
+
+/**
  * Download file from URL with retry logic and progress tracking
  * @param {string} url - File URL to download
  * @param {string} filePath - Local file path to save
@@ -481,9 +536,17 @@ export function downloadFile(url, filePath, maxRetries = 3) {
                 
                 response.pipe(fileStream);
                 
-                fileStream.on('finish', () => {
+                fileStream.on('finish', async () => {
                     console.log(`✅ Downloaded: ${fileName}`);
-                    resolve();
+                    
+                    // Check if file needs format conversion
+                    try {
+                        await validateAndConvertAudio(filePath);
+                        resolve();
+                    } catch (error) {
+                        console.error(`❌ Audio validation/conversion failed for ${fileName}:`, error);
+                        reject(error);
+                    }
                 });
                 
                 fileStream.on('error', (error) => {
