@@ -1138,6 +1138,10 @@
                         manifest: kidsResult.manifest
                     };
                     console.log('✅ Kids program generated successfully');
+                    
+                    // Stop messages immediately when first program is ready
+                    stopGeneratingMessages();
+                    updateGeneratingMessage('Kids program ready!');
                 } else if (kidsResponse.status === 409) {
                     console.log('🔒 Kids generation already in progress, will wait for completion');
                     // This is handled by the polling system
@@ -1167,15 +1171,23 @@
                         manifest: parentResult.manifest
                     };
                     console.log('✅ Parent program generated successfully');
+                    
+                    // Stop messages immediately when parent program is ready (if still running)
+                    if (generatingInterval) {
+                        stopGeneratingMessages();
+                        updateGeneratingMessage('Parent program ready!');
+                    }
                 } else if (parentResponse.status === 409) {
                     console.log('🔒 Parent generation already in progress, will wait for completion');
                     // This is handled by the polling system
                 }
             }
             
-            // Stop generating messages
-            stopGeneratingMessages();
-            updateGeneratingMessage('Programs generated successfully!');
+            // Stop generating messages (if still running)
+            if (generatingInterval) {
+                stopGeneratingMessages();
+                updateGeneratingMessage('Programs generated successfully!');
+            }
             
             // Wait a moment for manifests to update, then reload data to get fresh manifest
             setTimeout(async () => {
