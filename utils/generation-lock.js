@@ -146,12 +146,12 @@ export function hasRecordingsChanged(currentRecordings, lockData, type, world, l
     }
     
     // Filter current recordings by type
-    const pattern = type === 'kids' 
-        ? new RegExp(`^kids-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.mp3$`)
-        : new RegExp(`^parent_[^-]+-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.mp3$`);
+          const pattern = type === 'kids' 
+        ? new RegExp(`^kids-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.(webm|mp3)$`)
+        : new RegExp(`^parent_[^-]+-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.(webm|mp3)$`);
     
     const currentFiltered = currentRecordings
-        .filter(file => file.filename && file.filename.endsWith('.mp3') && !file.filename.includes('.json'))
+        .filter(file => file.filename && (file.filename.endsWith('.webm') || file.filename.endsWith('.mp3')) && !file.filename.includes('.json'))
         .filter(file => pattern.test(file.filename))
         .map(file => file.filename)
         .sort();

@@ -147,8 +147,8 @@ export default async function handler(req, res) {
         let matchingFiles;
         if (questionId) {
             // Filter for specific question - support both formats
-            const teacherPattern = new RegExp(`kids-world_${world}-lmid_${lmid}-question_${questionId}-.*\\.mp3$`);
-            const parentPattern = new RegExp(`parent_[^-]+-world_${world}-lmid_${lmid}-question_${questionId}-.*\\.mp3$`);
+                    const teacherPattern = new RegExp(`kids-world_${world}-lmid_${lmid}-question_${questionId}-.*\\.(webm|mp3)$`);
+        const parentPattern = new RegExp(`parent_[^-]+-world_${world}-lmid_${lmid}-question_${questionId}-.*\\.(webm|mp3)$`);
             
             matchingFiles = fileList.filter(file => 
                 file.IsDirectory === false && 
@@ -157,8 +157,8 @@ export default async function handler(req, res) {
             console.log(`Found ${matchingFiles.length} recordings for question ${questionId} (teacher + parent)`);
         } else {
             // Get all recordings for this world/lmid - support both formats
-            const teacherPattern = new RegExp(`kids-world_${world}-lmid_${lmid}-question_.*\\.mp3$`);
-            const parentPattern = new RegExp(`parent_[^-]+-world_${world}-lmid_${lmid}-question_.*\\.mp3$`);
+                    const teacherPattern = new RegExp(`kids-world_${world}-lmid_${lmid}-question_.*\\.(webm|mp3)$`);
+        const parentPattern = new RegExp(`parent_[^-]+-world_${world}-lmid_${lmid}-question_.*\\.(webm|mp3)$`);
             
             matchingFiles = fileList.filter(file => 
                 file.IsDirectory === false && 
