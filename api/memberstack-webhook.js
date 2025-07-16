@@ -27,6 +27,7 @@ import {
     assignLmidToMember,
     updateMemberstackMetadata
 } from '../utils/lmid-utils.js';
+import { validateMemberstackWebhook } from '../utils/memberstack-utils.js';
 
 /**
  * Send alert email when no LMIDs are available
@@ -62,20 +63,7 @@ async function sendNoLmidAlert(memberEmail) {
     }
 }
 
-/**
- * Verify Memberstack webhook signature
- * @param {Object} req - Request object
- * @returns {boolean} True if webhook is valid
- */
-function verifyMemberstackWebhook(req) {
-    // TODO: Implement proper Memberstack webhook signature verification
-    // For now, we'll do basic validation
-    const userAgent = req.headers['user-agent'];
-    const signature = req.headers['x-memberstack-signature'];
-    
-    // Basic validation - in production, verify the actual signature
-    return userAgent && userAgent.includes('Memberstack');
-}
+
 
 export default async function handler(req, res) {
     // Set CORS headers
@@ -96,8 +84,9 @@ export default async function handler(req, res) {
 
     try {
         // Verify webhook authenticity
-        if (!verifyMemberstackWebhook(req)) {
-            console.warn('Invalid webhook signature or source');
+        const validation = validateMemberstackWebhook(req);
+        if (!validation.valid) {
+            console.warn('⚠️ Webhook validation failed:', validation.error);
             return res.status(401).json({ 
                 success: false, 
                 error: 'Unauthorized webhook request' 
