@@ -180,7 +180,15 @@
                 // Stay on the ShareID page - don't redirect to dashboard
                 // The user can now see the program content
             } else {
-                console.error('[LM Redirect] Failed to update parent metadata');
+                console.error('[LM Redirect] Failed to update parent metadata:', updateResult.error);
+                
+                // Check if this is a deleted LMID error
+                if (updateResult.error && updateResult.error.includes('deleted by teacher')) {
+                    alert('Radio Program deleted\n\nThis program has been removed by the teacher and is no longer available.');
+                    window.location.href = 'https://heyfeelings.com';
+                    return;
+                }
+                
                 return;
             }
             
@@ -232,10 +240,21 @@
             const response = await fetch(`${API_BASE_URL}/get-world-info?shareId=${shareId}`);
             
             if (!response.ok) {
+                // Check if this is a deleted program (410 Gone)
+                if (response.status === 410) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Radio Program has been deleted by teacher');
+                }
                 throw new Error(`API error: ${response.status}`);
             }
             
             const data = await response.json();
+            
+            // Check if API returned success: false
+            if (!data.success) {
+                throw new Error(data.error || 'Failed to get world info');
+            }
+            
             return data;
             
         } catch (error) {
@@ -263,10 +282,17 @@
             });
             
             if (!response.ok) {
-                throw new Error(`API error: ${response.status}`);
+                const errorData = await response.json();
+                throw new Error(errorData.error || `API error: ${response.status}`);
             }
             
             const data = await response.json();
+            
+            // Check if API returned success: false
+            if (!data.success) {
+                throw new Error(data.error || 'Failed to update parent metadata');
+            }
+            
             return data;
             
         } catch (error) {

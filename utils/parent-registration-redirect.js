@@ -114,7 +114,15 @@ async function handleLoggedInParent(shareId) {
             console.log('[Parent Redirect] LMID added to parent metadata');
             showSuccessMessage(`Dodano dostęp do programu "${worldInfo.world_name}"! Możesz teraz go zobaczyć w swoim panelu.`);
         } else {
-            console.error('[Parent Redirect] Failed to update parent metadata');
+            console.error('[Parent Redirect] Failed to update parent metadata:', updateResult.error);
+            
+            // Check if this is a deleted LMID error
+            if (updateResult.error && updateResult.error.includes('deleted by teacher')) {
+                alert('Radio Program deleted\n\nThis program has been removed by the teacher and is no longer available.');
+                window.location.href = 'https://heyfeelings.com';
+                return;
+            }
+            
             showErrorMessage('Nie udało się dodać dostępu do programu. Spróbuj ponownie.');
             return;
         }
@@ -177,10 +185,17 @@ async function updateParentMetadata(memberId, newLmidString, parentEmail = null)
         });
         
         if (!response.ok) {
-            throw new Error(`API error: ${response.status}`);
+            const errorData = await response.json();
+            throw new Error(errorData.error || `API error: ${response.status}`);
         }
         
         const data = await response.json();
+        
+        // Check if API returned success: false
+        if (!data.success) {
+            throw new Error(data.error || 'Failed to update parent metadata');
+        }
+        
         return data;
         
     } catch (error) {
