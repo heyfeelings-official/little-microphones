@@ -108,13 +108,13 @@ async function fetchLastProgramManifest(world, lmid, type = '', lang) {
  */
 function needsNewProgram(currentRecordings, kidsManifest, parentManifest, world, lmid) {
     // Filter recordings by type using EXACT patterns - exclude JSON files
-    const kidsPattern = new RegExp(`^kids-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.mp3$`);
-    const parentPattern = new RegExp(`^parent_[^-]+-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.mp3$`);
+            const kidsPattern = new RegExp(`^kids-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.(webm|mp3)$`);
+        const parentPattern = new RegExp(`^parent_[^-]+-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.(webm|mp3)$`);
     
-    // Filter out non-MP3 files and apply patterns
+    // Filter out non-audio files and apply patterns
     const audioFiles = currentRecordings.filter(file => 
         file.filename && 
-        file.filename.endsWith('.mp3') && 
+        (file.filename.endsWith('.webm') || file.filename.endsWith('.mp3')) && 
         !file.filename.includes('.json')
     );
     

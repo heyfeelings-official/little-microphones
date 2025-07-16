@@ -115,12 +115,12 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'Missing required field: lang' });
         }
         
-        // Validate filename format - support both teacher and parent formats
+        // Validate filename format - support both teacher and parent formats with WebM and MP3
         const teacherFormat = filename.includes(`kids-world_${world}-lmid_${lmid}-question_${questionId}`);
-        const parentFormat = filename.match(new RegExp(`^parent_[^-]+-world_${world}-lmid_${lmid}-question_${questionId}-tm_\\d+\\.mp3$`));
+        const parentFormat = filename.match(new RegExp(`^parent_[^-]+-world_${world}-lmid_${lmid}-question_${questionId}-tm_\\d+\\.(webm|mp3)$`));
         
         if (!teacherFormat && !parentFormat) {
-            return res.status(400).json({ error: 'Invalid filename format - must be either teacher (kids-world_...) or parent (parent_memberid-world_...) format' });
+            return res.status(400).json({ error: 'Invalid filename format - must be either teacher (kids-world_...) or parent (parent_memberid-world_...) format with .webm or .mp3 extension' });
         }
 
         // Check environment variables
@@ -145,11 +145,14 @@ export default async function handler(req, res) {
         
         console.log(`📤 Uploading ${filename} (${audioBuffer.length} bytes)`);
         
+        // Determine Content-Type based on filename extension
+        const contentType = filename.endsWith('.webm') ? 'audio/webm' : 'audio/mpeg';
+        
         const response = await fetch(uploadUrl, {
             method: 'PUT',
             headers: {
                 'AccessKey': process.env.BUNNY_API_KEY,
-                'Content-Type': 'audio/mpeg'
+                'Content-Type': contentType
             },
             body: audioBuffer
         });

@@ -138,7 +138,7 @@ export default async function handler(req, res) {
 
         // Validate filename format for security - support both teacher and parent formats
         const teacherFormat = filename.includes(`kids-world_${world}-lmid_${lmid}-question_${questionId}`);
-        const parentFormat = filename.match(new RegExp(`^parent_[^-]+-world_${world}-lmid_${lmid}-question_${questionId}-tm_\\d+\\.mp3$`));
+        const parentFormat = filename.match(new RegExp(`^parent_[^-]+-world_${world}-lmid_${lmid}-question_${questionId}-tm_\\d+\\.(webm|mp3)$`));
         
         if (!teacherFormat && !parentFormat) {
             return res.status(400).json({ error: 'Invalid filename format - must be either teacher (kids-world_...) or parent (parent_memberid-world_...) format' });
