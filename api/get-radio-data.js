@@ -237,7 +237,7 @@ export default async function handler(req, res) {
             const worldColumn = `share_id_${world.replace('-', '_')}`;
             const { data, error } = await supabase
                 .from('lmids')
-                .select('lmid, assigned_to_member_id')
+                .select('lmid, assigned_to_member_id, status')
                 .eq(worldColumn, sanitizedShareId)
                 .single();
 
@@ -253,7 +253,7 @@ export default async function handler(req, res) {
             // Search across all world-specific columns to find the shareId and determine world
             const { data, error } = await supabase
                 .from('lmids')
-                .select('lmid, assigned_to_member_id, share_id_spookyland, share_id_waterpark, share_id_shopping_spree, share_id_amusement_park, share_id_big_city, share_id_neighborhood')
+                .select('lmid, assigned_to_member_id, status, share_id_spookyland, share_id_waterpark, share_id_shopping_spree, share_id_amusement_park, share_id_big_city, share_id_neighborhood')
                 .or(`share_id_spookyland.eq.${sanitizedShareId},share_id_waterpark.eq.${sanitizedShareId},share_id_shopping_spree.eq.${sanitizedShareId},share_id_amusement_park.eq.${sanitizedShareId},share_id_big_city.eq.${sanitizedShareId},share_id_neighborhood.eq.${sanitizedShareId}`)
             .single();
 
