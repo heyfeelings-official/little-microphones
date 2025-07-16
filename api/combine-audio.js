@@ -518,11 +518,11 @@ function downloadFile(url, filePath) {
                     
                     // Determine appropriate duration based on file type
                     let duration = 3; // default
-                    if (url.includes('monkeys.webm') || url.includes('monkeys.mp3')) {
+                    if (url.includes('monkeys.mp3')) {
                         duration = 30; // background music needs to be longer
                     } else if (url.includes('-QID')) {
                         duration = 5; // question prompts
-                    } else if (url.includes('intro.webm') || url.includes('intro.mp3') || url.includes('outro.webm') || url.includes('outro.mp3')) {
+                    } else if (url.includes('intro.mp3') || url.includes('outro.mp3')) {
                         duration = 3; // intro/outro
                     }
                     
