@@ -34,6 +34,7 @@
 import { validateLmidOwnership, updateMemberstackMetadata as updateMetadata } from './lmid-utils.js';
 import { cacheGet, cacheSet, cacheClear } from './database-utils.js';
 import { createErrorResponse, createSuccessResponse, sanitizeError } from './api-utils.js';
+import crypto from 'crypto';
 
 // Memberstack configuration
 const MEMBERSTACK_API_URL = 'https://admin.memberstack.com';
@@ -66,9 +67,7 @@ export function validateMemberstackWebhook(req, options = {}) {
     }
     
     try {
-        // Import crypto for HMAC verification
-        const crypto = require('crypto');
-        
+        // Use imported crypto for HMAC verification
         const body = JSON.stringify(req.body);
         const expectedSignature = crypto
             .createHmac('sha256', webhookSecret)
