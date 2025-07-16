@@ -2,6 +2,7 @@
   "name": "little-microphones",
   "version": "6.0.1",
   "description": "Audio recording and processing application",
+  "type": "module",
   "main": "lm.js",
   "scripts": {
     "start": "node lm.js",
