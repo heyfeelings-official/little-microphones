@@ -82,11 +82,18 @@
  * STATUS: Production Ready ✅
  */
 
+import { setCorsHeaders } from '../utils/api-utils.js';
+import { checkRateLimit } from '../utils/simple-rate-limiter.js';
+
 export default async function handler(req, res) {
-    // Set CORS headers
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    // Rate limiting (10 uploads per minute)
+    if (!checkRateLimit(req, res, 'upload-audio', 10)) {
+        return;
+    }
+
+    // Set secure CORS headers
+    const corsHandler = setCorsHeaders(res, ['POST', 'OPTIONS']);
+    corsHandler(req);
 
     // Handle preflight OPTIONS request
     if (req.method === 'OPTIONS') {

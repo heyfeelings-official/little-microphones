@@ -76,12 +76,18 @@
  * STATUS: Production Ready ✅
  */
 
+import { setCorsHeaders } from '../utils/api-utils.js';
+import { checkRateLimit } from '../utils/simple-rate-limiter.js';
+
 export default async function handler(req, res) {
-    // Set CORS headers for all requests first
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    // Rate limiting (60 requests per minute)
+    if (!checkRateLimit(req, res, 'list-recordings', 60)) {
+        return;
+    }
+
+    // Set secure CORS headers
+    const corsHandler = setCorsHeaders(res, ['GET', 'OPTIONS']);
+    corsHandler(req);
 
     // Handle preflight requests
     if (req.method === 'OPTIONS') {

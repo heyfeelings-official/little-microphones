@@ -47,65 +47,64 @@ const MEMBER_CACHE_TTL = 10 * 60 * 1000; // 10 minutes for member data
  * @returns {Object} Validation result
  */
 export function validateMemberstackWebhook(req, options = {}) {
-    const {
-        requireSignature = false,
-        allowedUserAgents = ['Memberstack'],
-        deduplicationEnabled = true
-    } = options;
+    const signature = req.headers['x-memberstack-signature'];
+    const webhookSecret = process.env.MEMBERSTACK_WEBHOOK_SECRET;
+    
+    // Jeśli brak secret - fallback na user agent (development)
+    if (!webhookSecret) {
+        const userAgent = req.headers['user-agent'] || '';
+        console.warn('⚠️ MEMBERSTACK_WEBHOOK_SECRET not configured, using fallback validation');
+        return {
+            valid: userAgent.includes('Memberstack'),
+            error: userAgent.includes('Memberstack') ? null : 'Invalid user agent'
+        };
+    }
+    
+    // Pełna weryfikacja podpisu
+    if (!signature) {
+        return { valid: false, error: 'Missing webhook signature' };
+    }
     
     try {
-        // Basic validation
-        const userAgent = req.headers['user-agent'] || '';
-        const signature = req.headers['x-memberstack-signature'];
-        const webhookId = req.headers['x-memberstack-webhook-id'];
+        // Import crypto for HMAC verification
+        const crypto = require('crypto');
         
-        // Check user agent
-        const validUserAgent = allowedUserAgents.some(agent => 
-            userAgent.includes(agent)
+        const body = JSON.stringify(req.body);
+        const expectedSignature = crypto
+            .createHmac('sha256', webhookSecret)
+            .update(body)
+            .digest('hex');
+        
+        const providedSignature = signature.replace('sha256=', '');
+        
+        const isValid = crypto.timingSafeEqual(
+            Buffer.from(expectedSignature, 'hex'),
+            Buffer.from(providedSignature, 'hex')
         );
         
-        if (!validUserAgent) {
-            return {
-                valid: false,
-                error: 'Invalid user agent',
-                code: 'INVALID_USER_AGENT'
-            };
-        }
-        
-        // Check signature if required
-        if (requireSignature && !signature) {
-            return {
-                valid: false,
-                error: 'Missing webhook signature',
-                code: 'MISSING_SIGNATURE'
-            };
-        }
-        
-        // Webhook deduplication
-        if (deduplicationEnabled && webhookId) {
-            const cacheKey = `webhook_processed_${webhookId}`;
-            const alreadyProcessed = cacheGet(cacheKey);
-            
-            if (alreadyProcessed) {
-                return {
-                    valid: false,
-                    error: 'Webhook already processed',
-                    code: 'DUPLICATE_WEBHOOK'
-                };
-            }
-            
-            // Mark as processed
-            cacheSet(cacheKey, true, WEBHOOK_CACHE_TTL);
-        }
-        
-        // Validate webhook body structure
-        const { type, data } = req.body || {};
-        
-        if (!type) {
-            return {
-                valid: false,
-                error: 'Missing webhook type',
-                code: 'MISSING_TYPE'
+        return {
+            valid: isValid,
+            error: isValid ? null : 'Invalid webhook signature'
+        };
+    } catch (error) {
+        console.error('❌ Webhook signature verification failed:', error);
+        return { valid: false, error: 'Signature verification failed' };
+    }
+}
+
+/**
+ * Validate webhook body structure
+ * @param {Object} req - Request object
+ * @returns {Object} Validation result
+ */
+function validateWebhookBody(req) {
+    const { type, data } = req.body || {};
+    
+    if (!type) {
+        return {
+            valid: false,
+            error: 'Missing webhook type',
+            code: 'MISSING_TYPE'
             };
         }
         

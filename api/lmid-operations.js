@@ -442,11 +442,18 @@ async function handleGetLmidData(lmid) {
     }
 }
 
+import { setCorsHeaders } from '../utils/api-utils.js';
+import { checkRateLimit } from '../utils/simple-rate-limiter.js';
+
 export default async function handler(req, res) {
-    // Set CORS headers
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    // Rate limiting (60 requests per minute)
+    if (!checkRateLimit(req, res, 'lmid-operations', 60)) {
+        return;
+    }
+
+    // Set secure CORS headers
+    const corsHandler = setCorsHeaders(res, ['POST', 'OPTIONS']);
+    corsHandler(req);
 
     if (req.method === 'OPTIONS') {
         return res.status(200).end();

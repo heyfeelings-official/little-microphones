@@ -28,6 +28,10 @@ import {
     updateMemberstackMetadata
 } from '../utils/lmid-utils.js';
 
+import { validateMemberstackWebhook } from '../utils/memberstack-utils.js';
+import { setCorsHeaders } from '../utils/api-utils.js';
+import { checkRateLimit } from '../utils/simple-rate-limiter.js';
+
 /**
  * Send alert email when no LMIDs are available
  * @param {string} memberEmail - Email of the member who couldn't get LMID
@@ -62,26 +66,17 @@ async function sendNoLmidAlert(memberEmail) {
     }
 }
 
-/**
- * Verify Memberstack webhook signature
- * @param {Object} req - Request object
- * @returns {boolean} True if webhook is valid
- */
-function verifyMemberstackWebhook(req) {
-    // TODO: Implement proper Memberstack webhook signature verification
-    // For now, we'll do basic validation
-    const userAgent = req.headers['user-agent'];
-    const signature = req.headers['x-memberstack-signature'];
-    
-    // Basic validation - in production, verify the actual signature
-    return userAgent && userAgent.includes('Memberstack');
-}
+// Removed old verifyMemberstackWebhook function - now using validateMemberstackWebhook from utils
 
 export default async function handler(req, res) {
-    // Set CORS headers
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Memberstack-Signature');
+    // Rate limiting (20 webhooks per minute)
+    if (!checkRateLimit(req, res, 'memberstack-webhook', 20)) {
+        return;
+    }
+
+    // Set secure CORS headers
+    const corsHandler = setCorsHeaders(res, ['POST', 'OPTIONS']);
+    corsHandler(req);
 
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
@@ -96,8 +91,9 @@ export default async function handler(req, res) {
 
     try {
         // Verify webhook authenticity
-        if (!verifyMemberstackWebhook(req)) {
-            console.warn('Invalid webhook signature or source');
+        const validation = validateMemberstackWebhook(req);
+        if (!validation.valid) {
+            console.warn('⚠️ Webhook validation failed:', validation.error);
             return res.status(401).json({ 
                 success: false, 
                 error: 'Unauthorized webhook request' 

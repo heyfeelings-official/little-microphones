@@ -26,15 +26,38 @@
  */
 
 /**
- * Set standard CORS headers for API responses
+ * Set secure CORS headers for API responses with origin validation
  * @param {Object} res - Response object
  * @param {Array<string>} methods - Allowed HTTP methods (default: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
  */
 export function setCorsHeaders(res, methods = ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', methods.join(', '));
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Memberstack-Signature');
-    res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
+    const ALLOWED_ORIGINS = [
+        'https://hey-feelings-v2.webflow.io',
+        'https://heyfeelings.com',
+        'https://little-microphones.vercel.app',
+        'https://webflow.com',
+        'https://preview.webflow.com'
+    ];
+    
+    return function(req) {
+        const origin = req.headers.origin || req.headers.referer;
+        
+        // Sprawdź czy origin jest dozwolony
+        if (origin && ALLOWED_ORIGINS.includes(origin)) {
+            res.setHeader('Access-Control-Allow-Origin', origin);
+        } else {
+            // Fallback dla development i nieznanych origins
+            res.setHeader('Access-Control-Allow-Origin', 'https://hey-feelings-v2.webflow.io');
+        }
+        
+        res.setHeader('Access-Control-Allow-Methods', methods.join(', '));
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Memberstack-Signature');
+        res.setHeader('Access-Control-Max-Age', '86400');
+        
+        // Bezpieczne headers
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.setHeader('X-Frame-Options', 'DENY');
+    };
 }
 
 /**

@@ -93,12 +93,18 @@ import http from 'http';
 import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
 import { extractFilesUsed, STATIC_FILES } from '../utils/audio-utils.js';
 import { acquireGenerationLock, releaseLock } from '../utils/generation-lock.js';
+import { setCorsHeaders } from '../utils/api-utils.js';
+import { checkRateLimit } from '../utils/simple-rate-limiter.js';
 
 export default async function handler(req, res) {
-    // Set CORS headers
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    // Rate limiting (3 combines per 5 minutes)
+    if (!checkRateLimit(req, res, 'combine-audio', 3, 300000)) {
+        return;
+    }
+
+    // Set secure CORS headers
+    const corsHandler = setCorsHeaders(res, ['POST', 'OPTIONS']);
+    corsHandler(req);
 
     // Handle preflight OPTIONS request
     if (req.method === 'OPTIONS') {
