@@ -688,6 +688,17 @@
     }
 
     /**
+     * Hide program container when program is deleted
+     */
+    function hideProgramContainer() {
+        const programContainer = document.querySelector('.program-container');
+        if (programContainer) {
+            programContainer.style.display = 'none';
+            console.log('🔒 Program container hidden - program was deleted');
+        }
+    }
+
+    /**
      * Load radio data from API - now simplified since we already have world/lmid
      */
     async function loadRadioData() {
@@ -745,6 +756,7 @@
             
             // Check if this is a deleted program
             if (error.message && error.message.includes('deleted by teacher')) {
+                hideProgramContainer();
                 alert('Radio Program deleted\n\nThis program has been removed by the teacher and is no longer available.');
                 window.location.href = 'https://heyfeelings.com';
                 return;
@@ -843,6 +855,7 @@
                 // Check if this is a deleted program
                 if (error.message && error.message.includes('deleted by teacher')) {
                     clearInterval(pollInterval);
+                    hideProgramContainer();
                     alert('Radio Program deleted\n\nThis program has been removed by the teacher and is no longer available.');
                     window.location.href = 'https://heyfeelings.com';
                     return;
@@ -1224,6 +1237,7 @@
                     
                     // Check if this is a deleted program
                     if (error.message && error.message.includes('deleted by teacher')) {
+                        hideProgramContainer();
                         alert('Radio Program deleted\n\nThis program has been removed by the teacher and is no longer available.');
                         window.location.href = 'https://heyfeelings.com';
                         return;
