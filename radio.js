@@ -25,6 +25,17 @@
 // API Configuration
     const API_BASE_URL = window.LM_CONFIG?.API_BASE_URL || 'https://little-microphones.vercel.app';
 
+    /**
+     * Hide program container when program is deleted
+     */
+    function hideProgramContainer() {
+        const programContainer = document.querySelector('.program-container');
+        if (programContainer) {
+            programContainer.style.display = 'none';
+            console.log('🔒 Program container hidden - program was deleted');
+        }
+    }
+
     // Fun generating messages
     const GENERATING_MESSAGES = [
         "Mixing magical audio potions...",
@@ -250,9 +261,49 @@
     }
 
     /**
+     * Check program status immediately before loading anything else
+     */
+    async function checkProgramStatus() {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/get-world-info?shareId=${currentShareId}`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            
+            if (!data.success) {
+                // Check if this is a deleted program
+                if (data.error && data.error.includes('deleted by teacher')) {
+                    hideProgramContainer();
+                    alert('Radio Program deleted\n\nThis program has been removed by the teacher and is no longer available.');
+                    window.location.href = 'https://heyfeelings.com';
+                    return false; // Program is deleted
+                }
+                throw new Error(data.error || 'Failed to fetch program status');
+            }
+            
+            return true; // Program is available
+        } catch (error) {
+            console.error('Error checking program status:', error);
+            
+            // Check if this is a deleted program
+            if (error.message && error.message.includes('deleted by teacher')) {
+                hideProgramContainer();
+                alert('Radio Program deleted\n\nThis program has been removed by the teacher and is no longer available.');
+                window.location.href = 'https://heyfeelings.com';
+                return false; // Program is deleted
+            }
+            
+            throw error; // Re-throw other errors
+        }
+    }
+
+    /**
      * Initialize the radio page
      */
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', async function() {
         // Extract ShareID from URL
         const urlParams = new URLSearchParams(window.location.search);
         currentShareId = urlParams.get('ID');
@@ -260,6 +311,12 @@
         if (!currentShareId) {
             showError('Missing ShareID in URL');
             return;
+        }
+        
+        // PRIORITY: Check program status FIRST before loading anything else
+        const isProgramAvailable = await checkProgramStatus();
+        if (!isProgramAvailable) {
+            return; // Program is deleted, already handled
         }
         
         // Check if required elements exist
@@ -685,17 +742,6 @@
         const minutes = Math.floor(seconds / 60);
         const remainingSeconds = Math.floor(seconds % 60);
         return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-    }
-
-    /**
-     * Hide program container when program is deleted
-     */
-    function hideProgramContainer() {
-        const programContainer = document.querySelector('.program-container');
-        if (programContainer) {
-            programContainer.style.display = 'none';
-            console.log('🔒 Program container hidden - program was deleted');
-        }
     }
 
     /**
