@@ -69,7 +69,7 @@
             // Setup required CSS styles first
             setupRequiredStyles();
             
-            // Initialize UI with LMID data (includes background setup and animations)
+            // Initialize UI with LMID data (includes background setup)
             await initializeDashboardUI(authResult.lmids);
             
             // Setup event listeners
@@ -136,21 +136,7 @@
         });
     }
 
-    /**
-     * Animate background images from scale 1.1 to 1
-     * @param {HTMLElement} container - Container to search for program containers (optional)
-     */
-    function animateBackgroundImages(container = document) {
-        // Try both selectors to find program containers in cloned LMIDs
-        const programContainers = container.querySelectorAll('[data-lmid] .program-container:not(.bg-animate-in)');
-        
-        programContainers.forEach((element, index) => {
-            // Stagger animations by 50ms for each element
-            setTimeout(() => {
-                element.classList.add('bg-animate-in');
-            }, index * 50);
-        });
-    }
+
 
     /**
      * Consolidated batch loading of ALL recording data (eliminates duplicate API calls)
@@ -381,14 +367,9 @@
                 display: flex !important;
             }
             
-            /* Background image animation - using background-size instead of transform to respect overflow */
+            /* Background image setup - no animation */
             [data-lmid] .program-container {
                 background-repeat: no-repeat;
-                background-size: 110% !important;
-                transition: background-size 0.8s cubic-bezier(0.075, 0.82, 0.165, 1) !important;
-            }
-            
-            [data-lmid] .program-container.bg-animate-in {
                 background-size: cover !important;
             }
         `;
@@ -560,7 +541,7 @@
         // Reinitialize Webflow interactions
         reinitializeWebflow();
         
-        // Setup world backgrounds for all containers - MUST BE BEFORE ANIMATIONS
+        // Setup world backgrounds for all containers
         setupWorldBackgrounds();
         
         // Initialize dashboard tracking
@@ -568,10 +549,9 @@
             initializeDashboardTracking();
         }, 50);
         
-        // Start animations immediately for better UX (backgrounds are now set)
+        // Start animations immediately for better UX
         setTimeout(() => {
             animateNewRecElements();
-            animateBackgroundImages();
             // Note: badge-rec animations will happen after data loads
         }, 100);
         
@@ -1547,13 +1527,12 @@
         if (clone) {
             container.appendChild(clone);
             
-            // Setup backgrounds for the new LMID FIRST (before animations)
+            // Setup backgrounds for the new LMID
             setupWorldBackgroundsForContainer(clone);
             
             // Start animations and data loading immediately (parallel for speed)
             setTimeout(() => {
                 animateNewRecElements(clone);
-                animateBackgroundImages(clone);
                 // Load recording data in parallel with animations for faster UX
                 batchLoadAllRecordingData([newLmid]);
             }, 50); // Reduced delay for faster response
@@ -1929,9 +1908,6 @@
                 container.style.backgroundPosition = 'center';
             }
             container.style.backgroundRepeat = 'no-repeat';
-            
-            // Force initial background-size for animation (override Webflow)
-            container.style.backgroundSize = '110%';
             
             // Don't modify child element styles - let Webflow handle positioning
         } else {
