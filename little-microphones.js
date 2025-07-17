@@ -114,13 +114,38 @@
             // Stagger animations by 100ms for each element
             setTimeout(() => {
                 element.classList.add('animate-in');
-                console.log(`✨ Animated new-rec element ${index + 1}/${newRecElements.length}`);
             }, index * 100);
         });
+    }
+
+    /**
+     * Animate badge-rec elements into view with fade-in and slide-up
+     * @param {HTMLElement} container - Container to search for .badge-rec elements (optional)
+     */
+    function animateBadgeRecElements(container = document) {
+        const badgeRecElements = container.querySelectorAll('.badge-rec:not(.animate-in)');
         
-        if (newRecElements.length > 0) {
-            console.log(`🎬 Started animation for ${newRecElements.length} new-rec elements`);
-        }
+        badgeRecElements.forEach((element, index) => {
+            // Stagger animations by 100ms for each element, starting after new-rec animations
+            setTimeout(() => {
+                element.classList.add('animate-in');
+            }, (index * 100) + 200);
+        });
+    }
+
+    /**
+     * Animate background images from scale 1.1 to 1
+     * @param {HTMLElement} container - Container to search for program containers (optional)
+     */
+    function animateBackgroundImages(container = document) {
+        const programContainers = container.querySelectorAll('.program-container:not(.bg-animate-in)');
+        
+        programContainers.forEach((element, index) => {
+            // Stagger animations by 50ms for each element
+            setTimeout(() => {
+                element.classList.add('bg-animate-in');
+            }, index * 50);
+        });
     }
 
 
@@ -184,6 +209,12 @@
         const style = document.createElement('style');
         style.id = 'lm-dashboard-styles';
         style.textContent = `
+            /* Hide template completely */
+            #lm-slot {
+                display: none !important;
+                visibility: hidden !important;
+            }
+            
             /* Minimal essential styles - let Webflow handle most positioning */
             .program-container .badge-rec.w-inline-block {
                 cursor: pointer;
@@ -194,22 +225,47 @@
                 display: flex !important;
             }
             
-                    /* Ensure new-rec elements are always visible, badge-rec controlled by JS */
-        .new-rec {
-            display: flex !important;
-        }
-        
-        /* Custom animation for new-rec elements */
-        .new-rec {
-            opacity: 0;
-            transform: translateY(24px);
-            transition: all 0.6s cubic-bezier(0.075, 0.82, 0.165, 1);
-        }
-        
-        .new-rec.animate-in {
-            opacity: 1;
-            transform: translateY(0px);
-        }
+            /* Ensure new-rec elements are always visible, badge-rec controlled by JS */
+            .new-rec {
+                display: flex !important;
+            }
+            
+            /* Custom animation for new-rec elements */
+            .new-rec {
+                opacity: 0;
+                transform: translateY(24px);
+                transition: all 0.6s cubic-bezier(0.075, 0.82, 0.165, 1);
+            }
+            
+            .new-rec.animate-in {
+                opacity: 1;
+                transform: translateY(0px);
+            }
+            
+            /* Custom animation for badge-rec elements */
+            .badge-rec {
+                opacity: 0;
+                transform: translateY(24px);
+                transition: all 0.6s cubic-bezier(0.075, 0.82, 0.165, 1);
+            }
+            
+            .badge-rec.animate-in {
+                opacity: 1;
+                transform: translateY(0px);
+            }
+            
+            /* Background image animation */
+            .program-container {
+                background-size: cover !important;
+                background-position: center !important;
+                background-repeat: no-repeat !important;
+                transform: scale(1.1);
+                transition: transform 0.8s cubic-bezier(0.075, 0.82, 0.165, 1);
+            }
+            
+            .program-container.bg-animate-in {
+                transform: scale(1);
+            }
         `;
         
         document.head.appendChild(style);
@@ -353,8 +409,7 @@
             return;
         }
 
-        // Always hide the original template
-        template.style.display = "none";
+        // Template is hidden via CSS (#lm-slot)
 
         if (lmids.length === 0) {
             console.log("📝 No LMIDs to display");
@@ -515,6 +570,16 @@
                 console.warn(`⚠️ LMID ${lmid}, World ${world}: Missing new count element`);
             }
             
+            // Hide/show the "new" counter based on whether there are new recordings
+            const newCountContainer = worldContainer.querySelector(".new-rec .rec-text.new");
+            if (newCountContainer) {
+                if (newRecordingCount > 0) {
+                    newCountContainer.style.display = 'flex';
+                } else {
+                    newCountContainer.style.display = 'none';
+                }
+            }
+            
             // Always show the new-rec container with counts (even if 0)
             newRecContainer.style.display = 'flex';
             
@@ -573,10 +638,11 @@
                 }
             }
             
-            // All data loaded - trigger new-rec animations
-            console.log('🎯 All LMID data loaded - starting new-rec animations');
+            // All data loaded - trigger animations
             setTimeout(() => {
                 animateNewRecElements();
+                animateBadgeRecElements();
+                animateBackgroundImages();
             }, 200); // Small delay to ensure DOM updates are complete
             
         } catch (error) {
@@ -1379,9 +1445,11 @@
         if (clone) {
             container.appendChild(clone);
             
-            // Animate the new-rec elements in the newly created LMID
+            // Animate all elements in the newly created LMID
             setTimeout(() => {
                 animateNewRecElements(clone);
+                animateBadgeRecElements(clone);
+                animateBackgroundImages(clone);
             }, 100);
         }
         
