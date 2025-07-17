@@ -84,11 +84,17 @@ async function getTeacherDataHandler(req, res, params) {
     let teacherName = 'Teacher';
     let schoolName = 'School';
 
+    console.log(`🔍 [getTeacherData] Checking teacher_first_name: "${lmidRecord.teacher_first_name}"`);
+    console.log(`🔍 [getTeacherData] Checking teacher_last_name: "${lmidRecord.teacher_last_name}"`);
+    console.log(`🔍 [getTeacherData] Checking assigned_to_member_id: "${lmidRecord.assigned_to_member_id}"`);
+
     // Try to get name from database first
     if (lmidRecord.teacher_first_name || lmidRecord.teacher_last_name) {
         const firstName = lmidRecord.teacher_first_name || '';
         const lastName = lmidRecord.teacher_last_name || '';
         const fullName = `${firstName} ${lastName}`.trim();
+        
+        console.log(`✅ [getTeacherData] Using database name: "${fullName}"`);
         
         if (fullName) {
             teacherName = fullName;
@@ -97,6 +103,9 @@ async function getTeacherDataHandler(req, res, params) {
         // If database fields are empty, fetch from Memberstack
         console.log(`👨‍🏫 Teacher name not in database, fetching from Memberstack for: ${lmidRecord.assigned_to_member_id}`);
         teacherName = await getTeacherNameByMemberId(lmidRecord.assigned_to_member_id);
+        console.log(`✅ [getTeacherData] Got name from Memberstack: "${teacherName}"`);
+    } else {
+        console.log(`⚠️ [getTeacherData] No teacher data available, using fallback: "${teacherName}"`);
     }
 
     if (lmidRecord.teacher_school_name) {
