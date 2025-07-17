@@ -39,7 +39,8 @@ import { TransactionalEmailsApi, TransactionalEmailsApiApiKeys, SendSmtpEmail, C
 import { getBrevoContact } from '../utils/brevo-contact-manager.js';
 
 /**
- * Ensure contact exists in Brevo before sending email
+ * Legacy contact creation function - kept for fallback scenarios
+ * Note: Primary contact management now handled by brevo-contact-manager.js
  * @param {string} email - Email address
  * @param {string} name - Contact name
  * @param {string} brevoApiKey - Brevo API key
@@ -56,9 +57,9 @@ async function ensureContactExists(email, name, brevoApiKey) {
             console.log(`📧 Contact already exists in Brevo`);
             return true;
         } catch (error) {
-            // Contact doesn't exist, create it
+            // Contact doesn't exist, create it with basic info only
             if (error.status === 404) {
-                console.log(`📧 Creating new contact in Brevo`);
+                console.log(`📧 Creating basic contact in Brevo (fallback)`);
                 
                 const createContact = new CreateContact();
                 createContact.email = email;
@@ -68,7 +69,7 @@ async function ensureContactExists(email, name, brevoApiKey) {
                 };
                 
                 await contactsApi.createContact(createContact);
-                console.log(`✅ Contact created successfully`);
+                console.log(`✅ Basic contact created successfully`);
                 return true;
             } else {
                 console.error(`❌ Error checking contact:`, error.message);

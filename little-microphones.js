@@ -159,7 +159,82 @@
         });
     }
 
+    /**
+     * Pre-calculate visibility for data-dependent elements to avoid animation flicker
+     * @param {Array<string>} lmids - Array of LMID strings
+     */
+    async function preCalculateElementVisibility(lmids) {
+        console.log(`🧮 Pre-calculating visibility for ${lmids.length} LMIDs`);
+        
+        // Group checks by LMID to avoid rate limiting
+        for (let lmidIndex = 0; lmidIndex < lmids.length; lmidIndex++) {
+            const lmid = lmids[lmidIndex];
+            const lmidElement = document.querySelector(`[data-lmid="${lmid}"]`);
+            if (!lmidElement) continue;
+            
+            // Find all world containers in this LMID
+            const worldContainers = lmidElement.querySelectorAll('.program-container[data-world]');
+            
+            for (const worldContainer of worldContainers) {
+                const world = worldContainer.getAttribute('data-world');
+                if (!world) continue;
+                
+                const badgeRec = worldContainer.querySelector(".badge-rec");
+                const newCountContainer = worldContainer.querySelector(".new-rec .rec-text.new");
+                
+                // Quick check: does this world/lmid have any recordings?
+                const hasRecordings = await quickCheckForRecordings(lmid, world);
+                
+                // Set badge-rec visibility based on quick check
+                if (badgeRec) {
+                    if (hasRecordings) {
+                        badgeRec.style.display = 'flex';
+                        console.log(`👁️ Badge-rec visible for ${lmid}/${world} (has recordings)`);
+                    } else {
+                        badgeRec.style.display = 'none';
+                        console.log(`🙈 Badge-rec hidden for ${lmid}/${world} (no recordings)`);
+                    }
+                }
+                
+                // Hide new counter initially - will be shown by API if > 0
+                if (newCountContainer) {
+                    newCountContainer.style.display = 'none';
+                }
+                
+                // Small delay to avoid rate limiting
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            
+            // Delay between LMIDs to avoid rate limiting
+            if (lmidIndex < lmids.length - 1) {
+                await new Promise(resolve => setTimeout(resolve, 200));
+            }
+        }
+    }
 
+    /**
+     * Quick check if a world/lmid has any recordings (fast, no detailed counts)
+     * @param {string} lmid - LMID number
+     * @param {string} world - World name
+     * @returns {Promise<boolean>} True if has recordings
+     */
+    async function quickCheckForRecordings(lmid, world) {
+        try {
+            // Use the same API as getTotalRecordingCountForWorld but just check > 0
+            const response = await fetch(`/api/list-recordings?world=${encodeURIComponent(world)}&lmid=${encodeURIComponent(lmid)}`);
+            
+            if (response.ok) {
+                const recordings = await response.json();
+                return recordings && recordings.length > 0;
+            }
+            
+            return false;
+        } catch (error) {
+            // If error, assume no recordings to avoid showing badge-rec incorrectly
+            console.warn(`⚠️ Quick check failed for ${lmid}/${world}:`, error);
+            return false;
+        }
+    }
 
     /**
      * Add event listener with cleanup tracking
@@ -452,11 +527,14 @@
             initializeDashboardTracking();
         }, 50);
         
-        // Start animations immediately for better UX (backgrounds are now set)
+        // Pre-calculate visibility for data-dependent elements
+        await preCalculateElementVisibility(lmids);
+        
+        // Start animations immediately for better UX (backgrounds are now set, visibility calculated)
         setTimeout(() => {
             animateNewRecElements();
             animateBackgroundImages();
-            // Note: badge-rec animations happen after data is loaded to avoid animating hidden elements
+            animateBadgeRecElements(); // Now safe to animate - visibility is pre-calculated
         }, 100);
         
         // Now batch-load new recording indicators in background (with throttling)
@@ -602,14 +680,8 @@
             // Always show the new-rec container with counts (even if 0)
             newRecContainer.style.display = 'flex';
             
-            // Show/hide badge-rec based on whether there are any recordings
-            if (badgeRec) {
-                if (totalRecordingCount > 0) {
-                    badgeRec.style.display = 'flex';
-                } else {
-                    badgeRec.style.display = 'none';
-                }
-            }
+            // Badge-rec visibility already set by preCalculateElementVisibility - don't change it
+            // Just update the counts, the visibility decision was made earlier
             
             // Setup .badge-rec click to radio page with ShareID
             if (badgeRec && shareId && totalRecordingCount > 0) {
@@ -664,10 +736,7 @@
                 }
             }
             
-            // All data loaded - now animate badge-rec elements (only visible ones)
-            setTimeout(() => {
-                animateBadgeRecElements();
-            }, 100);
+            // All data loaded - visibility and animations already handled in initializeDashboardUI
             
         } catch (error) {
             console.error('❌ Error in batch loading:', error);

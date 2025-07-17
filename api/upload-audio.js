@@ -342,68 +342,7 @@ export default async function handler(req, res) {
 
 // ===== EMAIL NOTIFICATION FUNCTIONS =====
 
-/**
- * Get parent name from Memberstack API by Member ID
- * @param {string} memberId - Memberstack Member ID
- * @returns {Promise<string>} Parent name or 'Rodzic' if not found
- */
-async function getParentNameByMemberId(memberId) {
-    if (!memberId) {
-        return 'Rodzic';
-    }
-    
-    try {
-        const MEMBERSTACK_SECRET_KEY = process.env.MEMBERSTACK_SECRET_KEY;
-        if (!MEMBERSTACK_SECRET_KEY) {
-            console.warn(`⚠️ Memberstack secret key not configured`);
-            return 'Rodzic';
-        }
-        
-        const response = await fetch(`https://admin.memberstack.com/members/${memberId}`, {
-            method: 'GET',
-            headers: {
-                'x-api-key': MEMBERSTACK_SECRET_KEY,
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        if (response.ok) {
-            const data = await response.json();
-            const memberData = data.data || data;
-            
-            // Extract first name from various possible fields
-            const firstName = 
-                memberData.customFields?.['first-name'] || // Correct field name with hyphen
-                memberData.customFields?.['First Name'] ||  // Alternative with space  
-                memberData.customFields?.firstName ||
-                memberData.customFields?.['first_name'] ||
-                memberData.metaData?.firstName ||
-                memberData.metaData?.['first-name'] ||
-                '';
-            
-            const lastName = 
-                memberData.customFields?.['last-name'] ||   // Correct field name with hyphen
-                memberData.customFields?.['Last Name'] ||   // Alternative with space
-                memberData.customFields?.lastName ||
-                memberData.customFields?.['last_name'] ||
-                memberData.metaData?.lastName ||
-                memberData.metaData?.['last-name'] ||
-                '';
-            
-            console.log(`✅ [getParentNameByMemberId] Parent name: "${firstName} ${lastName}"`);
-            
-            // Combine names
-            const fullName = [firstName, lastName].filter(Boolean).join(' ').trim();
-            return fullName || 'Rodzic';
-        } else {
-            console.warn(`⚠️ [getParentNameByMemberId] Memberstack API error: ${response.status} ${response.statusText}`);
-            return 'Rodzic';
-        }
-    } catch (error) {
-        console.error(`❌ Error fetching parent name:`, error.message);
-        return 'Rodzic';
-    }
-}
+// Note: getParentNameByMemberId function removed - now using Brevo contact data via enriched notifications
 
 /**
  * Find parent Member ID by email from mapping
@@ -451,16 +390,10 @@ async function sendNewRecordingNotifications(lmid, world, questionId, lang, uplo
         let uploaderName = isTeacherUpload ? lmidData.teacherName : 'Rodzic';
         let parentName = null;
         
-        // Get parent name if it's a parent upload
-        if (!isTeacherUpload && uploaderEmail && lmidData.parentMemberIdToEmail) {
-            const parentMemberId = findParentMemberIdByEmail(uploaderEmail, lmidData.parentMemberIdToEmail);
-            if (parentMemberId) {
-                parentName = await getParentNameByMemberId(parentMemberId);
-                uploaderName = parentName; // Use actual name instead of generic "Rodzic"
-                console.log(`👤 [${requestId}] Retrieved parent name: ${parentName}`);
-            } else {
-                console.warn(`⚠️ [${requestId}] Could not find Member ID for parent email`);
-            }
+        // Note: Parent name resolution now handled by Brevo contact enrichment in send-email-notifications.js
+        // The email system will automatically pull proper names from Brevo contact data
+        if (!isTeacherUpload) {
+            console.log(`👤 [${requestId}] Parent upload detected - name will be enriched via Brevo contact data`);
         }
         
         // Prepare template data
