@@ -33,7 +33,6 @@
  * STATUS: Implementation Ready
  */
 
-import { createOrUpdateBrevoContact } from '../utils/memberstack-utils.js';
 import { assignLmidToMember, findNextAvailableLmid, generateAllShareIds } from '../utils/lmid-utils.js';
 import { Webhook } from 'svix';
 
@@ -103,26 +102,74 @@ export default async function handler(req, res) {
 
         // Parse the verified payload
         const data = typeof verifiedPayload === 'object' ? verifiedPayload : JSON.parse(verifiedPayload);
-        console.log('Event type:', data.type);
-        console.log('Member ID:', data.data?.id);
+        console.log('Webhook structure:', {
+            hasEvent: !!data.event,
+            hasPayload: !!data.payload,
+            hasType: !!data.type,
+            hasData: !!data.data
+        });
+
+        // Memberstack uses "event" and "payload" structure
+        const eventType = data.event || data.type;
+        const member = data.payload || data.data;
+
+        console.log('Event type:', eventType);
+        console.log('Member ID:', member?.id);
+        console.log('Member auth email:', member?.auth?.email);
+
+        if (!member) {
+            console.log('❌ Missing member data in webhook');
+            return res.status(400).json({ error: 'Missing member data' });
+        }
+
+        // Variable to store full member data
+        let fullMemberData = member;
 
         // Handle different event types
-        if (data.type === 'member.created' || data.type === 'member.updated') {
-            const member = data.data;
-            console.log('Processing member:', member.id);
+        if (eventType === 'member.created' || eventType === 'member.updated') {
+            console.log('Processing member:', member.id || member.auth?.email);
+            console.log('Full member data:', JSON.stringify(member, null, 2));
+
+            // Get full member data if we only have minimal webhook data
+            if (!member.id || !member.customFields) {
+                console.log('📥 Webhook has minimal data, fetching full member details...');
+                try {
+                    const { getMemberByEmail } = await import('../utils/memberstack-utils.js');
+                    const memberEmail = member.auth?.email || member.email;
+                    if (memberEmail) {
+                        const memberDetails = await getMemberByEmail(memberEmail);
+                        if (memberDetails) {
+                            fullMemberData = memberDetails;
+                            console.log('✅ Retrieved full member data');
+                        }
+                    }
+                } catch (fetchError) {
+                    console.log('⚠️ Could not fetch full member data:', fetchError.message);
+                    console.log('⚠️ Proceeding with webhook data only');
+                }
+            }
 
             // 1. Create/update Brevo contact for all users
             try {
-                await createOrUpdateBrevoContact(member);
-                console.log('✅ Brevo contact sync completed');
+                const { syncMemberToBrevo } = await import('../utils/brevo-contact-manager.js');
+                const brevoResult = await syncMemberToBrevo(fullMemberData);
+                if (brevoResult.success) {
+                    console.log('✅ Brevo contact sync completed:', brevoResult.action);
+                } else {
+                    console.log('❌ Brevo sync failed:', brevoResult.error);
+                }
             } catch (brevoError) {
                 console.log('❌ Brevo sync failed:', brevoError.message);
                 // Don't fail the webhook for Brevo errors
             }
 
             // 2. Assign LMID only for educators and therapists (not parents)
-            const userCategory = member.customFields?.USER_CATEGORY;
+            const userCategory = fullMemberData.customFields?.USER_CATEGORY || 
+                               fullMemberData.customFields?.['user-category'] || 
+                               fullMemberData.metaData?.USER_CATEGORY;
             console.log('User category:', userCategory);
+            console.log('Custom fields:', fullMemberData.customFields);
+            console.log('Meta data:', fullMemberData.metaData);
 
             if (userCategory === 'educator' || userCategory === 'therapist') {
                 try {
@@ -138,15 +185,17 @@ export default async function handler(req, res) {
                     const shareIds = await generateAllShareIds();
                     console.log('🎲 Generated ShareIDs:', shareIds);
 
-                    // Get member email
-                    const memberEmail = member.auth?.email || member.email;
-                    if (!memberEmail) {
-                        console.log('❌ Member email not found');
-                        return res.status(400).json({ error: 'Member email required for LMID assignment' });
+                    // Get member ID and email
+                    const memberId = fullMemberData.id || fullMemberData.auth?.email || fullMemberData.email;
+                    const memberEmail = fullMemberData.auth?.email || fullMemberData.email;
+                    
+                    if (!memberEmail || !memberId) {
+                        console.log('❌ Member email or ID not found');
+                        return res.status(400).json({ error: 'Member email and ID required for LMID assignment' });
                     }
 
                     // Assign LMID to member
-                    const assignmentSuccess = await assignLmidToMember(nextLmid, member.id, memberEmail, shareIds);
+                    const assignmentSuccess = await assignLmidToMember(nextLmid, memberId, memberEmail, shareIds);
                     if (assignmentSuccess) {
                         console.log('✅ LMID assigned successfully:', nextLmid);
                     } else {
@@ -163,7 +212,7 @@ export default async function handler(req, res) {
                 console.log('⚠️ Unknown user category - skipping LMID assignment');
             }
         } else {
-            console.log('ℹ️ Event type not handled:', data.type);
+            console.log('ℹ️ Event type not handled:', eventType);
         }
 
         console.log('✅ Webhook processed successfully');
@@ -172,8 +221,8 @@ export default async function handler(req, res) {
         return res.status(200).json({ 
             success: true, 
             message: 'Webhook processed successfully',
-            eventType: data.type,
-            memberId: data.data?.id
+            eventType: eventType,
+            memberId: fullMemberData?.id || member?.id || member?.auth?.email
         });
 
     } catch (error) {
