@@ -35,6 +35,7 @@ import { validateLmidOwnership, updateMemberstackMetadata as updateMetadata } fr
 import { cacheGet, cacheSet, cacheClear } from './database-utils.js';
 import { createErrorResponse, createSuccessResponse, sanitizeError } from './api-utils.js';
 import crypto from 'crypto';
+import { Webhook } from 'svix';
 
 // Memberstack configuration
 const MEMBERSTACK_API_URL = 'https://admin.memberstack.com';
@@ -42,13 +43,12 @@ const WEBHOOK_CACHE_TTL = 2 * 60 * 1000; // 2 minutes for webhook deduplication
 const MEMBER_CACHE_TTL = 10 * 60 * 1000; // 10 minutes for member data
 
 /**
- * Validate Memberstack webhook signature and authenticity
+ * Validate Memberstack webhook signature using Svix
  * @param {Object} req - Request object
  * @param {Object} options - Validation options
  * @returns {Object} Validation result
  */
 export function validateMemberstackWebhook(req, options = {}) {
-    const signature = req.headers['x-memberstack-signature'];
     const webhookSecret = process.env.MEMBERSTACK_WEBHOOK_SECRET;
     
     // Wymagaj sekretu w produkcji
@@ -60,67 +60,45 @@ export function validateMemberstackWebhook(req, options = {}) {
         };
     }
     
-    // Wymagaj podpisu
-    if (!signature) {
-        return { valid: false, error: 'Missing webhook signature' };
-    }
-    
     try {
-        // Try different body formats that Memberstack might use
-        const bodyOptions = [
-            JSON.stringify(req.body),
-            JSON.stringify(req.body, null, 0),
-            req.rawBody || JSON.stringify(req.body),
-            typeof req.body === 'string' ? req.body : JSON.stringify(req.body)
-        ];
+        // Get Svix headers
+        const svix_id = req.headers['svix-id'];
+        const svix_timestamp = req.headers['svix-timestamp'];
+        const svix_signature = req.headers['svix-signature'];
         
-        for (const body of bodyOptions) {
-            // Try different signature formats
-            const expectedSignatures = [
-                // Standard HMAC hex
-                crypto.createHmac('sha256', webhookSecret).update(body).digest('hex'),
-                // With sha256= prefix
-                'sha256=' + crypto.createHmac('sha256', webhookSecret).update(body).digest('hex'),
-                // Base64 format
-                crypto.createHmac('sha256', webhookSecret).update(body).digest('base64')
-            ];
-            
-            // Clean signature (remove prefixes if present)
-            const cleanSignature = signature.replace(/^(sha256=|sha1=)/, '');
-            
-            for (const expected of expectedSignatures) {
-                const cleanExpected = expected.replace(/^(sha256=|sha1=)/, '');
-                
-                try {
-                    if (crypto.timingSafeEqual(
-                        Buffer.from(cleanSignature, 'hex'),
-                        Buffer.from(cleanExpected, 'hex')
-                    )) {
-                        return { valid: true, error: null };
-                    }
-                } catch (hexError) {
-                    // Try string comparison if hex fails
-                    if (cleanSignature === cleanExpected) {
-                        return { valid: true, error: null };
-                    }
-                }
-            }
+        if (!svix_id || !svix_timestamp || !svix_signature) {
+            return { 
+                valid: false, 
+                error: 'Missing required Svix headers (svix-id, svix-timestamp, svix-signature)' 
+            };
         }
         
-        // All validation attempts failed
-        console.warn('Webhook signature validation failed. Expected formats tried:', {
-            receivedSignature: signature,
-            bodyLength: req.body ? JSON.stringify(req.body).length : 0
-        });
+        // Prepare headers object for Svix
+        const headers = {
+            'svix-id': svix_id,
+            'svix-timestamp': svix_timestamp,
+            'svix-signature': svix_signature
+        };
         
-        return {
-            valid: false,
-            error: 'Invalid webhook signature'
+        // Get raw body
+        const body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+        
+        // Verify using Svix
+        const wh = new Webhook(webhookSecret);
+        const verifiedPayload = wh.verify(body, headers);
+        
+        console.log('✅ Webhook signature verified successfully');
+        return { 
+            valid: true, 
+            payload: verifiedPayload 
         };
         
     } catch (error) {
-        console.error('Webhook signature validation error:', error);
-        return { valid: false, error: 'Signature verification failed' };
+        console.warn('⚠️ Webhook signature verification failed:', error.message);
+        return { 
+            valid: false, 
+            error: `Signature verification failed: ${error.message}` 
+        };
     }
 }
 
