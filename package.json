@@ -1,6 +1,6 @@
 {
   "name": "little-microphones",
-  "version": "6.0.8",
+  "version": "6.0.9",
   "description": "Audio recording and processing application",
   "type": "module",
   "main": "lm.js",

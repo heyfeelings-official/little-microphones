@@ -98,6 +98,49 @@
     // Global state
     let currentUserRole = null;
 
+    /**
+     * Re-initialize Webflow animations for cloned elements
+     * Works with any element and preserves all Webflow animations
+     * @param {HTMLElement} element - Element to re-initialize animations for
+     */
+    function initializeWebflowAnimations(element) {
+        try {
+            // Method 1: Try Webflow.require if available
+            if (typeof Webflow !== 'undefined' && Webflow.require) {
+                const ix2 = Webflow.require('ix2');
+                if (ix2) {
+                    ix2.init();
+                }
+            }
+            
+            // Method 2: Trigger Webflow ready event for specific element
+            if (typeof Webflow !== 'undefined' && Webflow.ready) {
+                Webflow.ready();
+            }
+            
+            // Method 3: Re-trigger interaction events by dispatching resize
+            if (typeof window !== 'undefined') {
+                setTimeout(() => {
+                    window.dispatchEvent(new Event('resize'));
+                }, 100);
+            }
+            
+            // Method 4: Force re-scan of animations by triggering DOMContentLoaded
+            const animatedElements = element.querySelectorAll('[data-w-id], .w-animation-*');
+            animatedElements.forEach(el => {
+                // Trigger any data attributes that might initialize animations
+                if (el.dataset.wId) {
+                    const event = new CustomEvent('webflow:ix2:init');
+                    el.dispatchEvent(event);
+                }
+            });
+            
+            console.log('✨ Webflow animations re-initialized for cloned element');
+        } catch (error) {
+            console.warn('⚠️ Could not re-initialize Webflow animations:', error);
+        }
+    }
+
     // REMOVED: ShareID cache to ensure fresh data after radio play
     // const shareIdCache = new Map();
 
@@ -370,9 +413,7 @@
         }
         
         // Re-initialize Webflow animations for cloned elements
-        if (typeof Webflow !== 'undefined') {
-            Webflow.redraw();
-        }
+        initializeWebflowAnimations(clone);
         
         // Hide delete buttons for parent users
         const userRole = await detectUserRole();
@@ -477,9 +518,7 @@
                 badgeRec.parentNode.replaceChild(newBadgeRec, badgeRec);
                 
                 // Re-initialize Webflow animations for cloned badge element
-                if (typeof Webflow !== 'undefined') {
-                    Webflow.redraw();
-                }
+                initializeWebflowAnimations(newBadgeRec);
                 
                 newBadgeRec.addEventListener('click', (e) => {
                     e.preventDefault();
@@ -498,9 +537,7 @@
                 newRecContainer.parentNode.replaceChild(newNewRecContainer, newRecContainer);
                 
                 // Re-initialize Webflow animations for cloned new-rec element
-                if (typeof Webflow !== 'undefined') {
-                    Webflow.redraw();
-                }
+                initializeWebflowAnimations(newNewRecContainer);
                 
                 // Update number elements after cloning
                 const updatedTotalRecNumber = newNewRecContainer.querySelector(".rec-text:not(.new) .new-rec-number");
