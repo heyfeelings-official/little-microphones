@@ -103,6 +103,26 @@
      */
     const elementEventListeners = new WeakMap();
 
+    /**
+     * Animate new-rec elements into view with fade-in and slide-up
+     * @param {HTMLElement} container - Container to search for .new-rec elements (optional)
+     */
+    function animateNewRecElements(container = document) {
+        const newRecElements = container.querySelectorAll('.new-rec:not(.animate-in)');
+        
+        newRecElements.forEach((element, index) => {
+            // Stagger animations by 100ms for each element
+            setTimeout(() => {
+                element.classList.add('animate-in');
+                console.log(`✨ Animated new-rec element ${index + 1}/${newRecElements.length}`);
+            }, index * 100);
+        });
+        
+        if (newRecElements.length > 0) {
+            console.log(`🎬 Started animation for ${newRecElements.length} new-rec elements`);
+        }
+    }
+
 
 
     /**
@@ -174,10 +194,22 @@
                 display: flex !important;
             }
             
-            /* Ensure new-rec elements are always visible, badge-rec controlled by JS */
-            .new-rec {
-                display: flex !important;
-            }
+                    /* Ensure new-rec elements are always visible, badge-rec controlled by JS */
+        .new-rec {
+            display: flex !important;
+        }
+        
+        /* Custom animation for new-rec elements */
+        .new-rec {
+            opacity: 0;
+            transform: translateY(24px);
+            transition: all 0.6s cubic-bezier(0.075, 0.82, 0.165, 1);
+        }
+        
+        .new-rec.animate-in {
+            opacity: 1;
+            transform: translateY(0px);
+        }
         `;
         
         document.head.appendChild(style);
@@ -540,6 +572,12 @@
                     console.warn(`⚠️ LMID element not found for ${lmid}`);
                 }
             }
+            
+            // All data loaded - trigger new-rec animations
+            console.log('🎯 All LMID data loaded - starting new-rec animations');
+            setTimeout(() => {
+                animateNewRecElements();
+            }, 200); // Small delay to ensure DOM updates are complete
             
         } catch (error) {
             console.error('❌ Error in batch loading:', error);
@@ -1340,6 +1378,11 @@
         const clone = await createLMIDElement(template, newLmid, true); // Load new recordings for the new LMID
         if (clone) {
             container.appendChild(clone);
+            
+            // Animate the new-rec elements in the newly created LMID
+            setTimeout(() => {
+                animateNewRecElements(clone);
+            }, 100);
         }
         
         reinitializeWebflow();
