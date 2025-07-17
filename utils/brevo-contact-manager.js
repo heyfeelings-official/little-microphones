@@ -35,7 +35,7 @@ const BREVO_API_BASE = 'https://api.brevo.com/v3';
  * @param {Object} data - Request body data
  * @returns {Promise<Object>} Response data
  */
-async function makeBrevoRequest(endpoint, method = 'GET', data = null) {
+export async function makeBrevoRequest(endpoint, method = 'GET', data = null) {
   const brevoApiKey = process.env.BREVO_API_KEY;
   if (!brevoApiKey) {
     throw new Error('BREVO_API_KEY not configured');
@@ -131,16 +131,69 @@ export async function createOrUpdateBrevoContact(memberData, planConfig) {
     // Check if contact exists
     const existingContact = await getBrevoContact(email);
     
+    // Get plan-specific attributes
+    const planAttributes = getAttributesForPlan(planConfig.planId || planConfig.attributes?.PLAN_ID);
+    
+    // Map all member data to Brevo attributes
+    const allAttributes = {
+      // Plan-specific attributes
+      ...planAttributes,
+      
+      // Basic contact information
+      FIRSTNAME: memberData.customFields?.['first-name'] || '',
+      LASTNAME: memberData.customFields?.['last-name'] || '',
+      PHONE: memberData.customFields?.['phone'] || '',
+      LANGUAGE_PREF: memberData.metaData?.language || 'en',
+      
+      // Memberstack integration
+      MEMBERSTACK_ID: memberData.id || '',
+      REGISTRATION_DATE: memberData.createdAt || new Date().toISOString(),
+      LAST_SYNC: new Date().toISOString(),
+      
+      // Teacher/School name (general)
+      TEACHER_NAME: memberData.customFields?.['teacher-name'] || 
+                   `${memberData.customFields?.['first-name'] || ''} ${memberData.customFields?.['last-name'] || ''}`.trim(),
+      SCHOOL_NAME: memberData.customFields?.['school-name'] || memberData.customFields?.['school'] || '',
+      
+      // School details (for Educators)
+      SCHOOL_SEARCH_INPUT: memberData.customFields?.['school-search-input'] || '',
+      SCHOOL_ADDRESS: memberData.customFields?.['school-address'] || memberData.customFields?.['school_address'] || '',
+      SCHOOL_CITY: memberData.customFields?.['school-city'] || memberData.customFields?.['city'] || '',
+      SCHOOL_COUNTRY: memberData.customFields?.['school-country'] || memberData.customFields?.['country'] || '',
+      SCHOOL_FACILITY_TYPE: memberData.customFields?.['school-type'] || memberData.customFields?.['school_type'] || '',
+      SCHOOL_LATITUDE: memberData.customFields?.['school-latitude'] || memberData.customFields?.['school_latitude'] || null,
+      SCHOOL_LONGITUDE: memberData.customFields?.['school-longitude'] || memberData.customFields?.['school_longitude'] || null,
+      SCHOOL_PHONE: memberData.customFields?.['school-phone'] || memberData.customFields?.['school_phone'] || '',
+      SCHOOL_PLACE_ID: memberData.customFields?.['school-place-id'] || memberData.customFields?.['school_place_id'] || '',
+      SCHOOL_PLACE_NAME: memberData.customFields?.['school-place-name'] || memberData.customFields?.['school_place_name'] || '',
+      SCHOOL_RATING: memberData.customFields?.['school-rating'] || memberData.customFields?.['school_rating'] || null,
+      SCHOOL_STATE: memberData.customFields?.['school-state'] || memberData.customFields?.['school_state'] || '',
+      SCHOOL_STREET_ADDRESS: memberData.customFields?.['school-street-address'] || memberData.customFields?.['school_street_address'] || '',
+      SCHOOL_WEBSITE: memberData.customFields?.['school-website'] || memberData.customFields?.['school_website'] || '',
+      SCHOOL_ZIP: memberData.customFields?.['school-zip'] || memberData.customFields?.['school_zip'] || '',
+      
+      // Professional information (for Educators)
+      EDUCATOR_ROLE: memberData.customFields?.['role'] || memberData.customFields?.['educator-role'] || '',
+      EDUCATOR_NO_CLASSES: memberData.customFields?.['no-classes'] || memberData.customFields?.['no_classes'] || null,
+      EDUCATOR_NO_KIDS: memberData.customFields?.['no-kids'] || memberData.customFields?.['no_kids'] || null,
+      
+      // Application-specific
+      LMIDS: memberData.metaData?.lmids || ''
+    };
+    
+    // Clean up null/undefined values - Brevo doesn't like them
+    const cleanedAttributes = {};
+    Object.keys(allAttributes).forEach(key => {
+      const value = allAttributes[key];
+      if (value !== null && value !== undefined && value !== '') {
+        cleanedAttributes[key] = value;
+      }
+    });
+    
     // Prepare contact data
     const contactData = {
       email: email,
-      attributes: {
-        ...getAttributesForPlan(planConfig, memberData),
-        FIRSTNAME: memberData.customFields?.['first-name'] || '',
-        LASTNAME: memberData.customFields?.['last-name'] || '',
-        PHONE: memberData.customFields?.['phone'] || '',
-        LANGUAGE_PREF: memberData.metaData?.language || 'en'
-      },
+      attributes: cleanedAttributes,
       listIds: [BREVO_MAIN_LIST.HEY_FEELINGS_LIST], // Add to main list
       updateEnabled: true
     };
