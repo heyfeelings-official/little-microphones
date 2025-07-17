@@ -896,6 +896,7 @@
         // Check if we have any programs to show
         if (Object.keys(programs).length > 0) {
             console.log('📻 Showing programs:', programs);
+            console.log('🎯 DEBUG: About to call showDualPlayerState with userRole:', userRole);
             showDualPlayerState(programs, data, userRole);
         } else {
             console.log('📻 No programs found, checking for available recordings...');
@@ -929,6 +930,9 @@
      * @param {string} userRole - Current user role
      */
     function showDualPlayerState(programs, data, userRole) {
+        console.log('🚀 DEBUG: showDualPlayerState called with userRole:', userRole);
+        console.log('🚀 DEBUG: programs object:', programs);
+        
         hideAllStates();
         showState('player-state');
         
@@ -946,6 +950,8 @@
             world: data.world,
             recordingCount: data.currentRecordings?.length || 0
         };
+        
+        console.log('🔍 DEBUG: Checking userRole - is parent?', userRole === 'parent');
         
         if (userRole === 'parent') {
             // Parents see only kids program
