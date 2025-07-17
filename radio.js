@@ -1012,37 +1012,41 @@
      * @param {Object} radioData - Radio data
      */
     function createDualPlayer(container, programs, radioData) {
-        programs.forEach((program, index) => {
-            // Create program section
-            const programSection = document.createElement('div');
-            programSection.style.cssText = `margin-bottom: ${index === programs.length - 1 ? '0' : '24px'};`;
+        // Find kids and parent programs
+        const kidsProgram = programs.find(p => p.title && p.title.includes('Kids'));
+        const parentProgram = programs.find(p => p.title && p.title.includes('Parent'));
+        
+        // Create kids container
+        if (kidsProgram) {
+            const kidsContainer = document.createElement('div');
+            kidsContainer.className = 'kids';
+            container.appendChild(kidsContainer);
             
-            // Create title
-            const titleDiv = document.createElement('div');
-            titleDiv.style.cssText = 'margin-bottom: 12px; font-weight: bold; text-align: center; color: #333; font-size: 16px;';
-            titleDiv.textContent = program.title;
+            // Setup audio player for kids (no special background)
+            setupAudioPlayer(kidsProgram.url, radioData, kidsContainer);
+        }
+        
+        // Create parents container
+        if (parentProgram) {
+            const parentsContainer = document.createElement('div');
+            parentsContainer.className = 'parents';
+            container.appendChild(parentsContainer);
             
-            // Create description
-            const descDiv = document.createElement('div');
-            descDiv.style.cssText = 'margin-bottom: 16px; text-align: center; color: #666; font-size: 14px;';
-            descDiv.textContent = program.description;
+            // Setup audio player for parents with yellow background applied to the player itself
+            const tempContainer = document.createElement('div');
+            setupAudioPlayer(parentProgram.url, radioData, tempContainer);
             
-            // Create player container with conditional styling for parent programs
-            const playerDiv = document.createElement('div');
-            
-            // Add yellow background for parent programs
-            if (program.title && program.title.includes('Parent')) {
-                playerDiv.style.cssText = 'background: #FFD700; border-radius: 12px; padding: 8px;';
+            // Apply yellow background to the actual player element instead of wrapper
+            const playerElement = tempContainer.querySelector('[class*="plyr"], audio');
+            if (playerElement) {
+                playerElement.style.background = '#FFD700';
             }
             
-            programSection.appendChild(titleDiv);
-            programSection.appendChild(descDiv);
-            programSection.appendChild(playerDiv);
-            container.appendChild(programSection);
-            
-            // Setup audio player
-            setupAudioPlayer(program.url, radioData, playerDiv);
-        });
+            // Move content to parents container
+            while (tempContainer.firstChild) {
+                parentsContainer.appendChild(tempContainer.firstChild);
+            }
+        }
     }
 
     /**
