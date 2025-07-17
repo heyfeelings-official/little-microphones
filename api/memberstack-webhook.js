@@ -472,13 +472,13 @@ export default async function handler(req, res) {
                         const shareIds = await generateAllShareIds();
                         
                         // Assign LMID to member
-                        const assignmentResult = await assignLmidToMember(member.id, nextLmid, shareIds);
-                        if (assignmentResult.success) {
+                        const assignmentResult = await assignLmidToMember(nextLmid, member.id, member.email || member.auth?.email, shareIds);
+                        if (assignmentResult) {
                             results.push(`LMID assigned: ${nextLmid}`);
                             console.log(`✅ LMID ${nextLmid} assigned to member ${member.id}`);
                         } else {
-                            results.push(`LMID assignment failed: ${assignmentResult.error}`);
-                            console.error(`❌ LMID assignment failed:`, assignmentResult.error);
+                            results.push(`LMID assignment failed: Database update failed`);
+                            console.error(`❌ LMID assignment failed for member ${member.id}`);
                         }
                     } else {
                         results.push('LMID assignment failed: No available LMIDs');
