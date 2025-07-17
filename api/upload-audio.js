@@ -69,6 +69,8 @@
  * - Brevo SDK integration with automatic contact creation
  * - Secure logging without exposing personal information
  * - Configurable Hey Feelings domain via HEY_FEELINGS_BASE_URL environment variable
+ * - Available template parameters: teacherName, world, lmid, schoolName, dashboardUrl, radioUrl, uploaderName, uploaderType, parentEmail
+ * - parentEmail parameter contains the email of the parent who made the recording (for teacher notifications)
  * 
  * MONITORING & LOGGING:
  * - Comprehensive upload logging with file metadata
@@ -375,7 +377,9 @@ async function sendNewRecordingNotifications(lmid, world, questionId, lang, uplo
             dashboardUrl: `${heyFeelingsBaseUrl}/${lang}/members/little-microphones`,
             radioUrl: `${heyFeelingsBaseUrl}/little-microphones?ID=${lmidData.shareId}`,
             uploaderName: uploaderName,
-            uploaderType: isTeacherUpload ? 'teacher' : 'parent'
+            uploaderType: isTeacherUpload ? 'teacher' : 'parent',
+            // Add parent email for teacher notifications (only for parent uploads)
+            parentEmail: isTeacherUpload ? null : uploaderEmail
         };
         
         // Send teacher notification (only parent uploads trigger notifications)
