@@ -371,19 +371,50 @@ async function getParentNameByMemberId(memberId) {
             const data = await response.json();
             const memberData = data.data || data;
             
-            // Extract first name from various possible fields
+            // Debug logging to see actual structure
+            console.log(`🔍 [getParentNameByMemberId] Raw Memberstack response for ${memberId}:`, JSON.stringify(data, null, 2));
+            console.log(`🔍 [getParentNameByMemberId] Extracted memberData:`, JSON.stringify(memberData, null, 2));
+            console.log(`🔍 [getParentNameByMemberId] Available customFields:`, JSON.stringify(memberData.customFields, null, 2));
+            console.log(`🔍 [getParentNameByMemberId] Available metaData:`, JSON.stringify(memberData.metaData, null, 2));
+            
+            // Debug: check all available keys in customFields
+            if (memberData.customFields) {
+                console.log(`🔍 [getParentNameByMemberId] All customFields keys:`, Object.keys(memberData.customFields));
+                Object.keys(memberData.customFields).forEach(key => {
+                    console.log(`🔍 [getParentNameByMemberId] CustomField "${key}": "${memberData.customFields[key]}"`);
+                });
+            }
+            
+            // Debug: check all root level keys
+            console.log(`🔍 [getParentNameByMemberId] All memberData keys:`, Object.keys(memberData));
+            
+            // Extract first name from various possible fields with more options
             const firstName = memberData.customFields?.['First Name'] || 
                              memberData.customFields?.firstName || 
+                             memberData.customFields?.['first-name'] ||
+                             memberData.customFields?.first_name ||
                              memberData.metaData?.firstName || 
-                             memberData.metaData?.first_name || null;
+                             memberData.metaData?.first_name ||
+                             memberData.firstName ||
+                             memberData['First Name'] ||
+                             null;
                              
             const lastName = memberData.customFields?.['Last Name'] || 
                             memberData.customFields?.lastName || 
+                            memberData.customFields?.['last-name'] ||
+                            memberData.customFields?.last_name ||
                             memberData.metaData?.lastName || 
-                            memberData.metaData?.last_name || null;
+                            memberData.metaData?.last_name ||
+                            memberData.lastName ||
+                            memberData['Last Name'] ||
+                            null;
+            
+            console.log(`🔍 [getParentNameByMemberId] Extracted firstName: "${firstName}", lastName: "${lastName}"`);
             
             // Build full name
             const fullName = `${firstName || ''} ${lastName || ''}`.trim();
+            console.log(`🔍 [getParentNameByMemberId] Final fullName: "${fullName}"`);
+            
             return fullName || 'Rodzic';
         } else {
             console.warn(`⚠️ Failed to fetch parent data from Memberstack: ${response.status}`);
