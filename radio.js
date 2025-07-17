@@ -601,8 +601,12 @@
             return;
         }
 
-        // Clear the container
-        playerContainer.innerHTML = '';
+        // Preserve existing content (like Webflow text labels) and only clear audio players
+        console.log('🧹 DEBUG: Container content before cleanup:', playerContainer.innerHTML);
+        const existingAudioPlayers = playerContainer.querySelectorAll('li[data-recording-id], audio, div[style*="background: #ffffff"]');
+        console.log('🗑️ DEBUG: Removing', existingAudioPlayers.length, 'existing audio players');
+        existingAudioPlayers.forEach(player => player.remove());
+        console.log('✨ DEBUG: Container content after cleanup:', playerContainer.innerHTML);
 
         // Create fake recording data for the radio program
         const recordingData = { 
@@ -631,6 +635,18 @@
             }
         ).then(playerElement => {
             if (playerElement) {
+                console.log('🎵 DEBUG: Player element created successfully');
+                
+                // Debug progress bar existence
+                const progressBar = playerElement.querySelector('div[style*="flex: 1"][style*="cursor: pointer"]');
+                const progressBarInner = playerElement.querySelector('div[style*="background: #007AF7"]');
+                const audioElement = playerElement.querySelector('audio');
+                
+                console.log('🔍 DEBUG: Progress bar container found:', !!progressBar);
+                console.log('🔍 DEBUG: Progress bar inner found:', !!progressBarInner);
+                console.log('🔍 DEBUG: Audio element found:', !!audioElement);
+                console.log('🔍 DEBUG: Is parent program:', isParentProgram);
+                
                 // Add some styling to make it fit better in the radio context
                 const playerDiv = playerElement.querySelector('div[style*="background: white"], div[style*="background: #ffffff"]');
                 if (playerDiv) {
@@ -638,9 +654,11 @@
                     playerDiv.style.background = isParentProgram ? '#FFD700' : '#ffffff';
                     playerDiv.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
                     playerDiv.style.width = '100%';
+                    console.log(`🎨 DEBUG: Applied ${isParentProgram ? 'yellow' : 'white'} background to player`);
                 }
                 
                 playerContainer.appendChild(playerElement);
+                console.log('✅ DEBUG: Player element appended to container');
                 
                 // Store reference to audio element
                 audioPlayer = playerElement.querySelector('audio');
@@ -1041,14 +1059,23 @@
         console.log('👶 DEBUG: kidsProgram found:', kidsProgram ? kidsProgram.title : 'NO');
         console.log('👨‍👩‍👧‍👦 DEBUG: parentProgram found:', parentProgram ? parentProgram.title : 'NO');
         
-        // Create kids container
+        // Find existing Webflow containers instead of creating new ones
+        const existingKidsContainer = container.querySelector('.kids');
+        const existingParentsContainer = container.querySelector('.parents');
+        
+        console.log('🔍 DEBUG: Existing kids container found:', !!existingKidsContainer);
+        console.log('🔍 DEBUG: Existing parents container found:', !!existingParentsContainer);
+        
+        // Use kids container (existing Webflow or create new)
         if (kidsProgram) {
-            console.log('✅ DEBUG: Creating kids container');
-            const kidsContainer = document.createElement('div');
-            kidsContainer.className = 'kids';
-            // Reduce margin to half (assuming original is around 20px, make it 10px)
-            kidsContainer.style.marginBottom = '10px';
-            container.appendChild(kidsContainer);
+            console.log('✅ DEBUG: Setting up kids player');
+            const kidsContainer = existingKidsContainer || (() => {
+                console.log('📝 DEBUG: Creating new kids container (no Webflow container found)');
+                const newContainer = document.createElement('div');
+                newContainer.className = 'kids';
+                container.appendChild(newContainer);
+                return newContainer;
+            })();
             
             // Setup audio player for kids (no special background)
             console.log('🎵 DEBUG: Setting up kids player with URL:', kidsProgram.url);
@@ -1057,13 +1084,16 @@
             console.log('❌ DEBUG: No kids program to create container for');
         }
         
-        // Create parents container
+        // Use parents container (existing Webflow or create new)
         if (parentProgram) {
-            console.log('✅ DEBUG: Creating parents container');
-            const parentsContainer = document.createElement('div');
-            parentsContainer.className = 'parents';
-            parentsContainer.style.marginTop = '0px'; // Ensure no extra top margin
-            container.appendChild(parentsContainer);
+            console.log('✅ DEBUG: Setting up parents player');
+            const parentsContainer = existingParentsContainer || (() => {
+                console.log('📝 DEBUG: Creating new parents container (no Webflow container found)');
+                const newContainer = document.createElement('div');
+                newContainer.className = 'parents';
+                container.appendChild(newContainer);
+                return newContainer;
+            })();
             
             // Setup audio player for parents DIRECTLY in parentsContainer (same as kids)
             console.log('🎵 DEBUG: Setting up parent player with URL:', parentProgram.url);
