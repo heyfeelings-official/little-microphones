@@ -153,76 +153,73 @@
     }
 
     /**
-     * Quick visibility check for LMID level (simplified to avoid rate limiting)
+     * Quick visibility check for each WORLD in each LMID (correct approach)
      * @param {Array<string>} lmids - Array of LMID strings
      */
     async function quickPreCalculateVisibility(lmids) {
-        // Check each LMID for any recordings (one call per LMID, not per world)
+        console.log(`🧮 Checking badge-rec visibility for each world in ${lmids.length} LMIDs`);
+        
+        // Check each LMID's worlds individually
         for (const lmid of lmids) {
             const lmidElement = document.querySelector(`[data-lmid="${lmid}"]`);
             if (!lmidElement) continue;
             
-            // Check if this LMID has any recordings across all worlds
-            const hasAnyRecordings = await checkLMIDForAnyRecordings(lmid);
+            // Find all world containers in this LMID
+            const worldContainers = lmidElement.querySelectorAll('.program-container[data-world]');
             
-            console.log(`🔍 LMID ${lmid}: hasAnyRecordings = ${hasAnyRecordings}`);
-            
-            // Apply visibility to all badge-rec elements in this LMID
-            const badgeRecElements = lmidElement.querySelectorAll('.badge-rec');
-            badgeRecElements.forEach(badgeRec => {
-                if (hasAnyRecordings) {
+            for (const worldContainer of worldContainers) {
+                const world = worldContainer.getAttribute('data-world');
+                if (!world) continue;
+                
+                const badgeRec = worldContainer.querySelector('.badge-rec');
+                if (!badgeRec) continue;
+                
+                // Check if THIS SPECIFIC WORLD has recordings
+                const hasRecordings = await checkWorldForRecordings(lmid, world);
+                
+                if (hasRecordings) {
                     badgeRec.style.display = 'flex';
-                    console.log(`👁️ SHOWING badge-rec for LMID ${lmid} (has recordings)`);
+                    console.log(`👁️ SHOWING badge-rec for ${lmid}/${world} (has recordings)`);
                 } else {
                     badgeRec.style.display = 'none';
-                    console.log(`🙈 HIDING badge-rec for LMID ${lmid} (no recordings)`);
+                    console.log(`🙈 HIDING badge-rec for ${lmid}/${world} (no recordings)`);
                 }
-            });
+                
+                // Small delay to avoid rate limiting
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
         }
         
         // Animate badge-rec elements that are now visible
         setTimeout(() => {
             animateBadgeRecElements();
-            // Debug: Check final state after all operations
-            debugBadgeRecFinalState();
         }, 100);
     }
 
     /**
-     * Check if LMID has any recordings across all worlds (one API call)
-     * @param {string} lmid - LMID number
-     * @returns {Promise<boolean>} True if has any recordings
+     * Check if specific WORLD in LMID has recordings (correct approach)
+     * @param {string} lmid - LMID number  
+     * @param {string} world - World name
+     * @returns {Promise<boolean>} True if this specific world has recordings
      */
-    async function checkLMIDForAnyRecordings(lmid) {
+    async function checkWorldForRecordings(lmid, world) {
         try {
             // Get current language from config
             const lang = window.LM_CONFIG.getCurrentLanguage();
             
-            // Check multiple worlds to be sure (not just spookyland)
-            const worldsToCheck = ['spookyland', 'shopping-spree', 'waterpark', 'neighborhood', 'big-city', 'amusement-park'];
+            const response = await fetch(`${window.LM_CONFIG.API_BASE_URL}/api/list-recordings?world=${world}&lmid=${encodeURIComponent(lmid)}&lang=${encodeURIComponent(lang)}`);
             
-            for (const world of worldsToCheck) {
-                const response = await fetch(`${window.LM_CONFIG.API_BASE_URL}/api/list-recordings?world=${world}&lmid=${encodeURIComponent(lmid)}&lang=${encodeURIComponent(lang)}`);
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    const hasRecordings = data && data.success && data.recordings && data.recordings.length > 0;
-                    console.log(`🌍 LMID ${lmid} in ${world}: ${data?.recordings?.length || 0} recordings`);
-                    
-                    if (hasRecordings) {
-                        console.log(`✅ LMID ${lmid}: Found recordings in ${world} - returning TRUE`);
-                        return true; // Found recordings in at least one world
-                    }
-                }
-                
-                // Small delay to avoid rate limiting
-                await new Promise(resolve => setTimeout(resolve, 50));
+            if (response.ok) {
+                const data = await response.json();
+                const hasRecordings = data && data.success && data.recordings && data.recordings.length > 0;
+                console.log(`🌍 ${lmid}/${world}: ${data?.recordings?.length || 0} recordings`);
+                return hasRecordings;
             }
             
-            console.log(`❌ LMID ${lmid}: No recordings found in any world - returning FALSE`);
+            console.log(`❌ ${lmid}/${world}: API call failed`);
             return false;
         } catch (error) {
-            console.log(`💥 LMID ${lmid}: Error checking recordings - returning FALSE`);
+            console.log(`💥 ${lmid}/${world}: Error checking recordings`);
             return false;
         }
     }
