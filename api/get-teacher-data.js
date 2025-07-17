@@ -57,7 +57,7 @@ async function getTeacherDataHandler(req, res, params) {
     // Get teacher data from Supabase lmids table
     const { data: lmidRecord, error } = await supabase
         .from('lmids')
-        .select('assigned_to_member_email, teacher_first_name, teacher_last_name, teacher_school_name')
+        .select('assigned_to_member_email, teacher_first_name, teacher_last_name, teacher_school_name, assigned_to_member_id')
         .eq('lmid', lmidNum)
         .eq('status', 'used')
         .single();
@@ -84,6 +84,7 @@ async function getTeacherDataHandler(req, res, params) {
     let teacherName = 'Teacher';
     let schoolName = 'School';
 
+    // Try to get name from database first
     if (lmidRecord.teacher_first_name || lmidRecord.teacher_last_name) {
         const firstName = lmidRecord.teacher_first_name || '';
         const lastName = lmidRecord.teacher_last_name || '';
@@ -92,6 +93,10 @@ async function getTeacherDataHandler(req, res, params) {
         if (fullName) {
             teacherName = fullName;
         }
+    } else if (lmidRecord.assigned_to_member_id) {
+        // If database fields are empty, fetch from Memberstack
+        console.log(`👨‍🏫 Teacher name not in database, fetching from Memberstack for: ${lmidRecord.assigned_to_member_id}`);
+        teacherName = await getTeacherNameByMemberId(lmidRecord.assigned_to_member_id);
     }
 
     if (lmidRecord.teacher_school_name) {
@@ -108,8 +113,69 @@ async function getTeacherDataHandler(req, res, params) {
 }
 
 /**
- * Main handler with validation and error handling
+ * Get teacher name from Memberstack API by Member ID
+ * @param {string} memberId - Memberstack Member ID
+ * @returns {Promise<string>} Teacher name or 'Teacher' if not found
  */
+async function getTeacherNameByMemberId(memberId) {
+    if (!memberId) {
+        return 'Teacher';
+    }
+    
+    try {
+        const MEMBERSTACK_SECRET_KEY = process.env.MEMBERSTACK_SECRET_KEY;
+        if (!MEMBERSTACK_SECRET_KEY) {
+            console.warn(`⚠️ Memberstack secret key not configured`);
+            return 'Teacher';
+        }
+        
+        const response = await fetch(`https://admin.memberstack.com/members/${memberId}`, {
+            method: 'GET',
+            headers: {
+                'x-api-key': MEMBERSTACK_SECRET_KEY,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            const memberData = data.data || data;
+            
+            // Extract first name from various possible fields
+            const firstName = 
+                memberData.customFields?.['first-name'] || // Correct field name with hyphen
+                memberData.customFields?.['First Name'] ||  // Alternative with space  
+                memberData.customFields?.firstName ||
+                memberData.customFields?.['first_name'] ||
+                memberData.metaData?.firstName ||
+                memberData.metaData?.['first-name'] ||
+                '';
+            
+            const lastName = 
+                memberData.customFields?.['last-name'] ||   // Correct field name with hyphen
+                memberData.customFields?.['Last Name'] ||   // Alternative with space
+                memberData.customFields?.lastName ||
+                memberData.customFields?.['last_name'] ||
+                memberData.metaData?.lastName ||
+                memberData.metaData?.['last-name'] ||
+                '';
+            
+            console.log(`✅ [getTeacherNameByMemberId] Teacher name: "${firstName} ${lastName}"`);
+            
+            // Combine names
+            const fullName = [firstName, lastName].filter(Boolean).join(' ').trim();
+            return fullName || 'Teacher';
+        } else {
+            console.warn(`⚠️ [getTeacherNameByMemberId] Memberstack API error: ${response.status} ${response.statusText}`);
+            return 'Teacher';
+        }
+    } catch (error) {
+        console.error(`❌ [getTeacherNameByMemberId] Error fetching teacher data:`, error.message);
+        return 'Teacher';
+    }
+}
+
+// Main export function
 export default async function handler(req, res) {
     return handleApiRequest(req, res, {
         allowedMethods: ['GET'],
