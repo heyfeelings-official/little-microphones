@@ -36,6 +36,7 @@
  */
 
 import { TransactionalEmailsApi, TransactionalEmailsApiApiKeys, SendSmtpEmail, ContactsApi, CreateContact } from '@getbrevo/brevo';
+import { getBrevoContact } from '../utils/brevo-contact-manager.js';
 
 /**
  * Ensure contact exists in Brevo before sending email
@@ -134,20 +135,74 @@ export default async function handler(req, res) {
             return res.status(500).json({ error: 'Email service configuration error' });
         }
         
-        // Ensure contact exists in Brevo before sending email
-        const contactExists = await ensureContactExists(recipientEmail, recipientName, brevoApiKey);
-        if (!contactExists) {
-            console.warn(`⚠️ Could not ensure contact exists, proceeding anyway`);
+        // Get complete contact data from Brevo (replaces ensureContactExists)
+        let brevoContact = null;
+        let enrichedTemplateData = templateData || {};
+        
+        try {
+            brevoContact = await getBrevoContact(recipientEmail);
+            
+            if (brevoContact && brevoContact.attributes) {
+                // Enrich template data with contact information from Brevo
+                console.log(`📋 Enriching template data with Brevo contact info for ${recipientEmail}`);
+                
+                enrichedTemplateData = {
+                    ...templateData,
+                    // Override with data from Brevo (more accurate and complete)
+                    teacherName: brevoContact.attributes.TEACHER_NAME || brevoContact.attributes.FIRSTNAME + ' ' + brevoContact.attributes.LASTNAME || templateData.teacherName,
+                    parentName: brevoContact.attributes.FIRSTNAME + ' ' + brevoContact.attributes.LASTNAME || templateData.parentName,
+                    schoolName: brevoContact.attributes.SCHOOL_NAME || templateData.schoolName,
+                    planName: brevoContact.attributes.PLAN_NAME || 'Plan',
+                    userCategory: brevoContact.attributes.USER_CATEGORY || 'user',
+                    uploaderName: brevoContact.attributes.FIRSTNAME + ' ' + brevoContact.attributes.LASTNAME || templateData.uploaderName
+                };
+                
+                // Clean up undefined values
+                Object.keys(enrichedTemplateData).forEach(key => {
+                    if (enrichedTemplateData[key] === 'undefined undefined' || enrichedTemplateData[key] === ' ') {
+                        enrichedTemplateData[key] = templateData[key] || '';
+                    }
+                });
+                
+                console.log(`✅ Template data enriched with Brevo contact data`);
+            } else {
+                console.warn(`⚠️ Contact not found in Brevo: ${recipientEmail}, using fallback data`);
+                // Fallback: ensure contact exists for future sync
+                const contactExists = await ensureContactExists(recipientEmail, recipientName, brevoApiKey);
+                if (!contactExists) {
+                    console.warn(`⚠️ Could not create contact, proceeding with original template data`);
+                }
+            }
+        } catch (brevoError) {
+            console.error(`❌ Error retrieving Brevo contact data:`, brevoError.message);
+            console.log(`📧 Proceeding with original template data`);
+            // Fallback: ensure contact exists
+            try {
+                await ensureContactExists(recipientEmail, recipientName, brevoApiKey);
+            } catch (fallbackError) {
+                console.warn(`⚠️ Fallback contact creation also failed`);
+            }
         }
         
         // Initialize Brevo SDK
         const apiInstance = new TransactionalEmailsApi();
         apiInstance.setApiKey(TransactionalEmailsApiApiKeys.apiKey, brevoApiKey);
         
-        // Determine template ID based on notification type and language
-        // Use environment variables from Vercel
+        // Determine template ID based on notification type, language, and plan (if available)
         let templateId;
+        let templateSelection = 'standard';
         
+        // Check if we have plan information from Brevo contact
+        const userCategory = brevoContact?.attributes?.USER_CATEGORY;
+        const planType = brevoContact?.attributes?.PLAN_TYPE;
+        const planName = brevoContact?.attributes?.PLAN_NAME;
+        
+        if (brevoContact && userCategory && planType) {
+            console.log(`🎯 Smart template selection based on plan: ${userCategory}/${planType} (${planName})`);
+            templateSelection = 'plan-based';
+        }
+        
+        // Standard template selection (can be enhanced with plan-specific templates in future)
         if (notificationType === 'teacher') {
             if (language === 'pl') {
                 templateId = process.env.BREVO_TEACHER_TEMPLATE_PL;
@@ -162,6 +217,12 @@ export default async function handler(req, res) {
             }
         }
         
+        // Future enhancement: Plan-specific templates
+        // if (templateSelection === 'plan-based' && planType === 'paid') {
+        //     // Use premium templates for paid users
+        //     templateId = getPremiumTemplateId(notificationType, language, userCategory);
+        // }
+        
         // Convert to number if it's a string from env vars
         templateId = parseInt(templateId, 10);
         
@@ -174,20 +235,21 @@ export default async function handler(req, res) {
             });
         }
         
-        console.log(`📧 Selected template ${templateId} for ${notificationType} in ${language}`);
-        console.log(`🔍 Environment variable debug:`, {
-            BREVO_PARENT_TEMPLATE_EN: process.env.BREVO_PARENT_TEMPLATE_EN,
-            finalTemplateId: templateId
-        });
+        console.log(`📧 Selected template ${templateId} for ${notificationType} in ${language} (${templateSelection})`);
+        if (brevoContact) {
+            console.log(`📋 Using enriched template data with ${Object.keys(enrichedTemplateData).length} parameters`);
+        } else {
+            console.log(`📋 Using original template data with ${Object.keys(enrichedTemplateData).length} parameters`);
+        }
         
-        // Prepare email data for Brevo SDK
+        // Prepare email data for Brevo SDK with enriched template data
         const sendSmtpEmail = new SendSmtpEmail();
         sendSmtpEmail.to = [{
             email: recipientEmail,
-            name: recipientName
+            name: brevoContact?.attributes?.FIRSTNAME + ' ' + brevoContact?.attributes?.LASTNAME || recipientName
         }];
         sendSmtpEmail.templateId = templateId;
-        sendSmtpEmail.params = templateData || {};
+        sendSmtpEmail.params = enrichedTemplateData;
         
         console.log(`📧 Sending to Brevo - Template: ${templateId}`);
         
