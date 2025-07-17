@@ -160,7 +160,7 @@ export default async function handler(req, res) {
 
         // SECURITY: File size validation
         const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
-        const MIN_FILE_SIZE = 1000; // 1KB
+        const MIN_FILE_SIZE = 100; // 100 bytes (allow very short recordings, prevent empty/corrupted files)
         
         if (audioBuffer.length > MAX_FILE_SIZE) {
             return res.status(400).json({ 
@@ -172,7 +172,7 @@ export default async function handler(req, res) {
 
         if (audioBuffer.length < MIN_FILE_SIZE) {
             return res.status(400).json({ 
-                error: 'File too small. Minimum size is 1KB.',
+                error: 'File too small. Minimum size is 100 bytes.',
                 size: audioBuffer.length,
                 minSize: MIN_FILE_SIZE
             });
