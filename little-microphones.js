@@ -254,17 +254,17 @@
                 transform: translateY(0px);
             }
             
-            /* Background image animation */
+            /* Background image animation - using background-size instead of transform to respect overflow */
             .program-container {
-                background-size: cover !important;
+                background-size: 120% !important;
                 background-position: center !important;
                 background-repeat: no-repeat !important;
-                transform: scale(1.1);
-                transition: transform 0.8s cubic-bezier(0.075, 0.82, 0.165, 1);
+                transition: background-size 0.8s cubic-bezier(0.075, 0.82, 0.165, 1);
+                overflow: hidden !important;
             }
             
             .program-container.bg-animate-in {
-                transform: scale(1);
+                background-size: cover !important;
             }
         `;
         
@@ -1754,9 +1754,8 @@
                 existingVideo.remove();
             }
             
-            // Set static background image
+            // Set static background image (don't override background-size - let CSS animation handle it)
             container.style.backgroundImage = `url('${imageUrl}')`;
-            container.style.backgroundSize = 'cover';
             container.style.backgroundPosition = 'center';
             container.style.backgroundRepeat = 'no-repeat';
             
