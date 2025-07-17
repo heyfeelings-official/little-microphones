@@ -225,7 +225,11 @@
                                 if (badgeRec) {
                                     const radioUrl = `/little-microphones?ID=${shareId}`;
                                     badgeRec.style.cursor = 'pointer';
-                                    badgeRec.onclick = () => window.open(radioUrl, '_blank');
+                                    badgeRec.onclick = (e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        window.location.href = radioUrl;
+                                    };
                                 }
                             }
                         }
