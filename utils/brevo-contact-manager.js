@@ -261,11 +261,49 @@ export async function syncMemberToBrevo(memberData) {
     const activePlans = memberData.planConnections?.filter(conn => conn.active && conn.status === 'ACTIVE') || [];
     
     if (activePlans.length === 0) {
-      console.warn(`⚠️ [${syncId}] No active plans found for ${email}`);
-      return { success: false, syncId, email, error: 'No active plans found' };
+      console.log(`📝 [${syncId}] No active plans for ${email} - syncing basic contact data`);
+      
+      // Create basic contact without plan-specific attributes
+      const basicAttributes = {
+        FIRSTNAME: memberData.customFields?.['first-name'] || memberData.customFields?.firstName || '',
+        LASTNAME: memberData.customFields?.['last-name'] || memberData.customFields?.lastName || '',
+        MEMBERSTACK_ID: memberData.id || '',
+        REGISTRATION_DATE: memberData.createdAt || new Date().toISOString(),
+        LAST_SYNC: new Date().toISOString(),
+        // Set default category as pending until plan is selected
+        USER_CATEGORY: 'pending',
+        PLAN_TYPE: 'none',
+        PLAN_NAME: 'No Plan Yet'
+      };
+      
+      try {
+        // Check if contact exists
+        const existingContact = await getBrevoContact(email);
+        
+        if (existingContact) {
+          // Update existing contact
+          await makeBrevoRequest(`/contacts/${encodeURIComponent(email)}`, 'PUT', {
+            attributes: basicAttributes
+          });
+          console.log(`✅ [${syncId}] Updated basic contact for ${email} (no plan)`);
+          return { success: true, syncId, email, action: 'updated_basic' };
+        } else {
+          // Create new contact
+          await makeBrevoRequest('/contacts', 'POST', {
+            email: email,
+            listIds: [BREVO_MAIN_LIST.HEY_FEELINGS_LIST],
+            attributes: basicAttributes
+          });
+          console.log(`✅ [${syncId}] Created basic contact for ${email} (no plan)`);
+          return { success: true, syncId, email, action: 'created_basic' };
+        }
+      } catch (basicError) {
+        console.error(`❌ [${syncId}] Basic sync failed:`, basicError.message);
+        return { success: false, syncId, email, error: basicError.message };
+      }
     }
     
-    // Process first active plan
+    // Process first active plan (original logic)
     const plan = activePlans[0];
     const planConfig = getPlanConfig(plan.planId);
     

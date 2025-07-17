@@ -146,6 +146,20 @@ export default async function handler(req, res) {
                     });
                 }
 
+                // Check if planConnections exists in payload
+                if (!fullMemberData.planConnections && data.payload?.planConnections) {
+                    console.log('📊 Found planConnections in payload, merging with member data');
+                    fullMemberData.planConnections = data.payload.planConnections;
+                }
+                
+                // For debugging - log all possible data sources
+                console.log('🔍 Data sources check:', {
+                    memberHasPlans: !!(member.planConnections && member.planConnections.length > 0),
+                    fullMemberHasPlans: !!(fullMemberData.planConnections && fullMemberData.planConnections.length > 0),
+                    payloadHasPlans: !!(data.payload?.planConnections && data.payload.planConnections.length > 0),
+                    dataHasPlans: !!(data.planConnections && data.planConnections.length > 0)
+                });
+
                 // 1. Always sync to Brevo (for all users)
                 try {
                     const { syncMemberToBrevo } = await import('../utils/brevo-contact-manager.js');
