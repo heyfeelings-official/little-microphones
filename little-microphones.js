@@ -157,8 +157,6 @@
      * @param {Array<string>} lmids - Array of LMID strings
      */
     async function batchLoadAllRecordingData(lmids) {
-        console.log(`🚀 CONSOLIDATED: Loading all recording data for ${lmids.length} LMIDs`);
-        
         // Collect all unique LMID/world combinations from DOM
         const worldCombinations = [];
         for (const lmid of lmids) {
@@ -173,8 +171,6 @@
                 }
             }
         }
-        
-        console.log(`📊 Found ${worldCombinations.length} unique LMID/world combinations`);
         
         // Process ALL combinations in PARALLEL with Promise.all (much faster!)
         const promises = worldCombinations.map(({ lmid, world, worldContainer, lmidElement }) => {
@@ -192,19 +188,11 @@
                         // 1. Apply badge-rec visibility
                         const badgeRec = worldContainer.querySelector('.badge-rec');
                         if (badgeRec) {
-                            if (hasRecordings) {
-                                badgeRec.classList.add('show-badge');
-                                console.log(`👁️ SHOWING badge-rec for ${lmid}/${world} (${recordings.length} recordings)`);
-                                
-                                // DEBUG: Check computed style immediately after adding class
-                                setTimeout(() => {
-                                    const style = getComputedStyle(badgeRec);
-                                    console.log(`🔬 IMMEDIATE CHECK ${lmid}/${world}: display=${style.display}, classList=${badgeRec.classList.toString()}`);
-                                }, 10);
-                            } else {
-                                badgeRec.classList.remove('show-badge');
-                                console.log(`🙈 HIDING badge-rec for ${lmid}/${world} (0 recordings)`);
-                            }
+                                                    if (hasRecordings) {
+                            badgeRec.classList.add('show-badge');
+                        } else {
+                            badgeRec.classList.remove('show-badge');
+                        }
                         }
                         
                         // 2. Apply new-rec and total counts (simplified for dashboard)
@@ -228,11 +216,37 @@
                                 }
                             }
                         }
+                        
+                        // 3. Setup ShareID and radio links for badge-rec elements
+                        if (hasRecordings) {
+                            const shareId = await getShareIdForWorldLmid(world, lmid);
+                            if (shareId) {
+                                const badgeRec = worldContainer.querySelector('.badge-rec');
+                                if (badgeRec) {
+                                    const radioUrl = `/little-microphones?ID=${shareId}`;
+                                    badgeRec.style.cursor = 'pointer';
+                                    badgeRec.onclick = () => window.open(radioUrl, '_blank');
+                                }
+                            }
+                        }
+                        
+                        // 4. Setup recording links for new-rec elements
+                        const newRecElement = worldContainer.querySelector('.new-rec');
+                        if (newRecElement) {
+                            const recordingUrl = `/members/record?world=${world}&lmid=${lmid}`;
+                            newRecElement.style.cursor = 'pointer';
+                            newRecElement.onclick = (e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                markLmidWorldVisited(lmid);
+                                window.location.href = recordingUrl;
+                            };
+                        }
                     } else {
-                        console.warn(`❌ API failed for ${lmid}/${world}: ${response.status}`);
+                        // Silently handle API failures for cleaner console
                     }
                 } catch (error) {
-                    console.warn(`💥 Error loading ${lmid}/${world}:`, error);
+                    // Silently handle errors for cleaner console
                 }
             })();
         });
@@ -243,62 +257,14 @@
         // Animate elements that are now visible
         setTimeout(() => {
             animateBadgeRecElements();
-            
-            // Debug final state
-            setTimeout(() => {
-                debugFinalBadgeRecState();
-            }, 1000);
         }, 100);
-        
-        console.log(`✅ CONSOLIDATED: Completed loading all recording data`);
     }
 
     // REMOVED: quickPreCalculateVisibility - replaced by consolidated batchLoadAllRecordingData
 
     // REMOVED: checkWorldForRecordings - functionality included in batchLoadAllRecordingData
 
-    /**
-     * Debug function to check final state of all badge-rec elements
-     */
-    function debugFinalBadgeRecState() {
-        console.log("🔬 === FINAL BADGE-REC STATE DEBUG ===");
-        
-        const allLMIDElements = document.querySelectorAll('[data-lmid]');
-        
-        allLMIDElements.forEach(lmidElement => {
-            const lmid = lmidElement.getAttribute('data-lmid');
-            const worldContainers = lmidElement.querySelectorAll('.program-container[data-world]');
-            
-            worldContainers.forEach(worldContainer => {
-                const world = worldContainer.getAttribute('data-world');
-                const badgeRec = worldContainer.querySelector('.badge-rec');
-                
-                if (badgeRec) {
-                    const computedStyle = getComputedStyle(badgeRec);
-                    const isVisible = computedStyle.display !== 'none' && 
-                                    computedStyle.visibility !== 'hidden' && 
-                                    computedStyle.opacity !== '0';
-                    
-                    console.log(`🔍 ${lmid}/${world}:`);
-                    console.log(`  - display: ${computedStyle.display}`);
-                    console.log(`  - visibility: ${computedStyle.visibility}`);
-                    console.log(`  - opacity: ${computedStyle.opacity}`);
-                    console.log(`  - isVisible: ${isVisible}`);
-                    console.log(`  - classList: ${badgeRec.classList.toString()}`);
-                    
-                    if (!isVisible) {
-                        console.log(`❌ ${lmid}/${world}: Badge-rec NOT VISIBLE despite settings!`);
-                    } else {
-                        console.log(`✅ ${lmid}/${world}: Badge-rec is visible`);
-                    }
-                } else {
-                    console.log(`⚠️ ${lmid}/${world}: No badge-rec element found!`);
-                }
-            });
-        });
-        
-        console.log("🔬 === END DEBUG ===");
-    }
+
 
     /**
      * Add event listener with cleanup tracking
@@ -1182,7 +1148,6 @@
             }
             return null;
         } catch (error) {
-            console.warn(`⚠️ Error getting ShareID for ${world}/${lmid}:`, error);
             return null;
         }
     }
