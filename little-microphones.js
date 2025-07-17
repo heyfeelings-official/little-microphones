@@ -127,13 +127,19 @@
     function animateBadgeRecElements(container = document) {
         const badgeRecElements = container.querySelectorAll('.badge-rec:not(.animate-in)');
         
-        console.log(`🎬 Found ${badgeRecElements.length} badge-rec elements for animation`);
+        // Filter out hidden elements to avoid animating then hiding
+        const visibleBadgeElements = Array.from(badgeRecElements).filter(element => {
+            const computedStyle = getComputedStyle(element);
+            return computedStyle.display !== 'none' && computedStyle.visibility !== 'hidden';
+        });
         
-        badgeRecElements.forEach((element, index) => {
-            // Stagger animations by 100ms for each element, starting after new-rec animations
+        console.log(`🎬 Found ${visibleBadgeElements.length} visible badge-rec elements for animation (${badgeRecElements.length} total)`);
+        
+        visibleBadgeElements.forEach((element, index) => {
+            // Stagger animations by 100ms for each element
             setTimeout(() => {
                 element.classList.add('animate-in');
-            }, (index * 100) + 200);
+            }, index * 100);
         });
     }
 
@@ -142,7 +148,8 @@
      * @param {HTMLElement} container - Container to search for program containers (optional)
      */
     function animateBackgroundImages(container = document) {
-        const programContainers = container.querySelectorAll('.program-container[data-lmid]:not(.bg-animate-in)');
+        // Try both selectors to find program containers in cloned LMIDs
+        const programContainers = container.querySelectorAll('[data-lmid] .program-container:not(.bg-animate-in)');
         
         console.log(`🎬 Found ${programContainers.length} containers for background animation`);
         
@@ -262,13 +269,13 @@
             }
             
             /* Background image animation - using background-size instead of transform to respect overflow */
-            .program-container[data-lmid] {
+            [data-lmid] .program-container {
                 background-size: 110%;
                 background-repeat: no-repeat;
                 transition: background-size 0.8s cubic-bezier(0.075, 0.82, 0.165, 1);
             }
             
-            .program-container[data-lmid].bg-animate-in {
+            [data-lmid] .program-container.bg-animate-in {
                 background-size: 100%;
             }
         `;
@@ -448,8 +455,8 @@
         // Start animations immediately for better UX
         setTimeout(() => {
             animateNewRecElements();
-            animateBadgeRecElements();
             animateBackgroundImages();
+            // Note: badge-rec animations happen after data is loaded to avoid animating hidden elements
         }, 100);
         
         // Now batch-load new recording indicators in background (with throttling)
@@ -657,7 +664,10 @@
                 }
             }
             
-            // All data loaded - animations already triggered in initializeDashboardUI
+            // All data loaded - now animate badge-rec elements (only visible ones)
+            setTimeout(() => {
+                animateBadgeRecElements();
+            }, 100);
             
         } catch (error) {
             console.error('❌ Error in batch loading:', error);
@@ -1459,12 +1469,16 @@
         if (clone) {
             container.appendChild(clone);
             
-            // Animate all elements in the newly created LMID
+            // Animate elements in the newly created LMID
             setTimeout(() => {
                 animateNewRecElements(clone);
-                animateBadgeRecElements(clone);
                 animateBackgroundImages(clone);
             }, 100);
+            
+            // Animate badge-rec after data has loaded (with delay for API calls to complete)
+            setTimeout(() => {
+                animateBadgeRecElements(clone);
+            }, 1000);
         }
         
         reinitializeWebflow();
