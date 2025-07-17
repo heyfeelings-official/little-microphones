@@ -668,23 +668,23 @@
                 console.log('🔍 DEBUG: Audio element found:', !!audioElement);
                 console.log('🔍 DEBUG: Is parent program:', isParentProgram);
                 
-                // Add some styling to make it fit better in the radio context
-                const playerDiv = playerElement.querySelector('div[style*="background: white"], div[style*="background: #ffffff"]');
-                if (playerDiv) {
-                    // Use yellow background for parent programs, white for kids programs
-                    playerDiv.style.background = isParentProgram ? '#FFD700' : '#ffffff';
-                    playerDiv.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
-                    playerDiv.style.width = '100%';
-                    console.log(`🎨 DEBUG: Applied ${isParentProgram ? 'yellow' : 'white'} background to player`);
-                }
+                // NOTE: Don't apply yellow background here - it's handled later via setTimeout
+                // to avoid overriding progress bar colors
                 
-                // TEST: Force progress bar inner to be visible on parent player for debugging
-                if (isParentProgram && progressBar && progressBar.children.length > 0) {
+                // Ensure progress bar inner has correct blue color and container has proper background
+                if (progressBar && progressBar.children.length > 0) {
                     const progressInner = progressBar.children[0];
-                    progressInner.style.width = '25%'; // Test visibility
-                    progressInner.style.background = '#007AF7'; // Ensure blue color
-                    progressInner.style.zIndex = '999'; // Ensure it's on top
-                    console.log('🧪 DEBUG: Applied test styling to parent progress bar inner');
+                    const progressContainer = progressBar;
+                    
+                    // Ensure progress bar inner is blue
+                    progressInner.style.background = '#007AF7';
+                    progressInner.style.borderRadius = '4px';
+                    
+                    // Ensure progress container has proper gray background
+                    progressContainer.style.background = 'rgba(0, 0, 0, 0.15)';
+                    progressContainer.style.borderRadius = '4px';
+                    
+                    console.log('🔵 DEBUG: Fixed progress bar colors - inner: blue, container: gray');
                 }
                 
                 playerContainer.appendChild(playerElement);
@@ -1166,24 +1166,17 @@
             console.log('🎵 DEBUG: Setting up parent player with URL:', parentProgram.url);
             setupAudioPlayer(parentProgram.url, radioData, parentsContainer, true);
             
-            // Apply yellow background to the main player container after creation
+            // Apply yellow background ONLY to the main player container - no fallbacks
             setTimeout(() => {
-                // Find the main player container div (white background) - be more specific
-                const playerContainer = parentsContainer.querySelector('div[style*="background: rgb(255, 255, 255)"], div[style*="background:#ffffff"], div[style*="background: white"]');
+                // Find the main player container by specific attributes - avoid progress bars  
+                const mainPlayerContainer = parentsContainer.querySelector('div[style*="width: 100%"][style*="height: 48px"][style*="border-radius: 122px"]');
                 
-                if (playerContainer) {
-                    playerContainer.style.background = '#FFD700';
-                    console.log('🟡 DEBUG: Applied yellow background to parent player container');
+                if (mainPlayerContainer) {
+                    mainPlayerContainer.style.background = '#FFD700';
+                    console.log('🟡 DEBUG: Applied yellow background to main parent player container');
                 } else {
-                    console.log('❌ DEBUG: Could not find player container for yellow background');
-                    // More specific fallback - only main container, not progress bars
-                    const mainPlayerDiv = parentsContainer.querySelector('div[style*="width: 100%"][style*="height: 48px"]');
-                    if (mainPlayerDiv) {
-                        mainPlayerDiv.style.background = '#FFD700';
-                        console.log('🟡 DEBUG: Applied yellow background to main player div');
-                    } else {
-                        console.log('❌ DEBUG: Could not find main player div for yellow background');
-                    }
+                    console.log('❌ DEBUG: Could not find main player container - keeping white background');
+                    // NO FALLBACK - better to keep white than accidentally color progress bars
                 }
             }, 100);
         } else {
