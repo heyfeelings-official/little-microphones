@@ -671,11 +671,14 @@
                 if (mainPlayerDiv) {
                     const textLabel = document.createElement('div');
                     textLabel.textContent = isParentProgram ? 'Parent' : 'Kids';
-                    textLabel.style.cssText = 'font-size: 18px; font-weight: bold; color: #007AF7; margin-right: 16px; flex-shrink: 0;';
+                    
+                    // Different margin-right for Parent vs Kids
+                    const marginRight = isParentProgram ? '7px' : '20px';
+                    textLabel.style.cssText = `font-size: 14px; font-weight: bold; color: #007AF7; margin-right: ${marginRight}; flex-shrink: 0;`;
                     
                     // Insert as first child
                     mainPlayerDiv.insertBefore(textLabel, mainPlayerDiv.firstChild);
-                    console.log(`📝 DEBUG: Added "${textLabel.textContent}" text to player`);
+                    console.log(`📝 DEBUG: Added "${textLabel.textContent}" text to player with margin-right: ${marginRight}`);
                 }
                 
                 playerContainer.appendChild(playerElement);
