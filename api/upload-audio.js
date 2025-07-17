@@ -69,8 +69,9 @@
  * - Brevo SDK integration with automatic contact creation
  * - Secure logging without exposing personal information
  * - Configurable Hey Feelings domain via HEY_FEELINGS_BASE_URL environment variable
- * - Available template parameters: teacherName, world, lmid, schoolName, dashboardUrl, radioUrl, uploaderName, uploaderType, parentEmail
+ * - Available template parameters: teacherName, world, lmid, schoolName, dashboardUrl, radioUrl, uploaderName, uploaderType, parentEmail, parentName
  * - parentEmail parameter contains the email of the parent who made the recording (for teacher notifications)
+ * - parentName parameter contains the first and last name of the parent who made the recording (available for both teacher and parent notifications)
  * 
  * MONITORING & LOGGING:
  * - Comprehensive upload logging with file metadata
@@ -342,6 +343,80 @@ export default async function handler(req, res) {
 // ===== EMAIL NOTIFICATION FUNCTIONS =====
 
 /**
+ * Get parent name from Memberstack API by Member ID
+ * @param {string} memberId - Memberstack Member ID
+ * @returns {Promise<string>} Parent name or 'Rodzic' if not found
+ */
+async function getParentNameByMemberId(memberId) {
+    if (!memberId) {
+        return 'Rodzic';
+    }
+    
+    try {
+        const MEMBERSTACK_SECRET_KEY = process.env.MEMBERSTACK_SECRET_KEY;
+        if (!MEMBERSTACK_SECRET_KEY) {
+            console.warn(`⚠️ Memberstack secret key not configured`);
+            return 'Rodzic';
+        }
+        
+        const response = await fetch(`https://admin.memberstack.com/members/${memberId}`, {
+            method: 'GET',
+            headers: {
+                'x-api-key': MEMBERSTACK_SECRET_KEY,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            const memberData = data.data || data;
+            
+            // Extract first name from various possible fields
+            const firstName = memberData.customFields?.['First Name'] || 
+                             memberData.customFields?.firstName || 
+                             memberData.metaData?.firstName || 
+                             memberData.metaData?.first_name || null;
+                             
+            const lastName = memberData.customFields?.['Last Name'] || 
+                            memberData.customFields?.lastName || 
+                            memberData.metaData?.lastName || 
+                            memberData.metaData?.last_name || null;
+            
+            // Build full name
+            const fullName = `${firstName || ''} ${lastName || ''}`.trim();
+            return fullName || 'Rodzic';
+        } else {
+            console.warn(`⚠️ Failed to fetch parent data from Memberstack: ${response.status}`);
+            return 'Rodzic';
+        }
+    } catch (error) {
+        console.error(`❌ Error fetching parent name:`, error.message);
+        return 'Rodzic';
+    }
+}
+
+/**
+ * Find parent Member ID by email from mapping
+ * @param {string} email - Parent email address
+ * @param {Object} parentMemberIdToEmail - Mapping of Member ID to email
+ * @returns {string|null} Parent Member ID
+ */
+function findParentMemberIdByEmail(email, parentMemberIdToEmail) {
+    if (!parentMemberIdToEmail || typeof parentMemberIdToEmail !== 'object' || !email) {
+        return null;
+    }
+    
+    // Find Member ID that maps to this email
+    for (const [memberId, memberEmail] of Object.entries(parentMemberIdToEmail)) {
+        if (memberEmail === email) {
+            return memberId;
+        }
+    }
+    
+    return null;
+}
+
+/**
  * Send email notifications for new recording (ONLY for parent uploads)
  * @param {string} lmid - LMID number
  * @param {string} world - World name
@@ -363,7 +438,20 @@ async function sendNewRecordingNotifications(lmid, world, questionId, lang, uplo
         
         // Determine who uploaded for template data
         const isTeacherUpload = lmidData.teacherEmail === uploaderEmail;
-        const uploaderName = isTeacherUpload ? lmidData.teacherName : 'Rodzic';
+        let uploaderName = isTeacherUpload ? lmidData.teacherName : 'Rodzic';
+        let parentName = null;
+        
+        // Get parent name if it's a parent upload
+        if (!isTeacherUpload && uploaderEmail && lmidData.parentMemberIdToEmail) {
+            const parentMemberId = findParentMemberIdByEmail(uploaderEmail, lmidData.parentMemberIdToEmail);
+            if (parentMemberId) {
+                parentName = await getParentNameByMemberId(parentMemberId);
+                uploaderName = parentName; // Use actual name instead of generic "Rodzic"
+                console.log(`👤 [${requestId}] Retrieved parent name: ${parentName}`);
+            } else {
+                console.warn(`⚠️ [${requestId}] Could not find Member ID for parent email`);
+            }
+        }
         
         // Prepare template data
         // Use environment variable for Hey Feelings domain
@@ -379,7 +467,9 @@ async function sendNewRecordingNotifications(lmid, world, questionId, lang, uplo
             uploaderName: uploaderName,
             uploaderType: isTeacherUpload ? 'teacher' : 'parent',
             // Add parent email for teacher notifications (only for parent uploads)
-            parentEmail: isTeacherUpload ? null : uploaderEmail
+            parentEmail: isTeacherUpload ? null : uploaderEmail,
+            // Add parent name for both teacher and parent notifications
+            parentName: parentName || (isTeacherUpload ? null : 'Rodzic')
         };
         
         // Send teacher notification (only parent uploads trigger notifications)
