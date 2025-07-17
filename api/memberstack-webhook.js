@@ -57,8 +57,25 @@ async function getMemberById(memberId) {
 
 export default async function handler(req, res) {
     console.log('\n=== MEMBERSTACK WEBHOOK START ===');
-    console.log('Method:', req.method);
-    console.log('Headers received:', req.headers);
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+    
+    // Check environment setup
+    console.log('🔧 Environment check:', {
+        hasWebhookSecret: !!process.env.MEMBERSTACK_WEBHOOK_SECRET,
+        hasMemberstackApiKey: !!process.env.MEMBERSTACK_SECRET_KEY,
+        hasBrevoApiKey: !!process.env.BREVO_API_KEY,
+        hasSupabaseUrl: !!process.env.SUPABASE_URL,
+        hasSupabaseKey: !!process.env.SUPABASE_ANON_KEY
+    });
+    
+    // Check if webhook is enabled
+    if (process.env.DISABLE_MEMBERSTACK_WEBHOOK === 'true') {
+        console.log('⚠️ Memberstack webhook is disabled via environment variable');
+        return res.status(200).json({ 
+            success: true, 
+            message: 'Webhook disabled' 
+        });
+    }
 
     if (req.method !== 'POST') {
         console.log('❌ Method not allowed:', req.method);
@@ -229,6 +246,20 @@ export default async function handler(req, res) {
 
                 // 1. Always sync to Brevo (for all users)
                 try {
+                    console.log('🔄 Starting Brevo sync for member:', {
+                        id: fullMemberData.id,
+                        email: fullMemberData.auth?.email || fullMemberData.email,
+                        hasCustomFields: !!fullMemberData.customFields,
+                        customFieldsCount: Object.keys(fullMemberData.customFields || {}).length,
+                        customFieldsKeys: Object.keys(fullMemberData.customFields || {}),
+                        planConnectionsCount: fullMemberData.planConnections?.length || 0
+                    });
+                    
+                    // Log custom fields content
+                    if (fullMemberData.customFields) {
+                        console.log('📋 Custom fields content:', JSON.stringify(fullMemberData.customFields, null, 2));
+                    }
+                    
                     const { syncMemberToBrevo } = await import('../utils/brevo-contact-manager.js');
                     const brevoResult = await syncMemberToBrevo(fullMemberData);
                     if (brevoResult.success) {
