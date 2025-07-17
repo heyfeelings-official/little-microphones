@@ -73,7 +73,17 @@ const EDUCATORS_DATA = [
     no_classes: 3,
     no_kids: 75,
     school_address: 'ul. Szkolna 15, 30-001 Kraków',
-    school_type: 'Primary School'
+    school_type: 'Primary School',
+    school_phone: '+48 12 123 45 67',
+    school_website: 'https://sp15.krakow.pl',
+    school_latitude: '50.0647',
+    school_longitude: '19.9450',
+    school_rating: '4.2',
+    school_state: 'Lesser Poland',
+    school_street_address: 'ul. Szkolna 15',
+    school_zip: '30-001',
+    school_place_id: 'ChIJBd1abcd4FkcR9jN3X1J2',
+    school_place_name: 'SP 15 Krakow'
   },
   {
     name: 'Robert Johnson',
@@ -88,7 +98,17 @@ const EDUCATORS_DATA = [
     no_classes: 12,
     no_kids: 320,
     school_address: '45 Church Lane, Manchester M1 2AB',
-    school_type: 'Primary School'
+    school_type: 'Primary School',
+    school_phone: '+44 161 555 0123',
+    school_website: 'https://stmarys.manchester.sch.uk',
+    school_latitude: '53.4808',
+    school_longitude: '-2.2426',
+    school_rating: '4.7',
+    school_state: 'Greater Manchester',
+    school_street_address: '45 Church Lane',
+    school_zip: 'M1 2AB',
+    school_place_id: 'ChIJB9wQ_N9efdsRt1J3X8v2',
+    school_place_name: "St Mary's School"
   },
   {
     name: 'Maria Rossi',
@@ -233,7 +253,18 @@ function createMemberWebhook(userData, category) {
       'school-facility-type': userData.school_type,
       'educator-no-classes': userData.no_classes?.toString(),
       'educator-no-kids': userData.no_kids?.toString(),
-      'search-input': userData.school
+      'search-input': userData.school,
+      // Extended school data
+      'school-phone': userData.school_phone || '',
+      'school-website': userData.school_website || '',
+      'school-latitude': userData.school_latitude || '',
+      'school-longitude': userData.school_longitude || '',
+      'school-rating': userData.school_rating || '',
+      'school-state': userData.school_state || '',
+      'school-street-address': userData.school_street_address || '',
+      'school-zip': userData.school_zip || '',
+      'school-place-id': userData.school_place_id || '',
+      'school-place-name-short': userData.school_place_name || ''
     };
   } else if (category === 'therapists') {
     customFields = {

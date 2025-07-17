@@ -171,7 +171,9 @@ export async function createOrUpdateBrevoContact(memberData, planConfig) {
       SCHOOL_LONGITUDE: String(memberData.customFields?.['school-longitude'] || memberData.customFields?.['school_longitude'] || ''),
       SCHOOL_PHONE: memberData.customFields?.['school-phone'] || memberData.customFields?.['school_phone'] || '',
       SCHOOL_PLACE_ID: memberData.customFields?.['school-place-id'] || memberData.customFields?.['school_place_id'] || '',
-      SCHOOL_PLACE_NAME: memberData.customFields?.['school-place-name'] || memberData.customFields?.['school_place_name'] || '',
+      SCHOOL_PLACE_NAME: memberData.customFields?.['school-place-name'] || 
+                         memberData.customFields?.['school_place_name'] || 
+                         memberData.customFields?.['school-place-name-short'] || '',
       SCHOOL_RATING: memberData.customFields?.['school-rating'] || memberData.customFields?.['school_rating'] || '',
       SCHOOL_STATE: memberData.customFields?.['school-state'] || memberData.customFields?.['school_state'] || '',
       SCHOOL_STREET_ADDRESS: memberData.customFields?.['school-street-address'] || memberData.customFields?.['school_street_address'] || '',
