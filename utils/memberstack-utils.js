@@ -51,13 +51,7 @@ export function validateMemberstackWebhook(req, options = {}) {
     const signature = req.headers['x-memberstack-signature'];
     const webhookSecret = process.env.MEMBERSTACK_WEBHOOK_SECRET;
     
-    // Test mode bypass for development/testing
-    if (process.env.TEST_MODE === 'true') {
-        console.log('⚠️ TEST_MODE enabled - bypassing webhook validation');
-        return { valid: true, error: null };
-    }
-    
-    // Wymagaj sekretu w produkcji - brak fallback
+    // Wymagaj sekretu w produkcji
     if (!webhookSecret) {
         console.error('🚨 MEMBERSTACK_WEBHOOK_SECRET not configured - webhook rejected');
         return {
