@@ -116,6 +116,11 @@ export default async function handler(req, res) {
         console.log('Event type:', eventType);
         console.log('Member ID:', member?.id);
         console.log('Member auth email:', member?.auth?.email);
+        
+        // Log the entire webhook payload for debugging
+        console.log('=== FULL WEBHOOK DATA ===');
+        console.log('Raw data:', JSON.stringify(data, null, 2));
+        console.log('=== END WEBHOOK DATA ===');
 
         if (!member) {
             console.log('❌ Missing member data in webhook');
@@ -152,6 +157,22 @@ export default async function handler(req, res) {
                     fullMemberData.planConnections = data.payload.planConnections;
                 }
                 
+                // Additional check - sometimes planConnections might be at root level
+                if (!fullMemberData.planConnections && data.planConnections) {
+                    console.log('📊 Found planConnections at root level, merging with member data');
+                    fullMemberData.planConnections = data.planConnections;
+                }
+                
+                // For member.created event, check if plan info is in the original payload
+                if (!fullMemberData.planConnections && eventType === 'member.created') {
+                    // Check the original verifiedPayload structure
+                    const originalData = typeof verifiedPayload === 'object' ? verifiedPayload : JSON.parse(verifiedPayload);
+                    if (originalData.payload?.planConnections) {
+                        console.log('📊 Found planConnections in original payload for member.created');
+                        fullMemberData.planConnections = originalData.payload.planConnections;
+                    }
+                }
+                
                 // For debugging - log all possible data sources
                 console.log('🔍 Data sources check:', {
                     memberHasPlans: !!(member.planConnections && member.planConnections.length > 0),
@@ -159,6 +180,17 @@ export default async function handler(req, res) {
                     payloadHasPlans: !!(data.payload?.planConnections && data.payload.planConnections.length > 0),
                     dataHasPlans: !!(data.planConnections && data.planConnections.length > 0)
                 });
+                
+                // Final check - log what we have
+                if (fullMemberData.planConnections && fullMemberData.planConnections.length > 0) {
+                    console.log('✅ Plan connections found:', fullMemberData.planConnections.map(p => ({
+                        planId: p.planId,
+                        status: p.status,
+                        active: p.active
+                    })));
+                } else {
+                    console.log('⚠️ No plan connections found after all checks');
+                }
 
                 // 1. Always sync to Brevo (for all users)
                 try {
@@ -166,6 +198,17 @@ export default async function handler(req, res) {
                     const brevoResult = await syncMemberToBrevo(fullMemberData);
                     if (brevoResult.success) {
                         console.log('✅ Brevo contact sync completed:', brevoResult.action);
+                        
+                        // If we synced as basic (no plan) but now found plans, update immediately
+                        if (brevoResult.action === 'created_basic' || brevoResult.action === 'updated_basic') {
+                            if (fullMemberData.planConnections && fullMemberData.planConnections.length > 0) {
+                                console.log('🔄 Found plans after basic sync, updating Brevo with plan data...');
+                                const updateResult = await syncMemberToBrevo(fullMemberData);
+                                if (updateResult.success) {
+                                    console.log('✅ Brevo updated with plan data:', updateResult.action);
+                                }
+                            }
+                        }
                     } else {
                         console.log('❌ Brevo sync failed:', brevoResult.error);
                     }
@@ -254,14 +297,36 @@ export default async function handler(req, res) {
             case 'member.plan.updated':
             case 'member.plan.canceled':
                 console.log(`💳 Processing plan event: ${eventType}`);
-                console.log('Plan data:', JSON.stringify(data, null, 2));
+                console.log('Plan event data:', JSON.stringify(data, null, 2));
                 
                 // For plan events, we need to resync the member to Brevo
                 // to update their segments based on new plan status
                 try {
-                    // Get the member data
-                    const planMember = member || data.member || data.payload;
-                    if (planMember) {
+                    // Get the member data - it could be in different places
+                    let planMember = member || data.member || data.payload?.member || data.payload;
+                    
+                    // For plan events, sometimes the full member data is at root
+                    if (!planMember || !planMember.id) {
+                        console.log('🔍 Looking for member data in plan event...');
+                        // Try to extract member ID and fetch full data
+                        const memberId = data.memberId || data.member_id || data.payload?.memberId;
+                        if (memberId) {
+                            console.log(`📥 Found member ID ${memberId}, would fetch full data (not implemented)`);
+                            // TODO: Implement getMemberById if needed
+                        }
+                    }
+                    
+                    if (planMember && (planMember.id || planMember.auth?.email)) {
+                        console.log(`👤 Processing plan change for member: ${planMember.id || planMember.auth?.email}`);
+                        
+                        // Ensure planConnections is included
+                        if (!planMember.planConnections && data.planConnections) {
+                            planMember.planConnections = data.planConnections;
+                        }
+                        if (!planMember.planConnections && data.payload?.planConnections) {
+                            planMember.planConnections = data.payload.planConnections;
+                        }
+                        
                         const { syncMemberToBrevo } = await import('../utils/brevo-contact-manager.js');
                         const brevoResult = await syncMemberToBrevo(planMember);
                         if (brevoResult.success) {
