@@ -359,10 +359,27 @@ export default async function handler(req, res) {
         const rawBody = await buffer(req);
         const bodyString = rawBody.toString('utf8');
         
+        console.log('🚀 Webhook received:', {
+            method: req.method,
+            bodyLength: bodyString.length,
+            headers: {
+                'content-type': req.headers['content-type'],
+                'user-agent': req.headers['user-agent'],
+                'svix-id': req.headers['svix-id']?.substring(0, 10) + '...',
+                'svix-timestamp': req.headers['svix-timestamp'],
+                'svix-signature': req.headers['svix-signature']?.substring(0, 20) + '...'
+            }
+        });
+        
         // Parse JSON body for processing
         let parsedBody;
         try {
             parsedBody = JSON.parse(bodyString);
+            console.log('✅ JSON parsed successfully:', {
+                type: parsedBody.type,
+                hasData: !!parsedBody.data,
+                hasMember: !!parsedBody.data?.member
+            });
         } catch (parseError) {
             console.error('❌ Invalid JSON body:', parseError.message);
             return res.status(400).json({
@@ -379,19 +396,27 @@ export default async function handler(req, res) {
         };
 
         // Verify webhook authenticity
-        const { validateMemberstackWebhook } = await import('../utils/memberstack-utils.js');
-        const validation = validateMemberstackWebhook(requestWithBody);
-        
-        if (!validation.valid) {
-            console.warn('⚠️ Webhook validation failed:', validation.error);
-            return res.status(401).json({
+        try {
+            const { validateMemberstackWebhook } = await import('../utils/memberstack-utils.js');
+            const validation = validateMemberstackWebhook(requestWithBody);
+            
+            if (!validation.valid) {
+                console.warn('⚠️ Webhook validation failed:', validation.error);
+                return res.status(401).json({
+                    success: false,
+                    error: 'Webhook validation failed',
+                    details: validation.error
+                });
+            }
+            console.log('✅ Webhook signature verified successfully');
+        } catch (validationError) {
+            console.error('❌ Webhook validation error:', validationError);
+            return res.status(500).json({
                 success: false,
-                error: 'Webhook validation failed',
-                details: validation.error
+                error: 'Webhook validation error',
+                details: validationError.message
             });
         }
-
-        console.log('✅ Webhook signature verified successfully');
 
         // Extract webhook data
         const { type, data } = parsedBody;
@@ -405,26 +430,40 @@ export default async function handler(req, res) {
             });
         }
 
-        console.log(`📧 Processing ${type} for member: ${member.auth?.email || member.id}`);
+        console.log(`📧 Processing ${type} for member:`, {
+            id: member.id,
+            email: member.auth?.email,
+            hasCustomFields: !!member.customFields,
+            planConnectionsCount: member.planConnections?.length || 0
+        });
 
         // Handle different webhook types
         const results = [];
         
         if (type === 'member.created' || type === 'member.updated') {
-            // Auto-assign LMID for teachers/therapists
-            const { assignLmidToMember, findNextAvailableLmid, generateAllShareIds } = await import('../utils/lmid-utils.js');
-            const { getPlanConfig } = await import('../utils/brevo-contact-config.js');
             
-            // Check if member is eligible for LMID (educators or therapists)
-            const activePlans = member.planConnections?.filter(conn => conn.active && conn.status === 'ACTIVE') || [];
-            const isEligibleForLmid = activePlans.some(plan => {
-                const planConfig = getPlanConfig(plan.planId);
-                return planConfig && (planConfig.category === 'educators' || planConfig.category === 'therapists');
-            });
-            
-            if (isEligibleForLmid) {
-                try {
-                    console.log(`�� Member ${member.id} is eligible for LMID assignment`);
+            // LMID Assignment Logic
+            try {
+                const { assignLmidToMember, findNextAvailableLmid, generateAllShareIds } = await import('../utils/lmid-utils.js');
+                const { getPlanConfig } = await import('../utils/brevo-contact-config.js');
+                
+                // Check if member is eligible for LMID (educators or therapists)
+                const activePlans = member.planConnections?.filter(conn => conn.active && conn.status === 'ACTIVE') || [];
+                console.log('🔍 Plan eligibility check:', {
+                    totalPlans: member.planConnections?.length || 0,
+                    activePlans: activePlans.length,
+                    planIds: activePlans.map(p => p.planId)
+                });
+                
+                const isEligibleForLmid = activePlans.some(plan => {
+                    const planConfig = getPlanConfig(plan.planId);
+                    const isEligible = planConfig && (planConfig.category === 'educators' || planConfig.category === 'therapists');
+                    console.log(`📋 Plan ${plan.planId}: category=${planConfig?.category}, eligible=${isEligible}`);
+                    return isEligible;
+                });
+                
+                if (isEligibleForLmid) {
+                    console.log(`🎯 Member ${member.id} is eligible for LMID assignment`);
                     
                     // Find next available LMID
                     const nextLmid = await findNextAvailableLmid();
@@ -445,17 +484,19 @@ export default async function handler(req, res) {
                         results.push('LMID assignment failed: No available LMIDs');
                         console.error('❌ No available LMIDs found');
                     }
-                } catch (lmidError) {
-                    results.push(`LMID assignment error: ${lmidError.message}`);
-                    console.error('❌ LMID assignment error:', lmidError);
+                } else {
+                    const categories = activePlans.map(p => getPlanConfig(p.planId)?.category).filter(Boolean);
+                    console.log(`ℹ️ Member ${member.id} not eligible for LMID (categories: ${categories.join(', ') || 'none'})`);
+                    results.push(`Not eligible for LMID (categories: ${categories.join(', ') || 'none'})`);
                 }
-            } else {
-                console.log(`ℹ️ Member ${member.id} not eligible for LMID (category: ${activePlans.map(p => getPlanConfig(p.planId)?.category).join(', ')})`);
+            } catch (lmidError) {
+                console.error('❌ LMID assignment error:', lmidError);
+                results.push(`LMID assignment error: ${lmidError.message}`);
             }
 
-            // Sync to Brevo
-            const { syncMemberToBrevo } = await import('../utils/brevo-contact-manager.js');
+            // Brevo Synchronization
             try {
+                const { syncMemberToBrevo } = await import('../utils/brevo-contact-manager.js');
                 const brevoResult = await syncMemberToBrevo(member);
                 if (brevoResult.success) {
                     results.push(`Brevo sync: ${brevoResult.action || 'completed'}`);
@@ -473,7 +514,6 @@ export default async function handler(req, res) {
         // Handle subscription events
         if (type.startsWith('subscription.')) {
             console.log(`🔄 Processing subscription event: ${type}`);
-            // Additional subscription logic can be added here
             results.push(`Subscription event processed: ${type}`);
         }
 
@@ -490,7 +530,11 @@ export default async function handler(req, res) {
         return res.status(200).json(response);
 
     } catch (error) {
-        console.error('❌ Webhook processing error:', error);
+        console.error('❌ Webhook processing error:', {
+            name: error.name,
+            message: error.message,
+            stack: error.stack?.split('\n').slice(0, 3)
+        });
         
         // Don't expose internal errors to external requests
         return res.status(500).json({
