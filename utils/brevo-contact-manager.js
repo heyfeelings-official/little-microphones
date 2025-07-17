@@ -268,11 +268,29 @@ export async function createOrUpdateBrevoContact(memberData, planConfig) {
     });
     
     // Clean up null/undefined values - Brevo doesn't like them
+    // Also preserve existing values if new value is empty
     const cleanedAttributes = {};
     Object.keys(allAttributes).forEach(key => {
       const value = allAttributes[key];
       if (value !== null && value !== undefined && value !== '') {
         cleanedAttributes[key] = value;
+      } else if (existingContact?.attributes?.[key]) {
+        // If new value is empty but existing contact has data, preserve it
+        cleanedAttributes[key] = existingContact.attributes[key];
+      }
+    });
+    
+    // Log final cleaned attributes for debugging
+    console.log(`📋 [${syncId}] Final cleaned attributes being sent to Brevo:`, {
+      ...cleanedAttributes,
+      fieldsCount: Object.keys(cleanedAttributes).length,
+      hasAllImportantFields: {
+        FIRSTNAME: !!cleanedAttributes.FIRSTNAME,
+        LASTNAME: !!cleanedAttributes.LASTNAME,
+        PLAN_NAME: !!cleanedAttributes.PLAN_NAME,
+        SCHOOL_CITY: !!cleanedAttributes.SCHOOL_CITY,
+        EDUCATOR_ROLE: !!cleanedAttributes.EDUCATOR_ROLE,
+        EDUCATOR_NO_KIDS: !!cleanedAttributes.EDUCATOR_NO_KIDS
       }
     });
     
@@ -364,11 +382,116 @@ export async function syncMemberToBrevo(memberData) {
       
       // Update contact with new data but preserve plan attributes
       const updateAttributes = {
-        FIRSTNAME: memberData.customFields?.['first-name'] || memberData.customFields?.firstName || '',
-        LASTNAME: memberData.customFields?.['last-name'] || memberData.customFields?.lastName || '',
+        // Basic contact information
+        FIRSTNAME: memberData.customFields?.['first-name'] || 
+                   memberData.customFields?.firstName || 
+                   memberData.metaData?.firstName || '',
+        LASTNAME: memberData.customFields?.['last-name'] || 
+                  memberData.customFields?.lastName || 
+                  memberData.metaData?.lastName || '',
+        PHONE: memberData.customFields?.['phone'] || 
+               memberData.customFields?.phone || 
+               memberData.metaData?.phone || '',
+        LANGUAGE_PREF: memberData.metaData?.language || 
+                       memberData.customFields?.language || 
+                       memberData.customFields?.['language-pref'] || 'en',
+        
+        // Memberstack integration
         MEMBERSTACK_ID: memberData.id || '',
         LAST_SYNC: new Date().toISOString(),
+        
+        // Teacher/School name (general)
+        TEACHER_NAME: memberData.customFields?.['teacher-name'] || 
+                     memberData.customFields?.teacherName ||
+                     memberData.metaData?.teacherName ||
+                     `${memberData.customFields?.['first-name'] || ''} ${memberData.customFields?.['last-name'] || ''}`.trim(),
+        SCHOOL_NAME: memberData.customFields?.['school-name'] || 
+                     memberData.customFields?.schoolName ||
+                     memberData.customFields?.['school'] || 
+                     memberData.customFields?.school ||
+                     memberData.customFields?.['place-name'] || 
+                     memberData.metaData?.schoolName || '',
+        
+        // School details (map from generic field names)
+        SCHOOL_SEARCH_INPUT: memberData.customFields?.['search-input'] || 
+                            memberData.customFields?.searchInput ||
+                            memberData.customFields?.['school-search-input'] || 
+                            memberData.metaData?.schoolSearchInput || '',
+        SCHOOL_ADDRESS: memberData.customFields?.['address-result'] || 
+                       memberData.customFields?.addressResult ||
+                       memberData.customFields?.['school-address'] || 
+                       memberData.customFields?.['school-address-result'] || 
+                       memberData.metaData?.schoolAddress || '',
+        SCHOOL_CITY: memberData.customFields?.['city'] || 
+                     memberData.customFields?.city ||
+                     memberData.customFields?.['school-city'] || 
+                     memberData.metaData?.schoolCity || '',
+        SCHOOL_COUNTRY: memberData.customFields?.['country'] || 
+                        memberData.customFields?.country ||
+                        memberData.customFields?.['school-country'] || 
+                        memberData.metaData?.schoolCountry || '',
+        SCHOOL_FACILITY_TYPE: memberData.customFields?.['facility-type'] || 
+                             memberData.customFields?.facilityType ||
+                             memberData.customFields?.['school-type'] || 
+                             memberData.customFields?.['school-facility-type'] || 
+                             memberData.metaData?.schoolFacilityType || '',
+        SCHOOL_LATITUDE: String(memberData.customFields?.['latitude'] || 
+                                memberData.customFields?.latitude ||
+                                memberData.customFields?.['school-latitude'] || 
+                                memberData.metaData?.schoolLatitude || ''),
+        SCHOOL_LONGITUDE: String(memberData.customFields?.['longitude'] || 
+                                 memberData.customFields?.longitude ||
+                                 memberData.customFields?.['school-longitude'] || 
+                                 memberData.metaData?.schoolLongitude || ''),
+        SCHOOL_PHONE: memberData.customFields?.['school-phone'] || 
+                      memberData.customFields?.schoolPhone ||
+                      memberData.metaData?.schoolPhone || '',
+        SCHOOL_PLACE_ID: memberData.customFields?.['place-id'] || 
+                         memberData.customFields?.placeId ||
+                         memberData.customFields?.['school-place-id'] || 
+                         memberData.metaData?.schoolPlaceId || '',
+        SCHOOL_PLACE_NAME: memberData.customFields?.['place-name'] || 
+                           memberData.customFields?.placeName ||
+                           memberData.customFields?.['school-place-name'] || 
+                           memberData.metaData?.schoolPlaceName || '',
+        SCHOOL_RATING: memberData.customFields?.['rating'] || 
+                       memberData.customFields?.rating ||
+                       memberData.customFields?.['school-rating'] || 
+                       memberData.metaData?.schoolRating || '',
+        SCHOOL_STATE: memberData.customFields?.['state'] || 
+                      memberData.customFields?.state ||
+                      memberData.customFields?.['school-state'] || 
+                      memberData.metaData?.schoolState || '',
+        SCHOOL_STREET_ADDRESS: memberData.customFields?.['street-address'] || 
+                               memberData.customFields?.streetAddress ||
+                               memberData.customFields?.['school-street-address'] || 
+                               memberData.metaData?.schoolStreetAddress || '',
+        SCHOOL_WEBSITE: memberData.customFields?.['website'] || 
+                        memberData.customFields?.website ||
+                        memberData.customFields?.['school-website'] || 
+                        memberData.metaData?.schoolWebsite || '',
+        SCHOOL_ZIP: memberData.customFields?.['zip'] || 
+                    memberData.customFields?.zip ||
+                    memberData.customFields?.['school-zip'] || 
+                    memberData.metaData?.schoolZip || '',
+        
+        // Professional information (map from generic field names)
+        EDUCATOR_ROLE: memberData.customFields?.['role'] || 
+                       memberData.customFields?.role ||
+                       memberData.customFields?.['educator-role'] || 
+                       memberData.metaData?.educatorRole || '',
+        EDUCATOR_NO_CLASSES: memberData.customFields?.['no-classes'] || 
+                             memberData.customFields?.noClasses ||
+                             memberData.customFields?.['educator-no-classes'] || 
+                             memberData.metaData?.educatorNoClasses || '',
+        EDUCATOR_NO_KIDS: memberData.customFields?.['no-kids'] || 
+                          memberData.customFields?.noKids ||
+                          memberData.customFields?.['educator-no-kids'] || 
+                          memberData.metaData?.educatorNoKids || '',
+        
+        // Application-specific
         LMIDS: memberData.metaData?.lmids || existingContactData.attributes?.LMIDS || '',
+        
         // Preserve existing plan data
         USER_CATEGORY: existingContactData.attributes.USER_CATEGORY,
         PLAN_TYPE: existingContactData.attributes.PLAN_TYPE,
@@ -376,18 +499,22 @@ export async function syncMemberToBrevo(memberData) {
         PLAN_ID: existingContactData.attributes.PLAN_ID
       };
       
-      // Update all other fields from memberData.customFields
-      if (memberData.customFields) {
-        Object.keys(memberData.customFields).forEach(key => {
-          const brevoKey = key.toUpperCase().replace(/-/g, '_');
-          if (!['FIRSTNAME', 'LASTNAME'].includes(brevoKey) && memberData.customFields[key]) {
-            updateAttributes[brevoKey] = memberData.customFields[key];
-          }
-        });
-      }
+      // Clean up null/undefined/empty values - only update fields with actual data
+      const cleanedAttributes = {};
+      Object.keys(updateAttributes).forEach(key => {
+        const value = updateAttributes[key];
+        if (value !== null && value !== undefined && value !== '') {
+          cleanedAttributes[key] = value;
+        }
+      });
+      
+      console.log(`📋 [${syncId}] Updating contact with preserved plan and mapped fields:`, {
+        ...cleanedAttributes,
+        fieldsCount: Object.keys(cleanedAttributes).length
+      });
       
       await makeBrevoRequest(`/contacts/${encodeURIComponent(email)}`, 'PUT', {
-        attributes: updateAttributes
+        attributes: cleanedAttributes
       });
       
       console.log(`✅ [${syncId}] Updated contact preserving existing plan data`);
