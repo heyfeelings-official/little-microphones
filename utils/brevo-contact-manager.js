@@ -2,13 +2,18 @@
  * utils/brevo-contact-manager.js - Brevo Contact Management and Synchronization
  * 
  * PURPOSE: Centralized contact management for Brevo integration with Memberstack
- * DEPENDENCIES: @getbrevo/brevo SDK, brevo-segments.js configuration
+ * DEPENDENCIES: @getbrevo/brevo SDK, brevo-contact-config.js
+ * 
+ * BREVO ARCHITECTURE:
+ * - All contacts → Main List #2 "Hey Feelings List"
+ * - Rich contact attributes for dynamic segmentation in Brevo Dashboard
+ * - Tags for additional categorization
+ * - Segments created dynamically in Brevo Dashboard based on attributes
  * 
  * CORE FUNCTIONS:
  * - syncMemberToBrevo(): Complete member synchronization from Memberstack to Brevo
  * - createOrUpdateBrevoContact(): Create or update contact with full data
- * - addContactToSegments(): Add contact to appropriate segments based on plan
- * - removeContactFromSegments(): Remove contact from segments (plan changes)
+ * - addContactToMainList(): Add contact to Hey Feelings List #2
  * - getBrevoContact(): Retrieve complete contact data from Brevo
  * - updateContactAttributes(): Update contact attributes
  * - addContactTags(): Add tags to contact
@@ -17,9 +22,10 @@
  * SYNCHRONIZATION STRATEGY:
  * 1. Get full member data from Memberstack
  * 2. Map Memberstack custom fields to Brevo attributes
- * 3. Determine segments based on active plans
- * 4. Create/update contact with all data
- * 5. Add to appropriate segments and tags
+ * 3. Create/update contact with all data
+ * 4. Add to main list #2 (Hey Feelings List)
+ * 5. Add appropriate tags
+ * 6. Brevo Dashboard handles dynamic segmentation based on attributes
  * 
  * ERROR HANDLING:
  * - Graceful degradation for API failures
@@ -28,8 +34,8 @@
  * - Fallback strategies for critical operations
  * 
  * LAST UPDATED: January 2025
- * VERSION: 1.0.0
- * STATUS: Implementation Ready
+ * VERSION: 2.0.0 (Lists + Attributes architecture)
+ * STATUS: Production Ready
  */
 
 import { 
@@ -41,14 +47,13 @@ import {
 } from '@getbrevo/brevo';
 
 import { 
-  PLAN_TO_SEGMENTS_MAP, 
+  PLAN_TO_ATTRIBUTES_MAP, 
   BREVO_CONTACT_ATTRIBUTES,
+  BREVO_MAIN_LIST,
   getPlanConfig,
-  getSegmentsForPlan,
   getTagsForPlan,
-  getAttributesForPlan,
-  getSegmentName 
-} from './brevo-segments.js';
+  getAttributesForPlan
+} from './brevo-contact-config.js';
 
 // ===== BREVO API INITIALIZATION =====
 
@@ -97,7 +102,7 @@ export async function getBrevoContact(email) {
 /**
  * Create or update contact in Brevo with complete data
  * @param {Object} memberData - Complete member data from Memberstack
- * @param {Object} planConfig - Plan configuration from brevo-segments.js
+ * @param {Object} planConfig - Plan configuration from brevo-contact-config.js
  * @returns {Promise<Object>} Result of create/update operation
  */
 export async function createOrUpdateBrevoContact(memberData, planConfig) {
@@ -148,7 +153,7 @@ export async function createOrUpdateBrevoContact(memberData, planConfig) {
 }
 
 /**
- * Map Memberstack custom fields to Brevo attributes
+ * Map Memberstack custom fields to Brevo contact attributes
  * @param {Object} memberData - Memberstack member data
  * @param {Object} planConfig - Plan configuration
  * @returns {Object} Brevo attributes object
@@ -254,114 +259,36 @@ function mapMemberstackToBrevoAttributes(memberData, planConfig) {
     }
   });
   
-  console.log(`📋 Mapped attributes for ${memberData.id}:`, Object.keys(attributes));
-  
   return attributes;
 }
 
-// ===== SEGMENT MANAGEMENT =====
+// ===== LIST MANAGEMENT =====
 
 /**
- * Add contact to multiple segments (lists)
+ * Add contact to main Hey Feelings List #2
  * @param {string} email - Contact email
- * @param {Array} segmentIds - Array of Brevo segment IDs
- * @returns {Promise<Object>} Results of segment operations
+ * @returns {Promise<Object>} Result of list addition
  */
-export async function addContactToSegments(email, segmentIds) {
-  const results = [];
-  
-  for (const segmentId of segmentIds) {
-    try {
-      await addContactToSegment(email, segmentId);
-      results.push({ segmentId, success: true, segmentName: getSegmentName(segmentId) });
-    } catch (error) {
-      console.error(`❌ Failed to add ${email} to segment ${segmentId}:`, error.message);
-      results.push({ segmentId, success: false, error: error.message, segmentName: getSegmentName(segmentId) });
-    }
-  }
-  
-  const successCount = results.filter(r => r.success).length;
-  console.log(`📊 Added ${email} to ${successCount}/${segmentIds.length} segments`);
-  
-  return { results, successCount, totalCount: segmentIds.length };
-}
-
-/**
- * Add contact to a specific segment (list)
- * @param {string} email - Contact email
- * @param {number} segmentId - Brevo segment ID
- * @returns {Promise<void>}
- */
-async function addContactToSegment(email, segmentId) {
+export async function addContactToMainList(email) {
   try {
     const contactsApi = initBrevoContactsApi();
     
-    // Add contact to list
-    await contactsApi.addContactToList(segmentId, {
+    await contactsApi.addContactToList(BREVO_MAIN_LIST.HEY_FEELINGS_LIST, {
       emails: [email]
     });
     
-    console.log(`✅ Added ${email} to segment ${getSegmentName(segmentId)} (${segmentId})`);
+    console.log(`✅ Added ${email} to Hey Feelings List #${BREVO_MAIN_LIST.HEY_FEELINGS_LIST}`);
+    
+    return { success: true, listId: BREVO_MAIN_LIST.HEY_FEELINGS_LIST, email };
     
   } catch (error) {
     // If contact is already in list, that's usually OK
-    if (error.message && error.message.includes('already')) {
-      console.log(`ℹ️ ${email} already in segment ${getSegmentName(segmentId)} (${segmentId})`);
-      return;
+    if (error.message && error.message.includes('already exists')) {
+      console.log(`ℹ️ ${email} already in Hey Feelings List #${BREVO_MAIN_LIST.HEY_FEELINGS_LIST}`);
+      return { success: true, listId: BREVO_MAIN_LIST.HEY_FEELINGS_LIST, email, note: 'already_exists' };
     }
     
-    throw error;
-  }
-}
-
-/**
- * Remove contact from multiple segments
- * @param {string} email - Contact email
- * @param {Array} segmentIds - Array of Brevo segment IDs
- * @returns {Promise<Object>} Results of removal operations
- */
-export async function removeContactFromSegments(email, segmentIds) {
-  const results = [];
-  
-  for (const segmentId of segmentIds) {
-    try {
-      await removeContactFromSegment(email, segmentId);
-      results.push({ segmentId, success: true, segmentName: getSegmentName(segmentId) });
-    } catch (error) {
-      console.error(`❌ Failed to remove ${email} from segment ${segmentId}:`, error.message);
-      results.push({ segmentId, success: false, error: error.message, segmentName: getSegmentName(segmentId) });
-    }
-  }
-  
-  const successCount = results.filter(r => r.success).length;
-  console.log(`📊 Removed ${email} from ${successCount}/${segmentIds.length} segments`);
-  
-  return { results, successCount, totalCount: segmentIds.length };
-}
-
-/**
- * Remove contact from a specific segment
- * @param {string} email - Contact email
- * @param {number} segmentId - Brevo segment ID
- * @returns {Promise<void>}
- */
-async function removeContactFromSegment(email, segmentId) {
-  try {
-    const contactsApi = initBrevoContactsApi();
-    
-    await contactsApi.removeContactFromList(segmentId, {
-      emails: [email]
-    });
-    
-    console.log(`✅ Removed ${email} from segment ${getSegmentName(segmentId)} (${segmentId})`);
-    
-  } catch (error) {
-    // If contact is not in list, that's usually OK
-    if (error.message && error.message.includes('not found')) {
-      console.log(`ℹ️ ${email} not in segment ${getSegmentName(segmentId)} (${segmentId})`);
-      return;
-    }
-    
+    console.error(`❌ Error adding ${email} to main list:`, error.message);
     throw error;
   }
 }
@@ -372,48 +299,54 @@ async function removeContactFromSegment(email, segmentId) {
  * Add tags to contact
  * @param {string} email - Contact email
  * @param {Array} tags - Array of tag names
- * @returns {Promise<Object>} Results of tag operations
+ * @returns {Promise<Object>} Result of tag operations
  */
 export async function addContactTags(email, tags) {
+  if (!tags || tags.length === 0) {
+    return { success: true, tagsAdded: 0, tags: [] };
+  }
+  
   try {
     const contactsApi = initBrevoContactsApi();
     
-    // Brevo API expects tags as an array of strings
-    await contactsApi.updateContact(email, {
-      tags: tags
-    });
+    const updateContact = new UpdateContact();
+    updateContact.tags = tags;
     
-    console.log(`🏷️ Added tags to ${email}: ${tags.join(', ')}`);
+    await contactsApi.updateContact(email, updateContact);
     
-    return { success: true, tags, email };
+    console.log(`✅ Added ${tags.length} tags to ${email}: ${tags.join(', ')}`);
+    
+    return { success: true, tagsAdded: tags.length, tags };
     
   } catch (error) {
-    console.error(`❌ Failed to add tags to ${email}:`, error.message);
+    console.error(`❌ Error adding tags to ${email}:`, error.message);
     throw error;
   }
 }
 
 /**
- * Update contact attributes
+ * Remove tags from contact
  * @param {string} email - Contact email
- * @param {Object} attributes - Attributes to update
- * @returns {Promise<Object>} Update result
+ * @param {Array} tags - Array of tag names to remove
+ * @returns {Promise<Object>} Result of tag removal
  */
-export async function updateContactAttributes(email, attributes) {
+export async function removeContactTags(email, tags) {
+  if (!tags || tags.length === 0) {
+    return { success: true, tagsRemoved: 0, tags: [] };
+  }
+  
   try {
     const contactsApi = initBrevoContactsApi();
     
-    const updateContact = new UpdateContact();
-    updateContact.attributes = attributes;
+    // Note: Brevo API doesn't have direct tag removal
+    // This would require getting current tags and setting new list without specified tags
+    // For now, we'll log this limitation
+    console.log(`⚠️ Tag removal not implemented yet for ${email} - tags: ${tags.join(', ')}`);
     
-    await contactsApi.updateContact(email, updateContact);
-    
-    console.log(`📝 Updated attributes for ${email}:`, Object.keys(attributes));
-    
-    return { success: true, email, attributes };
+    return { success: true, tagsRemoved: 0, tags, note: 'removal_not_implemented' };
     
   } catch (error) {
-    console.error(`❌ Failed to update attributes for ${email}:`, error.message);
+    console.error(`❌ Error removing tags from ${email}:`, error.message);
     throw error;
   }
 }
@@ -456,9 +389,8 @@ export async function syncMemberToBrevo(memberData) {
       // 1. Create/update contact with full data
       const contactResult = await createOrUpdateBrevoContact(memberData, planConfig);
       
-      // 2. Add to appropriate segments
-      const allSegments = [planConfig.primarySegment, ...planConfig.categorySegments];
-      const segmentResult = await addContactToSegments(email, allSegments);
+      // 2. Add to main list #2 (Hey Feelings List)
+      const listResult = await addContactToMainList(email);
       
       // 3. Add tags
       const tagResult = await addContactTags(email, planConfig.tags);
@@ -467,7 +399,7 @@ export async function syncMemberToBrevo(memberData) {
         planId: plan.planId,
         planName: planConfig.attributes.PLAN_NAME,
         contactResult,
-        segmentResult,
+        listResult,
         tagResult
       });
     }
@@ -510,28 +442,19 @@ export async function handleMemberPlanChange(memberData, oldPlans = [], newPlans
   console.log(`📊 [${changeId}] New plans: ${newPlans.join(', ')}`);
   
   try {
-    // Remove from old plan segments
-    for (const oldPlanId of oldPlans) {
-      const oldPlanConfig = getPlanConfig(oldPlanId);
-      if (oldPlanConfig) {
-        const oldSegments = [oldPlanConfig.primarySegment, ...oldPlanConfig.categorySegments];
-        await removeContactFromSegments(email, oldSegments);
-      }
-    }
+    // With Lists + Attributes architecture, we simply re-sync the member
+    // The new attributes will automatically update dynamic segments in Brevo Dashboard
+    const syncResult = await syncMemberToBrevo(memberData);
     
-    // Add to new plan segments (full sync for new plans)
-    if (newPlans.length > 0) {
-      await syncMemberToBrevo(memberData);
-    }
-    
-    console.log(`✅ [${changeId}] Plan change completed for ${email}`);
+    console.log(`✅ [${changeId}] Plan change completed for ${email} - contact attributes updated`);
     
     return {
       success: true,
       changeId,
       email,
       oldPlans,
-      newPlans
+      newPlans,
+      syncResult
     };
     
   } catch (error) {

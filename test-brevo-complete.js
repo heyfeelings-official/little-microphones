@@ -16,16 +16,15 @@
 
 import { 
     getPlanConfig, 
-    getSegmentsForPlan, 
     getTagsForPlan,
-    BREVO_SEGMENTS 
-} from './utils/brevo-segments.js';
+    BREVO_MAIN_LIST 
+} from './utils/brevo-contact-config.js';
 
 import { 
     syncMemberToBrevo, 
     getBrevoContact,
     createOrUpdateBrevoContact,
-    addContactToSegments,
+    addContactToMainList,
     handleMemberPlanChange
 } from './utils/brevo-contact-manager.js';
 
@@ -105,7 +104,7 @@ async function testEducatorRegistration() {
         if (planConfig) {
             console.log(`  - Category: ${planConfig.category}`);
             console.log(`  - Plan Name: ${planConfig.attributes.PLAN_NAME}`);
-            console.log(`  - Segments: ${getSegmentsForPlan(educator.planConnections[0].planId).length} segments`);
+            console.log(`  - Plan Type: ${planConfig.attributes.PLAN_TYPE}`);
             console.log(`  - Tags: ${getTagsForPlan(educator.planConnections[0].planId).join(', ')}`);
         }
         
@@ -306,8 +305,8 @@ async function testSegmentMappings() {
                 console.log(`✅ ${planId}:`);
                 console.log(`   - Category: ${config.category}`);
                 console.log(`   - Plan Name: ${config.attributes.PLAN_NAME}`);
-                console.log(`   - Primary Segment: ${config.primarySegment}`);
-                console.log(`   - Total Segments: ${getSegmentsForPlan(planId).length}`);
+                console.log(`   - Plan Type: ${config.attributes.PLAN_TYPE}`);
+                console.log(`   - Plan ID: ${config.attributes.PLAN_ID}`);
                 console.log(`   - Tags: ${getTagsForPlan(planId).join(', ')}`);
                 successCount++;
             } else {
@@ -315,11 +314,10 @@ async function testSegmentMappings() {
             }
         }
         
-        console.log(`\n📊 Segment ID verification:`);
-        console.log(`   - Parents: ${BREVO_SEGMENTS.PARENTS_ALL}-${BREVO_SEGMENTS.PARENTS_PLAN_FREE}`);
-        console.log(`   - Educators: ${BREVO_SEGMENTS.EDUCATORS_ALL}-${BREVO_SEGMENTS.EDUCATORS_PLAN_SINGLE_CLASSROOM} (skip #10)`);
-        console.log(`   - Therapists: ${BREVO_SEGMENTS.THERAPISTS_ALL}-${BREVO_SEGMENTS.THERAPISTS_PLAN_SINGLE_PRACTICE}`);
-        console.log(`   - Cross-category: ${BREVO_SEGMENTS.ALL_USERS}-${BREVO_SEGMENTS.ALL_PAID}`);
+        console.log(`\n📊 Main List Configuration:`);
+        console.log(`   - Hey Feelings List: #${BREVO_MAIN_LIST.HEY_FEELINGS_LIST} (all contacts)`);
+        console.log(`   - Dynamic Segments: Created in Brevo Dashboard based on attributes`);
+        console.log(`   - Segmentation: USER_CATEGORY + PLAN_TYPE + PLAN_ID combinations`);
         
         console.log(`\n✅ Plan mapping test: ${successCount}/${testPlans.length} plans configured correctly`);
         
