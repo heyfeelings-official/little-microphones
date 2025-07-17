@@ -183,6 +183,8 @@
         // Animate badge-rec elements that are now visible
         setTimeout(() => {
             animateBadgeRecElements();
+            // Debug: Check final state after all operations
+            debugBadgeRecFinalState();
         }, 100);
     }
 
