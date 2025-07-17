@@ -103,44 +103,7 @@
      */
     const elementEventListeners = new WeakMap();
 
-    /**
-     * Re-initialize Webflow animations for cloned elements
-     * @param {HTMLElement} element - Element to re-initialize animations for
-     */
-    function reinitializeWebflowAnimations(element) {
-        try {
-            // Method 1: Trigger Webflow IX2 re-initialization if available
-            if (window.Webflow && window.Webflow.require) {
-                try {
-                    const ix2 = window.Webflow.require('ix2');
-                    if (ix2 && ix2.init) {
-                        ix2.init();
-                        console.log('✨ Webflow IX2 re-initialized');
-                    }
-                } catch (e) {
-                    console.warn('IX2 init failed:', e);
-                }
-            }
-            
-            // Method 2: Trigger Webflow ready event
-            if (window.Webflow && window.Webflow.ready) {
-                setTimeout(() => {
-                    window.Webflow.ready();
-                    console.log('✨ Webflow ready triggered');
-                }, 50);
-            }
-            
-            // Method 3: Dispatch custom events to trigger animation scanning
-            setTimeout(() => {
-                window.dispatchEvent(new Event('resize'));
-                window.dispatchEvent(new Event('DOMContentLoaded'));
-                console.log('✨ Animation trigger events dispatched');
-            }, 100);
-            
-        } catch (error) {
-            console.warn('⚠️ Could not re-initialize Webflow animations:', error);
-        }
-    }
+
 
     /**
      * Add event listener with cleanup tracking
@@ -407,53 +370,34 @@
     async function createLMIDElement(template, lmid, loadNewRecordings = true) {
         const clone = template.cloneNode(true);
         
-        // Configure clone - preserve Webflow animation structure
+        // Configure clone - simple approach, no animation support
         clone.style.display = "";
-        
-        // Make IDs unique instead of removing them (preserves Webflow animations)
-        const originalId = clone.id;
-        if (originalId) {
-            clone.id = `${originalId}-lmid-${lmid}`;
-        }
+        clone.removeAttribute("id");
         clone.setAttribute("data-lmid", lmid);
-        
-        // Update all child elements with IDs to be unique
-        const elementsWithIds = clone.querySelectorAll('[id]');
-        elementsWithIds.forEach(element => {
-            const oldId = element.id;
-            element.id = `${oldId}-lmid-${lmid}`;
-        });
 
         // Populate LMID number
-        const numberElement = clone.querySelector(`#lmid-number-lmid-${lmid}`);
+        const numberElement = clone.querySelector("#lmid-number");
         if (numberElement) {
             numberElement.textContent = lmid;
+            numberElement.removeAttribute("id");
         } else {
-            console.warn(`⚠️ Could not find LMID number element in template clone for LMID ${lmid}`);
+            console.warn(`⚠️ Could not find '#lmid-number' in template clone for LMID ${lmid}`);
         }
-        
-        // Preserve and update data-w-id for Webflow animations
-        const elementsWithWebflowIds = clone.querySelectorAll('[data-w-id]');
-        elementsWithWebflowIds.forEach(element => {
-            const originalWId = element.getAttribute('data-w-id');
-            // Keep original data-w-id but add lmid suffix for uniqueness
-            element.setAttribute('data-w-id', `${originalWId}-lmid-${lmid}`);
-        });
         
         // Setup new recording count indicator (conditionally)
         if (loadNewRecordings) {
             await setupNewRecordingIndicator(clone, lmid);
         } else {
             // Hide badge initially for faster loading - preserve Webflow positioning
-            const newRecContainer = clone.querySelector(`#new-rec-lmid-${lmid}, .new-rec`);
+            const newRecContainer = clone.querySelector("#new-rec, .new-rec");
             if (newRecContainer) {
+                newRecContainer.removeAttribute("id");
                 newRecContainer.classList.add("new-rec"); // Ensure class exists
                 newRecContainer.style.display = 'none';
             }
         }
         
-        // Re-initialize Webflow animations for the new clone
-        reinitializeWebflowAnimations(clone);
+        // Clone created - no animation re-initialization needed
         
         // Hide delete buttons for parent users
         const userRole = await detectUserRole();
