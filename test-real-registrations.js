@@ -176,7 +176,7 @@ const TEST_USERS = [
  * @param {Object} webhookPayload - Memberstack webhook payload
  * @param {string} userDescription - Description for logging
  */
-async function simulateWebhook(webhookPayload, userDescription) {
+async function simulateRegistration(webhookPayload, userDescription) {
   const testId = Math.random().toString(36).substring(2, 15);
   
   console.log(`\n🔄 [${testId}] Testing: ${userDescription}`);
@@ -184,19 +184,23 @@ async function simulateWebhook(webhookPayload, userDescription) {
   console.log(`📋 Plan: ${webhookPayload.data.member.planConnections[0].planId}`);
   
   try {
-    // Add Memberstack webhook signature headers (for validation)
+    // Simple headers for test endpoint
     const headers = {
       'Content-Type': 'application/json',
-      'User-Agent': 'Memberstack-Webhooks/1.0',
-      'X-Memberstack-Signature': 'test-signature' // In production, this would be real HMAC
+      'User-Agent': 'Test-Registration/1.0'
     };
     
-    console.log(`📤 Sending webhook to: ${WEBHOOK_ENDPOINT}`);
+    // Extract just the member data for test endpoint
+    const testPayload = {
+      member: webhookPayload.data.member
+    };
+    
+    console.log(`📤 Sending registration test to: ${WEBHOOK_ENDPOINT}`);
     
     const response = await fetch(WEBHOOK_ENDPOINT, {
       method: 'POST',
       headers: headers,
-      body: JSON.stringify(webhookPayload)
+      body: JSON.stringify(testPayload)
     });
     
     const result = await response.json();
@@ -294,9 +298,9 @@ async function runRegistrationTests() {
     
     console.log(`\n📝 === TEST ${i + 1}/${TEST_USERS.length}: ${user.name} ===`);
     
-    // Simulate webhook
-    const webhookResult = await simulateWebhook(user.webhookPayload, user.name);
-    results.push({ user: user.name, webhook: webhookResult });
+    // Simulate registration
+    const registrationResult = await simulateRegistration(user.webhookPayload, user.name);
+    results.push({ user: user.name, registration: registrationResult });
     
     // Wait a moment for processing
     console.log(`⏳ Waiting for processing...`);
@@ -306,7 +310,7 @@ async function runRegistrationTests() {
     const email = user.webhookPayload.data.member.email;
     const brevoContact = await verifyBrevoContact(email);
     
-    if (webhookResult.success) {
+    if (registrationResult.success) {
       results[results.length - 1].brevo = brevoContact;
     }
     
@@ -319,8 +323,8 @@ async function runRegistrationTests() {
   
   // Summary
   console.log('\n📊 === TEST SUMMARY ===');
-  const successfulTests = results.filter(r => r.webhook.success);
-  console.log(`✅ Successful webhooks: ${successfulTests.length}/${results.length}`);
+  const successfulTests = results.filter(r => r.registration.success);
+  console.log(`✅ Successful registrations: ${successfulTests.length}/${results.length}`);
   
   const brevoContacts = results.filter(r => r.brevo).length;
   console.log(`📧 Contacts verified in Brevo: ${brevoContacts}/${results.length}`);
