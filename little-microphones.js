@@ -153,6 +153,103 @@
     }
 
     /**
+     * Consolidated batch loading of ALL recording data (eliminates duplicate API calls)
+     * @param {Array<string>} lmids - Array of LMID strings
+     */
+    async function batchLoadAllRecordingData(lmids) {
+        console.log(`🚀 CONSOLIDATED: Loading all recording data for ${lmids.length} LMIDs`);
+        
+        // Collect all unique LMID/world combinations from DOM
+        const worldCombinations = [];
+        for (const lmid of lmids) {
+            const lmidElement = document.querySelector(`[data-lmid="${lmid}"]`);
+            if (!lmidElement) continue;
+            
+            const worldContainers = lmidElement.querySelectorAll('.program-container[data-world]');
+            for (const worldContainer of worldContainers) {
+                const world = worldContainer.getAttribute('data-world');
+                if (world) {
+                    worldCombinations.push({ lmid, world, worldContainer, lmidElement });
+                }
+            }
+        }
+        
+        console.log(`📊 Found ${worldCombinations.length} unique LMID/world combinations`);
+        
+        // Process each combination with throttling to avoid 429 errors
+        for (let i = 0; i < worldCombinations.length; i++) {
+            const { lmid, world, worldContainer, lmidElement } = worldCombinations[i];
+            
+            try {
+                // Single API call for this LMID/world combination
+                const lang = window.LM_CONFIG.getCurrentLanguage();
+                const response = await fetch(`${window.LM_CONFIG.API_BASE_URL}/api/list-recordings?world=${world}&lmid=${encodeURIComponent(lmid)}&lang=${encodeURIComponent(lang)}`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const recordings = data?.recordings || [];
+                    const hasRecordings = recordings.length > 0;
+                    
+                    // 1. Apply badge-rec visibility
+                    const badgeRec = worldContainer.querySelector('.badge-rec');
+                    if (badgeRec) {
+                        if (hasRecordings) {
+                            badgeRec.classList.add('show-badge');
+                            console.log(`👁️ SHOWING badge-rec for ${lmid}/${world} (${recordings.length} recordings)`);
+                        } else {
+                            badgeRec.classList.remove('show-badge');
+                            console.log(`🙈 HIDING badge-rec for ${lmid}/${world} (0 recordings)`);
+                        }
+                    }
+                    
+                    // 2. Apply new-rec and total counts (simplified for dashboard)
+                    const newRecContainer = worldContainer.querySelector('.new-rec');
+                    if (newRecContainer) {
+                        // Update total count
+                        const totalCountElement = newRecContainer.querySelector('.new-rec-number:not(.total)');
+                        if (totalCountElement) {
+                            totalCountElement.textContent = recordings.length;
+                        }
+                        
+                        // For simplicity on dashboard, show all as "new" (detailed new count calculation is expensive)
+                        const newCountElement = newRecContainer.querySelector('.new-rec-number.total');
+                        const newCountContainer = newRecContainer.querySelector('.rec-text.new');
+                        if (newCountElement && newCountContainer) {
+                            if (recordings.length > 0) {
+                                newCountElement.textContent = recordings.length;
+                                newCountContainer.style.display = 'flex';
+                            } else {
+                                newCountContainer.style.display = 'none';
+                            }
+                        }
+                    }
+                } else {
+                    console.warn(`❌ API failed for ${lmid}/${world}: ${response.status}`);
+                }
+            } catch (error) {
+                console.warn(`💥 Error loading ${lmid}/${world}:`, error);
+            }
+            
+            // Throttle to avoid 429 errors (200ms between calls)
+            if (i < worldCombinations.length - 1) {
+                await new Promise(resolve => setTimeout(resolve, 200));
+            }
+        }
+        
+        // Animate elements that are now visible
+        setTimeout(() => {
+            animateBadgeRecElements();
+            
+            // Debug final state
+            setTimeout(() => {
+                debugFinalBadgeRecState();
+            }, 1000);
+        }, 100);
+        
+        console.log(`✅ CONSOLIDATED: Completed loading all recording data`);
+    }
+
+    /**
      * Quick visibility check for each WORLD in each LMID (correct approach)
      * @param {Array<string>} lmids - Array of LMID strings
      */
@@ -292,6 +389,8 @@
         existingListeners[event] = handler;
         elementEventListeners.set(element, existingListeners);
     }
+
+
 
     // REMOVED: ShareID cache to ensure fresh data after radio play
     // const shareIdCache = new Map();
@@ -574,14 +673,9 @@
             // Note: badge-rec animations will happen after data loads
         }, 100);
         
-        // Quick visibility check for LMID level (not per world) - runs in background
+        // Now batch-load ALL recording data in one pass (eliminates duplicate API calls)
         setTimeout(() => {
-            quickPreCalculateVisibility(lmids);
-        }, 200);
-        
-        // Now batch-load new recording indicators in background (with throttling)
-        setTimeout(() => {
-            batchLoadNewRecordingIndicators(lmids);
+            batchLoadAllRecordingData(lmids);
         }, 200);
     }
 
@@ -1587,9 +1681,9 @@
                 animateBackgroundImages(clone);
             }, 100);
             
-            // Quick visibility check and badge-rec animation for new LMID
+            // Load all recording data for new LMID (consolidated)
             setTimeout(() => {
-                quickPreCalculateVisibility([newLmid]);
+                batchLoadAllRecordingData([newLmid]);
             }, 200);
         }
         
@@ -1921,7 +2015,7 @@
         const lmids = Array.from(lmidElements).map(el => el.getAttribute('data-lmid')).filter(Boolean);
         
         if (lmids.length > 0) {
-            await batchLoadNewRecordingIndicators(lmids);
+            await batchLoadAllRecordingData(lmids);
         }
     }
 
