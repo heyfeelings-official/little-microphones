@@ -889,6 +889,10 @@
             console.log('📻 Found parent program in combined manifest:', data.lastManifest.parentProgram);
         }
         
+        console.log('🔍 DEBUG: Final programs object built:', programs);
+        console.log('🔍 DEBUG: programs.kids exists:', !!programs.kids);
+        console.log('🔍 DEBUG: programs.parent exists:', !!programs.parent);
+        
         // Check if we have any programs to show
         if (Object.keys(programs).length > 0) {
             console.log('📻 Showing programs:', programs);
@@ -954,31 +958,42 @@
             }
         } else {
             // Teachers and therapists see both programs if available
+            console.log('🔍 DEBUG: Available programs object:', programs);
             const availablePrograms = [];
             
             if (programs.kids) {
+                console.log('✅ DEBUG: Found kids program:', programs.kids.url);
                 availablePrograms.push({
                     url: programs.kids.url,
                     title: 'Kids Program',
                     description: 'Student recordings'
                 });
+            } else {
+                console.log('❌ DEBUG: No kids program found');
             }
             
             if (programs.parent) {
+                console.log('✅ DEBUG: Found parent program:', programs.parent.url);
                 availablePrograms.push({
                     url: programs.parent.url,
                     title: 'Parent Program', 
                     description: 'Parent recordings'
                 });
+            } else {
+                console.log('❌ DEBUG: No parent program found');
             }
+            
+            console.log(`🎯 DEBUG: Total available programs: ${availablePrograms.length}`, availablePrograms);
             
             if (availablePrograms.length === 0) {
                 playerContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">No recordings available yet.</div>';
             } else if (availablePrograms.length === 1) {
                 // Single program available
+                console.log('📻 DEBUG: Using single player for:', availablePrograms[0].title);
                 createSinglePlayer(playerContainer, availablePrograms[0].url, radioData, availablePrograms[0].title);
             } else {
                 // Multiple programs available - create dual player
+                console.log('📻 DEBUG: Using dual player for both programs');
                 createDualPlayer(playerContainer, availablePrograms, radioData);
             }
         }
@@ -1012,22 +1027,31 @@
      * @param {Object} radioData - Radio data
      */
     function createDualPlayer(container, programs, radioData) {
+        console.log('🎬 DEBUG: createDualPlayer called with programs:', programs);
+        
         // Find kids and parent programs
         const kidsProgram = programs.find(p => p.title && p.title.includes('Kids'));
         const parentProgram = programs.find(p => p.title && p.title.includes('Parent'));
         
+        console.log('👶 DEBUG: kidsProgram found:', kidsProgram ? kidsProgram.title : 'NO');
+        console.log('👨‍👩‍👧‍👦 DEBUG: parentProgram found:', parentProgram ? parentProgram.title : 'NO');
+        
         // Create kids container
         if (kidsProgram) {
+            console.log('✅ DEBUG: Creating kids container');
             const kidsContainer = document.createElement('div');
             kidsContainer.className = 'kids';
             container.appendChild(kidsContainer);
             
             // Setup audio player for kids (no special background)
             setupAudioPlayer(kidsProgram.url, radioData, kidsContainer);
+        } else {
+            console.log('❌ DEBUG: No kids program to create container for');
         }
         
         // Create parents container
         if (parentProgram) {
+            console.log('✅ DEBUG: Creating parents container');
             const parentsContainer = document.createElement('div');
             parentsContainer.className = 'parents';
             container.appendChild(parentsContainer);
@@ -1040,13 +1064,18 @@
             const playerElement = tempContainer.querySelector('[class*="plyr"], audio');
             if (playerElement) {
                 playerElement.style.background = '#FFD700';
+                console.log('🟡 DEBUG: Applied yellow background to parent player');
             }
             
             // Move content to parents container
             while (tempContainer.firstChild) {
                 parentsContainer.appendChild(tempContainer.firstChild);
             }
+        } else {
+            console.log('❌ DEBUG: No parent program to create container for');
         }
+        
+        console.log('🏁 DEBUG: createDualPlayer finished. Container children count:', container.children.length);
     }
 
     /**
