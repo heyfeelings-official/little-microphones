@@ -69,11 +69,8 @@
             // Setup required CSS styles first
             setupRequiredStyles();
             
-            // Initialize UI with LMID data
+            // Initialize UI with LMID data (includes background setup and animations)
             await initializeDashboardUI(authResult.lmids);
-            
-            // Setup world backgrounds for all containers - PRIORITY LOADING
-            setupWorldBackgrounds();
             
             // Setup event listeners
             setupEventListeners(authSystem);
@@ -270,13 +267,13 @@
             
             /* Background image animation - using background-size instead of transform to respect overflow */
             [data-lmid] .program-container {
-                background-size: 110%;
+                background-size: 110% !important;
                 background-repeat: no-repeat;
                 transition: background-size 0.8s cubic-bezier(0.075, 0.82, 0.165, 1);
             }
             
             [data-lmid] .program-container.bg-animate-in {
-                background-size: cover;
+                background-size: cover !important;
             }
         `;
         
@@ -447,12 +444,15 @@
         // Reinitialize Webflow interactions
         reinitializeWebflow();
         
+        // Setup world backgrounds for all containers - MUST BE BEFORE ANIMATIONS
+        setupWorldBackgrounds();
+        
         // Initialize dashboard tracking
         setTimeout(() => {
             initializeDashboardTracking();
         }, 50);
         
-        // Start animations immediately for better UX
+        // Start animations immediately for better UX (backgrounds are now set)
         setTimeout(() => {
             animateNewRecElements();
             animateBackgroundImages();
@@ -1775,6 +1775,8 @@
         // Get image URL from config
         const imageUrl = window.LM_CONFIG?.WORLD_IMAGES?.[world];
         
+        console.log(`🖼️ Setting background for world: ${world}, URL: ${imageUrl ? 'found' : 'not found'}`);
+        
         if (imageUrl) {
             // Remove any existing video elements
             const existingVideo = container.querySelector('.world-bg-video');
@@ -1789,6 +1791,8 @@
                 container.style.backgroundPosition = 'center';
             }
             container.style.backgroundRepeat = 'no-repeat';
+            
+            // Don't set background-size here - let CSS animation handle it
             
             // Don't modify child element styles - let Webflow handle positioning
         } else {
