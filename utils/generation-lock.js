@@ -146,7 +146,7 @@ export function hasRecordingsChanged(currentRecordings, lockData, type, world, l
     }
     
     // Filter current recordings by type
-          const pattern = type === 'kids' 
+    const pattern = type === 'kids' 
         ? new RegExp(`^kids-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.(webm|mp3)$`)
         : new RegExp(`^parent_[^-]+-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.(webm|mp3)$`);
     

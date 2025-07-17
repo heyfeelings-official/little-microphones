@@ -54,7 +54,7 @@ export function validateMemberstackWebhook(req, options = {}) {
     // Wymagaj sekretu w produkcji - brak fallback
     if (!webhookSecret) {
         console.error('🚨 MEMBERSTACK_WEBHOOK_SECRET not configured - webhook rejected');
-        return { 
+        return {
             valid: false, 
             error: 'Webhook secret not configured' 
         };

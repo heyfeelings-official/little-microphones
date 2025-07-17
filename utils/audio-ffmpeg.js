@@ -542,7 +542,7 @@ export function downloadFile(url, filePath, maxRetries = 3) {
                     // Check if file needs format conversion
                     try {
                         await validateAndConvertAudio(filePath);
-                        resolve();
+                    resolve();
                     } catch (error) {
                         console.error(`❌ Audio validation/conversion failed for ${fileName}:`, error);
                         reject(error);

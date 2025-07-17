@@ -306,7 +306,7 @@ export default async function handler(req, res) {
                     console.log(`👨‍🏫 Teacher upload - skipping notifications`);
                     emailNotificationStatus = 'skipped_teacher';
                 }
-                            } catch (emailError) {
+            } catch (emailError) {
                 console.error('❌ Email notification failed:', emailError.message);
                 emailNotificationStatus = 'failed';
                 emailNotificationMessage = 'Upload successful, email notification failed';

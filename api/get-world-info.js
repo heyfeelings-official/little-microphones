@@ -53,7 +53,7 @@ async function getWorldInfoHandler(req, res, params) {
         error.code = 'SHARE_ID_NOT_FOUND';
         throw error;
     }
-
+    
     // SECURITY: Check if LMID was deleted by teacher
     if (lmidData.status === 'deleted') {
         const error = new Error('Radio Program has been deleted by teacher');

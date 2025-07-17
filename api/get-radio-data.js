@@ -224,7 +224,7 @@ export default async function handler(req, res) {
             sanitizedWorld = worldValidation.sanitized;
         }
 
-                const supabase = getSupabaseClient();
+        const supabase = getSupabaseClient();
         let lmidRecord = null;
         let world = null;
 
@@ -236,7 +236,7 @@ export default async function handler(req, res) {
             // Look up LMID using the world-specific column
             const worldColumn = `share_id_${world.replace('-', '_')}`;
             const { data, error } = await supabase
-                .from('lmids')
+            .from('lmids')
                 .select('lmid, assigned_to_member_id, status')
                 .eq(worldColumn, sanitizedShareId)
                 .single();

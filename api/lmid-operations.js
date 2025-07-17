@@ -291,6 +291,27 @@ async function handleUpdateParentMetadata(memberId, newLmidString, parentEmail =
     // Parse new LMIDs
     const newLmids = newLmidString ? newLmidString.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id)) : [];
     
+    // SECURITY: Validate that all LMIDs are active before adding to parent
+    for (const lmid of newLmids) {
+        const { data: lmidData, error: lmidError } = await supabase
+            .from('lmids')
+            .select('lmid, status')
+            .eq('lmid', lmid)
+            .single();
+        
+        if (lmidError || !lmidData) {
+            throw new Error(`LMID ${lmid} not found in database`);
+        }
+        
+        if (lmidData.status === 'deleted') {
+            throw new Error(`LMID ${lmid} has been deleted by teacher and cannot be added to parent`);
+        }
+        
+        if (lmidData.status !== 'used') {
+            throw new Error(`LMID ${lmid} is not available for parent access`);
+        }
+    }
+    
     // Track parent Member ID and Email associations in Supabase for notifications and cleanup
     for (const lmid of newLmids) {
         try {

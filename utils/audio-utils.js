@@ -116,7 +116,7 @@ export const STATIC_FILES = {
 
 export const AUDIO_FORMATS = {
             webm: { extension: '.webm', mimeType: 'audio/webm' },
-        mp3: { extension: '.mp3', mimeType: 'audio/mpeg' },
+    mp3: { extension: '.mp3', mimeType: 'audio/mpeg' },
     wav: { extension: '.wav', mimeType: 'audio/wav' },
     m4a: { extension: '.m4a', mimeType: 'audio/mp4' }
 };
