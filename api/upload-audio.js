@@ -467,17 +467,23 @@ async function sendNewRecordingNotifications(lmid, world, questionId, lang, uplo
         // Determine Hey Feelings base URL based on environment
         let heyFeelingsBaseUrl = process.env.HEY_FEELINGS_BASE_URL;
         
+        // Debug: Log all environment variables to understand current setup
+        console.log(`🔍 [${requestId}] Environment debug:`);
+        console.log(`🔍 [${requestId}] NODE_ENV: "${process.env.NODE_ENV}"`);
+        console.log(`🔍 [${requestId}] VERCEL_ENV: "${process.env.VERCEL_ENV}"`);
+        console.log(`🔍 [${requestId}] VERCEL_URL: "${process.env.VERCEL_URL}"`);
+        console.log(`🔍 [${requestId}] HEY_FEELINGS_BASE_URL: "${process.env.HEY_FEELINGS_BASE_URL}"`);
+        
         // Auto-detect environment if not explicitly set
         if (!heyFeelingsBaseUrl) {
-            const isDevelopment = process.env.NODE_ENV !== 'production' || 
-                                 process.env.VERCEL_ENV === 'preview' ||
-                                 process.env.VERCEL_ENV === 'development';
+            // For now, always use testing environment until we manually set production
+            const isDevelopment = true; // Force testing environment
             
             heyFeelingsBaseUrl = isDevelopment 
                 ? 'https://hey-feelings-v2.webflow.io'     // Testing environment
                 : 'https://heyfeelings.com';                // Production environment
                 
-            console.log(`🌍 [${requestId}] Auto-detected environment: ${isDevelopment ? 'development' : 'production'}, using ${heyFeelingsBaseUrl}`);
+            console.log(`🌍 [${requestId}] Forced environment: ${isDevelopment ? 'development' : 'production'}, using ${heyFeelingsBaseUrl}`);
         }
         
         const templateData = {
