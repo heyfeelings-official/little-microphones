@@ -1082,6 +1082,37 @@
         }
         
         console.log('🏁 DEBUG: createDualPlayer finished. Container children count:', container.children.length);
+        
+        // Debug DOM structure
+        console.log('🔍 DOM DEBUG: Checking created containers...');
+        const kidsDiv = container.querySelector('.kids');
+        const parentsDiv = container.querySelector('.parents');
+        
+        if (kidsDiv) {
+            console.log('✅ .kids container exists:', kidsDiv);
+            console.log('📏 .kids computed styles:', {
+                display: getComputedStyle(kidsDiv).display,
+                visibility: getComputedStyle(kidsDiv).visibility,
+                opacity: getComputedStyle(kidsDiv).opacity,
+                height: getComputedStyle(kidsDiv).height,
+                width: getComputedStyle(kidsDiv).width
+            });
+        } else {
+            console.log('❌ .kids container NOT FOUND');
+        }
+        
+        if (parentsDiv) {
+            console.log('✅ .parents container exists:', parentsDiv);
+            console.log('📏 .parents computed styles:', {
+                display: getComputedStyle(parentsDiv).display,
+                visibility: getComputedStyle(parentsDiv).visibility,
+                opacity: getComputedStyle(parentsDiv).opacity,
+                height: getComputedStyle(parentsDiv).height,
+                width: getComputedStyle(parentsDiv).width
+            });
+        } else {
+            console.log('❌ .parents container NOT FOUND');
+        }
     }
 
     /**

@@ -390,22 +390,11 @@ async function sendNewRecordingNotifications(lmid, world, questionId, lang, uplo
         let uploaderName = isTeacherUpload ? lmidData.teacherName : 'Rodzic';
         let parentName = null;
         
-        // Note: Parent name resolution now handled by Brevo contact enrichment in send-email-notifications.js
-        // The email system will automatically pull proper names from Brevo contact data
-        if (!isTeacherUpload) {
-            console.log(`👤 [${requestId}] Parent upload detected - name will be enriched via Brevo contact data`);
-        }
+        // Note: Parent name resolution now handled by Brevo contact data in templates
+        // All personalization (names, school, plan) comes from Brevo contact attributes
         
-        // Prepare template data
         // Determine Hey Feelings base URL based on environment
         let heyFeelingsBaseUrl = process.env.HEY_FEELINGS_BASE_URL;
-        
-        // Debug: Log all environment variables to understand current setup
-        console.log(`🔍 [${requestId}] Environment debug:`);
-        console.log(`🔍 [${requestId}] NODE_ENV: "${process.env.NODE_ENV}"`);
-        console.log(`🔍 [${requestId}] VERCEL_ENV: "${process.env.VERCEL_ENV}"`);
-        console.log(`🔍 [${requestId}] VERCEL_URL: "${process.env.VERCEL_URL}"`);
-        console.log(`🔍 [${requestId}] HEY_FEELINGS_BASE_URL: "${process.env.HEY_FEELINGS_BASE_URL}"`);
         
         // Auto-detect environment if not explicitly set
         if (!heyFeelingsBaseUrl) {
@@ -419,32 +408,28 @@ async function sendNewRecordingNotifications(lmid, world, questionId, lang, uplo
             console.log(`🌍 [${requestId}] Forced environment: ${isDevelopment ? 'development' : 'production'}, using ${heyFeelingsBaseUrl}`);
         }
         
-        const templateData = {
-            teacherName: lmidData.teacherName,
+        // SIMPLIFIED: Only dynamic data - contact data automatic from Brevo
+        const dynamicData = {
             world: translateWorldName(world, lang),
             lmid: lmid,
-            schoolName: lmidData.schoolName,
             dashboardUrl: `${heyFeelingsBaseUrl}/${lang}/members/little-microphones`,
             radioUrl: `${heyFeelingsBaseUrl}/little-microphones?ID=${lmidData.shareId}`,
-            uploaderName: uploaderName,
-            uploaderType: isTeacherUpload ? 'teacher' : 'parent',
-            // Add parent email for teacher notifications (only for parent uploads)
-            parentEmail: isTeacherUpload ? null : uploaderEmail,
-            // Add parent name for both teacher and parent notifications
-            parentName: parentName || (isTeacherUpload ? null : 'Rodzic')
+            uploaderName: uploaderName
         };
+        
+        console.log(`📧 [${requestId}] Simplified notifications - Dynamic data: ${Object.keys(dynamicData).length} fields`);
+        console.log(`🎯 [${requestId}] Contact data (name, school, plan, etc.) automatic from Brevo`);
         
         // Send teacher notification (only parent uploads trigger notifications)
         if (lmidData.teacherEmail) {
-            console.log(`📧 [${requestId}] Sending teacher notification in ${lang}`);
+            console.log(`📧 [${requestId}] Sending simplified teacher notification in ${lang}`);
             await sendNotificationViaAPI({
                 recipientEmail: lmidData.teacherEmail,
-                recipientName: lmidData.teacherName,
                 notificationType: 'teacher',
                 language: lang,
-                templateData: templateData
+                dynamicData: dynamicData
             });
-            console.log(`✅ [${requestId}] Teacher notification sent`);
+            console.log(`✅ [${requestId}] Teacher notification sent (personalization from Brevo)`);
         }
         
         // Send parent notifications (exclude uploader)
@@ -452,19 +437,18 @@ async function sendNewRecordingNotifications(lmid, world, questionId, lang, uplo
             const filteredParentEmails = lmidData.parentEmails.filter(email => email !== uploaderEmail);
             
             if (filteredParentEmails.length > 0) {
-                console.log(`📧 [${requestId}] Sending parent notifications to ${filteredParentEmails.length} recipients in ${lang}`);
+                console.log(`📧 [${requestId}] Sending simplified parent notifications to ${filteredParentEmails.length} recipients in ${lang}`);
                 const parentPromises = filteredParentEmails.map(parentEmail => 
                     sendNotificationViaAPI({
                         recipientEmail: parentEmail,
-                        recipientName: 'Rodzic',
                         notificationType: 'parent',
                         language: lang,
-                        templateData: templateData
+                        dynamicData: dynamicData
                     })
                 );
                 
                 await Promise.all(parentPromises);
-                console.log(`✅ [${requestId}] Parent notifications sent to ${filteredParentEmails.length} recipients`);
+                console.log(`✅ [${requestId}] Parent notifications sent to ${filteredParentEmails.length} recipients (personalization from Brevo)`);
             } else {
                 console.log(`⏭️ [${requestId}] No parent notifications to send - uploader was only parent`);
             }
@@ -474,11 +458,13 @@ async function sendNewRecordingNotifications(lmid, world, questionId, lang, uplo
         const totalRecipients = (lmidData.teacherEmail ? 1 : 0) +
                                (lmidData.parentEmails ? lmidData.parentEmails.filter(email => email !== uploaderEmail).length : 0);
         
-        console.log(`✅ [${requestId}] All notifications sent - LMID ${lmid}, World ${world}, Lang ${lang}`);
-        console.log(`📊 [${requestId}] Notification summary: ${totalRecipients} recipients sent`);
+        console.log(`✅ [${requestId}] Simplified notifications completed - LMID ${lmid}, World ${world}, Lang ${lang}`);
+        console.log(`📊 [${requestId}] Notification summary: ${totalRecipients} recipients, personalized via Brevo`);
+        console.log(`🎯 [${requestId}] Template data: {{contact.*}} (automatic) + {{params.*}} (${Object.keys(dynamicData).length} dynamic)`);
+        
     } catch (error) {
-        console.error(`❌ [${requestId}] Email notification error:`, error.message);
-        console.error(`❌ [${requestId}] Email notification details:`, {
+        console.error(`❌ [${requestId}] Simplified email notification error:`, error.message);
+        console.error(`❌ [${requestId}] Notification details:`, {
             lmid,
             world,
             questionId,

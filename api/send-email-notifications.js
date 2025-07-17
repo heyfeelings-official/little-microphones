@@ -1,86 +1,33 @@
 /**
- * send-email-notifications.js - Email Notifications API
+ * send-email-notifications.js - Simplified Email Notifications via Brevo
  * 
- * PURPOSE: Send email notifications via Brevo for new recordings
- * USAGE: Called from upload-audio.js after successful recording upload
+ * PURPOSE: Send email notifications with minimal data - Brevo handles personalization
+ * APPROACH: Contact data automatic from Brevo, only dynamic data from code
  * 
- * ENDPOINTS:
- * - POST /api/send-email-notifications
+ * TEMPLATE DATA SOURCES:
+ * - {{contact.ATTRIBUTE}} - All 32 attributes automatically from Brevo contact (name, school, plan, etc.)
+ * - {{params.X}} - Dynamic data from this API call (world, lmid, urls, etc.)
  * 
- * FEATURES:
- * - Teacher notifications (new recording from student)
- * - Parent notifications (new recording from child)
- * - Multi-language support (Polish/English)
- * - Brevo template system integration
- * - Uses official Brevo SDK (@getbrevo/brevo)
- * - Automatic contact creation in Brevo
- * - Secure logging without exposing personal data
+ * AVAILABLE CONTACT ATTRIBUTES (automatic in templates):
+ * - Personal: {{contact.FIRSTNAME}}, {{contact.LASTNAME}}, {{contact.PHONE}}
+ * - Plan: {{contact.USER_CATEGORY}}, {{contact.PLAN_TYPE}}, {{contact.PLAN_NAME}}  
+ * - School: {{contact.SCHOOL_NAME}}, {{contact.SCHOOL_CITY}}, {{contact.SCHOOL_ADDRESS}}
+ * - Professional: {{contact.EDUCATOR_ROLE}}, {{contact.EDUCATOR_NO_CLASSES}}, {{contact.EDUCATOR_NO_KIDS}}
+ * - System: {{contact.MEMBERSTACK_ID}}, {{contact.LMIDS}}, {{contact.LANGUAGE_PREF}}
+ * - Full list: See utils/brevo-contact-config.js (32 total attributes)
  * 
- * TEMPLATE MAPPING (via Environment Variables):
- * - Teacher PL: BREVO_TEACHER_TEMPLATE_PL (default: 2)
- * - Teacher EN: BREVO_TEACHER_TEMPLATE_EN (default: 4)
- * - Parent PL: BREVO_PARENT_TEMPLATE_PL (default: 3)
- * - Parent EN: BREVO_PARENT_TEMPLATE_EN (default: 6)
- * 
- * ENVIRONMENT VARIABLES:
- * - BREVO_API_KEY: Brevo API key for authentication
- * - BREVO_TEACHER_TEMPLATE_PL: Template ID for Polish teacher notifications
- * - BREVO_TEACHER_TEMPLATE_EN: Template ID for English teacher notifications
- * - BREVO_PARENT_TEMPLATE_PL: Template ID for Polish parent notifications
- * - BREVO_PARENT_TEMPLATE_EN: Template ID for English parent notifications
- * - HEY_FEELINGS_BASE_URL: Base URL for Hey Feelings website (default: https://hey-feelings-v2.webflow.io)
+ * SIMPLIFIED API CALL:
+ * - recipientEmail: Who to send to (Brevo finds contact automatically)
+ * - notificationType: 'teacher' or 'parent' (for template selection)
+ * - language: 'pl' or 'en' (for template selection)
+ * - dynamicData: Only world, lmid, urls, uploaderName (the rest is automatic)
  * 
  * LAST UPDATED: January 2025
- * VERSION: 6.0.1
+ * VERSION: 7.0.0 - Simplified Brevo-First Approach
  * STATUS: Production Ready ✅
  */
 
-import { TransactionalEmailsApi, TransactionalEmailsApiApiKeys, SendSmtpEmail, ContactsApi, CreateContact } from '@getbrevo/brevo';
-import { getBrevoContact } from '../utils/brevo-contact-manager.js';
-
-/**
- * Legacy contact creation function - kept for fallback scenarios
- * Note: Primary contact management now handled by brevo-contact-manager.js
- * @param {string} email - Email address
- * @param {string} name - Contact name
- * @param {string} brevoApiKey - Brevo API key
- */
-async function ensureContactExists(email, name, brevoApiKey) {
-    try {
-        // Initialize Contacts API
-        const contactsApi = new ContactsApi();
-        contactsApi.setApiKey(TransactionalEmailsApiApiKeys.apiKey, brevoApiKey);
-        
-        // Try to get contact first
-        try {
-            const contact = await contactsApi.getContactInfo(email);
-            console.log(`📧 Contact already exists in Brevo`);
-            return true;
-        } catch (error) {
-            // Contact doesn't exist, create it with basic info only
-            if (error.status === 404) {
-                console.log(`📧 Creating basic contact in Brevo (fallback)`);
-                
-                const createContact = new CreateContact();
-                createContact.email = email;
-                createContact.attributes = {
-                    FIRSTNAME: name.split(' ')[0] || name,
-                    LASTNAME: name.split(' ').slice(1).join(' ') || ''
-                };
-                
-                await contactsApi.createContact(createContact);
-                console.log(`✅ Basic contact created successfully`);
-                return true;
-            } else {
-                console.error(`❌ Error checking contact:`, error.message);
-                return false;
-            }
-        }
-    } catch (error) {
-        console.error(`❌ Error ensuring contact exists:`, error.message);
-        return false;
-    }
-}
+import { makeBrevoRequest } from '../utils/brevo-contact-manager.js';
 
 export default async function handler(req, res) {
     // Secure CORS headers
@@ -95,23 +42,21 @@ export default async function handler(req, res) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
     }
-    
+
     try {
         const { 
             recipientEmail, 
-            recipientName, 
             notificationType, // 'teacher' or 'parent'
             language, // 'pl' or 'en'
-            templateData 
+            dynamicData // ONLY dynamic data: world, lmid, urls, uploaderName
         } = req.body;
         
-        console.log(`📧 Email notification request - Type: ${notificationType}, Lang: ${language}`);
-        console.log(`📧 Request body:`, JSON.stringify(req.body, null, 2));
+        console.log(`📧 Simplified notification - Type: ${notificationType}, Lang: ${language}, Email: ${recipientEmail}`);
         
         // Validate required fields
-        if (!recipientEmail || !recipientName || !notificationType || !language) {
+        if (!recipientEmail || !notificationType || !language) {
             return res.status(400).json({ 
-                error: 'Missing required fields: recipientEmail, recipientName, notificationType, language' 
+                error: 'Missing required fields: recipientEmail, notificationType, language' 
             });
         }
         
@@ -129,144 +74,79 @@ export default async function handler(req, res) {
             });
         }
         
-        // Get Brevo API key from environment
+        // Get Brevo API key
         const brevoApiKey = process.env.BREVO_API_KEY;
         if (!brevoApiKey) {
-            console.error('BREVO_API_KEY not found in environment variables');
+            console.error('BREVO_API_KEY not found');
             return res.status(500).json({ error: 'Email service configuration error' });
         }
         
-        // Get complete contact data from Brevo (replaces ensureContactExists)
+        // Verify contact exists in Brevo (required for template personalization)
         let brevoContact = null;
-        let enrichedTemplateData = templateData || {};
-        
         try {
-            brevoContact = await getBrevoContact(recipientEmail);
-            
-            if (brevoContact && brevoContact.attributes) {
-                // Enrich template data with contact information from Brevo
-                console.log(`📋 Enriching template data with Brevo contact info for ${recipientEmail}`);
-                
-                enrichedTemplateData = {
-                    ...templateData,
-                    // Override with data from Brevo (more accurate and complete)
-                    teacherName: brevoContact.attributes.TEACHER_NAME || brevoContact.attributes.FIRSTNAME + ' ' + brevoContact.attributes.LASTNAME || templateData.teacherName,
-                    parentName: brevoContact.attributes.FIRSTNAME + ' ' + brevoContact.attributes.LASTNAME || templateData.parentName,
-                    schoolName: brevoContact.attributes.SCHOOL_NAME || templateData.schoolName,
-                    planName: brevoContact.attributes.PLAN_NAME || 'Plan',
-                    userCategory: brevoContact.attributes.USER_CATEGORY || 'user',
-                    uploaderName: brevoContact.attributes.FIRSTNAME + ' ' + brevoContact.attributes.LASTNAME || templateData.uploaderName
-                };
-                
-                // Clean up undefined values
-                Object.keys(enrichedTemplateData).forEach(key => {
-                    if (enrichedTemplateData[key] === 'undefined undefined' || enrichedTemplateData[key] === ' ') {
-                        enrichedTemplateData[key] = templateData[key] || '';
-                    }
-                });
-                
-                console.log(`✅ Template data enriched with Brevo contact data`);
-            } else {
-                console.warn(`⚠️ Contact not found in Brevo: ${recipientEmail}, using fallback data`);
-                // Fallback: ensure contact exists for future sync
-                const contactExists = await ensureContactExists(recipientEmail, recipientName, brevoApiKey);
-                if (!contactExists) {
-                    console.warn(`⚠️ Could not create contact, proceeding with original template data`);
-                }
-            }
-        } catch (brevoError) {
-            console.error(`❌ Error retrieving Brevo contact data:`, brevoError.message);
-            console.log(`📧 Proceeding with original template data`);
-            // Fallback: ensure contact exists
-            try {
-                await ensureContactExists(recipientEmail, recipientName, brevoApiKey);
-            } catch (fallbackError) {
-                console.warn(`⚠️ Fallback contact creation also failed`);
-            }
+            const contactResponse = await makeBrevoRequest(`/contacts/${encodeURIComponent(recipientEmail)}`);
+            brevoContact = contactResponse;
+            console.log(`✅ Contact verified in Brevo with ${Object.keys(brevoContact.attributes || {}).length} attributes`);
+        } catch (error) {
+            console.warn(`⚠️ Contact not found in Brevo: ${recipientEmail}`);
+            return res.status(404).json({ 
+                error: 'Contact not found in Brevo',
+                message: 'Contact must be synced to Brevo before sending notifications. All personalization comes from Brevo contact data.'
+            });
         }
         
-        // Initialize Brevo SDK
-        const apiInstance = new TransactionalEmailsApi();
-        apiInstance.setApiKey(TransactionalEmailsApiApiKeys.apiKey, brevoApiKey);
-        
-        // Determine template ID based on notification type, language, and plan (if available)
+        // Select template ID based on notification type and language
         let templateId;
-        let templateSelection = 'standard';
-        
-        // Check if we have plan information from Brevo contact
-        const userCategory = brevoContact?.attributes?.USER_CATEGORY;
-        const planType = brevoContact?.attributes?.PLAN_TYPE;
-        const planName = brevoContact?.attributes?.PLAN_NAME;
-        
-        if (brevoContact && userCategory && planType) {
-            console.log(`🎯 Smart template selection based on plan: ${userCategory}/${planType} (${planName})`);
-            templateSelection = 'plan-based';
-        }
-        
-        // Standard template selection (can be enhanced with plan-specific templates in future)
         if (notificationType === 'teacher') {
-            if (language === 'pl') {
-                templateId = process.env.BREVO_TEACHER_TEMPLATE_PL;
-            } else {
-                templateId = process.env.BREVO_TEACHER_TEMPLATE_EN;
-            }
+            templateId = language === 'pl' ? process.env.BREVO_TEACHER_TEMPLATE_PL : process.env.BREVO_TEACHER_TEMPLATE_EN;
         } else {
-            if (language === 'pl') {
-                templateId = process.env.BREVO_PARENT_TEMPLATE_PL;
-            } else {
-                templateId = process.env.BREVO_PARENT_TEMPLATE_EN;
-            }
+            templateId = language === 'pl' ? process.env.BREVO_PARENT_TEMPLATE_PL : process.env.BREVO_PARENT_TEMPLATE_EN;
         }
         
-        // Future enhancement: Plan-specific templates
-        // if (templateSelection === 'plan-based' && planType === 'paid') {
-        //     // Use premium templates for paid users
-        //     templateId = getPremiumTemplateId(notificationType, language, userCategory);
-        // }
-        
-        // Convert to number if it's a string from env vars
+        // Convert to number and validate
         templateId = parseInt(templateId, 10);
-        
-        // Validate template ID
         if (isNaN(templateId) || templateId <= 0) {
             console.error(`❌ Invalid template ID: ${templateId} from environment variables`);
             return res.status(500).json({ 
                 error: 'Invalid email template configuration',
-                details: `Template ID "${templateId}" is not valid`
+                details: `Template ID "${templateId}" is not valid for ${notificationType}_${language}`
             });
         }
         
-        console.log(`📧 Selected template ${templateId} for ${notificationType} in ${language} (${templateSelection})`);
-        if (brevoContact) {
-            console.log(`📋 Using enriched template data with ${Object.keys(enrichedTemplateData).length} parameters`);
-        } else {
-            console.log(`📋 Using original template data with ${Object.keys(enrichedTemplateData).length} parameters`);
-        }
-        
-        // Prepare email data for Brevo SDK with enriched template data
-        const sendSmtpEmail = new SendSmtpEmail();
-        sendSmtpEmail.to = [{
-            email: recipientEmail,
-            name: brevoContact?.attributes?.FIRSTNAME + ' ' + brevoContact?.attributes?.LASTNAME || recipientName
-        }];
-        sendSmtpEmail.templateId = templateId;
-        sendSmtpEmail.params = enrichedTemplateData;
+        // Prepare MINIMAL email data - Brevo handles all personalization from contact
+        const emailPayload = {
+            to: [{
+                email: recipientEmail,
+                // Name will be auto-filled by Brevo from contact.FIRSTNAME + contact.LASTNAME
+            }],
+            templateId: templateId,
+            params: dynamicData || {} // Only dynamic data (world, lmid, urls), contact data is automatic
+        };
         
         console.log(`📧 Sending to Brevo - Template: ${templateId}`);
+        console.log(`📋 Dynamic params: ${Object.keys(dynamicData || {}).length} (rest automatic from contact)`);
+        console.log(`🎯 Available in template: {{contact.*}} (32 attributes) + {{params.*}} (${Object.keys(dynamicData || {}).length} dynamic)`);
         
-        // Send email via Brevo SDK
-        const result = await apiInstance.sendTransacEmail(sendSmtpEmail);
+        // Send email via native HTTP request (Brevo SDK has issues)
+        const result = await makeBrevoRequest('/smtp/email', 'POST', emailPayload);
         
-        console.log(`✅ Email sent successfully`);
+        console.log(`✅ Simplified email sent successfully - MessageID: ${result.messageId}`);
         
         return res.status(200).json({
             success: true,
-            message: 'Email notification sent successfully',
-            messageId: result.messageId
+            message: 'Email notification sent successfully with Brevo contact personalization',
+            messageId: result.messageId,
+            templateInfo: {
+                templateId: templateId,
+                notificationType: notificationType,
+                language: language,
+                contactAttributesAvailable: Object.keys(brevoContact.attributes || {}).length,
+                dynamicParamsUsed: Object.keys(dynamicData || {}).length
+            }
         });
         
     } catch (error) {
-        console.error('❌ Error sending email notification:', error.message);
+        console.error('❌ Error sending simplified email notification:', error.message);
         
         return res.status(500).json({ 
             error: 'Failed to send email notification',
