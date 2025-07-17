@@ -120,7 +120,15 @@ export default async function handler(req, res) {
                 // Name will be auto-filled by Brevo from contact.FIRSTNAME + contact.LASTNAME
             }],
             templateId: templateId,
-            params: dynamicData || {} // Only dynamic data (world, lmid, urls), contact data is automatic
+            params: dynamicData || {}, // Only dynamic data (world, lmid, urls), contact data is automatic
+            // ADD TRACKING TAGS for better Dashboard identification
+            tags: [
+                'little-microphones',
+                `notification-${notificationType}`,
+                `lang-${language}`,
+                `lmid-${dynamicData?.lmid || 'unknown'}`,
+                `world-${dynamicData?.world || 'unknown'}`
+            ]
         };
         
         console.log(`📧 Sending to Brevo - Template: ${templateId}`);
