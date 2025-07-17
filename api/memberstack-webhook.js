@@ -35,6 +35,23 @@
 
 import { assignLmidToMember, findNextAvailableLmid, generateAllShareIds } from '../utils/lmid-utils.js';
 import { Webhook } from 'svix';
+import { getMemberstack } from '../utils/memberstack-utils.js';
+
+/**
+ * Get full member data from Memberstack
+ * @param {string} memberId - Member ID
+ * @returns {Promise<Object|null>} Full member data or null
+ */
+async function getMemberById(memberId) {
+    try {
+        const memberstack = getMemberstack();
+        const response = await memberstack.members.retrieve({ id: memberId });
+        return response.data || null;
+    } catch (error) {
+        console.error(`❌ Error fetching member ${memberId}:`, error.message);
+        return null;
+    }
+}
 
 export default async function handler(req, res) {
     console.log('\n=== MEMBERSTACK WEBHOOK START ===');
@@ -140,8 +157,8 @@ export default async function handler(req, res) {
                 console.log('Full member data:', JSON.stringify(member, null, 2));
 
                 // Get full member data if we only have minimal webhook data
-                if (!member.id || !member.customFields) {
-                    console.log('⚠️ Webhook has minimal data - some features may be limited');
+                if (!member.customFields || Object.keys(member.customFields || {}).length === 0) {
+                    console.log('⚠️ Webhook has minimal data - attempting to fetch full member data');
                     console.log('⚠️ Available data:', {
                         hasId: !!member.id,
                         hasEmail: !!member.auth?.email,
@@ -149,6 +166,22 @@ export default async function handler(req, res) {
                         hasMetaData: !!member.metaData,
                         hasPlanConnections: !!(member.planConnections && member.planConnections.length > 0)
                     });
+                    
+                    // Try to fetch full member data
+                    if (member.id) {
+                        const fullData = await getMemberById(member.id);
+                        if (fullData) {
+                            console.log('✅ Retrieved full member data with all custom fields');
+                            fullMemberData = fullData;
+                            
+                            // Preserve any plan connections from webhook if not in fetched data
+                            if (!fullMemberData.planConnections && member.planConnections) {
+                                fullMemberData.planConnections = member.planConnections;
+                            }
+                        } else {
+                            console.log('⚠️ Could not fetch full member data - continuing with webhook data');
+                        }
+                    }
                 }
 
                 // Check if planConnections exists in payload
@@ -305,27 +338,39 @@ export default async function handler(req, res) {
                     // Get the member data - it could be in different places
                     let planMember = member || data.member || data.payload?.member || data.payload;
                     
-                    // For plan events, sometimes the full member data is at root
-                    if (!planMember || !planMember.id) {
-                        console.log('🔍 Looking for member data in plan event...');
-                        // Try to extract member ID and fetch full data
-                        const memberId = data.memberId || data.member_id || data.payload?.memberId;
-                        if (memberId) {
-                            console.log(`📥 Found member ID ${memberId}, would fetch full data (not implemented)`);
-                            // TODO: Implement getMemberById if needed
+                    // Extract member ID from various possible locations
+                    const memberId = planMember?.id || 
+                                   data.memberId || 
+                                   data.member_id || 
+                                   data.payload?.memberId ||
+                                   data.payload?.member_id;
+                    
+                    // If we have member ID but not full data, fetch it
+                    if (memberId && (!planMember || !planMember.customFields)) {
+                        console.log(`📥 Fetching full member data for ID: ${memberId}`);
+                        const fullData = await getMemberById(memberId);
+                        if (fullData) {
+                            planMember = fullData;
+                            console.log('✅ Retrieved full member data with all custom fields');
+                        } else {
+                            console.log('⚠️ Could not fetch full member data');
                         }
                     }
                     
                     if (planMember && (planMember.id || planMember.auth?.email)) {
                         console.log(`👤 Processing plan change for member: ${planMember.id || planMember.auth?.email}`);
                         
-                        // Ensure planConnections is included
-                        if (!planMember.planConnections && data.planConnections) {
-                            planMember.planConnections = data.planConnections;
+                        // Ensure planConnections is included - check all possible locations
+                        if (!planMember.planConnections) {
+                            planMember.planConnections = data.planConnections || 
+                                                       data.payload?.planConnections ||
+                                                       data.plan?.connections ||
+                                                       [];
                         }
-                        if (!planMember.planConnections && data.payload?.planConnections) {
-                            planMember.planConnections = data.payload.planConnections;
-                        }
+                        
+                        // Log what custom fields we have
+                        console.log('📋 Available custom fields:', Object.keys(planMember.customFields || {}));
+                        console.log('📋 Available metadata:', Object.keys(planMember.metaData || {}));
                         
                         const { syncMemberToBrevo } = await import('../utils/brevo-contact-manager.js');
                         const brevoResult = await syncMemberToBrevo(planMember);
@@ -338,8 +383,46 @@ export default async function handler(req, res) {
                         // For plan.added, check if we need to assign LMID
                         if (eventType === 'member.plan.added') {
                             console.log('🆕 New plan added - checking if LMID assignment needed');
-                            // The member.updated event will handle LMID assignment
-                            // as Memberstack typically sends both events
+                            
+                            // Check if this is an educator or therapist plan
+                            const { getPlanConfig } = await import('../utils/brevo-contact-config.js');
+                            const activePlans = planMember.planConnections?.filter(conn => 
+                                conn.status === 'ACTIVE' || conn.active === true
+                            ) || [];
+                            
+                            for (const plan of activePlans) {
+                                const planConfig = getPlanConfig(plan.planId);
+                                if (planConfig && (planConfig.attributes.USER_CATEGORY === 'educators' || 
+                                                 planConfig.attributes.USER_CATEGORY === 'therapists')) {
+                                    // Check if LMID already exists
+                                    if (!planMember.metaData?.lmids) {
+                                        console.log(`🎓 Assigning LMID for ${planConfig.attributes.USER_CATEGORY}`);
+                                        const nextLmid = await findNextAvailableLmid();
+                                        if (nextLmid) {
+                                            // Generate ShareIDs for all worlds
+                                            const shareIds = await generateAllShareIds();
+                                            const memberEmail = planMember.auth?.email || planMember.email;
+                                            
+                                            const lmidAssigned = await assignLmidToMember(
+                                                nextLmid.lmid, 
+                                                planMember.id, 
+                                                memberEmail,
+                                                shareIds
+                                            );
+                                            
+                                            if (lmidAssigned) {
+                                                console.log(`✅ Assigned LMID ${nextLmid.lmid}`);
+                                                // Re-sync to Brevo with new LMID
+                                                planMember.metaData = { ...planMember.metaData, lmids: nextLmid.lmid };
+                                                await syncMemberToBrevo(planMember);
+                                            } else {
+                                                console.log(`❌ Failed to assign LMID ${nextLmid.lmid}`);
+                                            }
+                                        }
+                                    }
+                                    break;
+                                }
+                            }
                         }
                     } else {
                         console.log('⚠️ No member data in plan event');
