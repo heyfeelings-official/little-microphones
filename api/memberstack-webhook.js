@@ -35,11 +35,11 @@
 
 export const config = {
     api: {
-        bodyParser: false, // Disable body parsing for raw body access
+        bodyParser: {
+            sizeLimit: '1mb',
+        },
     },
 };
-
-import { buffer } from 'micro';
 
 /**
  * Send alert email when no LMIDs are available
@@ -355,36 +355,58 @@ export default async function handler(req, res) {
     }
 
     try {
-        // Get raw body for signature verification
-        const rawBody = await buffer(req);
-        const bodyString = rawBody.toString('utf8');
-        
+        // Get body data
+        let bodyString = '';
+        let parsedBody = null;
+
         console.log('🚀 Webhook received:', {
             method: req.method,
-            bodyLength: bodyString.length,
+            contentType: req.headers['content-type'],
+            hasBody: !!req.body,
+            bodyType: typeof req.body,
             headers: {
-                'content-type': req.headers['content-type'],
                 'user-agent': req.headers['user-agent'],
                 'svix-id': req.headers['svix-id']?.substring(0, 10) + '...',
                 'svix-timestamp': req.headers['svix-timestamp'],
                 'svix-signature': req.headers['svix-signature']?.substring(0, 20) + '...'
             }
         });
-        
-        // Parse JSON body for processing
-        let parsedBody;
-        try {
-            parsedBody = JSON.parse(bodyString);
-            console.log('✅ JSON parsed successfully:', {
-                type: parsedBody.type,
+
+        // Handle body data
+        if (req.body) {
+            if (typeof req.body === 'string') {
+                bodyString = req.body;
+                try {
+                    parsedBody = JSON.parse(bodyString);
+                } catch (parseError) {
+                    console.error('❌ JSON parse error:', parseError.message);
+                    return res.status(400).json({
+                        success: false,
+                        error: 'Invalid JSON body'
+                    });
+                }
+            } else if (typeof req.body === 'object') {
+                parsedBody = req.body;
+                bodyString = JSON.stringify(req.body);
+            } else {
+                console.error('❌ Unexpected body type:', typeof req.body);
+                return res.status(400).json({
+                    success: false,
+                    error: 'Unexpected body format'
+                });
+            }
+            
+            console.log('✅ Body processed:', {
+                bodyLength: bodyString.length,
+                hasType: !!parsedBody.type,
                 hasData: !!parsedBody.data,
                 hasMember: !!parsedBody.data?.member
             });
-        } catch (parseError) {
-            console.error('❌ Invalid JSON body:', parseError.message);
+        } else {
+            console.error('❌ No body data received');
             return res.status(400).json({
                 success: false,
-                error: 'Invalid JSON body'
+                error: 'No body data'
             });
         }
 
