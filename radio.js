@@ -1050,6 +1050,7 @@
             container.appendChild(kidsContainer);
             
             // Setup audio player for kids (no special background)
+            console.log('🎵 DEBUG: Setting up kids player with URL:', kidsProgram.url);
             setupAudioPlayer(kidsProgram.url, radioData, kidsContainer);
         } else {
             console.log('❌ DEBUG: No kids program to create container for');
@@ -1062,44 +1063,23 @@
             parentsContainer.className = 'parents';
             container.appendChild(parentsContainer);
             
-            // Setup audio player for parents with yellow background applied to the player itself
-            const tempContainer = document.createElement('div');
-            setupAudioPlayer(parentProgram.url, radioData, tempContainer);
+            // Setup audio player for parents DIRECTLY in parentsContainer (same as kids)
+            console.log('🎵 DEBUG: Setting up parent player with URL:', parentProgram.url);
+            setupAudioPlayer(parentProgram.url, radioData, parentsContainer);
             
-            console.log('🔍 DEBUG: tempContainer after setupAudioPlayer:', tempContainer);
-            console.log('🔍 DEBUG: tempContainer children count:', tempContainer.children.length);
-            console.log('🔍 DEBUG: tempContainer innerHTML length:', tempContainer.innerHTML.length);
-            
-            // Apply yellow background to the actual player element instead of wrapper
-            const playerElement = tempContainer.querySelector('[class*="plyr"], audio');
-            console.log('🔍 DEBUG: Found playerElement with [class*="plyr"], audio:', playerElement);
-            
-            // Try alternative selectors
-            const audioElement = tempContainer.querySelector('audio');
-            const divElement = tempContainer.querySelector('div');
-            const liElement = tempContainer.querySelector('li');
-            
-            console.log('🔍 DEBUG: Found audio element:', audioElement);
-            console.log('🔍 DEBUG: Found div element:', divElement);
-            console.log('🔍 DEBUG: Found li element:', liElement);
-            
-            if (playerElement) {
-                playerElement.style.background = '#FFD700';
-                console.log('🟡 DEBUG: Applied yellow background to parent player');
-            } else {
-                console.log('❌ DEBUG: No playerElement found - trying div as fallback');
-                if (divElement) {
-                    divElement.style.background = '#FFD700';
-                    console.log('🟡 DEBUG: Applied yellow background to div element');
-                }
-            }
-            
-            // Move content to parents container
-            console.log('🔄 DEBUG: Moving content from tempContainer to parentsContainer');
-            while (tempContainer.firstChild) {
-                parentsContainer.appendChild(tempContainer.firstChild);
-            }
-            console.log('🔄 DEBUG: Finished moving. parentsContainer children count:', parentsContainer.children.length);
+            // Apply yellow background after player is created
+            setTimeout(() => {
+                const playerElements = parentsContainer.querySelectorAll('audio, div[style*="background"], li[data-recording-id]');
+                console.log('🔍 DEBUG: Found player elements for yellow background:', playerElements.length);
+                
+                playerElements.forEach((element, index) => {
+                    console.log(`🔍 DEBUG: Player element ${index}:`, element.tagName, element.className);
+                    if (element.tagName === 'DIV' && element.style) {
+                        element.style.background = '#FFD700';
+                        console.log(`🟡 DEBUG: Applied yellow background to element ${index}`);
+                    }
+                });
+            }, 100);
         } else {
             console.log('❌ DEBUG: No parent program to create container for');
         }
