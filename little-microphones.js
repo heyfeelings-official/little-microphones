@@ -110,6 +110,8 @@
     function animateNewRecElements(container = document) {
         const newRecElements = container.querySelectorAll('.new-rec:not(.animate-in)');
         
+        console.log(`🎬 Found ${newRecElements.length} new-rec elements for animation`);
+        
         newRecElements.forEach((element, index) => {
             // Stagger animations by 100ms for each element
             setTimeout(() => {
@@ -124,6 +126,8 @@
      */
     function animateBadgeRecElements(container = document) {
         const badgeRecElements = container.querySelectorAll('.badge-rec:not(.animate-in)');
+        
+        console.log(`🎬 Found ${badgeRecElements.length} badge-rec elements for animation`);
         
         badgeRecElements.forEach((element, index) => {
             // Stagger animations by 100ms for each element, starting after new-rec animations
@@ -140,10 +144,13 @@
     function animateBackgroundImages(container = document) {
         const programContainers = container.querySelectorAll('.program-container[data-lmid]:not(.bg-animate-in)');
         
+        console.log(`🎬 Found ${programContainers.length} containers for background animation`);
+        
         programContainers.forEach((element, index) => {
             // Stagger animations by 50ms for each element
             setTimeout(() => {
                 element.classList.add('bg-animate-in');
+                console.log(`🎯 Added bg-animate-in to container ${index + 1}`);
             }, index * 50);
         });
     }
@@ -438,10 +445,17 @@
             initializeDashboardTracking();
         }, 50);
         
-        // Now batch-load new recording indicators in background (fast)
+        // Start animations immediately for better UX
+        setTimeout(() => {
+            animateNewRecElements();
+            animateBadgeRecElements();
+            animateBackgroundImages();
+        }, 100);
+        
+        // Now batch-load new recording indicators in background (with throttling)
         setTimeout(() => {
             batchLoadNewRecordingIndicators(lmids);
-        }, 100);
+        }, 200);
     }
 
     /**
@@ -621,27 +635,29 @@
     }
 
     /**
-     * Batch load new recording indicators for all LMIDs (optimized)
+     * Batch load new recording indicators for all LMIDs (optimized with throttling)
      * @param {Array<string>} lmids - Array of LMID strings
      */
     async function batchLoadNewRecordingIndicators(lmids) {
         try {
-            // For each LMID, setup the indicator properly
-            for (const lmid of lmids) {
+            // For each LMID, setup the indicator properly with throttling to avoid 429 errors
+            for (let i = 0; i < lmids.length; i++) {
+                const lmid = lmids[i];
                 const lmidElement = document.querySelector(`[data-lmid="${lmid}"]`);
+                
                 if (lmidElement) {
                     await setupNewRecordingIndicator(lmidElement, lmid);
+                    
+                    // Add delay between LMIDs to prevent rate limiting (except for last one)
+                    if (i < lmids.length - 1) {
+                        await new Promise(resolve => setTimeout(resolve, 300)); // 300ms delay between LMIDs
+                    }
                 } else {
                     console.warn(`⚠️ LMID element not found for ${lmid}`);
                 }
             }
             
-            // All data loaded - trigger animations
-            setTimeout(() => {
-                animateNewRecElements();
-                animateBadgeRecElements();
-                animateBackgroundImages();
-            }, 200); // Small delay to ensure DOM updates are complete
+            // All data loaded - animations already triggered in initializeDashboardUI
             
         } catch (error) {
             console.error('❌ Error in batch loading:', error);
