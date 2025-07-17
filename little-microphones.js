@@ -99,46 +99,29 @@
     let currentUserRole = null;
 
     /**
-     * Re-initialize Webflow animations for cloned elements
-     * Works with any element and preserves all Webflow animations
-     * @param {HTMLElement} element - Element to re-initialize animations for
+     * Store event listeners to enable proper cleanup without cloning
      */
-    function initializeWebflowAnimations(element) {
-        try {
-            // Method 1: Try Webflow.require if available
-            if (typeof Webflow !== 'undefined' && Webflow.require) {
-                const ix2 = Webflow.require('ix2');
-                if (ix2) {
-                    ix2.init();
-                }
-            }
-            
-            // Method 2: Trigger Webflow ready event for specific element
-            if (typeof Webflow !== 'undefined' && Webflow.ready) {
-                Webflow.ready();
-            }
-            
-            // Method 3: Re-trigger interaction events by dispatching resize
-            if (typeof window !== 'undefined') {
-                setTimeout(() => {
-                    window.dispatchEvent(new Event('resize'));
-                }, 100);
-            }
-            
-            // Method 4: Force re-scan of animations by triggering DOMContentLoaded
-            const animatedElements = element.querySelectorAll('[data-w-id], .w-animation-*');
-            animatedElements.forEach(el => {
-                // Trigger any data attributes that might initialize animations
-                if (el.dataset.wId) {
-                    const event = new CustomEvent('webflow:ix2:init');
-                    el.dispatchEvent(event);
-                }
-            });
-            
-            console.log('✨ Webflow animations re-initialized for cloned element');
-        } catch (error) {
-            console.warn('⚠️ Could not re-initialize Webflow animations:', error);
+    const elementEventListeners = new WeakMap();
+
+    /**
+     * Add event listener with cleanup tracking
+     * @param {HTMLElement} element - Element to add listener to
+     * @param {string} event - Event type
+     * @param {Function} handler - Event handler
+     */
+    function addTrackedEventListener(element, event, handler) {
+        // Remove existing listener if any
+        const existingListeners = elementEventListeners.get(element) || {};
+        if (existingListeners[event]) {
+            element.removeEventListener(event, existingListeners[event]);
         }
+        
+        // Add new listener
+        element.addEventListener(event, handler);
+        
+        // Track the listener
+        existingListeners[event] = handler;
+        elementEventListeners.set(element, existingListeners);
     }
 
     // REMOVED: ShareID cache to ensure fresh data after radio play
@@ -412,8 +395,7 @@
             }
         }
         
-        // Re-initialize Webflow animations for cloned elements
-        initializeWebflowAnimations(clone);
+        // Note: No additional cloning needed - Webflow animations preserved
         
         // Hide delete buttons for parent users
         const userRole = await detectUserRole();
@@ -513,14 +495,8 @@
             
             // Setup .badge-rec click to radio page with ShareID
             if (badgeRec && shareId && totalRecordingCount > 0) {
-                // Remove any existing listeners to prevent duplicates
-                const newBadgeRec = badgeRec.cloneNode(true);
-                badgeRec.parentNode.replaceChild(newBadgeRec, badgeRec);
-                
-                // Re-initialize Webflow animations for cloned badge element
-                initializeWebflowAnimations(newBadgeRec);
-                
-                newBadgeRec.addEventListener('click', (e) => {
+                // Add tracked event listener (automatically removes duplicates)
+                addTrackedEventListener(badgeRec, 'click', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     const radioUrl = `/little-microphones?ID=${shareId}`;
@@ -532,26 +508,8 @@
             
             // Setup .new-rec click to recording page
             if (newRecContainer) {
-                // Remove any existing listeners to prevent duplicates
-                const newNewRecContainer = newRecContainer.cloneNode(true);
-                newRecContainer.parentNode.replaceChild(newNewRecContainer, newRecContainer);
-                
-                // Re-initialize Webflow animations for cloned new-rec element
-                initializeWebflowAnimations(newNewRecContainer);
-                
-                // Update number elements after cloning
-                const updatedTotalRecNumber = newNewRecContainer.querySelector(".rec-text:not(.new) .new-rec-number");
-                const updatedNewRecNumber = newNewRecContainer.querySelector(".rec-text.new .new-rec-number");
-                
-                // Re-apply the counts to the new elements
-                if (updatedTotalRecNumber) {
-                    updatedTotalRecNumber.textContent = totalRecordingCount.toString();
-                }
-                if (updatedNewRecNumber) {
-                    updatedNewRecNumber.textContent = newRecordingCount.toString();
-                }
-                
-                newNewRecContainer.addEventListener('click', (e) => {
+                // Add tracked event listener (automatically removes duplicates)
+                addTrackedEventListener(newRecContainer, 'click', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     markLmidWorldVisited(lmid);
