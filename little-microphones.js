@@ -176,71 +176,69 @@
         
         console.log(`📊 Found ${worldCombinations.length} unique LMID/world combinations`);
         
-        // Process each combination with throttling to avoid 429 errors
-        for (let i = 0; i < worldCombinations.length; i++) {
-            const { lmid, world, worldContainer, lmidElement } = worldCombinations[i];
-            
-            try {
-                // Single API call for this LMID/world combination
-                const lang = window.LM_CONFIG.getCurrentLanguage();
-                const response = await fetch(`${window.LM_CONFIG.API_BASE_URL}/api/list-recordings?world=${world}&lmid=${encodeURIComponent(lmid)}&lang=${encodeURIComponent(lang)}`);
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    const recordings = data?.recordings || [];
-                    const hasRecordings = recordings.length > 0;
+        // Process ALL combinations in PARALLEL with Promise.all (much faster!)
+        const promises = worldCombinations.map(({ lmid, world, worldContainer, lmidElement }) => {
+            return (async () => {
+                try {
+                    // Single API call for this LMID/world combination
+                    const lang = window.LM_CONFIG.getCurrentLanguage();
+                    const response = await fetch(`${window.LM_CONFIG.API_BASE_URL}/api/list-recordings?world=${world}&lmid=${encodeURIComponent(lmid)}&lang=${encodeURIComponent(lang)}`);
                     
-                    // 1. Apply badge-rec visibility
-                    const badgeRec = worldContainer.querySelector('.badge-rec');
-                    if (badgeRec) {
-                        if (hasRecordings) {
-                            badgeRec.classList.add('show-badge');
-                            console.log(`👁️ SHOWING badge-rec for ${lmid}/${world} (${recordings.length} recordings)`);
-                            
-                            // DEBUG: Check computed style immediately after adding class
-                            setTimeout(() => {
-                                const style = getComputedStyle(badgeRec);
-                                console.log(`🔬 IMMEDIATE CHECK ${lmid}/${world}: display=${style.display}, classList=${badgeRec.classList.toString()}`);
-                            }, 10);
-                        } else {
-                            badgeRec.classList.remove('show-badge');
-                            console.log(`🙈 HIDING badge-rec for ${lmid}/${world} (0 recordings)`);
-                        }
-                    }
-                    
-                    // 2. Apply new-rec and total counts (simplified for dashboard)
-                    const newRecContainer = worldContainer.querySelector('.new-rec');
-                    if (newRecContainer) {
-                        // Update total count
-                        const totalCountElement = newRecContainer.querySelector('.new-rec-number:not(.total)');
-                        if (totalCountElement) {
-                            totalCountElement.textContent = recordings.length;
-                        }
+                    if (response.ok) {
+                        const data = await response.json();
+                        const recordings = data?.recordings || [];
+                        const hasRecordings = recordings.length > 0;
                         
-                        // For simplicity on dashboard, show all as "new" (detailed new count calculation is expensive)
-                        const newCountElement = newRecContainer.querySelector('.new-rec-number.total');
-                        const newCountContainer = newRecContainer.querySelector('.rec-text.new');
-                        if (newCountElement && newCountContainer) {
-                            if (recordings.length > 0) {
-                                newCountElement.textContent = recordings.length;
-                                newCountContainer.style.display = 'flex';
+                        // 1. Apply badge-rec visibility
+                        const badgeRec = worldContainer.querySelector('.badge-rec');
+                        if (badgeRec) {
+                            if (hasRecordings) {
+                                badgeRec.classList.add('show-badge');
+                                console.log(`👁️ SHOWING badge-rec for ${lmid}/${world} (${recordings.length} recordings)`);
+                                
+                                // DEBUG: Check computed style immediately after adding class
+                                setTimeout(() => {
+                                    const style = getComputedStyle(badgeRec);
+                                    console.log(`🔬 IMMEDIATE CHECK ${lmid}/${world}: display=${style.display}, classList=${badgeRec.classList.toString()}`);
+                                }, 10);
                             } else {
-                                newCountContainer.style.display = 'none';
+                                badgeRec.classList.remove('show-badge');
+                                console.log(`🙈 HIDING badge-rec for ${lmid}/${world} (0 recordings)`);
                             }
                         }
+                        
+                        // 2. Apply new-rec and total counts (simplified for dashboard)
+                        const newRecContainer = worldContainer.querySelector('.new-rec');
+                        if (newRecContainer) {
+                            // Update total count
+                            const totalCountElement = newRecContainer.querySelector('.new-rec-number:not(.total)');
+                            if (totalCountElement) {
+                                totalCountElement.textContent = recordings.length;
+                            }
+                            
+                            // For simplicity on dashboard, show all as "new" (detailed new count calculation is expensive)
+                            const newCountElement = newRecContainer.querySelector('.new-rec-number.total');
+                            const newCountContainer = newRecContainer.querySelector('.rec-text.new');
+                            if (newCountElement && newCountContainer) {
+                                if (recordings.length > 0) {
+                                    newCountElement.textContent = recordings.length;
+                                    newCountContainer.style.display = 'flex';
+                                } else {
+                                    newCountContainer.style.display = 'none';
+                                }
+                            }
+                        }
+                    } else {
+                        console.warn(`❌ API failed for ${lmid}/${world}: ${response.status}`);
                     }
-                } else {
-                    console.warn(`❌ API failed for ${lmid}/${world}: ${response.status}`);
+                } catch (error) {
+                    console.warn(`💥 Error loading ${lmid}/${world}:`, error);
                 }
-            } catch (error) {
-                console.warn(`💥 Error loading ${lmid}/${world}:`, error);
-            }
-            
-            // Throttle to avoid 429 errors (200ms between calls)
-            if (i < worldCombinations.length - 1) {
-                await new Promise(resolve => setTimeout(resolve, 200));
-            }
-        }
+            })();
+        });
+        
+        // Wait for ALL API calls to complete in parallel
+        await Promise.all(promises);
         
         // Animate elements that are now visible
         setTimeout(() => {
