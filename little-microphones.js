@@ -124,7 +124,7 @@
     function animateBadgeRecElements(container = document) {
         const badgeRecElements = container.querySelectorAll('.badge-rec:not(.animate-in)');
         
-        // Filter out hidden elements to avoid animating then hiding
+        // Filter out hidden elements (visibility already pre-calculated)
         const visibleBadgeElements = Array.from(badgeRecElements).filter(element => {
             const computedStyle = getComputedStyle(element);
             return computedStyle.display !== 'none' && computedStyle.visibility !== 'hidden';
@@ -1538,16 +1538,15 @@
         if (clone) {
             container.appendChild(clone);
             
-            // Animate elements in the newly created LMID
+            // Pre-calculate visibility for the new LMID
+            await preCalculateElementVisibility([newLmid]);
+            
+            // Animate elements in the newly created LMID (including badge-rec now that visibility is set)
             setTimeout(() => {
                 animateNewRecElements(clone);
                 animateBackgroundImages(clone);
-            }, 100);
-            
-            // Animate badge-rec after data has loaded (with delay for API calls to complete)
-            setTimeout(() => {
                 animateBadgeRecElements(clone);
-            }, 1000);
+            }, 100);
         }
         
         reinitializeWebflow();
