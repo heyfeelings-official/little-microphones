@@ -333,49 +333,36 @@ async function handleSubscriptionEvent(data, eventType, webhookId) {
 
 
 export default async function handler(req, res) {
-    try {
-        // Secure CORS headers
-        const { setCorsHeaders } = await import('../utils/api-utils.js');
-        const corsHandler = setCorsHeaders(res, ['POST', 'OPTIONS']);
-        corsHandler(req);
+    // Secure CORS headers
+    const { setCorsHeaders } = await import('../utils/api-utils.js');
+    const corsHandler = setCorsHeaders(res, ['POST', 'OPTIONS']);
+    corsHandler(req);
 
-        // Rate limiting - 20 webhooks per minute
-        const { checkRateLimit } = await import('../utils/simple-rate-limiter.js');
-        if (!checkRateLimit(req, res, 'memberstack-webhook', 20)) {
-            return; // Rate limit exceeded
-        }
+    // Rate limiting - 20 webhooks per minute
+    const { checkRateLimit } = await import('../utils/simple-rate-limiter.js');
+    if (!checkRateLimit(req, res, 'memberstack-webhook', 20)) {
+        return; // Rate limit exceeded
+    }
 
-        if (req.method === 'OPTIONS') {
-            return res.status(200).end();
-        }
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
 
-        if (req.method !== 'POST') {
-            return res.status(405).json({ 
-                success: false, 
-                error: 'Method not allowed. Use POST.' 
-            });
-        }
-
-        // Log request for debugging
-        console.log('🔄 Webhook request received:', {
-            method: req.method,
-            headers: Object.keys(req.headers),
-            bodyType: typeof req.body,
-            bodyKeys: req.body ? Object.keys(req.body) : 'no body'
+    if (req.method !== 'POST') {
+        return res.status(405).json({ 
+            success: false, 
+            error: 'Method not allowed. Use POST.' 
         });
+    }
 
+    try {
         // Verify webhook authenticity
-        const { validateMemberstackWebhook } = await import('../utils/memberstack-utils.js');
         const validation = validateMemberstackWebhook(req);
-        
-        console.log('🔐 Webhook validation result:', validation);
-        
         if (!validation.valid) {
             console.warn('⚠️ Webhook validation failed:', validation.error);
             return res.status(401).json({ 
                 success: false, 
-                error: 'Unauthorized webhook request',
-                details: validation.error
+                error: 'Unauthorized webhook request' 
             });
         }
 
@@ -418,15 +405,10 @@ export default async function handler(req, res) {
         });
 
     } catch (error) {
-        console.error('❌ Unexpected error in memberstack-webhook:', {
-            message: error.message,
-            stack: error.stack,
-            name: error.name
-        });
+        console.error('Unexpected error in memberstack-webhook:', error);
         return res.status(500).json({ 
             success: false, 
-            error: 'Internal server error',
-            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+            error: 'Internal server error' 
         });
     }
 } 
