@@ -153,14 +153,20 @@ export async function createOrUpdateBrevoContact(memberData, planConfig) {
       // Teacher/School name (general)
       TEACHER_NAME: memberData.customFields?.['teacher-name'] || 
                    `${memberData.customFields?.['first-name'] || ''} ${memberData.customFields?.['last-name'] || ''}`.trim(),
-      SCHOOL_NAME: memberData.customFields?.['school-name'] || memberData.customFields?.['school'] || '',
+      SCHOOL_NAME: memberData.customFields?.['school-name'] || 
+                   memberData.customFields?.['school'] || 
+                   memberData.customFields?.['school-place-name'] || '',
       
       // School details (for Educators)
-      SCHOOL_SEARCH_INPUT: memberData.customFields?.['school-search-input'] || '',
-      SCHOOL_ADDRESS: memberData.customFields?.['school-address'] || memberData.customFields?.['school_address'] || '',
+      SCHOOL_SEARCH_INPUT: memberData.customFields?.['school-search-input'] || memberData.customFields?.['search-input'] || '',
+      SCHOOL_ADDRESS: memberData.customFields?.['school-address'] || 
+                     memberData.customFields?.['school_address'] || 
+                     memberData.customFields?.['school-address-result'] || '',
       SCHOOL_CITY: memberData.customFields?.['school-city'] || memberData.customFields?.['city'] || '',
       SCHOOL_COUNTRY: memberData.customFields?.['school-country'] || memberData.customFields?.['country'] || '',
-      SCHOOL_FACILITY_TYPE: memberData.customFields?.['school-type'] || memberData.customFields?.['school_type'] || '',
+      SCHOOL_FACILITY_TYPE: memberData.customFields?.['school-type'] || 
+                           memberData.customFields?.['school_type'] || 
+                           memberData.customFields?.['school-facility-type'] || '',
       SCHOOL_LATITUDE: String(memberData.customFields?.['school-latitude'] || memberData.customFields?.['school_latitude'] || ''),
       SCHOOL_LONGITUDE: String(memberData.customFields?.['school-longitude'] || memberData.customFields?.['school_longitude'] || ''),
       SCHOOL_PHONE: memberData.customFields?.['school-phone'] || memberData.customFields?.['school_phone'] || '',
@@ -174,8 +180,12 @@ export async function createOrUpdateBrevoContact(memberData, planConfig) {
       
       // Professional information (for Educators)
       EDUCATOR_ROLE: memberData.customFields?.['role'] || memberData.customFields?.['educator-role'] || '',
-      EDUCATOR_NO_CLASSES: memberData.customFields?.['no-classes'] || memberData.customFields?.['no_classes'] || '',
-      EDUCATOR_NO_KIDS: memberData.customFields?.['no-kids'] || memberData.customFields?.['no_kids'] || '',
+      EDUCATOR_NO_CLASSES: memberData.customFields?.['no-classes'] || 
+                           memberData.customFields?.['no_classes'] || 
+                           memberData.customFields?.['educator-no-classes'] || '',
+      EDUCATOR_NO_KIDS: memberData.customFields?.['no-kids'] || 
+                        memberData.customFields?.['no_kids'] || 
+                        memberData.customFields?.['educator-no-kids'] || '',
       
       // Application-specific
       LMIDS: memberData.metaData?.lmids || ''
