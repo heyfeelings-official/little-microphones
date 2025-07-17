@@ -178,10 +178,10 @@
                 const hasRecordings = await checkWorldForRecordings(lmid, world);
                 
                 if (hasRecordings) {
-                    badgeRec.style.display = 'flex';
+                    badgeRec.classList.add('show-badge');
                     console.log(`👁️ SHOWING badge-rec for ${lmid}/${world} (has recordings)`);
                 } else {
-                    badgeRec.style.display = 'none';
+                    badgeRec.classList.remove('show-badge');
                     console.log(`🙈 HIDING badge-rec for ${lmid}/${world} (no recordings)`);
                 }
                 
@@ -369,11 +369,16 @@
                 opacity: 0;
                 transform: translateY(24px);
                 transition: all 0.6s cubic-bezier(0.075, 0.82, 0.165, 1);
+                display: none !important;
             }
             
             .badge-rec.animate-in {
                 opacity: 1;
                 transform: translateY(0px);
+            }
+            
+            .badge-rec.show-badge {
+                display: flex !important;
             }
             
             /* Background image animation - using background-size instead of transform to respect overflow */

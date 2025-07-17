@@ -29,10 +29,10 @@ const API_BASE = process.env.VERCEL_URL
   ? process.env.API_BASE_URL
   : 'https://little-microphones.vercel.app'; // Default production URL
 
-const WEBHOOK_ENDPOINT = `${API_BASE}/api/memberstack-webhook`;
+const WEBHOOK_ENDPOINT = `${API_BASE}/api/test-registration`;
 
-// For testing purposes - set this to bypass webhook validation
-process.env.TEST_MODE = 'true';
+// For testing purposes - enable test endpoints
+process.env.ENABLE_TEST_ENDPOINTS = 'true';
 
 // Test users with realistic data
 const TEST_USERS = [
