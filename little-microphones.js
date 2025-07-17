@@ -1569,7 +1569,7 @@
             return;
         }
 
-        const clone = await createLMIDElement(template, newLmid, true); // Load new recordings for the new LMID
+        const clone = await createLMIDElement(template, newLmid, false); // Skip duplicate API calls - batchLoadAllRecordingData handles this
         if (clone) {
             container.appendChild(clone);
             
