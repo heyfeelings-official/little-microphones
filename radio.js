@@ -644,29 +644,8 @@
                                        playerElement.querySelector('div[style*="background-color: #007AF7"]');
                 const audioElement = playerElement.querySelector('audio');
                 
-                // More detailed progress bar debugging
-                if (progressBar) {
-                    console.log('📊 DEBUG: Progress bar container children count:', progressBar.children.length);
-                    if (progressBar.children.length > 0) {
-                        const firstChild = progressBar.children[0];
-                        console.log('📊 DEBUG: First child of progress container:', firstChild.tagName);
-                        console.log('📊 DEBUG: First child style:', firstChild.style.cssText);
-                        console.log('📊 DEBUG: First child has #007AF7 background:', firstChild.style.background.includes('#007AF7'));
-                    } else {
-                        console.log('❌ DEBUG: Progress bar container has NO children!');
-                    }
-                }
-                
-                // Debug all progress-related elements
-                const allProgressElements = playerElement.querySelectorAll('div[style*="flex"]');
-                const allBlueElements = playerElement.querySelectorAll('div[style*="#007AF7"]');
-                
-                console.log('🔍 DEBUG: Progress bar container found:', !!progressBar);
-                console.log('🔍 DEBUG: Progress bar inner found:', !!progressBarInner);
-                console.log('🔍 DEBUG: All progress elements count:', allProgressElements.length);
-                console.log('🔍 DEBUG: All blue elements count:', allBlueElements.length);
-                console.log('🔍 DEBUG: Audio element found:', !!audioElement);
-                console.log('🔍 DEBUG: Is parent program:', isParentProgram);
+                // Progress bar debugging simplified
+                console.log('🔍 DEBUG: Progress bar found:', !!progressBar, '| Audio found:', !!audioElement, '| Parent:', isParentProgram);
                 
                 // NOTE: Don't apply yellow background here - it's handled later via setTimeout
                 // to avoid overriding progress bar colors
@@ -1089,19 +1068,7 @@
         console.log('👶 DEBUG: kidsProgram found:', kidsProgram ? kidsProgram.title : 'NO');
         console.log('👨‍👩‍👧‍👦 DEBUG: parentProgram found:', parentProgram ? parentProgram.title : 'NO');
         
-        // Debug: First check what's actually in the container
-        console.log('🔍 DEBUG: Main container HTML:', container.innerHTML);
-        console.log('🔍 DEBUG: Main container children count:', container.children.length);
-        
-        // Look for ALL text elements first
-        const allElements = container.querySelectorAll('*');
-        console.log('🔍 DEBUG: All elements in container:', allElements.length);
-        
-        Array.from(allElements).forEach((el, index) => {
-            if (el.textContent && el.textContent.trim()) {
-                console.log(`🔍 DEBUG: Element ${index}: ${el.tagName}.${el.className} = "${el.textContent.trim()}"`);
-            }
-        });
+        // Clean implementation - debug code removed since dual player works correctly
         
         // Find existing Webflow containers - they might be text elements, not .kids/.parents classes
         let existingKidsContainer = container.querySelector('.kids');
@@ -1122,10 +1089,7 @@
             );
         }
         
-        console.log('🔍 DEBUG: Existing kids container found:', !!existingKidsContainer);
-        console.log('🔍 DEBUG: Existing parents container found:', !!existingParentsContainer);
-        console.log('🔍 DEBUG: Kids container content:', existingKidsContainer?.textContent);
-        console.log('🔍 DEBUG: Parents container content:', existingParentsContainer?.textContent);
+        console.log('🔍 DEBUG: Webflow containers - Kids:', !!existingKidsContainer, '| Parents:', !!existingParentsContainer);
         
         // Use kids container (existing Webflow or create new)
         if (kidsProgram) {
