@@ -340,6 +340,16 @@ export default async function handler(req, res) {
                                             const { updateMemberstackMetadata } = await import('../utils/lmid-utils.js');
                                             await updateMemberstackMetadata(memberId, nextLmid.toString());
                                             console.log('✅ Memberstack metadata updated');
+                                            
+                                            // Re-sync to Brevo with new LMID
+                                            fullMemberData.metaData = { ...fullMemberData.metaData, lmids: nextLmid.toString() };
+                                            const { syncMemberToBrevo } = await import('../utils/brevo-contact-manager.js');
+                                            const resyncResult = await syncMemberToBrevo(fullMemberData);
+                                            if (resyncResult.success) {
+                                                console.log('✅ Re-synced to Brevo with LMID');
+                                            } else {
+                                                console.log('❌ Failed to re-sync to Brevo with LMID:', resyncResult.error);
+                                            }
                                         } catch (metaError) {
                                             console.log('⚠️ Failed to update Memberstack metadata:', metaError.message);
                                         }

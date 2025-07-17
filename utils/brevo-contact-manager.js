@@ -331,6 +331,21 @@ export async function syncMemberToBrevo(memberData) {
   console.log(`🔄 [${syncId}] Starting Brevo sync for ${email}`);
   
   try {
+    // Get existing contact first to preserve plan data if needed
+    let existingContactData = null;
+    try {
+      existingContactData = await getBrevoContact(email);
+      if (existingContactData) {
+        console.log(`📋 [${syncId}] Found existing contact with attributes:`, {
+          PLAN_NAME: existingContactData.attributes?.PLAN_NAME,
+          PLAN_ID: existingContactData.attributes?.PLAN_ID,
+          USER_CATEGORY: existingContactData.attributes?.USER_CATEGORY
+        });
+      }
+    } catch (err) {
+      // Ignore errors - contact might not exist
+    }
+    
     // Get active plans - check only status, not active field (which may be missing)
     const activePlans = memberData.planConnections?.filter(conn => 
       conn.status === 'ACTIVE' || conn.active === true
@@ -342,6 +357,42 @@ export async function syncMemberToBrevo(memberData) {
       active: p.active
     })));
     console.log(`📊 [${syncId}] Active plans after filter:`, activePlans.map(p => p.planId));
+    
+    // If no plans in webhook but contact exists with plan data, preserve it
+    if (activePlans.length === 0 && existingContactData?.attributes?.PLAN_ID && existingContactData?.attributes?.PLAN_ID !== 'none') {
+      console.log(`⚠️ [${syncId}] No plans in webhook but existing contact has plan data - preserving existing plan`);
+      
+      // Update contact with new data but preserve plan attributes
+      const updateAttributes = {
+        FIRSTNAME: memberData.customFields?.['first-name'] || memberData.customFields?.firstName || '',
+        LASTNAME: memberData.customFields?.['last-name'] || memberData.customFields?.lastName || '',
+        MEMBERSTACK_ID: memberData.id || '',
+        LAST_SYNC: new Date().toISOString(),
+        LMIDS: memberData.metaData?.lmids || existingContactData.attributes?.LMIDS || '',
+        // Preserve existing plan data
+        USER_CATEGORY: existingContactData.attributes.USER_CATEGORY,
+        PLAN_TYPE: existingContactData.attributes.PLAN_TYPE,
+        PLAN_NAME: existingContactData.attributes.PLAN_NAME,
+        PLAN_ID: existingContactData.attributes.PLAN_ID
+      };
+      
+      // Update all other fields from memberData.customFields
+      if (memberData.customFields) {
+        Object.keys(memberData.customFields).forEach(key => {
+          const brevoKey = key.toUpperCase().replace(/-/g, '_');
+          if (!['FIRSTNAME', 'LASTNAME'].includes(brevoKey) && memberData.customFields[key]) {
+            updateAttributes[brevoKey] = memberData.customFields[key];
+          }
+        });
+      }
+      
+      await makeBrevoRequest(`/contacts/${encodeURIComponent(email)}`, 'PUT', {
+        attributes: updateAttributes
+      });
+      
+      console.log(`✅ [${syncId}] Updated contact preserving existing plan data`);
+      return { success: true, syncId, email, action: 'updated_preserve_plan' };
+    }
     
     if (activePlans.length === 0) {
       console.log(`📝 [${syncId}] No active plans for ${email} - syncing basic contact data`);
