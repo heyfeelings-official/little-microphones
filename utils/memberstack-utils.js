@@ -66,6 +66,24 @@ export function validateMemberstackWebhook(req, options = {}) {
         const svix_timestamp = req.headers['svix-timestamp'];
         const svix_signature = req.headers['svix-signature'];
         
+        console.log('🔍 Webhook validation debug:', {
+            hasHeaders: {
+                svix_id: !!svix_id,
+                svix_timestamp: !!svix_timestamp,
+                svix_signature: !!svix_signature
+            },
+            headerValues: {
+                svix_id: svix_id?.substring(0, 10) + '...',
+                svix_timestamp,
+                svix_signature: svix_signature?.substring(0, 20) + '...'
+            },
+            bodyInfo: {
+                hasRawBody: !!req.rawBody,
+                bodyType: typeof req.body,
+                bodyLength: req.rawBody?.length || JSON.stringify(req.body || {}).length
+            }
+        });
+        
         if (!svix_id || !svix_timestamp || !svix_signature) {
             return { 
                 valid: false, 
@@ -81,7 +99,13 @@ export function validateMemberstackWebhook(req, options = {}) {
         };
         
         // Get raw body
-        const body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+        const body = req.rawBody || (typeof req.body === 'string' ? req.body : JSON.stringify(req.body));
+        
+        console.log('🔍 Svix verification attempt:', {
+            bodyLength: body.length,
+            bodyStart: body.substring(0, 100) + '...',
+            secretConfigured: !!webhookSecret
+        });
         
         // Verify using Svix
         const wh = new Webhook(webhookSecret);
@@ -94,7 +118,11 @@ export function validateMemberstackWebhook(req, options = {}) {
         };
         
     } catch (error) {
-        console.warn('⚠️ Webhook signature verification failed:', error.message);
+        console.warn('⚠️ Webhook signature verification failed:', {
+            errorMessage: error.message,
+            errorName: error.name,
+            stack: error.stack?.split('\n')[0]
+        });
         return { 
             valid: false, 
             error: `Signature verification failed: ${error.message}` 
