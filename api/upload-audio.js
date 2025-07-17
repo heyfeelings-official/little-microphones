@@ -68,7 +68,7 @@
  * - Parent notifications to other parents (excluding uploader)
  * - Brevo SDK integration with automatic contact creation
  * - Secure logging without exposing personal information
- * - Configurable Hey Feelings domain via HEY_FEELINGS_BASE_URL environment variable
+ * - Configurable Hey Feelings domain via HEY_FEELINGS_BASE_URL environment variable (auto-detects: webflow.io for testing, heyfeelings.com for production)
  * - Available template parameters: teacherName, world, lmid, schoolName, dashboardUrl, radioUrl, uploaderName, uploaderType, parentEmail, parentName
  * - parentEmail parameter contains the email of the parent who made the recording (for teacher notifications)
  * - parentName parameter contains the first and last name of the parent who made the recording (available for both teacher and parent notifications)
@@ -464,8 +464,21 @@ async function sendNewRecordingNotifications(lmid, world, questionId, lang, uplo
         }
         
         // Prepare template data
-        // Use environment variable for Hey Feelings domain
-        const heyFeelingsBaseUrl = process.env.HEY_FEELINGS_BASE_URL;
+        // Determine Hey Feelings base URL based on environment
+        let heyFeelingsBaseUrl = process.env.HEY_FEELINGS_BASE_URL;
+        
+        // Auto-detect environment if not explicitly set
+        if (!heyFeelingsBaseUrl) {
+            const isDevelopment = process.env.NODE_ENV !== 'production' || 
+                                 process.env.VERCEL_ENV === 'preview' ||
+                                 process.env.VERCEL_ENV === 'development';
+            
+            heyFeelingsBaseUrl = isDevelopment 
+                ? 'https://hey-feelings-v2.webflow.io'     // Testing environment
+                : 'https://heyfeelings.com';                // Production environment
+                
+            console.log(`🌍 [${requestId}] Auto-detected environment: ${isDevelopment ? 'development' : 'production'}, using ${heyFeelingsBaseUrl}`);
+        }
         
         const templateData = {
             teacherName: lmidData.teacherName,

@@ -138,7 +138,7 @@
      * @param {HTMLElement} container - Container to search for program containers (optional)
      */
     function animateBackgroundImages(container = document) {
-        const programContainers = container.querySelectorAll('.program-container:not(.bg-animate-in)');
+        const programContainers = container.querySelectorAll('.program-container[data-lmid]:not(.bg-animate-in)');
         
         programContainers.forEach((element, index) => {
             // Stagger animations by 50ms for each element
@@ -255,16 +255,14 @@
             }
             
             /* Background image animation - using background-size instead of transform to respect overflow */
-            .program-container {
-                background-size: 120% !important;
-                background-position: center !important;
-                background-repeat: no-repeat !important;
+            .program-container[data-lmid] {
+                background-size: 120%;
+                background-repeat: no-repeat;
                 transition: background-size 0.8s cubic-bezier(0.075, 0.82, 0.165, 1);
-                overflow: hidden !important;
             }
             
-            .program-container.bg-animate-in {
-                background-size: cover !important;
+            .program-container[data-lmid].bg-animate-in {
+                background-size: cover;
             }
         `;
         
@@ -1754,9 +1752,12 @@
                 existingVideo.remove();
             }
             
-            // Set static background image (don't override background-size - let CSS animation handle it)
+            // Set static background image (preserve existing Webflow positioning)
             container.style.backgroundImage = `url('${imageUrl}')`;
-            container.style.backgroundPosition = 'center';
+            // Only set background-position if not already set by Webflow
+            if (!container.style.backgroundPosition) {
+                container.style.backgroundPosition = 'center';
+            }
             container.style.backgroundRepeat = 'no-repeat';
             
             // Don't modify child element styles - let Webflow handle positioning
