@@ -369,6 +369,11 @@
             }
         }
         
+        // Re-initialize Webflow animations for cloned elements
+        if (typeof Webflow !== 'undefined') {
+            Webflow.redraw();
+        }
+        
         // Hide delete buttons for parent users
         const userRole = await detectUserRole();
         if (userRole === 'parent') {
@@ -471,6 +476,11 @@
                 const newBadgeRec = badgeRec.cloneNode(true);
                 badgeRec.parentNode.replaceChild(newBadgeRec, badgeRec);
                 
+                // Re-initialize Webflow animations for cloned badge element
+                if (typeof Webflow !== 'undefined') {
+                    Webflow.redraw();
+                }
+                
                 newBadgeRec.addEventListener('click', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -486,6 +496,11 @@
                 // Remove any existing listeners to prevent duplicates
                 const newNewRecContainer = newRecContainer.cloneNode(true);
                 newRecContainer.parentNode.replaceChild(newNewRecContainer, newRecContainer);
+                
+                // Re-initialize Webflow animations for cloned new-rec element
+                if (typeof Webflow !== 'undefined') {
+                    Webflow.redraw();
+                }
                 
                 // Update number elements after cloning
                 const updatedTotalRecNumber = newNewRecContainer.querySelector(".rec-text:not(.new) .new-rec-number");
