@@ -384,6 +384,7 @@
             /* Background image animation - using background-size instead of transform to respect overflow */
             [data-lmid] .program-container {
                 background-repeat: no-repeat;
+                background-size: 110% !important;
                 transition: background-size 0.8s cubic-bezier(0.075, 0.82, 0.165, 1) !important;
             }
             
@@ -1546,16 +1547,16 @@
         if (clone) {
             container.appendChild(clone);
             
-            // Animate elements in the newly created LMID
+            // Setup backgrounds for the new LMID FIRST (before animations)
+            setupWorldBackgroundsForContainer(clone);
+            
+            // Start animations and data loading immediately (parallel for speed)
             setTimeout(() => {
                 animateNewRecElements(clone);
                 animateBackgroundImages(clone);
-            }, 100);
-            
-            // Load all recording data for new LMID (consolidated)
-            setTimeout(() => {
+                // Load recording data in parallel with animations for faster UX
                 batchLoadAllRecordingData([newLmid]);
-            }, 200);
+            }, 50); // Reduced delay for faster response
         }
         
         reinitializeWebflow();
@@ -1809,6 +1810,68 @@
         const containersWithoutDataWorld = document.querySelectorAll('.program-container:not([data-world])');
         
         containersWithoutDataWorld.forEach((container, index) => {
+            // Skip hidden templates
+            const styles = getComputedStyle(container);
+            const isVisible = styles.display !== 'none' && 
+                            styles.visibility !== 'hidden' && 
+                            styles.opacity !== '0';
+            
+            if (!isVisible) {
+                return;
+            }
+            
+            const textContent = container.textContent.toLowerCase().trim();
+            
+            // Try to detect world from text content
+            const worldPatterns = {
+                'spookyland': ['spookyland', 'spooky'],
+                'shopping-spree': ['shopping spree', 'shopping', 'spree'],
+                'waterpark': ['waterpark', 'water park'],
+                'neighborhood': ['neighborhood', 'neighbourhood'],
+                'big-city': ['big city', 'city'],
+                'amusement-park': ['amusement park', 'amusement', 'funfair']
+            };
+            
+            for (const [world, patterns] of Object.entries(worldPatterns)) {
+                if (patterns.some(pattern => textContent.includes(pattern))) {
+                    setWorldBackgroundForContainer(container, world);
+                    break;
+                }
+            }
+        });
+    }
+
+    /**
+     * Setup world backgrounds for a specific container (used for new LMID)
+     * @param {HTMLElement} parentContainer - Parent container to search within
+     */
+    function setupWorldBackgroundsForContainer(parentContainer) {
+        // All available worlds from config
+        const worlds = Object.keys(window.LM_CONFIG?.WORLD_IMAGES || {});
+        
+        // Method 1: Handle containers with explicit data-world attributes
+        worlds.forEach(world => {
+            const containers = parentContainer.querySelectorAll(`.program-container[data-world="${world}"]`);
+            
+            if (containers.length > 0) {
+                containers.forEach((container) => {
+                    // Skip hidden templates (display: none or visibility: hidden)
+                    const styles = getComputedStyle(container);
+                    const isVisible = styles.display !== 'none' && 
+                                    styles.visibility !== 'hidden' && 
+                                    styles.opacity !== '0';
+                    
+                    if (isVisible) {
+                        setWorldBackgroundForContainer(container, world);
+                    }
+                });
+            }
+        });
+        
+        // Method 2: Handle containers without data-world by detecting from text content
+        const containersWithoutDataWorld = parentContainer.querySelectorAll('.program-container:not([data-world])');
+        
+        containersWithoutDataWorld.forEach((container) => {
             // Skip hidden templates
             const styles = getComputedStyle(container);
             const isVisible = styles.display !== 'none' && 
