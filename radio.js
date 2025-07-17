@@ -1089,25 +1089,35 @@
         console.log('👶 DEBUG: kidsProgram found:', kidsProgram ? kidsProgram.title : 'NO');
         console.log('👨‍👩‍👧‍👦 DEBUG: parentProgram found:', parentProgram ? parentProgram.title : 'NO');
         
-        // Find existing Webflow containers - they might be text elements, not .kids/.parents classes
-        // Try multiple selectors to find the right containers
-        const possibleKidsSelectors = ['.kids', '[class*="kids"]', '*:contains("Kids")', 'div:contains("Kids")'];
-        const possibleParentsSelectors = ['.parents', '[class*="parent"]', '*:contains("Parent")', 'div:contains("Parent")'];
+        // Debug: First check what's actually in the container
+        console.log('🔍 DEBUG: Main container HTML:', container.innerHTML);
+        console.log('🔍 DEBUG: Main container children count:', container.children.length);
         
+        // Look for ALL text elements first
+        const allElements = container.querySelectorAll('*');
+        console.log('🔍 DEBUG: All elements in container:', allElements.length);
+        
+        Array.from(allElements).forEach((el, index) => {
+            if (el.textContent && el.textContent.trim()) {
+                console.log(`🔍 DEBUG: Element ${index}: ${el.tagName}.${el.className} = "${el.textContent.trim()}"`);
+            }
+        });
+        
+        // Find existing Webflow containers - they might be text elements, not .kids/.parents classes
         let existingKidsContainer = container.querySelector('.kids');
         let existingParentsContainer = container.querySelector('.parents');
         
         // If not found, try finding by text content
         if (!existingKidsContainer) {
-            const allDivs = container.querySelectorAll('div, span, p, text');
-            existingKidsContainer = Array.from(allDivs).find(el => 
+            const allElements = container.querySelectorAll('*');
+            existingKidsContainer = Array.from(allElements).find(el => 
                 el.textContent && el.textContent.trim().toLowerCase().includes('kids')
             );
         }
         
         if (!existingParentsContainer) {
-            const allDivs = container.querySelectorAll('div, span, p, text');
-            existingParentsContainer = Array.from(allDivs).find(el => 
+            const allElements = container.querySelectorAll('*');
+            existingParentsContainer = Array.from(allElements).find(el => 
                 el.textContent && el.textContent.trim().toLowerCase().includes('parent')
             );
         }
@@ -1120,18 +1130,26 @@
         // Use kids container (existing Webflow or create new)
         if (kidsProgram) {
             console.log('✅ DEBUG: Setting up kids player');
-            const kidsContainer = existingKidsContainer || (() => {
+            let kidsContainer;
+            if (existingKidsContainer) {
+                console.log('✅ DEBUG: Using existing Webflow kids container with text:', existingKidsContainer.textContent.trim());
+                kidsContainer = existingKidsContainer;
+                // If it's a text element, use its parent or create wrapper
+                if (existingKidsContainer.tagName === 'TEXT' || existingKidsContainer.tagName === 'SPAN') {
+                    kidsContainer = existingKidsContainer.parentElement || existingKidsContainer;
+                }
+            } else {
                 console.log('📝 DEBUG: Creating new kids container (no Webflow container found)');
-                const newContainer = document.createElement('div');
-                newContainer.className = 'kids';
-                container.appendChild(newContainer);
-                return newContainer;
-            })();
+                kidsContainer = document.createElement('div');
+                kidsContainer.className = 'kids';
+                kidsContainer.textContent = 'Kids'; // Add text if missing
+                container.appendChild(kidsContainer);
+            }
             
             // Ensure container has proper height and styling
             if (kidsContainer.style) {
                 kidsContainer.style.minHeight = '60px';
-                kidsContainer.style.marginBottom = '20px';
+                kidsContainer.style.marginBottom = '1rem';
                 kidsContainer.style.display = 'block';
                 console.log('📐 DEBUG: Applied height and styling to kids container');
             }
@@ -1146,18 +1164,26 @@
         // Use parents container (existing Webflow or create new)
         if (parentProgram) {
             console.log('✅ DEBUG: Setting up parents player');
-            const parentsContainer = existingParentsContainer || (() => {
+            let parentsContainer;
+            if (existingParentsContainer) {
+                console.log('✅ DEBUG: Using existing Webflow parents container with text:', existingParentsContainer.textContent.trim());
+                parentsContainer = existingParentsContainer;
+                // If it's a text element, use its parent or create wrapper
+                if (existingParentsContainer.tagName === 'TEXT' || existingParentsContainer.tagName === 'SPAN') {
+                    parentsContainer = existingParentsContainer.parentElement || existingParentsContainer;
+                }
+            } else {
                 console.log('📝 DEBUG: Creating new parents container (no Webflow container found)');
-                const newContainer = document.createElement('div');
-                newContainer.className = 'parents';
-                container.appendChild(newContainer);
-                return newContainer;
-            })();
+                parentsContainer = document.createElement('div');
+                parentsContainer.className = 'parents';
+                parentsContainer.textContent = 'Parent'; // Add text if missing
+                container.appendChild(parentsContainer);
+            }
             
             // Ensure container has proper height and styling
             if (parentsContainer.style) {
                 parentsContainer.style.minHeight = '60px';
-                parentsContainer.style.marginTop = '20px';
+                parentsContainer.style.marginTop = '1rem';
                 parentsContainer.style.display = 'block';
                 console.log('📐 DEBUG: Applied height and styling to parents container');
             }
