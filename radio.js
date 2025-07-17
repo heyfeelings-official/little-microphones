@@ -1066,17 +1066,40 @@
             const tempContainer = document.createElement('div');
             setupAudioPlayer(parentProgram.url, radioData, tempContainer);
             
+            console.log('🔍 DEBUG: tempContainer after setupAudioPlayer:', tempContainer);
+            console.log('🔍 DEBUG: tempContainer children count:', tempContainer.children.length);
+            console.log('🔍 DEBUG: tempContainer innerHTML length:', tempContainer.innerHTML.length);
+            
             // Apply yellow background to the actual player element instead of wrapper
             const playerElement = tempContainer.querySelector('[class*="plyr"], audio');
+            console.log('🔍 DEBUG: Found playerElement with [class*="plyr"], audio:', playerElement);
+            
+            // Try alternative selectors
+            const audioElement = tempContainer.querySelector('audio');
+            const divElement = tempContainer.querySelector('div');
+            const liElement = tempContainer.querySelector('li');
+            
+            console.log('🔍 DEBUG: Found audio element:', audioElement);
+            console.log('🔍 DEBUG: Found div element:', divElement);
+            console.log('🔍 DEBUG: Found li element:', liElement);
+            
             if (playerElement) {
                 playerElement.style.background = '#FFD700';
                 console.log('🟡 DEBUG: Applied yellow background to parent player');
+            } else {
+                console.log('❌ DEBUG: No playerElement found - trying div as fallback');
+                if (divElement) {
+                    divElement.style.background = '#FFD700';
+                    console.log('🟡 DEBUG: Applied yellow background to div element');
+                }
             }
             
             // Move content to parents container
+            console.log('🔄 DEBUG: Moving content from tempContainer to parentsContainer');
             while (tempContainer.firstChild) {
                 parentsContainer.appendChild(tempContainer.firstChild);
             }
+            console.log('🔄 DEBUG: Finished moving. parentsContainer children count:', parentsContainer.children.length);
         } else {
             console.log('❌ DEBUG: No parent program to create container for');
         }
