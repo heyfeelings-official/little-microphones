@@ -38,7 +38,7 @@
 
 import { assignLmidToMember, findNextAvailableLmid, generateAllShareIds } from '../utils/lmid-utils.js';
 import { Webhook } from 'svix';
-import { getMemberstack } from '../utils/memberstack-utils.js';
+import { getMemberDetails } from '../utils/memberstack-utils.js';
 
 /**
  * Get full member data from Memberstack
@@ -47,9 +47,8 @@ import { getMemberstack } from '../utils/memberstack-utils.js';
  */
 async function getMemberById(memberId) {
     try {
-        const memberstack = getMemberstack();
-        const response = await memberstack.members.retrieve({ id: memberId });
-        return response.data || null;
+        const memberData = await getMemberDetails(memberId, false); // Don't use cache for fresh data
+        return memberData;
     } catch (error) {
         console.error(`❌ Error fetching member ${memberId}:`, error.message);
         return null;
