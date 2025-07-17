@@ -256,13 +256,13 @@
             
             /* Background image animation - using background-size instead of transform to respect overflow */
             .program-container[data-lmid] {
-                background-size: 120%;
+                background-size: 110%;
                 background-repeat: no-repeat;
                 transition: background-size 0.8s cubic-bezier(0.075, 0.82, 0.165, 1);
             }
             
             .program-container[data-lmid].bg-animate-in {
-                background-size: cover;
+                background-size: 100%;
             }
         `;
         
