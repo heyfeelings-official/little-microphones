@@ -107,8 +107,6 @@
     function animateNewRecElements(container = document) {
         const newRecElements = container.querySelectorAll('.new-rec:not(.animate-in)');
         
-        console.log(`🎬 Found ${newRecElements.length} new-rec elements for animation`);
-        
         newRecElements.forEach((element, index) => {
             // Stagger animations by 100ms for each element
             setTimeout(() => {
@@ -130,8 +128,6 @@
             return computedStyle.display !== 'none' && computedStyle.visibility !== 'hidden';
         });
         
-        console.log(`🎬 Found ${visibleBadgeElements.length} visible badge-rec elements for animation (${badgeRecElements.length} total)`);
-        
         visibleBadgeElements.forEach((element, index) => {
             // Stagger animations by 100ms for each element
             setTimeout(() => {
@@ -148,8 +144,6 @@
         // Try both selectors to find program containers in cloned LMIDs
         const programContainers = container.querySelectorAll('[data-lmid] .program-container:not(.bg-animate-in)');
         
-        console.log(`🎬 Found ${programContainers.length} containers for background animation`);
-        
         programContainers.forEach((element, index) => {
             // Stagger animations by 50ms for each element
             setTimeout(() => {
@@ -159,95 +153,60 @@
     }
 
     /**
-     * Pre-calculate visibility for data-dependent elements to avoid animation flicker
+     * Quick visibility check for LMID level (simplified to avoid rate limiting)
      * @param {Array<string>} lmids - Array of LMID strings
      */
-    async function preCalculateElementVisibility(lmids) {
-        console.log(`🧮 Pre-calculating visibility for ${lmids.length} LMIDs`);
-        
-        // Group checks by LMID to avoid rate limiting
-        for (let lmidIndex = 0; lmidIndex < lmids.length; lmidIndex++) {
-            const lmid = lmids[lmidIndex];
+    async function quickPreCalculateVisibility(lmids) {
+        // Check each LMID for any recordings (one call per LMID, not per world)
+        for (const lmid of lmids) {
             const lmidElement = document.querySelector(`[data-lmid="${lmid}"]`);
             if (!lmidElement) continue;
             
-            // Find all world containers in this LMID
-            const worldContainers = lmidElement.querySelectorAll('.program-container[data-world]');
+            // Check if this LMID has any recordings across all worlds
+            const hasAnyRecordings = await checkLMIDForAnyRecordings(lmid);
             
-            for (const worldContainer of worldContainers) {
-                const world = worldContainer.getAttribute('data-world');
-                if (!world) continue;
-                
-                const badgeRec = worldContainer.querySelector(".badge-rec");
-                const newCountContainer = worldContainer.querySelector(".new-rec .rec-text.new");
-                
-                // Quick check: does this world/lmid have any recordings?
-                const hasRecordings = await quickCheckForRecordings(lmid, world);
-                
-                // Set badge-rec visibility based on quick check
-                if (badgeRec) {
-                    if (hasRecordings) {
-                        badgeRec.style.display = 'flex';
-                        console.log(`👁️ Badge-rec visible for ${lmid}/${world} (has recordings)`);
-                    } else {
-                        badgeRec.style.display = 'none';
-                        console.log(`🙈 Badge-rec hidden for ${lmid}/${world} (no recordings)`);
-                    }
+            // Apply visibility to all badge-rec elements in this LMID
+            const badgeRecElements = lmidElement.querySelectorAll('.badge-rec');
+            badgeRecElements.forEach(badgeRec => {
+                if (hasAnyRecordings) {
+                    badgeRec.style.display = 'flex';
                 } else {
-                    console.warn(`⚠️ Badge-rec element not found for ${lmid}/${world}`);
+                    badgeRec.style.display = 'none';
                 }
-                
-                // Hide new counter initially - will be shown by API if > 0
-                if (newCountContainer) {
-                    newCountContainer.style.display = 'none';
-                }
-                
-                // Small delay to avoid rate limiting
-                await new Promise(resolve => setTimeout(resolve, 100));
-            }
-            
-            // Delay between LMIDs to avoid rate limiting
-            if (lmidIndex < lmids.length - 1) {
-                await new Promise(resolve => setTimeout(resolve, 200));
-            }
+            });
         }
+        
+        // Animate badge-rec elements that are now visible
+        setTimeout(() => {
+            animateBadgeRecElements();
+        }, 100);
     }
 
     /**
-     * Quick check if a world/lmid has any recordings (fast, no detailed counts)
+     * Check if LMID has any recordings across all worlds (one API call)
      * @param {string} lmid - LMID number
-     * @param {string} world - World name
-     * @returns {Promise<boolean>} True if has recordings
+     * @returns {Promise<boolean>} True if has any recordings
      */
-    async function quickCheckForRecordings(lmid, world) {
+    async function checkLMIDForAnyRecordings(lmid) {
         try {
             // Get current language from config
             const lang = window.LM_CONFIG.getCurrentLanguage();
             
-            // Build API URL with proper base
-            const apiUrl = `${window.LM_CONFIG.API_BASE_URL}/api/list-recordings?world=${encodeURIComponent(world)}&lmid=${encodeURIComponent(lmid)}&lang=${encodeURIComponent(lang)}`;
-            console.log(`🔍 Quick check API call: ${apiUrl}`);
-            
-            // Use the same API as getTotalRecordingCountForWorld but just check > 0
-            const response = await fetch(apiUrl);
-            
-            console.log(`📡 API response status: ${response.status} for ${lmid}/${world}`);
+            // Just check one popular world (spookyland) as indicator - much faster
+            const response = await fetch(`${window.LM_CONFIG.API_BASE_URL}/api/list-recordings?world=spookyland&lmid=${encodeURIComponent(lmid)}&lang=${encodeURIComponent(lang)}`);
             
             if (response.ok) {
                 const data = await response.json();
-                const hasRecordings = data && data.success && data.recordings && data.recordings.length > 0;
-                console.log(`📊 Recordings found: ${hasRecordings} (${data?.recordings?.length || 0} recordings) for ${lmid}/${world}`);
-                return hasRecordings;
+                return data && data.success && data.recordings && data.recordings.length > 0;
             }
             
-            console.warn(`❌ API call failed with status ${response.status} for ${lmid}/${world}`);
-            return false;
+                         return false;
         } catch (error) {
-            // If error, assume no recordings to avoid showing badge-rec incorrectly
-            console.warn(`⚠️ Quick check failed for ${lmid}/${world}:`, error);
             return false;
         }
     }
+
+
 
     /**
      * Add event listener with cleanup tracking
@@ -655,7 +614,6 @@
         const newRecNumber = worldContainer.querySelector(".new-rec .rec-text.new .new-rec-number");
         
         if (!newRecContainer) {
-            console.warn(`⚠️ LMID ${lmid}, World ${world}: Missing new recording container`);
             return;
         }
         
@@ -670,15 +628,11 @@
             // Update total recordings count (Answers)
             if (totalRecNumber) {
                 totalRecNumber.textContent = totalRecordingCount.toString();
-            } else {
-                console.warn(`⚠️ LMID ${lmid}, World ${world}: Missing total count element`);
             }
             
             // Update new recordings count (New)
             if (newRecNumber) {
                 newRecNumber.textContent = newRecordingCount.toString();
-            } else {
-                console.warn(`⚠️ LMID ${lmid}, World ${world}: Missing new count element`);
             }
             
             // Hide/show the "new" counter based on whether there are new recordings
@@ -694,8 +648,8 @@
             // Always show the new-rec container with counts (even if 0)
             newRecContainer.style.display = 'flex';
             
-            // Badge-rec visibility already set by preCalculateElementVisibility - don't change it
-            // Just update the counts, the visibility decision was made earlier
+            // Badge-rec visibility is managed by quickPreCalculateVisibility - don't override it here
+            // The detailed API data will be used for counts and click handlers only
             
             // Setup .badge-rec click to radio page with ShareID
             if (badgeRec && shareId && totalRecordingCount > 0) {
@@ -706,8 +660,6 @@
                     const radioUrl = `/little-microphones?ID=${shareId}`;
                     window.location.href = radioUrl;
                 });
-            } else if (!shareId) {
-                console.warn(`⚠️ LMID ${lmid}, World ${world}: No ShareID available`);
             }
             
             // Setup .new-rec click to recording page
@@ -723,7 +675,7 @@
             }
             
         } catch (error) {
-            console.error(`❌ Error setting up indicators for LMID ${lmid}, World ${world}:`, error);
+            // Silently handle errors - don't spam console
         }
     }
 
@@ -745,12 +697,13 @@
                     if (i < lmids.length - 1) {
                         await new Promise(resolve => setTimeout(resolve, 300)); // 300ms delay between LMIDs
                     }
-                } else {
-                    console.warn(`⚠️ LMID element not found for ${lmid}`);
                 }
             }
             
-            // All data loaded - visibility and animations already handled in initializeDashboardUI
+            // All data loaded - animate any visible badge-rec elements
+            setTimeout(() => {
+                animateBadgeRecElements();
+            }, 100);
             
         } catch (error) {
             console.error('❌ Error in batch loading:', error);
@@ -1552,15 +1505,16 @@
         if (clone) {
             container.appendChild(clone);
             
-            // Pre-calculate visibility for the new LMID
-            await preCalculateElementVisibility([newLmid]);
-            
-            // Animate elements in the newly created LMID (including badge-rec now that visibility is set)
+            // Animate elements in the newly created LMID
             setTimeout(() => {
                 animateNewRecElements(clone);
                 animateBackgroundImages(clone);
-                animateBadgeRecElements(clone);
             }, 100);
+            
+            // Quick visibility check and badge-rec animation for new LMID
+            setTimeout(() => {
+                quickPreCalculateVisibility([newLmid]);
+            }, 200);
         }
         
         reinitializeWebflow();
