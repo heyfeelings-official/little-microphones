@@ -1047,6 +1047,8 @@
             console.log('✅ DEBUG: Creating kids container');
             const kidsContainer = document.createElement('div');
             kidsContainer.className = 'kids';
+            // Reduce margin to half (assuming original is around 20px, make it 10px)
+            kidsContainer.style.marginBottom = '10px';
             container.appendChild(kidsContainer);
             
             // Setup audio player for kids (no special background)
@@ -1061,24 +1063,29 @@
             console.log('✅ DEBUG: Creating parents container');
             const parentsContainer = document.createElement('div');
             parentsContainer.className = 'parents';
+            parentsContainer.style.marginTop = '0px'; // Ensure no extra top margin
             container.appendChild(parentsContainer);
             
             // Setup audio player for parents DIRECTLY in parentsContainer (same as kids)
             console.log('🎵 DEBUG: Setting up parent player with URL:', parentProgram.url);
             setupAudioPlayer(parentProgram.url, radioData, parentsContainer);
             
-            // Apply yellow background after player is created
+            // Apply yellow background to the main player container after creation
             setTimeout(() => {
-                const playerElements = parentsContainer.querySelectorAll('audio, div[style*="background"], li[data-recording-id]');
-                console.log('🔍 DEBUG: Found player elements for yellow background:', playerElements.length);
-                
-                playerElements.forEach((element, index) => {
-                    console.log(`🔍 DEBUG: Player element ${index}:`, element.tagName, element.className);
-                    if (element.tagName === 'DIV' && element.style) {
-                        element.style.background = '#FFD700';
-                        console.log(`🟡 DEBUG: Applied yellow background to element ${index}`);
-                    }
-                });
+                // Find the main player container div (white background)
+                const playerContainer = parentsContainer.querySelector('div[style*="background: #ffffff"], div[style*="background:#ffffff"], div[style*="background: white"]');
+                if (playerContainer) {
+                    playerContainer.style.background = '#FFD700';
+                    console.log('🟡 DEBUG: Applied yellow background to parent player container');
+                } else {
+                    console.log('❌ DEBUG: Could not find player container for yellow background');
+                    // Fallback - apply to any div with background
+                    const playerDivs = parentsContainer.querySelectorAll('div[style*="background"]');
+                    playerDivs.forEach((div, index) => {
+                        div.style.background = '#FFD700';
+                        console.log(`🟡 DEBUG: Applied yellow background to fallback div ${index}`);
+                    });
+                }
             }, 100);
         } else {
             console.log('❌ DEBUG: No parent program to create container for');
