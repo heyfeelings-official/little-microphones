@@ -358,6 +358,20 @@ export default async function handler(req, res) {
     try {
         // Verify webhook authenticity
         const validation = validateMemberstackWebhook(req);
+        
+        // Temporary debug logging for signature issues
+        if (!validation.valid) {
+            console.warn('🔍 Webhook validation debug info:', {
+                error: validation.error,
+                headers: Object.keys(req.headers),
+                hasSignature: !!req.headers['x-memberstack-signature'],
+                signatureLength: req.headers['x-memberstack-signature']?.length,
+                bodyType: typeof req.body,
+                bodyKeys: req.body ? Object.keys(req.body) : null,
+                hasSecret: !!process.env.MEMBERSTACK_WEBHOOK_SECRET
+            });
+        }
+        
         if (!validation.valid) {
             console.warn('⚠️ Webhook validation failed:', validation.error);
             return res.status(401).json({ 

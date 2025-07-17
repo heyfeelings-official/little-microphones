@@ -66,24 +66,60 @@ export function validateMemberstackWebhook(req, options = {}) {
     }
     
     try {
-        const body = JSON.stringify(req.body);
-        const expectedSignature = crypto
-            .createHmac('sha256', webhookSecret)
-            .update(body)
-            .digest('hex');
+        // Try different body formats that Memberstack might use
+        const bodyOptions = [
+            JSON.stringify(req.body),
+            JSON.stringify(req.body, null, 0),
+            req.rawBody || JSON.stringify(req.body),
+            typeof req.body === 'string' ? req.body : JSON.stringify(req.body)
+        ];
         
-        const providedSignature = signature.replace('sha256=', '');
+        for (const body of bodyOptions) {
+            // Try different signature formats
+            const expectedSignatures = [
+                // Standard HMAC hex
+                crypto.createHmac('sha256', webhookSecret).update(body).digest('hex'),
+                // With sha256= prefix
+                'sha256=' + crypto.createHmac('sha256', webhookSecret).update(body).digest('hex'),
+                // Base64 format
+                crypto.createHmac('sha256', webhookSecret).update(body).digest('base64')
+            ];
+            
+            // Clean signature (remove prefixes if present)
+            const cleanSignature = signature.replace(/^(sha256=|sha1=)/, '');
+            
+            for (const expected of expectedSignatures) {
+                const cleanExpected = expected.replace(/^(sha256=|sha1=)/, '');
+                
+                try {
+                    if (crypto.timingSafeEqual(
+                        Buffer.from(cleanSignature, 'hex'),
+                        Buffer.from(cleanExpected, 'hex')
+                    )) {
+                        return { valid: true, error: null };
+                    }
+                } catch (hexError) {
+                    // Try string comparison if hex fails
+                    if (cleanSignature === cleanExpected) {
+                        return { valid: true, error: null };
+                    }
+                }
+            }
+        }
         
-        const isValid = crypto.timingSafeEqual(
-            Buffer.from(expectedSignature, 'hex'),
-            Buffer.from(providedSignature, 'hex')
-        );
+        // All validation attempts failed
+        console.warn('Webhook signature validation failed. Expected formats tried:', {
+            receivedSignature: signature,
+            bodyLength: req.body ? JSON.stringify(req.body).length : 0
+        });
         
         return {
-            valid: isValid,
-            error: isValid ? null : 'Invalid webhook signature'
+            valid: false,
+            error: 'Invalid webhook signature'
         };
+        
     } catch (error) {
+        console.error('Webhook signature validation error:', error);
         return { valid: false, error: 'Signature verification failed' };
     }
 }
