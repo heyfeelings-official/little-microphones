@@ -399,7 +399,7 @@
         showState('player-state');
         
         // Setup audio player
-        setupAudioPlayer(audioUrl, radioData);
+        setupAudioPlayer(audioUrl, radioData, null, false);
         
         currentState = 'player';
     }
@@ -577,7 +577,7 @@
     /**
      * Setup audio player using RecordingUI module from recording-ui.js
      */
-    function setupAudioPlayer(audioUrl, radioData, customContainer = null) {
+    function setupAudioPlayer(audioUrl, radioData, customContainer = null, isParentProgram = false) {
         // Get the player container
         const playerContainer = customContainer || document.getElementById('player-state');
         if (!playerContainer) {
@@ -616,8 +616,7 @@
         const deleteRecording = () => {}; // No delete on radio page
         const dispatchUploadStatusEvent = () => {}; // No upload status on radio page
 
-        // Check if container has yellow background for parent programs
-        const isParentProgram = playerContainer.style.background.includes('#FFD700');
+        // Parent program status passed as parameter
         
         // Create the recording element using RecordingUI
         window.RecordingUI.createRecordingElement(
@@ -1023,7 +1022,7 @@
             container.appendChild(titleDiv);
         }
         
-        setupAudioPlayer(audioUrl, radioData, container);
+        setupAudioPlayer(audioUrl, radioData, container, false);
     }
     
     /**
@@ -1053,7 +1052,7 @@
             
             // Setup audio player for kids (no special background)
             console.log('🎵 DEBUG: Setting up kids player with URL:', kidsProgram.url);
-            setupAudioPlayer(kidsProgram.url, radioData, kidsContainer);
+            setupAudioPlayer(kidsProgram.url, radioData, kidsContainer, false);
         } else {
             console.log('❌ DEBUG: No kids program to create container for');
         }
@@ -1068,7 +1067,7 @@
             
             // Setup audio player for parents DIRECTLY in parentsContainer (same as kids)
             console.log('🎵 DEBUG: Setting up parent player with URL:', parentProgram.url);
-            setupAudioPlayer(parentProgram.url, radioData, parentsContainer);
+            setupAudioPlayer(parentProgram.url, radioData, parentsContainer, true);
             
             // Apply yellow background to the main player container after creation
             setTimeout(() => {
