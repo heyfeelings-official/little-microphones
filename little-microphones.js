@@ -151,21 +151,9 @@
         console.log(`🎬 Found ${programContainers.length} containers for background animation`);
         
         programContainers.forEach((element, index) => {
-            // Check computed background-size before animation
-            const computedStyle = getComputedStyle(element);
-            console.log(`📏 Container ${index + 1} initial background-size: ${computedStyle.backgroundSize}`);
-            
             // Stagger animations by 50ms for each element
             setTimeout(() => {
                 element.classList.add('bg-animate-in');
-                console.log(`🎯 Added bg-animate-in to container ${index + 1}`);
-                
-                // Check if class was added and computed background-size
-                setTimeout(() => {
-                    const hasClass = element.classList.contains('bg-animate-in');
-                    const newComputedStyle = getComputedStyle(element);
-                    console.log(`📏 Container ${index + 1} has bg-animate-in: ${hasClass}, background-size: ${newComputedStyle.backgroundSize}`);
-                }, 100);
             }, index * 50);
         });
     }
@@ -231,12 +219,15 @@
      */
     async function quickCheckForRecordings(lmid, world) {
         try {
+            // Get current language from config
+            const lang = window.LM_CONFIG.getCurrentLanguage();
+            
             // Use the same API as getTotalRecordingCountForWorld but just check > 0
-            const response = await fetch(`/api/list-recordings?world=${encodeURIComponent(world)}&lmid=${encodeURIComponent(lmid)}`);
+            const response = await fetch(`/api/list-recordings?world=${encodeURIComponent(world)}&lmid=${encodeURIComponent(lmid)}&lang=${encodeURIComponent(lang)}`);
             
             if (response.ok) {
-                const recordings = await response.json();
-                return recordings && recordings.length > 0;
+                const data = await response.json();
+                return data && data.success && data.recordings && data.recordings.length > 0;
             }
             
             return false;
@@ -1853,8 +1844,6 @@
         // Get image URL from config
         const imageUrl = window.LM_CONFIG?.WORLD_IMAGES?.[world];
         
-        console.log(`🖼️ Setting background for world: ${world}, URL: ${imageUrl ? 'found' : 'not found'}`);
-        
         if (imageUrl) {
             // Remove any existing video elements
             const existingVideo = container.querySelector('.world-bg-video');
@@ -1872,7 +1861,6 @@
             
             // Force initial background-size for animation (override Webflow)
             container.style.backgroundSize = '110%';
-            console.log(`📐 Forced background-size: 110% for world: ${world}`);
             
             // Don't modify child element styles - let Webflow handle positioning
         } else {
