@@ -249,82 +249,9 @@
         console.log(`✅ CONSOLIDATED: Completed loading all recording data`);
     }
 
-    /**
-     * Quick visibility check for each WORLD in each LMID (correct approach)
-     * @param {Array<string>} lmids - Array of LMID strings
-     */
-    async function quickPreCalculateVisibility(lmids) {
-        console.log(`🧮 Checking badge-rec visibility for each world in ${lmids.length} LMIDs`);
-        
-        // Check each LMID's worlds individually
-        for (const lmid of lmids) {
-            const lmidElement = document.querySelector(`[data-lmid="${lmid}"]`);
-            if (!lmidElement) continue;
-            
-            // Find all world containers in this LMID
-            const worldContainers = lmidElement.querySelectorAll('.program-container[data-world]');
-            
-            for (const worldContainer of worldContainers) {
-                const world = worldContainer.getAttribute('data-world');
-                if (!world) continue;
-                
-                const badgeRec = worldContainer.querySelector('.badge-rec');
-                if (!badgeRec) continue;
-                
-                // Check if THIS SPECIFIC WORLD has recordings
-                const hasRecordings = await checkWorldForRecordings(lmid, world);
-                
-                if (hasRecordings) {
-                    badgeRec.classList.add('show-badge');
-                    console.log(`👁️ SHOWING badge-rec for ${lmid}/${world} (has recordings)`);
-                } else {
-                    badgeRec.classList.remove('show-badge');
-                    console.log(`🙈 HIDING badge-rec for ${lmid}/${world} (no recordings)`);
-                }
-                
-                // Small delay to avoid rate limiting
-                await new Promise(resolve => setTimeout(resolve, 100));
-            }
-        }
-        
-        // Animate badge-rec elements that are now visible
-        setTimeout(() => {
-            animateBadgeRecElements();
-            
-            // Debug final state after all operations
-            setTimeout(() => {
-                debugFinalBadgeRecState();
-            }, 1000);
-        }, 100);
-    }
+    // REMOVED: quickPreCalculateVisibility - replaced by consolidated batchLoadAllRecordingData
 
-    /**
-     * Check if specific WORLD in LMID has recordings (correct approach)
-     * @param {string} lmid - LMID number  
-     * @param {string} world - World name
-     * @returns {Promise<boolean>} True if this specific world has recordings
-     */
-    async function checkWorldForRecordings(lmid, world) {
-        try {
-            // Get current language from config
-            const lang = window.LM_CONFIG.getCurrentLanguage();
-            
-            const response = await fetch(`${window.LM_CONFIG.API_BASE_URL}/api/list-recordings?world=${world}&lmid=${encodeURIComponent(lmid)}&lang=${encodeURIComponent(lang)}`);
-            
-            if (response.ok) {
-                const data = await response.json();
-                const hasRecordings = data && data.success && data.recordings && data.recordings.length > 0;
-                console.log(`🌍 ${lmid}/${world}: ${data?.recordings?.length || 0} recordings`);
-                return hasRecordings;
-            }
-            
-            console.log(`❌ ${lmid}/${world}: API call failed`);
-            return false;
-        } catch (error) {
-            console.log(`💥 ${lmid}/${world}: Error checking recordings`);
-            return false;
-        }
-    }
+    // REMOVED: checkWorldForRecordings - functionality included in batchLoadAllRecordingData
 
     /**
      * Debug function to check final state of all badge-rec elements
@@ -849,36 +776,7 @@
         }
     }
 
-    /**
-     * Batch load new recording indicators for all LMIDs (optimized with throttling)
-     * @param {Array<string>} lmids - Array of LMID strings
-     */
-    async function batchLoadNewRecordingIndicators(lmids) {
-        try {
-            // For each LMID, setup the indicator properly with throttling to avoid 429 errors
-            for (let i = 0; i < lmids.length; i++) {
-                const lmid = lmids[i];
-                const lmidElement = document.querySelector(`[data-lmid="${lmid}"]`);
-                
-                if (lmidElement) {
-                    await setupNewRecordingIndicator(lmidElement, lmid);
-                    
-                    // Add delay between LMIDs to prevent rate limiting (except for last one)
-                    if (i < lmids.length - 1) {
-                        await new Promise(resolve => setTimeout(resolve, 300)); // 300ms delay between LMIDs
-                    }
-                }
-            }
-            
-            // All data loaded - animate any visible badge-rec elements
-            setTimeout(() => {
-                animateBadgeRecElements();
-            }, 100);
-            
-        } catch (error) {
-            console.error('❌ Error in batch loading:', error);
-        }
-    }
+    // REMOVED: batchLoadNewRecordingIndicators - replaced by consolidated batchLoadAllRecordingData
 
     /**
      * Update new recording badge for specific LMID (fast UI update)
