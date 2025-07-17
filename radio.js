@@ -1146,13 +1146,24 @@
                 container.appendChild(kidsContainer);
             }
             
-            // Ensure container has proper height and styling
+            // Ensure container has proper height and styling + visible text
             if (kidsContainer.style) {
                 kidsContainer.style.minHeight = '60px';
                 kidsContainer.style.marginBottom = '1rem';
                 kidsContainer.style.display = 'block';
+                kidsContainer.style.position = 'relative';
+                kidsContainer.style.paddingTop = '24px'; // Space for text above player
+                kidsContainer.style.fontSize = '16px';
+                kidsContainer.style.fontWeight = 'bold';
+                kidsContainer.style.color = '#333';
                 console.log('📐 DEBUG: Applied height and styling to kids container');
             }
+            
+            // Add visible text label above player
+            const kidsLabel = document.createElement('div');
+            kidsLabel.textContent = 'Kids';
+            kidsLabel.style.cssText = 'position: absolute; top: 0; left: 0; font-size: 16px; font-weight: bold; color: #333; z-index: 100; background: rgba(255,255,255,0.8); padding: 4px 8px; border-radius: 4px;';
+            kidsContainer.appendChild(kidsLabel);
             
             // Setup audio player for kids (no special background)
             console.log('🎵 DEBUG: Setting up kids player with URL:', kidsProgram.url);
@@ -1180,13 +1191,24 @@
                 container.appendChild(parentsContainer);
             }
             
-            // Ensure container has proper height and styling
+            // Ensure container has proper height and styling + visible text
             if (parentsContainer.style) {
                 parentsContainer.style.minHeight = '60px';
                 parentsContainer.style.marginTop = '1rem';
                 parentsContainer.style.display = 'block';
+                parentsContainer.style.position = 'relative';
+                parentsContainer.style.paddingTop = '24px'; // Space for text above player
+                parentsContainer.style.fontSize = '16px';
+                parentsContainer.style.fontWeight = 'bold';
+                parentsContainer.style.color = '#333';
                 console.log('📐 DEBUG: Applied height and styling to parents container');
             }
+            
+            // Add visible text label above player  
+            const parentsLabel = document.createElement('div');
+            parentsLabel.textContent = 'Parent';
+            parentsLabel.style.cssText = 'position: absolute; top: 0; left: 0; font-size: 16px; font-weight: bold; color: #333; z-index: 100; background: rgba(255,255,255,0.8); padding: 4px 8px; border-radius: 4px;';
+            parentsContainer.appendChild(parentsLabel);
             
             // Setup audio player for parents DIRECTLY in parentsContainer (same as kids)
             console.log('🎵 DEBUG: Setting up parent player with URL:', parentProgram.url);

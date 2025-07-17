@@ -12,7 +12,7 @@
  * TOTAL: 13 realistic test users
  */
 
-const WEBHOOK_ENDPOINT = 'https://little-microphones.vercel.app/api/test-registration';
+const WEBHOOK_ENDPOINT = 'https://little-microphones.vercel.app/api/memberstack-webhook';
 
 // Helper function to generate unique timestamp-based IDs
 function generateId(prefix = 'mem') {
@@ -327,7 +327,10 @@ async function sendTestWebhook(webhookData, testId) {
         'Content-Type': 'application/json',
         'User-Agent': 'Brevo-Segments-Test/1.0'
       },
-      body: JSON.stringify({ member: webhookData.data.member })
+      body: JSON.stringify({ 
+        type: 'member.created',
+        data: { member: webhookData.data.member }
+      })
     });
 
     const result = await response.json();
