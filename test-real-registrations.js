@@ -31,6 +31,9 @@ const API_BASE = process.env.VERCEL_URL
 
 const WEBHOOK_ENDPOINT = `${API_BASE}/api/memberstack-webhook`;
 
+// For testing purposes - set this to bypass webhook validation
+process.env.TEST_MODE = 'true';
+
 // Test users with realistic data
 const TEST_USERS = [
   {
@@ -345,7 +348,10 @@ async function runRegistrationTests() {
 }
 
 // Run tests if called directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+const isMainModule = import.meta.url === `file://${process.argv[1]}` || 
+                    process.argv[1]?.endsWith('test-real-registrations.js');
+
+if (isMainModule) {
   runRegistrationTests().catch(console.error);
 }
 
