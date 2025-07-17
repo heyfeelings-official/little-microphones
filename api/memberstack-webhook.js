@@ -126,85 +126,174 @@ export default async function handler(req, res) {
         let fullMemberData = member;
 
         // Handle different event types
-        if (eventType === 'member.created' || eventType === 'member.updated') {
-            console.log('Processing member:', member.id || member.auth?.email);
-            console.log('Full member data:', JSON.stringify(member, null, 2));
+        console.log(`📍 Processing event: ${eventType}`);
+        
+        switch(eventType) {
+            case 'member.created':
+            case 'member.updated':
+                console.log('Processing member event:', member.id || member.auth?.email);
+                console.log('Full member data:', JSON.stringify(member, null, 2));
 
-            // Get full member data if we only have minimal webhook data
-            if (!member.id || !member.customFields) {
-                console.log('⚠️ Webhook has minimal data - some features may be limited');
-                console.log('⚠️ Available data:', {
-                    hasId: !!member.id,
-                    hasEmail: !!member.auth?.email,
-                    hasCustomFields: !!member.customFields,
-                    hasMetaData: !!member.metaData
-                });
-            }
-
-            // 1. Create/update Brevo contact for all users
-            try {
-                const { syncMemberToBrevo } = await import('../utils/brevo-contact-manager.js');
-                const brevoResult = await syncMemberToBrevo(fullMemberData);
-                if (brevoResult.success) {
-                    console.log('✅ Brevo contact sync completed:', brevoResult.action);
-                } else {
-                    console.log('❌ Brevo sync failed:', brevoResult.error);
+                // Get full member data if we only have minimal webhook data
+                if (!member.id || !member.customFields) {
+                    console.log('⚠️ Webhook has minimal data - some features may be limited');
+                    console.log('⚠️ Available data:', {
+                        hasId: !!member.id,
+                        hasEmail: !!member.auth?.email,
+                        hasCustomFields: !!member.customFields,
+                        hasMetaData: !!member.metaData,
+                        hasPlanConnections: !!(member.planConnections && member.planConnections.length > 0)
+                    });
                 }
-            } catch (brevoError) {
-                console.log('❌ Brevo sync failed:', brevoError.message);
-                // Don't fail the webhook for Brevo errors
-            }
 
-            // 2. Assign LMID only for educators and therapists (not parents)
-            const userCategory = fullMemberData.customFields?.USER_CATEGORY || 
-                               fullMemberData.customFields?.['user-category'] || 
-                               fullMemberData.metaData?.USER_CATEGORY;
-            console.log('User category:', userCategory);
-            console.log('Custom fields:', fullMemberData.customFields);
-            console.log('Meta data:', fullMemberData.metaData);
-
-            if (userCategory === 'educator' || userCategory === 'therapist') {
+                // 1. Always sync to Brevo (for all users)
                 try {
-                    // Find next available LMID
-                    const nextLmid = await findNextAvailableLmid();
-                    if (!nextLmid) {
-                        console.log('❌ No available LMIDs for assignment');
-                        return res.status(500).json({ error: 'No available LMIDs' });
-                    }
-                    console.log('📍 Found available LMID:', nextLmid);
-
-                    // Generate ShareIDs for all worlds
-                    const shareIds = await generateAllShareIds();
-                    console.log('🎲 Generated ShareIDs:', shareIds);
-
-                    // Get member ID and email
-                    const memberId = fullMemberData.id || fullMemberData.auth?.email || fullMemberData.email;
-                    const memberEmail = fullMemberData.auth?.email || fullMemberData.email;
-                    
-                    if (!memberEmail || !memberId) {
-                        console.log('❌ Member email or ID not found');
-                        return res.status(400).json({ error: 'Member email and ID required for LMID assignment' });
-                    }
-
-                    // Assign LMID to member
-                    const assignmentSuccess = await assignLmidToMember(nextLmid, memberId, memberEmail, shareIds);
-                    if (assignmentSuccess) {
-                        console.log('✅ LMID assigned successfully:', nextLmid);
+                    const { syncMemberToBrevo } = await import('../utils/brevo-contact-manager.js');
+                    const brevoResult = await syncMemberToBrevo(fullMemberData);
+                    if (brevoResult.success) {
+                        console.log('✅ Brevo contact sync completed:', brevoResult.action);
                     } else {
-                        console.log('❌ LMID assignment failed');
-                        return res.status(500).json({ error: 'LMID assignment failed' });
+                        console.log('❌ Brevo sync failed:', brevoResult.error);
                     }
-                } catch (lmidError) {
-                    console.log('❌ LMID assignment error:', lmidError.message);
-                    return res.status(500).json({ error: 'LMID assignment error: ' + lmidError.message });
+                } catch (brevoError) {
+                    console.log('❌ Brevo sync failed:', brevoError.message);
+                    console.log('Error details:', brevoError.stack);
                 }
-            } else if (userCategory === 'parent') {
-                console.log('ℹ️ Parent user - skipping LMID assignment');
-            } else {
-                console.log('⚠️ Unknown user category - skipping LMID assignment');
-            }
-        } else {
-            console.log('ℹ️ Event type not handled:', eventType);
+
+                // 2. Check if user has plans to determine category
+                const activePlans = fullMemberData.planConnections?.filter(conn => 
+                    conn.active && conn.status === 'ACTIVE'
+                ) || [];
+                
+                console.log('Active plans:', activePlans.map(p => p.planId));
+
+                // 3. Determine user category from plans
+                let userCategory = null;
+                if (activePlans.length > 0) {
+                    const { getPlanConfig } = await import('../utils/brevo-contact-config.js');
+                    for (const plan of activePlans) {
+                        const planConfig = getPlanConfig(plan.planId);
+                        if (planConfig) {
+                            userCategory = planConfig.attributes.USER_CATEGORY;
+                            console.log(`📋 User category determined from plan ${plan.planId}: ${userCategory}`);
+                            break;
+                        }
+                    }
+                }
+
+                // 4. Assign LMID only for educators and therapists
+                if (userCategory === 'educators' || userCategory === 'therapists') {
+                    console.log(`🎓 User is ${userCategory} - checking for LMID assignment`);
+                    try {
+                        // Check if user already has LMID
+                        if (fullMemberData.metaData?.lmids) {
+                            console.log('ℹ️ User already has LMID:', fullMemberData.metaData.lmids);
+                        } else {
+                            // Find next available LMID
+                            const nextLmid = await findNextAvailableLmid();
+                            if (!nextLmid) {
+                                console.log('❌ No available LMIDs for assignment');
+                            } else {
+                                console.log('📍 Found available LMID:', nextLmid);
+
+                                // Generate ShareIDs for all worlds
+                                const shareIds = await generateAllShareIds();
+                                console.log('🎲 Generated ShareIDs:', shareIds);
+
+                                // Get member ID and email
+                                const memberId = fullMemberData.id || fullMemberData.auth?.email || fullMemberData.email;
+                                const memberEmail = fullMemberData.auth?.email || fullMemberData.email;
+                                
+                                if (!memberEmail || !memberId) {
+                                    console.log('❌ Member email or ID not found');
+                                } else {
+                                    // Assign LMID to member
+                                    const assignmentSuccess = await assignLmidToMember(nextLmid, memberId, memberEmail, shareIds);
+                                    if (assignmentSuccess) {
+                                        console.log('✅ LMID assigned successfully:', nextLmid);
+                                        
+                                        // Update Memberstack metadata
+                                        try {
+                                            const { updateMemberstackMetadata } = await import('../utils/lmid-utils.js');
+                                            await updateMemberstackMetadata(memberId, nextLmid.toString());
+                                            console.log('✅ Memberstack metadata updated');
+                                        } catch (metaError) {
+                                            console.log('⚠️ Failed to update Memberstack metadata:', metaError.message);
+                                        }
+                                    } else {
+                                        console.log('❌ LMID assignment failed');
+                                    }
+                                }
+                            }
+                        }
+                    } catch (lmidError) {
+                        console.log('❌ LMID assignment error:', lmidError.message);
+                    }
+                } else if (userCategory === 'parents') {
+                    console.log('👨‍👩‍👧‍👦 Parent user - no LMID needed');
+                } else {
+                    console.log('⚠️ No active plans yet - LMID assignment pending until plan selection');
+                }
+                break;
+
+            case 'member.plan.added':
+            case 'member.plan.updated':
+            case 'member.plan.canceled':
+                console.log(`💳 Processing plan event: ${eventType}`);
+                console.log('Plan data:', JSON.stringify(data, null, 2));
+                
+                // For plan events, we need to resync the member to Brevo
+                // to update their segments based on new plan status
+                try {
+                    // Get the member data
+                    const planMember = member || data.member || data.payload;
+                    if (planMember) {
+                        const { syncMemberToBrevo } = await import('../utils/brevo-contact-manager.js');
+                        const brevoResult = await syncMemberToBrevo(planMember);
+                        if (brevoResult.success) {
+                            console.log('✅ Brevo sync after plan change completed');
+                        } else {
+                            console.log('❌ Brevo sync after plan change failed:', brevoResult.error);
+                        }
+                        
+                        // For plan.added, check if we need to assign LMID
+                        if (eventType === 'member.plan.added') {
+                            console.log('🆕 New plan added - checking if LMID assignment needed');
+                            // The member.updated event will handle LMID assignment
+                            // as Memberstack typically sends both events
+                        }
+                    } else {
+                        console.log('⚠️ No member data in plan event');
+                    }
+                } catch (planError) {
+                    console.log('❌ Error processing plan event:', planError.message);
+                }
+                break;
+
+            case 'member.deleted':
+                console.log('🗑️ Processing member deletion');
+                // Optional: Mark contact as deleted in Brevo or remove from lists
+                try {
+                    const deletedEmail = member?.auth?.email || member?.email;
+                    if (deletedEmail) {
+                        console.log(`📧 Member deleted: ${deletedEmail}`);
+                        // You can implement Brevo contact deletion/deactivation here if needed
+                    }
+                } catch (deleteError) {
+                    console.log('❌ Error processing deletion:', deleteError.message);
+                }
+                break;
+
+            case 'team.member.added':
+            case 'team.member.removed':
+                console.log(`👥 Team event: ${eventType}`);
+                console.log('Team data:', JSON.stringify(data, null, 2));
+                // Handle team events if needed for your use case
+                break;
+
+            default:
+                console.log(`ℹ️ Unhandled event type: ${eventType}`);
+                console.log('Event data:', JSON.stringify(data, null, 2));
         }
 
         console.log('✅ Webhook processed successfully');
