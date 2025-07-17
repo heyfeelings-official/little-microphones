@@ -276,7 +276,7 @@
             }
             
             [data-lmid] .program-container.bg-animate-in {
-                background-size: 100%;
+                background-size: cover;
             }
         `;
         
