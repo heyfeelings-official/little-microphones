@@ -193,6 +193,8 @@
                         badgeRec.style.display = 'none';
                         console.log(`🙈 Badge-rec hidden for ${lmid}/${world} (no recordings)`);
                     }
+                } else {
+                    console.warn(`⚠️ Badge-rec element not found for ${lmid}/${world}`);
                 }
                 
                 // Hide new counter initially - will be shown by API if > 0
@@ -222,14 +224,23 @@
             // Get current language from config
             const lang = window.LM_CONFIG.getCurrentLanguage();
             
+            // Build API URL with proper base
+            const apiUrl = `${window.LM_CONFIG.API_BASE_URL}/api/list-recordings?world=${encodeURIComponent(world)}&lmid=${encodeURIComponent(lmid)}&lang=${encodeURIComponent(lang)}`;
+            console.log(`🔍 Quick check API call: ${apiUrl}`);
+            
             // Use the same API as getTotalRecordingCountForWorld but just check > 0
-            const response = await fetch(`/api/list-recordings?world=${encodeURIComponent(world)}&lmid=${encodeURIComponent(lmid)}&lang=${encodeURIComponent(lang)}`);
+            const response = await fetch(apiUrl);
+            
+            console.log(`📡 API response status: ${response.status} for ${lmid}/${world}`);
             
             if (response.ok) {
                 const data = await response.json();
-                return data && data.success && data.recordings && data.recordings.length > 0;
+                const hasRecordings = data && data.success && data.recordings && data.recordings.length > 0;
+                console.log(`📊 Recordings found: ${hasRecordings} (${data?.recordings?.length || 0} recordings) for ${lmid}/${world}`);
+                return hasRecordings;
             }
             
+            console.warn(`❌ API call failed with status ${response.status} for ${lmid}/${world}`);
             return false;
         } catch (error) {
             // If error, assume no recordings to avoid showing badge-rec incorrectly
