@@ -196,6 +196,12 @@
                         if (hasRecordings) {
                             badgeRec.classList.add('show-badge');
                             console.log(`👁️ SHOWING badge-rec for ${lmid}/${world} (${recordings.length} recordings)`);
+                            
+                            // DEBUG: Check computed style immediately after adding class
+                            setTimeout(() => {
+                                const style = getComputedStyle(badgeRec);
+                                console.log(`🔬 IMMEDIATE CHECK ${lmid}/${world}: display=${style.display}, classList=${badgeRec.classList.toString()}`);
+                            }, 10);
                         } else {
                             badgeRec.classList.remove('show-badge');
                             console.log(`🙈 HIDING badge-rec for ${lmid}/${world} (0 recordings)`);
