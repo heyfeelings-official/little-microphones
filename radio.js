@@ -637,15 +637,26 @@
             if (playerElement) {
                 console.log('🎵 DEBUG: Player element created successfully');
                 
-                // Debug progress bar existence
+                // Debug progress bar existence - try multiple selectors
                 const progressBar = playerElement.querySelector('div[style*="flex: 1"][style*="cursor: pointer"]');
-                const progressBarInner = playerElement.querySelector('div[style*="background: #007AF7"]');
+                const progressBarInner = playerElement.querySelector('div[style*="background: #007AF7"]') || 
+                                       playerElement.querySelector('div[style*="background:#007AF7"]') ||
+                                       playerElement.querySelector('div[style*="background-color: #007AF7"]');
                 const audioElement = playerElement.querySelector('audio');
+                
+                // Debug all progress-related elements
+                const allProgressElements = playerElement.querySelectorAll('div[style*="flex"]');
+                const allBlueElements = playerElement.querySelectorAll('div[style*="#007AF7"]');
                 
                 console.log('🔍 DEBUG: Progress bar container found:', !!progressBar);
                 console.log('🔍 DEBUG: Progress bar inner found:', !!progressBarInner);
+                console.log('🔍 DEBUG: All progress elements count:', allProgressElements.length);
+                console.log('🔍 DEBUG: All blue elements count:', allBlueElements.length);
                 console.log('🔍 DEBUG: Audio element found:', !!audioElement);
                 console.log('🔍 DEBUG: Is parent program:', isParentProgram);
+                
+                // Log the actual HTML structure for debugging
+                console.log('🏗️ DEBUG: Player element HTML:', playerElement.innerHTML.substring(0, 500));
                 
                 // Add some styling to make it fit better in the radio context
                 const playerDiv = playerElement.querySelector('div[style*="background: white"], div[style*="background: #ffffff"]');
@@ -1059,12 +1070,33 @@
         console.log('👶 DEBUG: kidsProgram found:', kidsProgram ? kidsProgram.title : 'NO');
         console.log('👨‍👩‍👧‍👦 DEBUG: parentProgram found:', parentProgram ? parentProgram.title : 'NO');
         
-        // Find existing Webflow containers instead of creating new ones
-        const existingKidsContainer = container.querySelector('.kids');
-        const existingParentsContainer = container.querySelector('.parents');
+        // Find existing Webflow containers - they might be text elements, not .kids/.parents classes
+        // Try multiple selectors to find the right containers
+        const possibleKidsSelectors = ['.kids', '[class*="kids"]', '*:contains("Kids")', 'div:contains("Kids")'];
+        const possibleParentsSelectors = ['.parents', '[class*="parent"]', '*:contains("Parent")', 'div:contains("Parent")'];
+        
+        let existingKidsContainer = container.querySelector('.kids');
+        let existingParentsContainer = container.querySelector('.parents');
+        
+        // If not found, try finding by text content
+        if (!existingKidsContainer) {
+            const allDivs = container.querySelectorAll('div, span, p, text');
+            existingKidsContainer = Array.from(allDivs).find(el => 
+                el.textContent && el.textContent.trim().toLowerCase().includes('kids')
+            );
+        }
+        
+        if (!existingParentsContainer) {
+            const allDivs = container.querySelectorAll('div, span, p, text');
+            existingParentsContainer = Array.from(allDivs).find(el => 
+                el.textContent && el.textContent.trim().toLowerCase().includes('parent')
+            );
+        }
         
         console.log('🔍 DEBUG: Existing kids container found:', !!existingKidsContainer);
         console.log('🔍 DEBUG: Existing parents container found:', !!existingParentsContainer);
+        console.log('🔍 DEBUG: Kids container content:', existingKidsContainer?.textContent);
+        console.log('🔍 DEBUG: Parents container content:', existingParentsContainer?.textContent);
         
         // Use kids container (existing Webflow or create new)
         if (kidsProgram) {
@@ -1076,6 +1108,14 @@
                 container.appendChild(newContainer);
                 return newContainer;
             })();
+            
+            // Ensure container has proper height and styling
+            if (kidsContainer.style) {
+                kidsContainer.style.minHeight = '60px';
+                kidsContainer.style.marginBottom = '20px';
+                kidsContainer.style.display = 'block';
+                console.log('📐 DEBUG: Applied height and styling to kids container');
+            }
             
             // Setup audio player for kids (no special background)
             console.log('🎵 DEBUG: Setting up kids player with URL:', kidsProgram.url);
@@ -1094,6 +1134,14 @@
                 container.appendChild(newContainer);
                 return newContainer;
             })();
+            
+            // Ensure container has proper height and styling
+            if (parentsContainer.style) {
+                parentsContainer.style.minHeight = '60px';
+                parentsContainer.style.marginTop = '20px';
+                parentsContainer.style.display = 'block';
+                console.log('📐 DEBUG: Applied height and styling to parents container');
+            }
             
             // Setup audio player for parents DIRECTLY in parentsContainer (same as kids)
             console.log('🎵 DEBUG: Setting up parent player with URL:', parentProgram.url);
