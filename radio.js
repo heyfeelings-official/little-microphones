@@ -644,6 +644,19 @@
                                        playerElement.querySelector('div[style*="background-color: #007AF7"]');
                 const audioElement = playerElement.querySelector('audio');
                 
+                // More detailed progress bar debugging
+                if (progressBar) {
+                    console.log('📊 DEBUG: Progress bar container children count:', progressBar.children.length);
+                    if (progressBar.children.length > 0) {
+                        const firstChild = progressBar.children[0];
+                        console.log('📊 DEBUG: First child of progress container:', firstChild.tagName);
+                        console.log('📊 DEBUG: First child style:', firstChild.style.cssText);
+                        console.log('📊 DEBUG: First child has #007AF7 background:', firstChild.style.background.includes('#007AF7'));
+                    } else {
+                        console.log('❌ DEBUG: Progress bar container has NO children!');
+                    }
+                }
+                
                 // Debug all progress-related elements
                 const allProgressElements = playerElement.querySelectorAll('div[style*="flex"]');
                 const allBlueElements = playerElement.querySelectorAll('div[style*="#007AF7"]');
@@ -655,9 +668,6 @@
                 console.log('🔍 DEBUG: Audio element found:', !!audioElement);
                 console.log('🔍 DEBUG: Is parent program:', isParentProgram);
                 
-                // Log the actual HTML structure for debugging
-                console.log('🏗️ DEBUG: Player element HTML:', playerElement.innerHTML.substring(0, 500));
-                
                 // Add some styling to make it fit better in the radio context
                 const playerDiv = playerElement.querySelector('div[style*="background: white"], div[style*="background: #ffffff"]');
                 if (playerDiv) {
@@ -666,6 +676,15 @@
                     playerDiv.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
                     playerDiv.style.width = '100%';
                     console.log(`🎨 DEBUG: Applied ${isParentProgram ? 'yellow' : 'white'} background to player`);
+                }
+                
+                // TEST: Force progress bar inner to be visible on parent player for debugging
+                if (isParentProgram && progressBar && progressBar.children.length > 0) {
+                    const progressInner = progressBar.children[0];
+                    progressInner.style.width = '25%'; // Test visibility
+                    progressInner.style.background = '#007AF7'; // Ensure blue color
+                    progressInner.style.zIndex = '999'; // Ensure it's on top
+                    console.log('🧪 DEBUG: Applied test styling to parent progress bar inner');
                 }
                 
                 playerContainer.appendChild(playerElement);
@@ -1149,19 +1168,22 @@
             
             // Apply yellow background to the main player container after creation
             setTimeout(() => {
-                // Find the main player container div (white background)
-                const playerContainer = parentsContainer.querySelector('div[style*="background: #ffffff"], div[style*="background:#ffffff"], div[style*="background: white"]');
+                // Find the main player container div (white background) - be more specific
+                const playerContainer = parentsContainer.querySelector('div[style*="background: rgb(255, 255, 255)"], div[style*="background:#ffffff"], div[style*="background: white"]');
+                
                 if (playerContainer) {
                     playerContainer.style.background = '#FFD700';
                     console.log('🟡 DEBUG: Applied yellow background to parent player container');
                 } else {
                     console.log('❌ DEBUG: Could not find player container for yellow background');
-                    // Fallback - apply to any div with background
-                    const playerDivs = parentsContainer.querySelectorAll('div[style*="background"]');
-                    playerDivs.forEach((div, index) => {
-                        div.style.background = '#FFD700';
-                        console.log(`🟡 DEBUG: Applied yellow background to fallback div ${index}`);
-                    });
+                    // More specific fallback - only main container, not progress bars
+                    const mainPlayerDiv = parentsContainer.querySelector('div[style*="width: 100%"][style*="height: 48px"]');
+                    if (mainPlayerDiv) {
+                        mainPlayerDiv.style.background = '#FFD700';
+                        console.log('🟡 DEBUG: Applied yellow background to main player div');
+                    } else {
+                        console.log('❌ DEBUG: Could not find main player div for yellow background');
+                    }
                 }
             }, 100);
         } else {
