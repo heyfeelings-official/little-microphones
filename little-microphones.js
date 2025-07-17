@@ -151,10 +151,21 @@
         console.log(`🎬 Found ${programContainers.length} containers for background animation`);
         
         programContainers.forEach((element, index) => {
+            // Check computed background-size before animation
+            const computedStyle = getComputedStyle(element);
+            console.log(`📏 Container ${index + 1} initial background-size: ${computedStyle.backgroundSize}`);
+            
             // Stagger animations by 50ms for each element
             setTimeout(() => {
                 element.classList.add('bg-animate-in');
                 console.log(`🎯 Added bg-animate-in to container ${index + 1}`);
+                
+                // Check if class was added and computed background-size
+                setTimeout(() => {
+                    const hasClass = element.classList.contains('bg-animate-in');
+                    const newComputedStyle = getComputedStyle(element);
+                    console.log(`📏 Container ${index + 1} has bg-animate-in: ${hasClass}, background-size: ${newComputedStyle.backgroundSize}`);
+                }, 100);
             }, index * 50);
         });
     }
@@ -342,9 +353,8 @@
             
             /* Background image animation - using background-size instead of transform to respect overflow */
             [data-lmid] .program-container {
-                background-size: 110% !important;
                 background-repeat: no-repeat;
-                transition: background-size 0.8s cubic-bezier(0.075, 0.82, 0.165, 1);
+                transition: background-size 0.8s cubic-bezier(0.075, 0.82, 0.165, 1) !important;
             }
             
             [data-lmid] .program-container.bg-animate-in {
@@ -1860,7 +1870,9 @@
             }
             container.style.backgroundRepeat = 'no-repeat';
             
-            // Don't set background-size here - let CSS animation handle it
+            // Force initial background-size for animation (override Webflow)
+            container.style.backgroundSize = '110%';
+            console.log(`📐 Forced background-size: 110% for world: ${world}`);
             
             // Don't modify child element styles - let Webflow handle positioning
         } else {
