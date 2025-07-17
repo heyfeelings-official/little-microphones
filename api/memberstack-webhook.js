@@ -132,21 +132,13 @@ export default async function handler(req, res) {
 
             // Get full member data if we only have minimal webhook data
             if (!member.id || !member.customFields) {
-                console.log('📥 Webhook has minimal data, fetching full member details...');
-                try {
-                    const { getMemberByEmail } = await import('../utils/memberstack-utils.js');
-                    const memberEmail = member.auth?.email || member.email;
-                    if (memberEmail) {
-                        const memberDetails = await getMemberByEmail(memberEmail);
-                        if (memberDetails) {
-                            fullMemberData = memberDetails;
-                            console.log('✅ Retrieved full member data');
-                        }
-                    }
-                } catch (fetchError) {
-                    console.log('⚠️ Could not fetch full member data:', fetchError.message);
-                    console.log('⚠️ Proceeding with webhook data only');
-                }
+                console.log('⚠️ Webhook has minimal data - some features may be limited');
+                console.log('⚠️ Available data:', {
+                    hasId: !!member.id,
+                    hasEmail: !!member.auth?.email,
+                    hasCustomFields: !!member.customFields,
+                    hasMetaData: !!member.metaData
+                });
             }
 
             // 1. Create/update Brevo contact for all users
