@@ -257,8 +257,17 @@ export async function syncMemberToBrevo(memberData) {
   console.log(`🔄 [${syncId}] Starting Brevo sync for ${email}`);
   
   try {
-    // Get active plans
-    const activePlans = memberData.planConnections?.filter(conn => conn.active && conn.status === 'ACTIVE') || [];
+    // Get active plans - check only status, not active field (which may be missing)
+    const activePlans = memberData.planConnections?.filter(conn => 
+      conn.status === 'ACTIVE' || conn.active === true
+    ) || [];
+    
+    console.log(`📊 [${syncId}] Plan connections:`, memberData.planConnections?.map(p => ({
+      planId: p.planId,
+      status: p.status,
+      active: p.active
+    })));
+    console.log(`📊 [${syncId}] Active plans after filter:`, activePlans.map(p => p.planId));
     
     if (activePlans.length === 0) {
       console.log(`📝 [${syncId}] No active plans for ${email} - syncing basic contact data`);

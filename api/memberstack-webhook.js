@@ -219,7 +219,7 @@ export default async function handler(req, res) {
 
                 // 2. Check if user has plans to determine category
                 const activePlans = fullMemberData.planConnections?.filter(conn => 
-                    conn.active && conn.status === 'ACTIVE'
+                    conn.status === 'ACTIVE' || conn.active === true
                 ) || [];
                 
                 console.log('Active plans:', activePlans.map(p => p.planId));
