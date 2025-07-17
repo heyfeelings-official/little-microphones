@@ -220,17 +220,34 @@
                             }
                         }
                         
-                        // 4. Setup recording links for new-rec elements
+                        // 4. Setup recording links for specific elements within new-rec
                         const newRecElement = worldContainer.querySelector('.new-rec');
                         if (newRecElement) {
                             const recordingUrl = `/members/record?world=${world}&lmid=${lmid}`;
-                            newRecElement.style.cursor = 'pointer';
-                            newRecElement.onclick = (e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                markLmidWorldVisited(lmid);
-                                window.location.href = recordingUrl;
-                            };
+                            
+                            // Add click handler to .rec-text .action
+                            const actionElement = newRecElement.querySelector('.rec-text .action');
+                            if (actionElement) {
+                                actionElement.style.cursor = 'pointer';
+                                actionElement.onclick = (e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    markLmidWorldVisited(lmid);
+                                    window.location.href = recordingUrl;
+                                };
+                            }
+                            
+                            // Add click handler to .rec-text .answers
+                            const answersElement = newRecElement.querySelector('.rec-text .answers');
+                            if (answersElement) {
+                                answersElement.style.cursor = 'pointer';
+                                answersElement.onclick = (e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    markLmidWorldVisited(lmid);
+                                    window.location.href = recordingUrl;
+                                };
+                            }
                         }
                     } else {
                         // Silently handle API failures for cleaner console
@@ -329,8 +346,13 @@
             }
             
             .program-container .new-rec.w-inline-block {
-                cursor: pointer;
                 display: flex !important;
+            }
+            
+            /* Add cursor pointer to clickable elements within new-rec */
+            .new-rec .rec-text .action,
+            .new-rec .rec-text .answers {
+                cursor: pointer;
             }
             
             /* Ensure new-rec elements are always visible, badge-rec controlled by JS */
@@ -714,16 +736,31 @@
                 });
             }
             
-            // Setup .new-rec click to recording page
+            // Setup click handlers for specific elements within .new-rec
             if (newRecContainer) {
-                // Add tracked event listener (automatically removes duplicates)
-                addTrackedEventListener(newRecContainer, 'click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    markLmidWorldVisited(lmid);
-                    const recordingUrl = `/members/record?world=${world}&lmid=${lmid}`;
-                    window.location.href = recordingUrl;
-                });
+                const recordingUrl = `/members/record?world=${world}&lmid=${lmid}`;
+                
+                // Add click handler to .rec-text .action
+                const actionElement = newRecContainer.querySelector('.rec-text .action');
+                if (actionElement) {
+                    addTrackedEventListener(actionElement, 'click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        markLmidWorldVisited(lmid);
+                        window.location.href = recordingUrl;
+                    });
+                }
+                
+                // Add click handler to .rec-text .answers
+                const answersElement = newRecContainer.querySelector('.rec-text .answers');
+                if (answersElement) {
+                    addTrackedEventListener(answersElement, 'click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        markLmidWorldVisited(lmid);
+                        window.location.href = recordingUrl;
+                    });
+                }
             }
             
         } catch (error) {

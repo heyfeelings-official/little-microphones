@@ -161,12 +161,12 @@ export async function createOrUpdateBrevoContact(memberData, planConfig) {
       SCHOOL_CITY: memberData.customFields?.['school-city'] || memberData.customFields?.['city'] || '',
       SCHOOL_COUNTRY: memberData.customFields?.['school-country'] || memberData.customFields?.['country'] || '',
       SCHOOL_FACILITY_TYPE: memberData.customFields?.['school-type'] || memberData.customFields?.['school_type'] || '',
-      SCHOOL_LATITUDE: memberData.customFields?.['school-latitude'] || memberData.customFields?.['school_latitude'] || null,
-      SCHOOL_LONGITUDE: memberData.customFields?.['school-longitude'] || memberData.customFields?.['school_longitude'] || null,
+      SCHOOL_LATITUDE: String(memberData.customFields?.['school-latitude'] || memberData.customFields?.['school_latitude'] || ''),
+      SCHOOL_LONGITUDE: String(memberData.customFields?.['school-longitude'] || memberData.customFields?.['school_longitude'] || ''),
       SCHOOL_PHONE: memberData.customFields?.['school-phone'] || memberData.customFields?.['school_phone'] || '',
       SCHOOL_PLACE_ID: memberData.customFields?.['school-place-id'] || memberData.customFields?.['school_place_id'] || '',
       SCHOOL_PLACE_NAME: memberData.customFields?.['school-place-name'] || memberData.customFields?.['school_place_name'] || '',
-      SCHOOL_RATING: memberData.customFields?.['school-rating'] || memberData.customFields?.['school_rating'] || null,
+      SCHOOL_RATING: memberData.customFields?.['school-rating'] || memberData.customFields?.['school_rating'] || '',
       SCHOOL_STATE: memberData.customFields?.['school-state'] || memberData.customFields?.['school_state'] || '',
       SCHOOL_STREET_ADDRESS: memberData.customFields?.['school-street-address'] || memberData.customFields?.['school_street_address'] || '',
       SCHOOL_WEBSITE: memberData.customFields?.['school-website'] || memberData.customFields?.['school_website'] || '',
@@ -174,8 +174,8 @@ export async function createOrUpdateBrevoContact(memberData, planConfig) {
       
       // Professional information (for Educators)
       EDUCATOR_ROLE: memberData.customFields?.['role'] || memberData.customFields?.['educator-role'] || '',
-      EDUCATOR_NO_CLASSES: memberData.customFields?.['no-classes'] || memberData.customFields?.['no_classes'] || null,
-      EDUCATOR_NO_KIDS: memberData.customFields?.['no-kids'] || memberData.customFields?.['no_kids'] || null,
+      EDUCATOR_NO_CLASSES: memberData.customFields?.['no-classes'] || memberData.customFields?.['no_classes'] || '',
+      EDUCATOR_NO_KIDS: memberData.customFields?.['no-kids'] || memberData.customFields?.['no_kids'] || '',
       
       // Application-specific
       LMIDS: memberData.metaData?.lmids || ''
