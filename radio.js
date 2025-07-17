@@ -666,6 +666,18 @@
                     console.log('🔵 DEBUG: Fixed progress bar colors - inner: blue, container: gray');
                 }
                 
+                // Add text label as first element inside the player
+                const mainPlayerDiv = playerElement.querySelector('div[style*="width: 100%"][style*="height: 48px"]');
+                if (mainPlayerDiv) {
+                    const textLabel = document.createElement('div');
+                    textLabel.textContent = isParentProgram ? 'Parent' : 'Kids';
+                    textLabel.style.cssText = 'font-size: 18px; font-weight: bold; color: #007AF7; margin-right: 16px; flex-shrink: 0;';
+                    
+                    // Insert as first child
+                    mainPlayerDiv.insertBefore(textLabel, mainPlayerDiv.firstChild);
+                    console.log(`📝 DEBUG: Added "${textLabel.textContent}" text to player`);
+                }
+                
                 playerContainer.appendChild(playerElement);
                 console.log('✅ DEBUG: Player element appended to container');
                 
@@ -1106,20 +1118,14 @@
                 console.log('📝 DEBUG: Creating new kids container (no Webflow container found)');
                 kidsContainer = document.createElement('div');
                 kidsContainer.className = 'kids';
-                kidsContainer.textContent = 'Kids'; // Add text if missing
                 container.appendChild(kidsContainer);
             }
             
-            // Ensure container has proper height and styling + visible text
+            // Ensure container has proper height and styling
             if (kidsContainer.style) {
-                kidsContainer.style.minHeight = '60px';
+                kidsContainer.style.minHeight = '48px';
                 kidsContainer.style.marginBottom = '1rem';
                 kidsContainer.style.display = 'block';
-                kidsContainer.style.position = 'relative';
-                kidsContainer.style.paddingTop = '24px'; // Space for text above player
-                kidsContainer.style.fontSize = '16px';
-                kidsContainer.style.fontWeight = 'bold';
-                kidsContainer.style.color = '#333';
                 console.log('📐 DEBUG: Applied height and styling to kids container');
             }
             
@@ -1147,20 +1153,14 @@
                 console.log('📝 DEBUG: Creating new parents container (no Webflow container found)');
                 parentsContainer = document.createElement('div');
                 parentsContainer.className = 'parents';
-                parentsContainer.textContent = 'Parent'; // Add text if missing
                 container.appendChild(parentsContainer);
             }
             
-            // Ensure container has proper height and styling + visible text
+            // Ensure container has proper height and styling
             if (parentsContainer.style) {
-                parentsContainer.style.minHeight = '60px';
+                parentsContainer.style.minHeight = '48px';
                 parentsContainer.style.marginTop = '1rem';
                 parentsContainer.style.display = 'block';
-                parentsContainer.style.position = 'relative';
-                parentsContainer.style.paddingTop = '24px'; // Space for text above player
-                parentsContainer.style.fontSize = '16px';
-                parentsContainer.style.fontWeight = 'bold';
-                parentsContainer.style.color = '#333';
                 console.log('📐 DEBUG: Applied height and styling to parents container');
             }
             
