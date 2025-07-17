@@ -193,6 +193,11 @@
         // Animate badge-rec elements that are now visible
         setTimeout(() => {
             animateBadgeRecElements();
+            
+            // Debug final state after all operations
+            setTimeout(() => {
+                debugFinalBadgeRecState();
+            }, 1000);
         }, 100);
     }
 
@@ -224,7 +229,48 @@
         }
     }
 
-
+    /**
+     * Debug function to check final state of all badge-rec elements
+     */
+    function debugFinalBadgeRecState() {
+        console.log("🔬 === FINAL BADGE-REC STATE DEBUG ===");
+        
+        const allLMIDElements = document.querySelectorAll('[data-lmid]');
+        
+        allLMIDElements.forEach(lmidElement => {
+            const lmid = lmidElement.getAttribute('data-lmid');
+            const worldContainers = lmidElement.querySelectorAll('.program-container[data-world]');
+            
+            worldContainers.forEach(worldContainer => {
+                const world = worldContainer.getAttribute('data-world');
+                const badgeRec = worldContainer.querySelector('.badge-rec');
+                
+                if (badgeRec) {
+                    const computedStyle = getComputedStyle(badgeRec);
+                    const isVisible = computedStyle.display !== 'none' && 
+                                    computedStyle.visibility !== 'hidden' && 
+                                    computedStyle.opacity !== '0';
+                    
+                    console.log(`🔍 ${lmid}/${world}:`);
+                    console.log(`  - display: ${computedStyle.display}`);
+                    console.log(`  - visibility: ${computedStyle.visibility}`);
+                    console.log(`  - opacity: ${computedStyle.opacity}`);
+                    console.log(`  - isVisible: ${isVisible}`);
+                    console.log(`  - classList: ${badgeRec.classList.toString()}`);
+                    
+                    if (!isVisible) {
+                        console.log(`❌ ${lmid}/${world}: Badge-rec NOT VISIBLE despite settings!`);
+                    } else {
+                        console.log(`✅ ${lmid}/${world}: Badge-rec is visible`);
+                    }
+                } else {
+                    console.log(`⚠️ ${lmid}/${world}: No badge-rec element found!`);
+                }
+            });
+        });
+        
+        console.log("🔬 === END DEBUG ===");
+    }
 
     /**
      * Add event listener with cleanup tracking
@@ -668,6 +714,13 @@
             
             // Badge-rec visibility is managed by quickPreCalculateVisibility - don't override it here
             // The detailed API data will be used for counts and click handlers only
+            
+            // Debug: Log what we found vs what badge-rec currently looks like
+            if (badgeRec) {
+                const currentDisplay = badgeRec.style.display;
+                const currentComputedDisplay = getComputedStyle(badgeRec).display;
+                console.log(`🔧 ${lmid}/${world}: API found ${totalRecordingCount} recordings, badge-rec display=${currentDisplay}, computed=${currentComputedDisplay}`);
+            }
             
             // Setup .badge-rec click to radio page with ShareID
             if (badgeRec && shareId && totalRecordingCount > 0) {
