@@ -441,4 +441,67 @@ export async function getBrevoContacts(limit = 10) {
   } catch (error) {
     return { success: false, error: error.message };
   }
+}
+
+/**
+ * Delete contact from Brevo
+ * @param {string} email - Contact email address
+ * @returns {Promise<Object>} Deletion result
+ */
+export async function deleteBrevoContact(email) {
+  const syncId = Math.random().toString(36).substring(2, 15);
+  
+  console.log(`🗑️ [${syncId}] Deleting Brevo contact: ${email}`);
+  
+  try {
+    // Check if contact exists first
+    const existingContact = await getBrevoContact(email);
+    
+    if (!existingContact) {
+      console.log(`ℹ️ [${syncId}] Contact ${email} not found in Brevo - nothing to delete`);
+      return { success: true, syncId, email, action: 'not_found' };
+    }
+    
+    // Delete the contact
+    await makeBrevoRequest(`/contacts/${encodeURIComponent(email)}`, 'DELETE');
+    
+    console.log(`✅ [${syncId}] Successfully deleted contact: ${email}`);
+    return { success: true, syncId, email, action: 'deleted' };
+    
+  } catch (error) {
+    console.error(`❌ [${syncId}] Error deleting contact ${email}:`, error.message);
+    
+    // If error is 404, the contact was already deleted
+    if (error.message.includes('404')) {
+      console.log(`ℹ️ [${syncId}] Contact ${email} was already deleted from Brevo`);
+      return { success: true, syncId, email, action: 'already_deleted' };
+    }
+    
+    return { success: false, syncId, email, error: error.message };
+  }
+}
+
+/**
+ * Remove contact from specific Brevo list (alternative to full deletion)
+ * @param {string} email - Contact email address
+ * @param {number} listId - Brevo list ID
+ * @returns {Promise<Object>} Removal result
+ */
+export async function removeContactFromBrevoList(email, listId = BREVO_MAIN_LIST.HEY_FEELINGS_LIST) {
+  const syncId = Math.random().toString(36).substring(2, 15);
+  
+  console.log(`📋 [${syncId}] Removing contact ${email} from Brevo list ${listId}`);
+  
+  try {
+    const result = await makeBrevoRequest(`/contacts/lists/${listId}/contacts/remove`, 'POST', {
+      emails: [email]
+    });
+    
+    console.log(`✅ [${syncId}] Successfully removed contact from list: ${email}`);
+    return { success: true, syncId, email, listId, result };
+    
+  } catch (error) {
+    console.error(`❌ [${syncId}] Error removing contact ${email} from list ${listId}:`, error.message);
+    return { success: false, syncId, email, listId, error: error.message };
+  }
 } 

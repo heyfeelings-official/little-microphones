@@ -7,9 +7,12 @@
  * SUPPORTED WEBHOOKS:
  * - member.created: New member registration (assigns LMID + syncs to Brevo)
  * - member.updated: Member profile updates (syncs changes to Brevo)
- * - subscription.created: New subscription (updates segments in Brevo)
- * - subscription.updated: Subscription changes (updates segments in Brevo)
- * - subscription.cancelled: Subscription cancellation (updates segments in Brevo)
+ * - member.deleted: Member deletion (removes contact from Brevo)
+ * - member.plan.added: Plan assignment (syncs plan data + assigns LMID if needed)
+ * - member.plan.updated: Plan changes (syncs updated plan data to Brevo)
+ * - member.plan.canceled: Plan cancellation (syncs plan status to Brevo)
+ * - team.member.added: Team member addition (logs event)
+ * - team.member.removed: Team member removal (logs event)
  * 
  * RESPONSE FORMAT:
  * { success: true, message: "Event processed successfully", data: {...} }
@@ -434,15 +437,29 @@ export default async function handler(req, res) {
 
             case 'member.deleted':
                 console.log('🗑️ Processing member deletion');
-                // Optional: Mark contact as deleted in Brevo or remove from lists
                 try {
                     const deletedEmail = member?.auth?.email || member?.email;
+                    const deletedId = member?.id;
+                    
                     if (deletedEmail) {
-                        console.log(`📧 Member deleted: ${deletedEmail}`);
-                        // You can implement Brevo contact deletion/deactivation here if needed
+                        console.log(`📧 Member deleted from Memberstack: ${deletedEmail} (ID: ${deletedId})`);
+                        
+                        // Delete contact from Brevo
+                        const { deleteBrevoContact } = await import('../utils/brevo-contact-manager.js');
+                        const deleteResult = await deleteBrevoContact(deletedEmail);
+                        
+                        if (deleteResult.success) {
+                            console.log(`✅ Successfully processed Brevo deletion: ${deleteResult.action}`);
+                        } else {
+                            console.log(`❌ Failed to delete from Brevo: ${deleteResult.error}`);
+                        }
+                    } else {
+                        console.log('⚠️ No email found for deleted member - cannot delete from Brevo');
+                        console.log('Available member data:', JSON.stringify(member, null, 2));
                     }
                 } catch (deleteError) {
                     console.log('❌ Error processing deletion:', deleteError.message);
+                    console.log('Error stack:', deleteError.stack);
                 }
                 break;
 
