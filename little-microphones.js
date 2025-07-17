@@ -225,9 +225,10 @@
                         if (newRecElement) {
                             const recordingUrl = `/members/record?world=${world}&lmid=${lmid}`;
                             
-                            // Add click handler to .rec-text .action
-                            const actionElement = newRecElement.querySelector('.rec-text .action');
+                            // Add click handler to .rec-text.action (element with both classes)
+                            const actionElement = newRecElement.querySelector('.rec-text.action');
                             if (actionElement) {
+                                console.log(`🔗 Added click handler to action element for ${lmid}/${world}`);
                                 actionElement.style.cursor = 'pointer';
                                 actionElement.onclick = (e) => {
                                     e.preventDefault();
@@ -235,11 +236,14 @@
                                     markLmidWorldVisited(lmid);
                                     window.location.href = recordingUrl;
                                 };
+                            } else {
+                                console.warn(`⚠️ No .rec-text.action found for ${lmid}/${world}`);
                             }
                             
-                            // Add click handler to .rec-text .answers
-                            const answersElement = newRecElement.querySelector('.rec-text .answers');
+                            // Add click handler to .rec-text.answers (element with both classes)
+                            const answersElement = newRecElement.querySelector('.rec-text.answers');
                             if (answersElement) {
+                                console.log(`🔗 Added click handler to answers element for ${lmid}/${world}`);
                                 answersElement.style.cursor = 'pointer';
                                 answersElement.onclick = (e) => {
                                     e.preventDefault();
@@ -247,6 +251,8 @@
                                     markLmidWorldVisited(lmid);
                                     window.location.href = recordingUrl;
                                 };
+                            } else {
+                                console.warn(`⚠️ No .rec-text.answers found for ${lmid}/${world}`);
                             }
                         }
                     } else {
@@ -350,8 +356,8 @@
             }
             
             /* Add cursor pointer to clickable elements within new-rec */
-            .new-rec .rec-text .action,
-            .new-rec .rec-text .answers {
+            .new-rec .rec-text.action,
+            .new-rec .rec-text.answers {
                 cursor: pointer;
             }
             
@@ -740,26 +746,32 @@
             if (newRecContainer) {
                 const recordingUrl = `/members/record?world=${world}&lmid=${lmid}`;
                 
-                // Add click handler to .rec-text .action
-                const actionElement = newRecContainer.querySelector('.rec-text .action');
+                // Add click handler to .rec-text.action (element with both classes)
+                const actionElement = newRecContainer.querySelector('.rec-text.action');
                 if (actionElement) {
+                    console.log(`🔗 (setupWorld) Added click handler to action element for ${lmid}/${world}`);
                     addTrackedEventListener(actionElement, 'click', (e) => {
                         e.preventDefault();
                         e.stopPropagation();
                         markLmidWorldVisited(lmid);
                         window.location.href = recordingUrl;
                     });
+                } else {
+                    console.warn(`⚠️ (setupWorld) No .rec-text.action found for ${lmid}/${world}`);
                 }
                 
-                // Add click handler to .rec-text .answers
-                const answersElement = newRecContainer.querySelector('.rec-text .answers');
+                // Add click handler to .rec-text.answers (element with both classes)
+                const answersElement = newRecContainer.querySelector('.rec-text.answers');
                 if (answersElement) {
+                    console.log(`🔗 (setupWorld) Added click handler to answers element for ${lmid}/${world}`);
                     addTrackedEventListener(answersElement, 'click', (e) => {
                         e.preventDefault();
                         e.stopPropagation();
                         markLmidWorldVisited(lmid);
                         window.location.href = recordingUrl;
                     });
+                } else {
+                    console.warn(`⚠️ (setupWorld) No .rec-text.answers found for ${lmid}/${world}`);
                 }
             }
             
