@@ -539,15 +539,17 @@
             initializeDashboardTracking();
         }, 50);
         
-        // Pre-calculate visibility for data-dependent elements
-        await preCalculateElementVisibility(lmids);
-        
-        // Start animations immediately for better UX (backgrounds are now set, visibility calculated)
+        // Start animations immediately for better UX (backgrounds are now set)
         setTimeout(() => {
             animateNewRecElements();
             animateBackgroundImages();
-            animateBadgeRecElements(); // Now safe to animate - visibility is pre-calculated
+            // Note: badge-rec animations will happen after data loads
         }, 100);
+        
+        // Quick visibility check for LMID level (not per world) - runs in background
+        setTimeout(() => {
+            quickPreCalculateVisibility(lmids);
+        }, 200);
         
         // Now batch-load new recording indicators in background (with throttling)
         setTimeout(() => {

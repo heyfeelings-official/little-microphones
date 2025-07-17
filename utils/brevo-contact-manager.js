@@ -188,6 +188,16 @@ function mapMemberstackToBrevoAttributes(memberData, planConfig) {
     metaData.schoolName ||
     '';
 
+  // Extract educator-specific fields
+  const educatorRole = customFields.role || '';
+  const educatorNoClasses = customFields['educator-no-classes'] ? parseInt(customFields['educator-no-classes']) : null;
+  const educatorNoKids = customFields['educator-no-kids'] ? parseInt(customFields['educator-no-kids']) : null;
+  
+  // Extract school location fields
+  const schoolLatitude = customFields['school-latitude'] ? parseFloat(customFields['school-latitude']) : null;
+  const schoolLongitude = customFields['school-longitude'] ? parseFloat(customFields['school-longitude']) : null;
+  const schoolRating = customFields['school-rating'] ? parseFloat(customFields['school-rating']) : null;
+
   // Build attributes object
   const attributes = {
     // Basic Information
@@ -209,6 +219,28 @@ function mapMemberstackToBrevoAttributes(memberData, planConfig) {
     // Organizational Data
     SCHOOL_NAME: schoolName,
     TEACHER_NAME: firstName && lastName ? `${firstName} ${lastName}`.trim() : '',
+    
+    // School Information (for Educators)
+    SCHOOL_SEARCH_INPUT: customFields['search-input'] || '',
+    SCHOOL_ADDRESS: customFields['school-address-result'] || '',
+    SCHOOL_CITY: customFields['school-city'] || '',
+    SCHOOL_COUNTRY: customFields['school-country'] || '',
+    SCHOOL_FACILITY_TYPE: customFields['school-facility-type'] || '',
+    SCHOOL_LATITUDE: schoolLatitude,
+    SCHOOL_LONGITUDE: schoolLongitude,
+    SCHOOL_PHONE: customFields['school-phone'] || '',
+    SCHOOL_PLACE_ID: customFields['school-place-id'] || '',
+    SCHOOL_PLACE_NAME: customFields['school-place-name'] || '',
+    SCHOOL_RATING: schoolRating,
+    SCHOOL_STATE: customFields['school-state'] || '',
+    SCHOOL_STREET_ADDRESS: customFields['street-address'] || '',
+    SCHOOL_WEBSITE: customFields['school-website'] || '',
+    SCHOOL_ZIP: customFields['school-zip'] || '',
+    
+    // Professional Information (for Educators)
+    EDUCATOR_ROLE: educatorRole,
+    EDUCATOR_NO_CLASSES: educatorNoClasses,
+    EDUCATOR_NO_KIDS: educatorNoKids,
     
     // Application-specific
     LMIDS: metaData.lmids || '',

@@ -21,34 +21,35 @@
  */
 
 // ===== BREVO SEGMENTS/LISTS (Mutually Exclusive) =====
+// Real Brevo segment IDs configured in production (January 2025)
 export const BREVO_SEGMENTS = {
   // === PARENTS ===
-  PARENTS_ALL: 101,                     // All parents across all plans
-  PARENTS_FREE: 102,                    // Parents with free plans only
-  PARENTS_PAID: 103,                    // Parents with paid plans only (future)
-  PARENTS_PLAN_FREE: 104,               // pln_parents-y1ea03qk
+  PARENTS_ALL: 2,                       // All parents across all plans
+  PARENTS_FREE: 3,                      // Parents with free plans only
+  PARENTS_PAID: 4,                      // Parents with paid plans only (future)
+  PARENTS_PLAN_FREE: 5,                 // pln_parents-y1ea03qk
   
   // === EDUCATORS ===
-  EDUCATORS_ALL: 201,                   // All educators across all plans
-  EDUCATORS_FREE: 202,                  // Educators with free plans only
-  EDUCATORS_PAID: 203,                  // Educators with paid plans only
-  EDUCATORS_PLAN_FREE: 204,             // pln_free-plan-dhnb0ejd
-  EDUCATORS_PLAN_FREE_PROMO: 205,       // pln_educators-free-promo-ebfw0xzj
-  EDUCATORS_PLAN_SCHOOL_BUNDLE: 206,    // pln_educators-school-bundle-monthly-jqo20xap
-  EDUCATORS_PLAN_SINGLE_CLASSROOM: 207, // pln_educators-single-classroom-monthly-lkhq021n
+  EDUCATORS_ALL: 6,                     // All educators across all plans
+  EDUCATORS_FREE: 7,                    // Educators with free plans only
+  EDUCATORS_PAID: 8,                    // Educators with paid plans only
+  EDUCATORS_PLAN_FREE: 9,               // pln_free-plan-dhnb0ejd
+  EDUCATORS_PLAN_FREE_PROMO: 11,        // pln_educators-free-promo-ebfw0xzj (ID #10 missing - deleted segment)
+  EDUCATORS_PLAN_SCHOOL_BUNDLE: 12,     // pln_educators-school-bundle-monthly-jqo20xap
+  EDUCATORS_PLAN_SINGLE_CLASSROOM: 13,  // pln_educators-single-classroom-monthly-lkhq021n
   
   // === THERAPISTS ===
-  THERAPISTS_ALL: 301,                  // All therapists across all plans
-  THERAPISTS_FREE: 302,                 // Therapists with free plans only
-  THERAPISTS_PAID: 303,                 // Therapists with paid plans only
-  THERAPISTS_PLAN_FREE: 304,            // pln_therapists-free-t7k40ii1
-  THERAPISTS_PLAN_FREE_PROMO: 305,      // pln_therapists-free-promo-i2kz0huu
-  THERAPISTS_PLAN_SINGLE_PRACTICE: 306, // pln_therapists-single-practice-juk60iii
+  THERAPISTS_ALL: 14,                   // All therapists across all plans
+  THERAPISTS_FREE: 15,                  // Therapists with free plans only
+  THERAPISTS_PAID: 16,                  // Therapists with paid plans only
+  THERAPISTS_PLAN_FREE: 17,             // pln_therapists-free-t7k40ii1
+  THERAPISTS_PLAN_FREE_PROMO: 18,       // pln_therapists-free-promo-i2kz0huu
+  THERAPISTS_PLAN_SINGLE_PRACTICE: 19,  // pln_therapists-single-practice-juk60iii
   
   // === CROSS-CATEGORY ===
-  ALL_USERS: 401,                       // All users across all categories
-  ALL_FREE: 402,                        // All users with free plans
-  ALL_PAID: 403                         // All users with paid plans
+  ALL_USERS: 20,                        // All users across all categories
+  ALL_FREE: 21,                         // All users with free plans
+  ALL_PAID: 22                          // All users with paid plans
 };
 
 // ===== BREVO TAGS (Can Overlap) =====
@@ -242,6 +243,28 @@ export const BREVO_CONTACT_ATTRIBUTES = {
   // Organizational Data
   SCHOOL_NAME: 'string',      // School or organization name
   TEACHER_NAME: 'string',     // For teachers/therapists
+  
+  // School Information (for Educators)
+  SCHOOL_SEARCH_INPUT: 'string',     // Original search input for school
+  SCHOOL_ADDRESS: 'string',          // Full school address
+  SCHOOL_CITY: 'string',             // School city
+  SCHOOL_COUNTRY: 'string',          // School country
+  SCHOOL_FACILITY_TYPE: 'string',    // Type of educational facility
+  SCHOOL_LATITUDE: 'number',         // School GPS latitude
+  SCHOOL_LONGITUDE: 'number',        // School GPS longitude
+  SCHOOL_PHONE: 'string',            // School phone number
+  SCHOOL_PLACE_ID: 'string',         // Google Places ID
+  SCHOOL_PLACE_NAME: 'string',       // School place name (short)
+  SCHOOL_RATING: 'number',           // School rating
+  SCHOOL_STATE: 'string',            // School state/province
+  SCHOOL_STREET_ADDRESS: 'string',   // School street address
+  SCHOOL_WEBSITE: 'string',          // School website URL
+  SCHOOL_ZIP: 'string',              // School ZIP/postal code
+  
+  // Professional Information (for Educators)
+  EDUCATOR_ROLE: 'string',           // Principal, Teacher, Admin, etc.
+  EDUCATOR_NO_CLASSES: 'number',     // Number of classes taught
+  EDUCATOR_NO_KIDS: 'number',        // Number of children/students
   
   // Application-specific
   LMIDS: 'string',            // Comma-separated LMID list
