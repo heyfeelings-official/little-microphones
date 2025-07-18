@@ -83,7 +83,12 @@ export const BREVO_CONTACT_ATTRIBUTES = {
   
   // Application-specific
   LMIDS: 'string',            // Comma-separated LMID list
-  LANGUAGE_PREF: 'string'     // pl, en
+  LANGUAGE_PREF: 'string',    // pl, en
+  
+  // Custom fields for user preferences/settings
+  RESOURCES: 'string',        // Resources preference/setting
+  PAYMENTS: 'string',         // Payments preference/setting  
+  DISCOVER: 'string'          // Discover preference/setting
 };
 
 // ===== PLAN TO ATTRIBUTES MAPPING =====

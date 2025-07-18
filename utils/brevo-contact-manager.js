@@ -254,6 +254,17 @@ export async function createOrUpdateBrevoContact(memberData, planConfig) {
       // Application-specific
       LMIDS: memberData.metaData?.lmids || '',
       
+      // Custom fields for user preferences/settings
+      RESOURCES: memberData.customFields?.['resources'] || 
+                 memberData.customFields?.resources ||
+                 memberData.metaData?.resources || '',
+      PAYMENTS: memberData.customFields?.['payments'] || 
+                memberData.customFields?.payments ||
+                memberData.metaData?.payments || '',
+      DISCOVER: memberData.customFields?.['discover'] || 
+                memberData.customFields?.discover ||
+                memberData.metaData?.discover || '',
+      
       // IMPORTANT: Plan attributes must be last to avoid being overridden
       // This includes USER_CATEGORY, PLAN_TYPE, PLAN_NAME, PLAN_ID
       ...planAttributes
@@ -491,6 +502,17 @@ export async function syncMemberToBrevo(memberData) {
         
         // Application-specific
         LMIDS: memberData.metaData?.lmids || existingContactData.attributes?.LMIDS || '',
+        
+        // Custom fields for user preferences/settings  
+        RESOURCES: memberData.customFields?.['resources'] || 
+                   memberData.customFields?.resources ||
+                   memberData.metaData?.resources || '',
+        PAYMENTS: memberData.customFields?.['payments'] || 
+                  memberData.customFields?.payments ||
+                  memberData.metaData?.payments || '',
+        DISCOVER: memberData.customFields?.['discover'] || 
+                  memberData.customFields?.discover ||
+                  memberData.metaData?.discover || '',
         
         // Preserve existing plan data
         USER_CATEGORY: existingContactData.attributes.USER_CATEGORY,
