@@ -142,44 +142,28 @@
                 const memberstack = window.$memberstackDom || window.memberstack;
 
                 if (!memberstack) {
-                    console.error('❌ Memberstack instance (window.$memberstackDom or window.memberstack) not found.');
+                    console.error('❌ Memberstack instance not found.');
                     return false;
                 }
                 
                 if (typeof memberstack.addPlan !== 'function') {
-                    console.error('❌ memberstack.addPlan is not a function. Check Memberstack script version and initialization.');
+                    console.error('❌ memberstack.addPlan is not a function.');
                     return false;
                 }
                 
                 console.log(`✅ Attempting to add free plan: ${PLAN_ID}`);
                 
-                const result = await memberstack.addPlan({ 
+                // Fire and forget - trust the API call if it doesn't throw an error.
+                // The returned data might not be immediately consistent.
+                await memberstack.addPlan({ 
                     planId: PLAN_ID 
                 });
                 
-                if (result.data?.planConnections) {
-                    console.log('✅ Plan assigned successfully via addPlan:', JSON.stringify(result.data.planConnections, null, 2));
-                    // Verify the plan is in the connections
-                    const planAdded = result.data.planConnections.some(p => p.planId === PLAN_ID && p.active);
-                    if (planAdded) {
-                        console.log('🎉 Verification successful: Plan is active in connections.');
-                        return true;
-                    } else {
-                        console.error('❌ Verification failed: Plan not found or not active in returned connections.');
-                        return false;
-                    }
-                } else {
-                    console.error('❌ addPlan method did not return expected data structure. Result:', result);
-                    return false;
-                }
+                console.log('✅ Plan assignment call succeeded. Verification will happen on the next page load.');
+                return true;
                 
             } catch (error) {
-                console.error('❌ Critical error assigning plan:', error);
-                
-                if (error.response) {
-                    console.error('Error response data:', error.response.data);
-                }
-                
+                console.error('❌ Critical error calling addPlan:', error);
                 return false;
             }
         }
@@ -219,11 +203,12 @@
                     console.log('✅ Plan assigned successfully.');
                 }
                 
-                // Redirect to success page after delay, even if plan assignment fails to avoid user confusion
+                // Redirect to success page after a delay to allow backend processing
+                console.log('⏳ Waiting for 2 seconds before redirecting to allow data sync...');
                 setTimeout(() => {
                     console.log('🎉 Redirecting to success page...');
                     window.location.href = SUCCESS_REDIRECT_URL;
-                }, REDIRECT_DELAY);
+                }, 2000); // Increased delay
                 
             } catch (error) {
                 console.error('❌ Error during submission:', error);
