@@ -36,8 +36,97 @@
 (function() {
     'use strict';
 
+    // Global state
+    let currentUserRole = null;
+
+    /**
+     * Force refresh of Memberstack member data
+     */
+    async function forceMemberstackDataRefresh() {
+        try {
+            const memberstack = window.$memberstackDom || window.memberstack;
+            if (!memberstack) {
+                console.warn('⚠️ Memberstack not available for refresh');
+                return;
+            }
+            
+            // Method 1: Try to clear localStorage cache
+            try {
+                // Clear potential Memberstack keys
+                const keysToRemove = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && (key.includes('memberstack') || key.includes('ms_') || key.includes('member_'))) {
+                        keysToRemove.push(key);
+                    }
+                }
+                keysToRemove.forEach(key => localStorage.removeItem(key));
+                console.log('🧹 Cleared potential Memberstack localStorage keys:', keysToRemove);
+            } catch (e) {
+                console.warn('⚠️ Could not clear localStorage:', e);
+            }
+            
+            // Method 2: Try to clear sessionStorage cache
+            try {
+                const keysToRemove = [];
+                for (let i = 0; i < sessionStorage.length; i++) {
+                    const key = sessionStorage.key(i);
+                    if (key && (key.includes('memberstack') || key.includes('ms_') || key.includes('member_'))) {
+                        keysToRemove.push(key);
+                    }
+                }
+                keysToRemove.forEach(key => sessionStorage.removeItem(key));
+                console.log('🧹 Cleared potential Memberstack sessionStorage keys:', keysToRemove);
+            } catch (e) {
+                console.warn('⚠️ Could not clear sessionStorage:', e);
+            }
+            
+            // Method 3: Force re-authentication flow
+            try {
+                // Get current member to verify if refresh works
+                const initialMember = await memberstack.getCurrentMember();
+                console.log('🔄 Current member before refresh:', initialMember?.data?.id);
+                
+                // Force another call with potential cache bypass
+                setTimeout(async () => {
+                    const refreshedMember = await memberstack.getCurrentMember();
+                    console.log('🔄 Member after refresh:', refreshedMember?.data?.id);
+                }, 500);
+                
+            } catch (e) {
+                console.warn('⚠️ Could not force member refresh:', e);
+            }
+            
+            console.log('✅ Forced Memberstack data refresh completed');
+            
+        } catch (error) {
+            console.error('❌ Error in forceMemberstackDataRefresh:', error);
+        }
+    }
+
+    /**
+     * Store event listeners to enable proper cleanup without cloning
+     */
+    const elementEventListeners = new WeakMap();
+
     // Wait for DOM and required dependencies
     document.addEventListener("DOMContentLoaded", async () => {
+        
+        // ---- Config Fallback ----
+        // Ensure LM_CONFIG is available with fallback
+        if (!window.LM_CONFIG) {
+            console.warn('⚠️ LM_CONFIG not found. Creating fallback config...');
+            window.LM_CONFIG = {
+                API_BASE_URL: 'https://little-microphones.vercel.app',
+                IS_DEVELOPMENT: window.location.hostname.includes('webflow.io'),
+                TIMEOUTS: { UI_UPDATE_DELAY: 100 },
+                PLAN_HELPERS: {
+                    isParentPlan: () => false,
+                    isEducatorPlan: () => false,
+                    isTherapistPlan: () => false
+                }
+            };
+        }
         
         // ---- Survey Completion Handler ----
         // Check if we're arriving from the educators survey
@@ -72,11 +161,16 @@
             // Initialize authentication system
             const authSystem = window.LMAuth.getAuthSystem();
             
-            // If coming from survey, wait a bit for Memberstack data to sync
+            // If coming from survey, force a fresh member data fetch
             if (needsFreshData) {
-                console.log('⏳ Waiting for Memberstack data sync...');
-                await new Promise(resolve => setTimeout(resolve, 1500));
-                console.log('✅ Proceeding with fresh data fetch...');
+                console.log('⏳ Forcing fresh member data fetch...');
+                
+                // Try to clear any cached member data
+                await forceMemberstackDataRefresh();
+                
+                // Wait additional time for backend sync
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                console.log('✅ Fresh data fetch completed, proceeding with auth...');
             }
             
             const authResult = await authSystem.initialize();
@@ -121,14 +215,6 @@
             showErrorMessage("Failed to initialize dashboard. Please refresh the page.");
         }
     });
-
-    // Global state
-    let currentUserRole = null;
-
-    /**
-     * Store event listeners to enable proper cleanup without cloning
-     */
-    const elementEventListeners = new WeakMap();
 
     /**
      * Animate new-rec elements into view with fade-in and slide-up

@@ -211,11 +211,11 @@
                 }
                 
                 // Redirect to success page after a shorter delay
-                console.log('⏳ Waiting 1 second before redirecting...');
+                console.log('⏳ Waiting 500ms before redirecting...');
                 setTimeout(() => {
                     console.log('🎉 Redirecting to success page...');
                     window.location.href = SUCCESS_REDIRECT_URL;
-                }, 1000);
+                }, 500);
                 
             } catch (error) {
                 console.error('❌ Error during submission:', error);
