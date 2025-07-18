@@ -421,6 +421,85 @@ export async function syncMemberToBrevo(memberData) {
     })));
     console.log(`📊 [${syncId}] Active plans after filter:`, activePlans.map(p => p.planId));
     
+    // Handle Company creation/update BEFORE plan processing to ensure it always runs
+    if (shouldLinkToCompany(memberData)) {
+      const schoolId = getSchoolIdFromMember(memberData);
+      
+      if (schoolId) {
+        console.log(`🏢 [${syncId}] Processing company for contact ${email}`);
+        
+        // Prepare school data from member data
+        const schoolData = {
+          SCHOOL_PLACE_ID: schoolId,
+          SCHOOL_NAME: handleEmptyValue(memberData.customFields?.['place-name'] || 
+                       memberData.customFields?.['school-name'] ||
+                       memberData.customFields?.schoolName ||
+                       memberData.metaData?.schoolName),
+          SCHOOL_CITY: handleEmptyValue(memberData.customFields?.city || 
+                       memberData.customFields?.['school-city'] ||
+                       memberData.metaData?.schoolCity),
+          SCHOOL_COUNTRY: handleEmptyValue(memberData.customFields?.country || 
+                          memberData.customFields?.['school-country'] ||
+                          memberData.metaData?.schoolCountry),
+          SCHOOL_PHONE: handleEmptyValue(memberData.customFields?.phone ||
+                        memberData.customFields?.['school-phone'] ||
+                        memberData.metaData?.schoolPhone),
+          SCHOOL_WEBSITE: handleEmptyValue(memberData.customFields?.website ||
+                          memberData.customFields?.['school-website'] ||
+                          memberData.metaData?.schoolWebsite),
+          SCHOOL_STREET_ADDRESS: handleEmptyValue(memberData.customFields?.['street-address'] ||
+                                 memberData.metaData?.schoolStreetAddress),
+          SCHOOL_STATE_PROVINCE: handleEmptyValue(memberData.customFields?.state ||
+                                 memberData.customFields?.['school-state'] ||
+                                 memberData.metaData?.schoolState),
+          SCHOOL_POSTAL_CODE: handleEmptyValue(memberData.customFields?.zip ||
+                              memberData.customFields?.['school-zip'] ||
+                              memberData.metaData?.schoolZip),
+          SCHOOL_LATITUDE: handleEmptyValue(String(memberData.customFields?.latitude ||
+                           memberData.customFields?.['school-latitude'] ||
+                           memberData.metaData?.schoolLatitude || '')),
+          SCHOOL_LONGITUDE: handleEmptyValue(String(memberData.customFields?.longitude ||
+                            memberData.customFields?.['school-longitude'] ||
+                            memberData.metaData?.schoolLongitude || ''))
+        };
+        
+        try {
+          // Create or update company
+          const companyResult = await createOrUpdateBrevoCompany(schoolData);
+          
+          if (companyResult.success) {
+            console.log(`✅ [${syncId}] Company processed successfully`);
+            
+            // Link contact to company
+            const linkData = {
+              EDUCATOR_ROLE: handleEmptyValue(memberData.customFields?.role || 
+                            memberData.customFields?.['educator-role'] ||
+                            memberData.metaData?.educatorRole),
+              EDUCATOR_NO_CLASSES: handleEmptyValue(memberData.customFields?.['no-classes'] ||
+                                   memberData.metaData?.educatorNoClasses),
+              EDUCATOR_NO_KIDS: handleEmptyValue(memberData.customFields?.['no-kids'] ||
+                                memberData.metaData?.educatorNoKids)
+            };
+            
+            const linkResult = await linkContactToCompany(email, companyResult.companyId, linkData);
+            
+            if (linkResult.success) {
+              console.log(`🔗 [${syncId}] Contact linked to company successfully`);
+            } else {
+              console.error(`❌ [${syncId}] Failed to link contact to company:`, linkResult.error);
+            }
+          } else {
+            console.error(`❌ [${syncId}] Failed to process company:`, companyResult.error);
+          }
+        } catch (error) {
+          console.error(`❌ [${syncId}] Error processing company:`, error);
+          // Continue with contact sync even if company fails
+        }
+      } else {
+        console.log(`⚠️ [${syncId}] No school ID found for company creation`);
+      }
+    }
+    
     // If no plans in webhook but contact exists with plan data, preserve it
     if (activePlans.length === 0 && existingContactData?.attributes?.PLAN_ID && existingContactData?.attributes?.PLAN_ID !== 'none') {
       console.log(`⚠️ [${syncId}] No plans in webhook but existing contact has plan data - preserving existing plan`);
@@ -721,73 +800,8 @@ export async function syncMemberToBrevo(memberData) {
       console.error(`❌ [${syncId}] Brevo sync failed for ${email}: ${contactResult.error}`);
       return { success: false, syncId, email, error: contactResult.error };
     }
-    
-    // Handle Company creation/update for educators and therapists with school data
-    if (shouldLinkToCompany(memberData)) {
-      const schoolId = getSchoolIdFromMember(memberData);
-      
-      if (schoolId) {
-        console.log(`🏢 [${syncId}] Processing company for contact ${email}`);
-        
-        // Prepare school data from member data
-        const schoolData = {
-          SCHOOL_PLACE_ID: schoolId,
-          SCHOOL_NAME: handleEmptyValue(memberData.customFields?.schoolName || 
-                       memberData.customFields?.['school-name'] ||
-                       memberData.metaData?.schoolName),
-          SCHOOL_CITY: handleEmptyValue(memberData.customFields?.city || 
-                       memberData.customFields?.['school-city'] ||
-                       memberData.metaData?.schoolCity),
-          SCHOOL_COUNTRY: handleEmptyValue(memberData.customFields?.country || 
-                          memberData.customFields?.['school-country'] ||
-                          memberData.metaData?.schoolCountry),
-          SCHOOL_PHONE: handleEmptyValue(memberData.customFields?.['school-phone'] ||
-                        memberData.metaData?.schoolPhone),
-          SCHOOL_WEBSITE: handleEmptyValue(memberData.customFields?.website ||
-                          memberData.customFields?.['school-website'] ||
-                          memberData.metaData?.schoolWebsite),
-          SCHOOL_STREET_ADDRESS: handleEmptyValue(memberData.customFields?.['street-address'] ||
-                                 memberData.metaData?.schoolStreetAddress),
-          SCHOOL_STATE_PROVINCE: handleEmptyValue(memberData.customFields?.state ||
-                                 memberData.customFields?.['school-state'] ||
-                                 memberData.metaData?.schoolState),
-          SCHOOL_POSTAL_CODE: handleEmptyValue(memberData.customFields?.zip ||
-                              memberData.customFields?.['school-zip'] ||
-                              memberData.metaData?.schoolZip),
-          SCHOOL_LATITUDE: handleEmptyValue(String(memberData.customFields?.latitude ||
-                           memberData.customFields?.['school-latitude'] ||
-                           memberData.metaData?.schoolLatitude || '')),
-          SCHOOL_LONGITUDE: handleEmptyValue(String(memberData.customFields?.longitude ||
-                            memberData.customFields?.['school-longitude'] ||
-                            memberData.metaData?.schoolLongitude || ''))
-        };
-        
-        // Create or update company
-        const companyResult = await createOrUpdateBrevoCompany(schoolData);
-        
-        if (companyResult.success) {
-          console.log(`✅ [${syncId}] Company processed successfully`);
-          
-          // Link contact to company
-          const linkData = {
-            EDUCATOR_ROLE: handleEmptyValue(memberData.customFields?.role || 
-                          memberData.customFields?.['educator-role'] ||
-                          memberData.metaData?.educatorRole),
-            IS_PRIMARY_CONTACT: memberData.customFields?.role?.toLowerCase().includes('principal') || false
-          };
-          
-          const linkResult = await linkContactToCompany(email, companyResult.companyId, linkData);
-          
-          if (linkResult.success) {
-            console.log(`✅ [${syncId}] Contact linked to company successfully`);
-          } else {
-            console.warn(`⚠️ [${syncId}] Failed to link contact to company: ${linkResult.error}`);
-          }
-        } else {
-          console.warn(`⚠️ [${syncId}] Failed to process company: ${companyResult.error}`);
-        }
-      }
-    }
+    // Company creation/update is now handled earlier in the function
+    // before plan processing to ensure it always executes
     
     console.log(`✅ [${syncId}] Brevo sync completed successfully for ${email}`);
     return { success: true, syncId, email, contactResult };
