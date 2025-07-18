@@ -1,5 +1,8 @@
 document.addEventListener('DOMContentLoaded', function() {
 
+    // Page refresh on load
+    window.location.reload();
+
     // --- Configuration ---
     const SURVEY_PARAM = 'survey';
     const SURVEY_VALUE = 'filled';
