@@ -1,29 +1,33 @@
-// Little Microphones - Educators Survey Validation & Redirect
-// Character validation and success redirect only
+// Little Microphones - Educators Survey Validation & Plan Assignment
+// Character validation, plan assignment, and success redirect
 
 (function() {
     'use strict';
     
     // Configuration
     const MIN_CHARACTERS = 500;
-    const SUCCESS_REDIRECT_URL = '/members/emotion-worlds?survey=completed&unlock=6months&confetti=true';
+    const SUCCESS_REDIRECT_URL = '/members/emotion-worlds?survey=filled';
     const REDIRECT_DELAY = 1500;
+    const PLAN_ID = 'pln_educators-free-promo-ebfw0xzj';
     
     const textareas = [
         {
             id: 'textarea-payments',
             counterId: 'char-payments',
-            fieldName: 'payments'
+            fieldName: 'payments',
+            memberstackField: 'PAYMENTS'
         },
         {
             id: 'textarea-resources', 
             counterId: 'char-resources',
-            fieldName: 'resources'
+            fieldName: 'resources',
+            memberstackField: 'RESOURCES'
         },
         {
             id: 'textarea-discover',
             counterId: 'char-discover', 
-            fieldName: 'discover'
+            fieldName: 'discover',
+            memberstackField: 'DISCOVER'
         }
     ];
     
@@ -88,24 +92,163 @@
             }
         }
         
+        // Function to save custom fields to Memberstack
+        async function saveCustomFields() {
+            try {
+                console.log('💾 Saving custom fields to Memberstack...');
+                
+                if (!window.$memberstackDom) {
+                    console.log('❌ Memberstack DOM not available');
+                    return false;
+                }
+                
+                const member = await window.$memberstackDom.getCurrentMember();
+                if (!member?.data) {
+                    console.log('❌ No member data available');
+                    return false;
+                }
+                
+                const customFields = {};
+                
+                // Collect data from textareas
+                textareas.forEach(textareaConfig => {
+                    const textarea = document.getElementById(textareaConfig.id);
+                    if (textarea && textarea.value.trim()) {
+                        customFields[textareaConfig.memberstackField] = textarea.value.trim();
+                    }
+                });
+                
+                console.log('📝 Custom fields to save:', customFields);
+                
+                // Save custom fields using Memberstack API
+                const updateResult = await window.$memberstackDom.updateMember({
+                    customFields: customFields
+                });
+                
+                console.log('✅ Custom fields saved successfully:', updateResult);
+                return true;
+                
+            } catch (error) {
+                console.error('❌ Error saving custom fields:', error);
+                return false;
+            }
+        }
+        
+        // Function to assign plan to member
+        async function assignPlan() {
+            try {
+                console.log('🎯 Assigning plan to member...');
+                
+                if (!window.$memberstackDom) {
+                    console.log('❌ Memberstack DOM not available');
+                    return false;
+                }
+                
+                // Multiple approaches for plan assignment
+                try {
+                    // Method 1: Direct plan purchase
+                    const purchaseResult = await window.$memberstackDom.purchasePlan({
+                        planId: PLAN_ID
+                    });
+                    console.log('✅ Plan assigned via purchase:', purchaseResult);
+                    return true;
+                } catch (purchaseError) {
+                    console.log('⚠️ Purchase method failed:', purchaseError);
+                    
+                    // Method 2: Using member update
+                    try {
+                        const member = await window.$memberstackDom.getCurrentMember();
+                        if (member?.data) {
+                            const updateResult = await window.$memberstackDom.updateMember({
+                                planConnections: [{
+                                    planId: PLAN_ID,
+                                    status: 'ACTIVE'
+                                }]
+                            });
+                            console.log('✅ Plan assigned via update:', updateResult);
+                            return true;
+                        }
+                    } catch (updateError) {
+                        console.log('⚠️ Update method failed:', updateError);
+                    }
+                    
+                    // Method 3: Direct API call
+                    try {
+                        const response = await fetch(`https://api.memberstack.com/v1/members/${member.data.id}/plans`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${window.$memberstackDom.config.publicKey}`
+                            },
+                            body: JSON.stringify({
+                                planId: PLAN_ID
+                            })
+                        });
+                        
+                        if (response.ok) {
+                            console.log('✅ Plan assigned via API call');
+                            return true;
+                        }
+                    } catch (apiError) {
+                        console.log('⚠️ API method failed:', apiError);
+                    }
+                }
+                
+                return false;
+                
+            } catch (error) {
+                console.error('❌ Error assigning plan:', error);
+                return false;
+            }
+        }
+        
         // Function to handle form submission
-        function handleFormSubmission(event) {
+        async function handleFormSubmission(event) {
             if (isSubmitting) return;
             
             console.log('📝 Form submitted - processing...');
             isSubmitting = true;
             
-            // Don't prevent default - let Memberstack handle the form submission
             // Update button state to show processing
             submitButton.disabled = true;
             submitButton.textContent = "Processing...";
             submitButton.style.backgroundColor = "#96c0fe";
             
-            // Redirect to success page after delay
-            setTimeout(() => {
-                console.log('🎉 Redirecting to success page with confetti...');
-                window.location.href = SUCCESS_REDIRECT_URL;
-            }, REDIRECT_DELAY);
+            // Process the submission
+            try {
+                // Save custom fields
+                const fieldsResult = await saveCustomFields();
+                if (fieldsResult) {
+                    console.log('✅ Custom fields saved successfully');
+                }
+                
+                // Assign plan
+                const planResult = await assignPlan();
+                if (planResult) {
+                    console.log('✅ Plan assigned successfully');
+                }
+                
+                // Redirect to success page after delay
+                setTimeout(() => {
+                    console.log('🎉 Redirecting to success page...');
+                    window.location.href = SUCCESS_REDIRECT_URL;
+                }, REDIRECT_DELAY);
+                
+            } catch (error) {
+                console.error('❌ Error during submission:', error);
+                
+                // Reset button state on error
+                submitButton.disabled = false;
+                submitButton.textContent = originalButtonText;
+                submitButton.style.backgroundColor = "";
+                isSubmitting = false;
+                
+                // Still redirect on error - better UX
+                setTimeout(() => {
+                    console.log('🎉 Redirecting to success page (despite errors)...');
+                    window.location.href = SUCCESS_REDIRECT_URL;
+                }, REDIRECT_DELAY);
+            }
         }
         
         // Add event listeners to each textarea
@@ -134,11 +277,17 @@
         // Add form submission handler
         const form = submitButton.closest('form');
         if (form) {
-            form.addEventListener('submit', handleFormSubmission);
+            form.addEventListener('submit', function(event) {
+                event.preventDefault(); // Prevent default form submission
+                handleFormSubmission(event);
+            });
             console.log('📋 Form submission handler added');
         } else {
             // Fallback: add click handler to button
-            submitButton.addEventListener('click', handleFormSubmission);
+            submitButton.addEventListener('click', function(event) {
+                event.preventDefault();
+                handleFormSubmission(event);
+            });
             console.log('📋 Button click handler added');
         }
         
