@@ -83,30 +83,29 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     /**
-     * Save survey data to Memberstack
+     * Save survey data to Memberstack (via form submission)
      */
     const saveSurveyToMemberstack = async (surveyData) => {
         try {
-            console.log('[Educators Survey] Saving to Memberstack:', surveyData);
+            console.log('[Educators Survey] Saving to Memberstack via form submission');
             
-            if (!window.MemberStack) {
-                throw new Error('MemberStack not available');
-            }
+            // Find form fields and populate them
+            const paymentsField = document.querySelector('[data-ms-member="payments"]') || 
+                                 document.querySelector('input[name="payments"]');
+            const resourcesField = document.querySelector('[data-ms-member="resources"]') || 
+                                  document.querySelector('input[name="resources"]');
+            const discoverField = document.querySelector('[data-ms-member="discover"]') || 
+                                 document.querySelector('input[name="discover"]');
 
-            // Update member custom fields
-            await window.MemberStack.updateMember({
-                customFields: {
-                    'payments': surveyData.payments,
-                    'resources': surveyData.resources,
-                    'discover': surveyData.discover
-                }
-            });
+            if (paymentsField) paymentsField.value = surveyData.payments;
+            if (resourcesField) resourcesField.value = surveyData.resources;
+            if (discoverField) discoverField.value = surveyData.discover;
 
-            console.log('[Educators Survey] ✅ Saved to Memberstack');
+            console.log('[Educators Survey] ✅ Form fields populated for Memberstack');
             return true;
 
         } catch (error) {
-            console.error('[Educators Survey] ❌ Error saving to Memberstack:', error);
+            console.error('[Educators Survey] ❌ Error preparing Memberstack data:', error);
             return false;
         }
     };
@@ -152,13 +151,10 @@ document.addEventListener('DOMContentLoaded', function() {
      * Handle form submission
      */
     const handleFormSubmission = async (event) => {
-        event.preventDefault();
-        
         console.log('[Educators Survey] Form submitted');
         
-        // Disable button during processing
-        surveyButton.disabled = true;
-        surveyButton.textContent = "Processing...";
+        // Don't prevent default - let Memberstack handle the form submission
+        // Just prepare the data and sync with Brevo
         
         try {
             // Collect survey data
@@ -170,39 +166,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
             console.log('[Educators Survey] Survey data collected:', surveyData);
 
-            // Save to Memberstack
-            const memberstackSaved = await saveSurveyToMemberstack(surveyData);
+            // Prepare data for Memberstack (populate hidden fields)
+            await saveSurveyToMemberstack(surveyData);
             
-            if (memberstackSaved) {
-                // Sync with Brevo
+            // Sync with Brevo in background
+            setTimeout(async () => {
                 await syncSurveyWithBrevo(surveyData);
-                
-                // Show success
-                surveyButton.textContent = "✅ Survey Completed!";
-                surveyButton.style.backgroundColor = SUCCESS_COLOR;
-                
-                // Optional: redirect after success
-                setTimeout(() => {
-                    window.location.href = "/members/emotion-worlds";
-                }, 2000);
-                
-            } else {
-                throw new Error('Failed to save to Memberstack');
-            }
+            }, 1000);
+            
+            // Show processing state
+            surveyButton.disabled = true;
+            surveyButton.textContent = "Processing...";
+            
+            // Let Memberstack handle the actual form submission
+            // The form will redirect naturally after Memberstack processes it
 
         } catch (error) {
             console.error('[Educators Survey] ❌ Error processing form:', error);
             
-            // Show error state
-            surveyButton.textContent = "❌ Error - Try Again";
+            // Show error state but don't prevent form submission
+            surveyButton.textContent = "❌ Error - But form submitted";
             surveyButton.style.backgroundColor = "#FF6B6B";
-            
-            // Re-enable button after 3 seconds
-            setTimeout(() => {
-                surveyButton.disabled = false;
-                surveyButton.textContent = originalButtonText;
-                surveyButton.style.backgroundColor = "";
-            }, 3000);
         }
     };
 
