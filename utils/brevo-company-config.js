@@ -85,6 +85,16 @@ export function shouldLinkToCompany(memberData) {
 
 // Helper to extract school ID from member data
 export function getSchoolIdFromMember(memberData) {
+  // First try to use school-place-id from Memberstack
+  const schoolPlaceId = memberData.customFields?.['school-place-id'] || 
+                       memberData.metaData?.schoolPlaceId ||
+                       memberData.customFields?.schoolPlaceId;
+  
+  if (schoolPlaceId) {
+    return schoolPlaceId;
+  }
+  
+  // Fallback to other IDs or generate from school name
   return (
     memberData.metaData?.schoolId || 
     memberData.customFields?.['school-id'] ||
