@@ -52,6 +52,11 @@ export async function makeBrevoRequest(endpoint, method = 'GET', data = null) {
   const fullUrl = BREVO_API_BASE + endpoint;
   const url = new URL(fullUrl);
   
+  console.log(`🌐 Brevo API Request: ${method} ${fullUrl}`);
+  if (data) {
+    console.log(`📤 Request body:`, JSON.stringify(data, null, 2));
+  }
+  
   const options = {
     hostname: url.hostname,
     port: url.port || 443,
@@ -78,21 +83,30 @@ export async function makeBrevoRequest(endpoint, method = 'GET', data = null) {
       });
       
       res.on('end', () => {
+        console.log(`📥 Response status: ${res.statusCode}`);
+        console.log(`📥 Response data:`, responseData);
+        
         try {
           const jsonResponse = responseData ? JSON.parse(responseData) : {};
           
           if (res.statusCode >= 200 && res.statusCode < 300) {
             resolve(jsonResponse);
           } else {
-            reject(new Error(`HTTP ${res.statusCode}: ${jsonResponse.message || 'Request failed'}`));
+            const errorMsg = `HTTP ${res.statusCode}: ${jsonResponse.message || 'Request failed'}`;
+            console.error(`❌ Brevo API error: ${errorMsg}`);
+            console.error(`❌ Full error response:`, responseData);
+            reject(new Error(errorMsg));
           }
         } catch (parseError) {
+          console.error(`❌ Failed to parse response:`, parseError.message);
+          console.error(`❌ Raw response:`, responseData);
           reject(new Error(`Failed to parse response: ${parseError.message}`));
         }
       });
     });
 
     req.on('error', (error) => {
+      console.error(`❌ Request error:`, error);
       reject(new Error(`Request failed: ${error.message}`));
     });
 
@@ -898,41 +912,55 @@ export async function createOrUpdateBrevoCompany(schoolData) {
   }
   
   console.log(`🏢 [${syncId}] Creating/updating company: ${schoolData.SCHOOL_NAME} (ID: ${schoolId})`);
+  console.log(`🏢 [${syncId}] Full school data:`, JSON.stringify(schoolData, null, 2));
   
   try {
-    // Check if company exists
-    const existingCompany = await getBrevoCompany(schoolId);
-    
     // Prepare company attributes
     const companyAttributes = getCompanyAttributes(schoolData);
+    console.log(`📋 [${syncId}] Company attributes:`, JSON.stringify(companyAttributes, null, 2));
     
-    if (existingCompany) {
-      // Update existing company
-      console.log(`📝 [${syncId}] Updating existing company ${schoolId}`);
-      
-      const result = await makeBrevoRequest(`/companies/${schoolId}`, 'PATCH', {
-        attributes: companyAttributes
-      });
-      
-      console.log(`✅ [${syncId}] Successfully updated company ${schoolId}`);
-      return { success: true, syncId, companyId: schoolId, action: 'updated', data: result };
-      
-    } else {
-      // Create new company
-      console.log(`➕ [${syncId}] Creating new company ${schoolId}`);
-      
-      const result = await makeBrevoRequest('/companies', 'POST', {
-        name: companyAttributes.name || schoolData.SCHOOL_NAME,
-        attributes: companyAttributes,
-        countryCode: schoolData.SCHOOL_COUNTRY || 'US'
-      });
+    // Try to create company first
+    console.log(`➕ [${syncId}] Attempting to create company ${schoolId}`);
+    
+    const requestBody = {
+      name: companyAttributes.name || schoolData.SCHOOL_NAME || 'Unknown School'
+    };
+    console.log(`📋 [${syncId}] Company creation request:`, JSON.stringify(requestBody, null, 2));
+    
+    try {
+      const result = await makeBrevoRequest('/companies', 'POST', requestBody);
       
       console.log(`✅ [${syncId}] Successfully created company ${schoolId}`);
+      console.log(`📋 [${syncId}] Company creation response:`, JSON.stringify(result, null, 2));
       return { success: true, syncId, companyId: schoolId, action: 'created', data: result };
+      
+    } catch (createError) {
+      // If creation fails with 409 (conflict), try to update
+      if (createError.message.includes('409') || createError.message.includes('already exists')) {
+        console.log(`📝 [${syncId}] Company exists, attempting to update ${schoolId}`);
+        
+        try {
+          const updateResult = await makeBrevoRequest(`/companies/${schoolId}`, 'PATCH', companyAttributes);
+          
+          console.log(`✅ [${syncId}] Successfully updated company ${schoolId}`);
+          return { success: true, syncId, companyId: schoolId, action: 'updated', data: updateResult };
+          
+        } catch (updateError) {
+          console.error(`❌ [${syncId}] Update also failed:`, updateError.message);
+          throw updateError;
+        }
+      }
+      
+      // If it's not a conflict error, throw it
+      throw createError;
     }
     
   } catch (error) {
     console.error(`❌ [${syncId}] Error creating/updating company:`, error.message);
+    console.error(`❌ [${syncId}] Error details:`, error.stack);
+    if (error.response) {
+      console.error(`❌ [${syncId}] Error response:`, error.response);
+    }
     return { success: false, syncId, error: error.message };
   }
 }
@@ -1024,7 +1052,7 @@ export async function updateCompanyMetrics(companyId, metrics) {
       }
     };
     
-    const result = await makeBrevoRequest(`/companies/${companyId}`, 'PATCH', updateData);
+    const result = await makeBrevoRequest(`/crm/companies/${companyId}`, 'PATCH', updateData);
     
     console.log(`✅ [${syncId}] Successfully updated company metrics`);
     return { success: true, syncId, companyId, result };
