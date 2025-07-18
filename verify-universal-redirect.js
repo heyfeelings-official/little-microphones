@@ -1,23 +1,23 @@
 /**
  * Parent-Only Verify Page Script
  * 
- * PURPOSE: Handle email verification redirects ONLY for parents with ShareID
+ * PURPOSE: Show appropriate verification messages for different user types
  * USAGE: <script src="https://little-microphones.vercel.app/verify-universal-redirect.js"></script>
  * 
  * FEATURES:
  * - Detect if user is registering as parent (has ShareID in localStorage)
- * - Handle post-verification redirects ONLY for parents
- * - Leave native Memberstack redirects for teachers, therapists, and clean registrations
+ * - Show appropriate message for parents vs other users
+ * - DO NOT handle redirects - let the main little-microphones-redirect.js handle that
  * 
- * DEPENDENCIES: localStorage, Memberstack
- * VERSION: 2.0.0
+ * DEPENDENCIES: localStorage
+ * VERSION: 2.1.0
  * LAST UPDATED: January 2025
  */
 
 (function() {
     'use strict';
     
-    console.log('[Parent Verify] Script loaded');
+    console.log('[Parent Verify] Script v2.1.0 loaded');
     
     /**
      * Get saved redirect data from localStorage
@@ -45,61 +45,86 @@
     }
     
     /**
-     * Handle parent redirect to ShareID
+     * Show appropriate verification message based on user type
      */
-    function handleParentRedirect(shareId) {
-        console.log('[Parent Verify] Redirecting parent to ShareID:', shareId);
+    function showVerificationMessage() {
+        const savedData = getSavedRedirectData();
+        const isParentWithShareId = savedData && savedData.shareId;
         
-        // Clean up localStorage
-        localStorage.removeItem('lm_parent_redirect');
+        if (isParentWithShareId) {
+            console.log('[Parent Verify] Parent registration detected, ShareID:', savedData.shareId);
+            showParentMessage();
+        } else {
+            console.log('[Parent Verify] No parent ShareID found - showing standard message');
+            showStandardMessage();
+        }
+    }
+    
+    /**
+     * Show message for parents
+     */
+    function showParentMessage() {
+        // Try to find message container and update it
+        const messageContainer = document.querySelector('.ms-verification-message') || 
+                                document.querySelector('.verification-message') ||
+                                document.querySelector('.message-container');
         
-        // Redirect to ShareID
-        const redirectUrl = `/members/share/${shareId}`;
-        console.log('[Parent Verify] Redirecting to:', redirectUrl);
+        if (messageContainer) {
+            messageContainer.innerHTML = `
+                <div style="text-align: center; padding: 20px;">
+                    <h3 style="color: #1B6DE8; margin-bottom: 15px;">
+                        👨‍👩‍👧‍👦 Sprawdź swoją skrzynkę pocztową!
+                    </h3>
+                    <p style="font-size: 16px; line-height: 1.5; margin-bottom: 15px;">
+                        Wysłaliśmy Ci email z linkiem weryfikacyjnym.
+                    </p>
+                    <p style="font-size: 16px; line-height: 1.5; margin-bottom: 15px;">
+                        Kliknij w link, aby uzyskać dostęp do programu.
+                    </p>
+                    <p style="font-size: 14px; color: #666; font-style: italic;">
+                        💡 Po weryfikacji zostaniesz automatycznie przekierowany z powrotem do programu
+                    </p>
+                </div>
+            `;
+        }
+    }
+    
+    /**
+     * Show standard message for teachers/therapists
+     */
+    function showStandardMessage() {
+        const messageContainer = document.querySelector('.ms-verification-message') || 
+                                document.querySelector('.verification-message') ||
+                                document.querySelector('.message-container');
         
-        // Small delay to ensure verification is complete
-        setTimeout(() => {
-            window.location.href = redirectUrl;
-        }, 1000);
+        if (messageContainer) {
+            messageContainer.innerHTML = `
+                <div style="text-align: center; padding: 20px;">
+                    <h3 style="color: #1B6DE8; margin-bottom: 15px;">
+                        📧 Sprawdź swoją skrzynkę pocztową!
+                    </h3>
+                    <p style="font-size: 16px; line-height: 1.5; margin-bottom: 15px;">
+                        Wysłaliśmy Ci email z linkiem weryfikacyjnym.
+                    </p>
+                    <p style="font-size: 16px; line-height: 1.5;">
+                        Kliknij w link, aby dokończyć rejestrację.
+                    </p>
+                </div>
+            `;
+        }
     }
     
     /**
      * Initialize verification page
      */
     function initVerificationPage() {
-        // Check if this is a parent registration with ShareID
-        const savedData = getSavedRedirectData();
-        const isParentWithShareId = savedData && savedData.shareId;
-        
-        if (isParentWithShareId) {
-            console.log('[Parent Verify] Parent registration detected, ShareID:', savedData.shareId);
-            
-            // Wait for Memberstack to complete verification
-            if (window.MemberStack) {
-                window.MemberStack.onReady.then(() => {
-                    // Listen for successful verification
-                    window.MemberStack.on('member:verified', () => {
-                        console.log('[Parent Verify] Member verified, redirecting to ShareID');
-                        handleParentRedirect(savedData.shareId);
-                    });
-                });
-            } else {
-                // Fallback: wait for DOM and then redirect
-                if (document.readyState === 'loading') {
-                    document.addEventListener('DOMContentLoaded', () => {
-                        setTimeout(() => {
-                            handleParentRedirect(savedData.shareId);
-                        }, 2000);
-                    });
-                } else {
-                    setTimeout(() => {
-                        handleParentRedirect(savedData.shareId);
-                    }, 2000);
-                }
-            }
+        // Wait for DOM to load
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                setTimeout(showVerificationMessage, 500);
+            });
         } else {
-            console.log('[Parent Verify] No parent ShareID found - using native Memberstack redirects');
-            // Do nothing - let Memberstack handle native redirects for teachers/therapists
+            setTimeout(showVerificationMessage, 500);
         }
     }
     
