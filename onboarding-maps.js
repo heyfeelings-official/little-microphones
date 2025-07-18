@@ -2,31 +2,9 @@
 let map;
 let marker;
 let autocomplete;
-let mapInitialized = false;
 
-// Wait for DOM and initialize map
-function waitForMapContainer(retries = 10) {
-  console.log("Checking for map container...");
-  
-  const mapContainer = document.getElementById("map-container");
-  if (mapContainer && !mapInitialized) {
-    console.log("Map container found, initializing map");
-    initMap();
-  } else if (retries > 0) {
-    console.log(`Map container not found, retrying... (${retries} attempts left)`);
-    setTimeout(() => waitForMapContainer(retries - 1), 500);
-  } else {
-    console.error("Map container not found after all retries");
-  }
-}
-
-// Initialize the map
-function initMap() {
-  if (mapInitialized) {
-    console.log("Map already initialized");
-    return;
-  }
-  
+// Make initMap globally available for Google Maps callback
+window.initMap = function() {
   console.log("Map initialization started");
   
   // Get map container
@@ -36,116 +14,108 @@ function initMap() {
     return;
   }
   
-  try {
-    // Create map with all controls disabled
-    map = new google.maps.Map(mapContainer, {
-      center: { lat: 40.7128, lng: -74.0060 },
-      zoom: 12,
-      // Disable all controls
-      mapTypeControl: false,
-      fullscreenControl: false,
-      zoomControl: false,
-      streetViewControl: false,
-      rotateControl: false,
-      scaleControl: false,
-      mapTypeId: google.maps.MapTypeId.ROADMAP,
-      // Set styles to hide non-education POIs on the map
-      styles: [
-        {
-          featureType: "poi",
-          elementType: "labels",
-          stylers: [{ visibility: "off" }]
-        },
-        {
-          featureType: "poi.school",
-          elementType: "labels",
-          stylers: [{ visibility: "on" }]
-        }
-      ]
-    });
+  // Create map with all controls disabled
+  map = new google.maps.Map(mapContainer, {
+    center: { lat: 40.7128, lng: -74.0060 },
+    zoom: 12,
+    // Disable all controls
+    mapTypeControl: false,
+    fullscreenControl: false,
+    zoomControl: false,
+    streetViewControl: false,
+    rotateControl: false,
+    scaleControl: false,
+    mapTypeId: 'roadmap', // Use string instead of constant
+    // Set styles to hide non-education POIs on the map
+    styles: [
+      {
+        featureType: "poi",
+        elementType: "labels",
+        stylers: [{ visibility: "off" }]
+      },
+      {
+        featureType: "poi.school",
+        elementType: "labels",
+        stylers: [{ visibility: "on" }]
+      }
+    ]
+  });
+  
+  // Create marker
+  marker = new google.maps.Marker({
+    map: map,
+    visible: false
+  });
+  
+  console.log("Map initialized successfully");
+  
+  // Initialize autocomplete
+  initAutocomplete();
+  
+  // Add click listener to map
+  map.addListener("click", function(event) {
+    // Set marker to clicked position
+    marker.setPosition(event.latLng);
+    marker.setVisible(true);
     
-    // Create marker
-    marker = new google.maps.Marker({
-      map: map,
-      visible: false
-    });
-    
-    // Mark as initialized
-    mapInitialized = true;
-    console.log("Map initialized successfully");
-    
-    // Initialize autocomplete after map is ready
-    initAutocomplete();
-    
-    // Add click listener to map
-    map.addListener("click", function(event) {
-      // Set marker to clicked position
-      marker.setPosition(event.latLng);
-      marker.setVisible(true);
-      
-      // Use Geocoder to get address from coordinates
-      const geocoder = new google.maps.Geocoder();
-      geocoder.geocode({ location: event.latLng }, function(results, status) {
-        if (status === "OK" && results[0]) {
-          // Get place details to update all fields
-          const placesService = new google.maps.places.PlacesService(map);
-          placesService.getDetails(
-            {
-              placeId: results[0].place_id,
-              fields: [
-                'place_id',
-                'geometry',
-                'name',
-                'formatted_address',
-                'address_components',
-                'formatted_phone_number',
-                'website',
-                'types',
-                'business_status',
-                'rating'
-              ]
-            }, 
-            function(place, status) {
-              if (status === "OK" && place) {
-                // Check if this is a child education establishment
-                const isChildEducation = isChildEducationPlace(place);
-                
-                // Update input field with place name
-                const input = document.getElementById("school-search");
-                if (input) {
-                  input.value = place.name || place.formatted_address || results[0].formatted_address;
-                }
-                
-                // Use the shared function to populate fields
-                populateFields(place, isChildEducation);
-              } else {
-                // Fallback if place details not available
-                const input = document.getElementById("school-search");
-                if (input) {
-                  input.value = results[0].formatted_address;
-                }
-                
-                // Populate with basic information
-                updateFieldIfExists("address-result", results[0].formatted_address || "");
-                
-                // Extract and populate address components
-                populateAddressComponents(results[0].address_components || []);
-                
-                // Set coordinates
-                updateFieldIfExists("latitude", event.latLng.lat());
-                updateFieldIfExists("longitude", event.latLng.lng());
+    // Use Geocoder to get address from coordinates
+    const geocoder = new google.maps.Geocoder();
+    geocoder.geocode({ location: event.latLng }, function(results, status) {
+      if (status === "OK" && results[0]) {
+        // Get place details to update all fields
+        const placesService = new google.maps.places.PlacesService(map);
+        placesService.getDetails(
+          {
+            placeId: results[0].place_id,
+            fields: [
+              'place_id',
+              'geometry',
+              'name',
+              'formatted_address',
+              'address_components',
+              'formatted_phone_number',
+              'website',
+              'types',
+              'business_status',
+              'rating'
+            ]
+          }, 
+          function(place, status) {
+            if (status === "OK" && place) {
+              // Check if this is a child education establishment
+              const isChildEducation = isChildEducationPlace(place);
+              
+              // Update input field with place name
+              const input = document.getElementById("school-search");
+              if (input) {
+                input.value = place.name || place.formatted_address || results[0].formatted_address;
               }
+              
+              // Use the shared function to populate fields
+              populateFields(place, isChildEducation);
+            } else {
+              // Fallback if place details not available
+              const input = document.getElementById("school-search");
+              if (input) {
+                input.value = results[0].formatted_address;
+              }
+              
+              // Populate with basic information
+              updateFieldIfExists("address-result", results[0].formatted_address || "");
+              
+              // Extract and populate address components
+              populateAddressComponents(results[0].address_components || []);
+              
+              // Set coordinates
+              updateFieldIfExists("latitude", event.latLng.lat());
+              updateFieldIfExists("longitude", event.latLng.lng());
             }
-          );
-        }
-      });
+          }
+        );
+      }
     });
-    
-  } catch (error) {
-    console.error("Error initializing map:", error);
-    mapInitialized = false;
-  }
-}
+  });
+};
 
 // Initialize autocomplete
 function initAutocomplete() {
@@ -312,37 +282,13 @@ function updateFieldIfExists(id, value) {
   if (element) element.value = value;
 }
 
-// Modern way to load Google Maps with loading=async
-function loadGoogleMapsAPI() {
-  // Check if already loaded
-  if (window.google && window.google.maps) {
-    console.log("Google Maps already loaded");
-    waitForMapContainer();
-    return;
-  }
-  
-  // Create script element with loading=async pattern
+// Load Google Maps API - Simple approach that works
+// Check if script already exists
+const existingScript = document.querySelector('script[src*="maps.googleapis.com"]');
+if (!existingScript) {
   const script = document.createElement('script');
-  script.src = 'https://maps.googleapis.com/maps/api/js?key=AIzaSyCS2HPSaZanTmfQ79u84wuOHCpuakJNxYs&libraries=places&loading=async';
+  script.src = 'https://maps.googleapis.com/maps/api/js?key=AIzaSyCS2HPSaZanTmfQ79u84wuOHCpuakJNxYs&libraries=places&callback=initMap';
   script.async = true;
   script.defer = true;
-  
-  // Use Promise-based loading
-  script.onload = () => {
-    console.log("Google Maps API loaded");
-    waitForMapContainer();
-  };
-  
-  script.onerror = () => {
-    console.error("Failed to load Google Maps API");
-  };
-  
   document.head.appendChild(script);
-}
-
-// Initialize when DOM is ready
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', loadGoogleMapsAPI);
-} else {
-  loadGoogleMapsAPI();
 } 
