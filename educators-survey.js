@@ -138,66 +138,48 @@
         async function assignPlan() {
             try {
                 console.log('🎯 Assigning plan to member...');
-                
-                if (!window.$memberstackDom) {
-                    console.log('❌ Memberstack DOM not available');
+
+                const memberstack = window.$memberstackDom || window.memberstack;
+
+                if (!memberstack) {
+                    console.error('❌ Memberstack instance (window.$memberstackDom or window.memberstack) not found.');
                     return false;
                 }
                 
-                // Multiple approaches for plan assignment
-                try {
-                    // Method 1: Direct plan purchase
-                    const purchaseResult = await window.$memberstackDom.purchasePlan({
-                        planId: PLAN_ID
-                    });
-                    console.log('✅ Plan assigned via purchase:', purchaseResult);
-                    return true;
-                } catch (purchaseError) {
-                    console.log('⚠️ Purchase method failed:', purchaseError);
-                    
-                    // Method 2: Using member update
-                    try {
-                        const member = await window.$memberstackDom.getCurrentMember();
-                        if (member?.data) {
-                            const updateResult = await window.$memberstackDom.updateMember({
-                                planConnections: [{
-                                    planId: PLAN_ID,
-                                    status: 'ACTIVE'
-                                }]
-                            });
-                            console.log('✅ Plan assigned via update:', updateResult);
-                            return true;
-                        }
-                    } catch (updateError) {
-                        console.log('⚠️ Update method failed:', updateError);
-                    }
-                    
-                    // Method 3: Direct API call
-                    try {
-                        const response = await fetch(`https://api.memberstack.com/v1/members/${member.data.id}/plans`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${window.$memberstackDom.config.publicKey}`
-                            },
-                            body: JSON.stringify({
-                                planId: PLAN_ID
-                            })
-                        });
-                        
-                        if (response.ok) {
-                            console.log('✅ Plan assigned via API call');
-                            return true;
-                        }
-                    } catch (apiError) {
-                        console.log('⚠️ API method failed:', apiError);
-                    }
+                if (typeof memberstack.addPlan !== 'function') {
+                    console.error('❌ memberstack.addPlan is not a function. Check Memberstack script version and initialization.');
+                    return false;
                 }
                 
-                return false;
+                console.log(`✅ Attempting to add free plan: ${PLAN_ID}`);
+                
+                const result = await memberstack.addPlan({ 
+                    planId: PLAN_ID 
+                });
+                
+                if (result.data?.planConnections) {
+                    console.log('✅ Plan assigned successfully via addPlan:', JSON.stringify(result.data.planConnections, null, 2));
+                    // Verify the plan is in the connections
+                    const planAdded = result.data.planConnections.some(p => p.planId === PLAN_ID && p.active);
+                    if (planAdded) {
+                        console.log('🎉 Verification successful: Plan is active in connections.');
+                        return true;
+                    } else {
+                        console.error('❌ Verification failed: Plan not found or not active in returned connections.');
+                        return false;
+                    }
+                } else {
+                    console.error('❌ addPlan method did not return expected data structure. Result:', result);
+                    return false;
+                }
                 
             } catch (error) {
-                console.error('❌ Error assigning plan:', error);
+                console.error('❌ Critical error assigning plan:', error);
+                
+                if (error.response) {
+                    console.error('Error response data:', error.response.data);
+                }
+                
                 return false;
             }
         }
@@ -216,19 +198,28 @@
             
             // Process the submission
             try {
-                // Save custom fields
+                // Save custom fields first
                 const fieldsResult = await saveCustomFields();
-                if (fieldsResult) {
-                    console.log('✅ Custom fields saved successfully');
+                if (!fieldsResult) {
+                    console.warn('⚠️ Could not save custom fields, but proceeding to plan assignment.');
+                } else {
+                    console.log('✅ Custom fields saved successfully.');
                 }
                 
-                // Assign plan
+                // Then assign plan
                 const planResult = await assignPlan();
-                if (planResult) {
-                    console.log('✅ Plan assigned successfully');
+                if (!planResult) {
+                     console.error('❌ Plan assignment failed. Check previous logs for details.');
+                     // Optional: Stop redirect if plan assignment is critical
+                     // isSubmitting = false;
+                     // submitButton.disabled = false;
+                     // submitButton.textContent = "Try Again";
+                     // return;
+                } else {
+                    console.log('✅ Plan assigned successfully.');
                 }
                 
-                // Redirect to success page after delay
+                // Redirect to success page after delay, even if plan assignment fails to avoid user confusion
                 setTimeout(() => {
                     console.log('🎉 Redirecting to success page...');
                     window.location.href = SUCCESS_REDIRECT_URL;
