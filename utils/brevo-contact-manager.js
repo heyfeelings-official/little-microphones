@@ -1093,12 +1093,12 @@ export async function linkContactToCompany(email, companyId, linkData = {}) {
     
     // Use the proper Brevo endpoint to link contact to company
     const linkBody = {
-      link_contact_ids: [contactId]  // Brevo API uses snake_case
+      linkContactIds: [contactId]  // Changed from link_contact_ids to linkContactIds (camelCase)
     };
     
     console.log(`📋 [${syncId}] Link request body:`, JSON.stringify(linkBody, null, 2));
     
-    const result = await makeBrevoRequest(`/companies/${companyId}/link-unlink`, 'PATCH', linkBody);
+    const result = await makeBrevoRequest(`/companies/link-unlink/${companyId}`, 'PATCH', linkBody);
     
     console.log(`✅ [${syncId}] Successfully linked contact ${email} (ID: ${contactId}) to company ${companyId}`);
     
