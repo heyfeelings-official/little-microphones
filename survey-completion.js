@@ -12,14 +12,14 @@
  * - No toast notifications
  * - Keep DIV with ID "survey-filled" visible
  * 
- * VERSION: 1.0.7
+ * VERSION: 1.0.8
  * LAST UPDATED: January 2025
  */
 
 (function() {
     'use strict';
     
-    console.log('[Survey Completion] Script v1.0.7 loaded');
+    console.log('[Survey Completion] Script v1.0.8 loaded');
     
     /**
      * Check if we're coming from survey completion
@@ -184,14 +184,30 @@
                 element.style.cursor = 'pointer';
             });
             
-            // Hide trial messages
+            // Hide trial messages BUT keep .grid-extra-card-wrapper .green visible
             const trialElements = document.querySelectorAll('[class*="trial"], [class*="upgrade"], .trial-message, .upgrade-message');
             trialElements.forEach(element => {
+                // Skip elements with class "green" inside .grid-extra-card-wrapper
+                if (element.classList.contains('green') && element.closest('.grid-extra-card-wrapper')) {
+                    console.log('🎯 Keeping .grid-extra-card-wrapper .green visible');
+                    return;
+                }
+                
                 if (element.textContent.toLowerCase().includes('trial') || 
                     element.textContent.toLowerCase().includes('upgrade') ||
                     element.textContent.toLowerCase().includes('free year')) {
                     element.style.display = 'none';
                 }
+            });
+            
+            // Ensure .grid-extra-card-wrapper .green is visible
+            const greenCardElements = document.querySelectorAll('.grid-extra-card-wrapper .green');
+            greenCardElements.forEach(element => {
+                element.style.display = 'block';
+                element.style.opacity = '1';
+                element.style.pointerEvents = 'auto';
+                element.style.filter = 'none';
+                console.log('✅ Made .grid-extra-card-wrapper .green visible');
             });
             
             // DO NOT HIDE DIV WITH ID "survey-filled" - IT MUST STAY VISIBLE
