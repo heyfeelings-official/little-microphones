@@ -35,17 +35,17 @@ export const BREVO_COMPANY_ATTRIBUTES = {
   TOTAL_CLASSES: 'number',           // Total number of classes
   
   // System Information
-  SCHOOL_ID: 'string',               // Unique school identifier (critical for linking, stored as text)
+  SCHOOL_PLACE_ID: 'string',         // Google Places ID for school (critical for linking, stored as text)
   REGISTRATION_DATE: 'date'          // First registration date
 };
 
 // Company-Contact link configuration
 export const COMPANY_CONTACT_LINK = {
   // Field in contact that links to company
-  CONTACT_COMPANY_FIELD: 'SCHOOL_ID',
+  CONTACT_COMPANY_FIELD: 'SCHOOL_PLACE_ID',
   
   // Field in company that serves as unique identifier
-  COMPANY_ID_FIELD: 'SCHOOL_ID',
+  COMPANY_ID_FIELD: 'SCHOOL_PLACE_ID',
   
   // Deal/Link attributes (if using Brevo CRM features)
   LINK_ATTRIBUTES: {

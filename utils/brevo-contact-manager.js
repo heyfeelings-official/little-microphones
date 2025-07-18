@@ -277,7 +277,7 @@ export async function createOrUpdateBrevoContact(memberData, planConfig) {
       LMIDS: memberData.metaData?.lmids || '',
       
       // Company linking
-      SCHOOL_ID: getSchoolIdFromMember(memberData) || '',
+      SCHOOL_PLACE_ID: getSchoolIdFromMember(memberData) || '',
       
       // Custom fields for user preferences/settings
       RESOURCES: memberData.customFields?.['resources'] || 
@@ -605,12 +605,12 @@ export async function syncMemberToBrevo(memberData) {
       };
       
       try {
-        // Add SCHOOL_ID if member has school data
+        // Add SCHOOL_PLACE_ID if member has school data
         if (shouldLinkToCompany(memberData)) {
           const schoolId = getSchoolIdFromMember(memberData);
           if (schoolId) {
-            basicAttributes.SCHOOL_ID = schoolId;
-            console.log(`📝 [${syncId}] Adding SCHOOL_ID to basic contact: ${schoolId}`);
+            basicAttributes.SCHOOL_PLACE_ID = schoolId;
+            console.log(`📝 [${syncId}] Adding SCHOOL_PLACE_ID to basic contact: ${schoolId}`);
           }
         }
         
@@ -642,7 +642,7 @@ export async function syncMemberToBrevo(memberData) {
             
             // Prepare school data from member data
             const schoolData = {
-              SCHOOL_ID: schoolId,
+              SCHOOL_PLACE_ID: schoolId,
               SCHOOL_NAME: memberData.customFields?.['school-name'] ||
                            memberData.customFields?.schoolName ||
                            memberData.metaData?.schoolName || '',
@@ -736,7 +736,7 @@ export async function syncMemberToBrevo(memberData) {
         
         // Prepare school data from member data
         const schoolData = {
-          SCHOOL_ID: schoolId,
+          SCHOOL_PLACE_ID: schoolId,
           SCHOOL_NAME: memberData.customFields?.schoolName || 
                        memberData.customFields?.['school-name'] ||
                        memberData.metaData?.schoolName || '',
@@ -904,11 +904,11 @@ export async function removeContactFromBrevoList(email, listId = BREVO_MAIN_LIST
  */
 export async function createOrUpdateBrevoCompany(schoolData) {
   const syncId = Math.random().toString(36).substring(2, 15);
-  const schoolId = schoolData.SCHOOL_ID || getSchoolIdFromMember({ metaData: schoolData });
+  const schoolId = schoolData.SCHOOL_PLACE_ID || getSchoolIdFromMember({ metaData: schoolData });
   
   if (!schoolId) {
-    console.error(`❌ [${syncId}] Cannot create company without SCHOOL_ID`);
-    return { success: false, error: 'Missing SCHOOL_ID' };
+    console.error(`❌ [${syncId}] Cannot create company without SCHOOL_PLACE_ID`);
+    return { success: false, error: 'Missing SCHOOL_PLACE_ID' };
   }
   
   console.log(`🏢 [${syncId}] Creating/updating company: ${schoolData.SCHOOL_NAME} (ID: ${schoolId})`);
@@ -967,7 +967,7 @@ export async function createOrUpdateBrevoCompany(schoolData) {
 
 /**
  * Get company data from Brevo
- * @param {string} companyId - Company ID (SCHOOL_ID)
+ * @param {string} companyId - Company ID (SCHOOL_PLACE_ID)
  * @returns {Promise<Object|null>} Company data or null if not found
  */
 export async function getBrevoCompany(companyId) {
@@ -987,7 +987,7 @@ export async function getBrevoCompany(companyId) {
 /**
  * Link a contact to a company
  * @param {string} email - Contact email
- * @param {string} companyId - Company ID (SCHOOL_ID)
+ * @param {string} companyId - Company ID (SCHOOL_PLACE_ID)
  * @param {Object} linkData - Additional link data (role, department, etc.)
  * @returns {Promise<Object>} Link result
  */
@@ -1018,12 +1018,12 @@ export async function linkContactToCompany(email, companyId, linkData = {}) {
 
 /**
  * Get all contacts linked to a company
- * @param {string} companyId - Company ID (SCHOOL_ID)
+ * @param {string} companyId - Company ID (SCHOOL_PLACE_ID)
  * @returns {Promise<Object>} Contacts data
  */
 export async function getCompanyContacts(companyId) {
   try {
-    // Filter contacts by SCHOOL_ID attribute
+    // Filter contacts by SCHOOL_PLACE_ID attribute
     const filter = `${COMPANY_CONTACT_LINK.CONTACT_COMPANY_FIELD}='${companyId}'`;
     const result = await makeBrevoRequest(`/contacts?filter=${encodeURIComponent(filter)}`);
     return { success: true, data: result };
@@ -1034,7 +1034,7 @@ export async function getCompanyContacts(companyId) {
 
 /**
  * Update company metrics (e.g., total students, educators)
- * @param {string} companyId - Company ID (SCHOOL_ID)
+ * @param {string} companyId - Company ID (SCHOOL_PLACE_ID)
  * @param {Object} metrics - Metrics to update
  * @returns {Promise<Object>} Update result
  */

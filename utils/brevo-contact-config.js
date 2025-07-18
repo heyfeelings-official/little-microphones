@@ -86,7 +86,7 @@ export const BREVO_CONTACT_ATTRIBUTES = {
   LANGUAGE_PREF: 'string',    // pl, en
   
   // Company linking
-  SCHOOL_ID: 'string',        // School ID for linking to Companies
+  SCHOOL_PLACE_ID: 'string',  // Google Places ID for linking to Companies
   
   // Custom fields for user preferences/settings
   RESOURCES: 'string',        // Resources preference/setting
