@@ -37,6 +37,19 @@ import {
 const BREVO_API_BASE = 'https://api.brevo.com/v3';
 
 /**
+ * Helper function to handle empty values - returns null instead of empty string
+ * This ensures Brevo clears fields when values are removed from Memberstack
+ * @param {*} value - Value to check
+ * @returns {*} - Original value or null if empty
+ */
+function handleEmptyValue(value) {
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+  return value;
+}
+
+/**
  * Make HTTP request to Brevo API
  * @param {string} endpoint - API endpoint (e.g., '/contacts')
  * @param {string} method - HTTP method (GET, POST, PUT, DELETE)
@@ -161,134 +174,134 @@ export async function createOrUpdateBrevoContact(memberData, planConfig) {
     // Map all member data to Brevo attributes
     const allAttributes = {
       // Basic contact information
-      FIRSTNAME: memberData.customFields?.['first-name'] || 
+      FIRSTNAME: handleEmptyValue(memberData.customFields?.['first-name'] || 
                  memberData.customFields?.firstName || 
-                 memberData.metaData?.firstName || '',
-      LASTNAME: memberData.customFields?.['last-name'] || 
+                 memberData.metaData?.firstName),
+      LASTNAME: handleEmptyValue(memberData.customFields?.['last-name'] || 
                 memberData.customFields?.lastName || 
-                memberData.metaData?.lastName || '',
-      PHONE: memberData.customFields?.['phone'] || 
+                memberData.metaData?.lastName),
+      PHONE: handleEmptyValue(memberData.customFields?.['phone'] || 
              memberData.customFields?.phone || 
-             memberData.metaData?.phone || '',
+             memberData.metaData?.phone),
       LANGUAGE_PREF: memberData.metaData?.language || 
                      memberData.customFields?.language || 
                      memberData.customFields?.['language-pref'] || 'en',
       
       // Memberstack integration
-      MEMBERSTACK_ID: memberData.id || '',
+      MEMBERSTACK_ID: handleEmptyValue(memberData.id),
       REGISTRATION_DATE: memberData.createdAt || new Date().toISOString(),
       LAST_SYNC: new Date().toISOString(),
       
       // Teacher/School name (general) - check all possible field names
-      TEACHER_NAME: memberData.customFields?.['teacher-name'] || 
+      TEACHER_NAME: handleEmptyValue(memberData.customFields?.['teacher-name'] || 
                    memberData.customFields?.teacherName ||
                    memberData.metaData?.teacherName ||
-                   `${memberData.customFields?.['first-name'] || ''} ${memberData.customFields?.['last-name'] || ''}`.trim(),
-      SCHOOL_NAME: memberData.customFields?.['school-name'] || 
+                   `${memberData.customFields?.['first-name'] || ''} ${memberData.customFields?.['last-name'] || ''}`.trim()),
+      SCHOOL_NAME: handleEmptyValue(memberData.customFields?.['school-name'] || 
                    memberData.customFields?.schoolName ||
                    memberData.customFields?.['school'] || 
                    memberData.customFields?.school ||
                    memberData.customFields?.['school-place-name'] || 
-                   memberData.metaData?.schoolName || '',
+                   memberData.metaData?.schoolName),
       
       // School details (for Educators) - check all field variations
-      SCHOOL_SEARCH_INPUT: memberData.customFields?.['school-search-input'] || 
+      SCHOOL_SEARCH_INPUT: handleEmptyValue(memberData.customFields?.['school-search-input'] || 
                           memberData.customFields?.schoolSearchInput ||
                           memberData.customFields?.['search-input'] || 
-                          memberData.metaData?.schoolSearchInput || '',
-      SCHOOL_ADDRESS: memberData.customFields?.['school-address'] || 
+                          memberData.metaData?.schoolSearchInput),
+      SCHOOL_ADDRESS: handleEmptyValue(memberData.customFields?.['school-address'] || 
                      memberData.customFields?.schoolAddress ||
                      memberData.customFields?.['school_address'] || 
                      memberData.customFields?.['school-address-result'] || 
-                     memberData.metaData?.schoolAddress || '',
-      SCHOOL_CITY: memberData.customFields?.['school-city'] || 
+                     memberData.metaData?.schoolAddress),
+      SCHOOL_CITY: handleEmptyValue(memberData.customFields?.['school-city'] || 
                    memberData.customFields?.schoolCity ||
                    memberData.customFields?.['city'] || 
-                   memberData.metaData?.schoolCity || '',
-      SCHOOL_COUNTRY: memberData.customFields?.['school-country'] || 
+                   memberData.metaData?.schoolCity),
+      SCHOOL_COUNTRY: handleEmptyValue(memberData.customFields?.['school-country'] || 
                       memberData.customFields?.schoolCountry ||
                       memberData.customFields?.['country'] || 
-                      memberData.metaData?.schoolCountry || '',
-      SCHOOL_FACILITY_TYPE: memberData.customFields?.['school-type'] || 
+                      memberData.metaData?.schoolCountry),
+      SCHOOL_FACILITY_TYPE: handleEmptyValue(memberData.customFields?.['school-type'] || 
                            memberData.customFields?.schoolType ||
                            memberData.customFields?.['school_type'] || 
                            memberData.customFields?.['school-facility-type'] || 
-                           memberData.metaData?.schoolFacilityType || '',
-      SCHOOL_LATITUDE: String(memberData.customFields?.['school-latitude'] || 
+                           memberData.metaData?.schoolFacilityType),
+      SCHOOL_LATITUDE: handleEmptyValue(String(memberData.customFields?.['school-latitude'] || 
                               memberData.customFields?.schoolLatitude ||
                               memberData.customFields?.['school_latitude'] || 
-                              memberData.metaData?.schoolLatitude || ''),
-      SCHOOL_LONGITUDE: String(memberData.customFields?.['school-longitude'] || 
+                              memberData.metaData?.schoolLatitude || '')),
+      SCHOOL_LONGITUDE: handleEmptyValue(String(memberData.customFields?.['school-longitude'] || 
                                memberData.customFields?.schoolLongitude ||
                                memberData.customFields?.['school_longitude'] || 
-                               memberData.metaData?.schoolLongitude || ''),
-      SCHOOL_PHONE: memberData.customFields?.['school-phone'] || 
+                               memberData.metaData?.schoolLongitude || '')),
+      SCHOOL_PHONE: handleEmptyValue(memberData.customFields?.['school-phone'] || 
                     memberData.customFields?.schoolPhone ||
                     memberData.customFields?.['school_phone'] || 
-                    memberData.metaData?.schoolPhone || '',
-      SCHOOL_PLACE_ID: memberData.customFields?.['school-place-id'] || 
+                    memberData.metaData?.schoolPhone),
+      SCHOOL_PLACE_ID: handleEmptyValue(memberData.customFields?.['school-place-id'] || 
                        memberData.customFields?.schoolPlaceId ||
                        memberData.customFields?.['school_place_id'] || 
-                       memberData.metaData?.schoolPlaceId || '',
-      SCHOOL_PLACE_NAME: memberData.customFields?.['school-place-name'] || 
+                       memberData.metaData?.schoolPlaceId),
+      SCHOOL_PLACE_NAME: handleEmptyValue(memberData.customFields?.['school-place-name'] || 
                          memberData.customFields?.schoolPlaceName ||
                          memberData.customFields?.['school_place_name'] || 
                          memberData.customFields?.['school-place-name-short'] || 
-                         memberData.metaData?.schoolPlaceName || '',
-      SCHOOL_RATING: memberData.customFields?.['school-rating'] || 
+                         memberData.metaData?.schoolPlaceName),
+      SCHOOL_RATING: handleEmptyValue(memberData.customFields?.['school-rating'] || 
                      memberData.customFields?.schoolRating ||
                      memberData.customFields?.['school_rating'] || 
-                     memberData.metaData?.schoolRating || '',
-      SCHOOL_STATE: memberData.customFields?.['school-state'] || 
+                     memberData.metaData?.schoolRating),
+      SCHOOL_STATE: handleEmptyValue(memberData.customFields?.['school-state'] || 
                     memberData.customFields?.schoolState ||
                     memberData.customFields?.['school_state'] || 
-                    memberData.metaData?.schoolState || '',
-      SCHOOL_STREET_ADDRESS: memberData.customFields?.['school-street-address'] || 
+                    memberData.metaData?.schoolState),
+      SCHOOL_STREET_ADDRESS: handleEmptyValue(memberData.customFields?.['school-street-address'] || 
                              memberData.customFields?.schoolStreetAddress ||
                              memberData.customFields?.['school_street_address'] || 
-                             memberData.metaData?.schoolStreetAddress || '',
-      SCHOOL_WEBSITE: memberData.customFields?.['school-website'] || 
+                             memberData.metaData?.schoolStreetAddress),
+      SCHOOL_WEBSITE: handleEmptyValue(memberData.customFields?.['school-website'] || 
                       memberData.customFields?.schoolWebsite ||
                       memberData.customFields?.['school_website'] || 
-                      memberData.metaData?.schoolWebsite || '',
-      SCHOOL_ZIP: memberData.customFields?.['school-zip'] || 
+                      memberData.metaData?.schoolWebsite),
+      SCHOOL_ZIP: handleEmptyValue(memberData.customFields?.['school-zip'] || 
                   memberData.customFields?.schoolZip ||
                   memberData.customFields?.['school_zip'] || 
-                  memberData.metaData?.schoolZip || '',
+                  memberData.metaData?.schoolZip),
       
       // Professional information (for Educators) - check all variations
-      EDUCATOR_ROLE: memberData.customFields?.['role'] || 
+      EDUCATOR_ROLE: handleEmptyValue(memberData.customFields?.['role'] || 
                      memberData.customFields?.role ||
                      memberData.customFields?.['educator-role'] || 
                      memberData.customFields?.educatorRole ||
-                     memberData.metaData?.educatorRole || '',
-      EDUCATOR_NO_CLASSES: memberData.customFields?.['no-classes'] || 
+                     memberData.metaData?.educatorRole),
+      EDUCATOR_NO_CLASSES: handleEmptyValue(memberData.customFields?.['no-classes'] || 
                            memberData.customFields?.noClasses ||
                            memberData.customFields?.['no_classes'] || 
                            memberData.customFields?.['educator-no-classes'] || 
-                           memberData.metaData?.educatorNoClasses || '',
-      EDUCATOR_NO_KIDS: memberData.customFields?.['no-kids'] || 
+                           memberData.metaData?.educatorNoClasses),
+      EDUCATOR_NO_KIDS: handleEmptyValue(memberData.customFields?.['no-kids'] || 
                         memberData.customFields?.noKids ||
                         memberData.customFields?.['no_kids'] || 
                         memberData.customFields?.['educator-no-kids'] || 
-                        memberData.metaData?.educatorNoKids || '',
+                        memberData.metaData?.educatorNoKids),
       
       // Application-specific
-      LMIDS: memberData.metaData?.lmids || '',
+      LMIDS: handleEmptyValue(memberData.metaData?.lmids),
       
       // Company linking
-      SCHOOL_PLACE_ID: getSchoolIdFromMember(memberData) || '',
+      SCHOOL_PLACE_ID: handleEmptyValue(getSchoolIdFromMember(memberData)),
       
       // Custom fields for user preferences/settings
-      RESOURCES: memberData.customFields?.['resources'] || 
+      RESOURCES: handleEmptyValue(memberData.customFields?.['resources'] || 
                  memberData.customFields?.resources ||
-                 memberData.metaData?.resources || '',
-      PAYMENTS: memberData.customFields?.['payments'] || 
+                 memberData.metaData?.resources),
+      PAYMENTS: handleEmptyValue(memberData.customFields?.['payments'] || 
                 memberData.customFields?.payments ||
-                memberData.metaData?.payments || '',
-      DISCOVER: memberData.customFields?.['discover'] || 
+                memberData.metaData?.payments),
+      DISCOVER: handleEmptyValue(memberData.customFields?.['discover'] || 
                 memberData.customFields?.discover ||
-                memberData.metaData?.discover || '',
+                memberData.metaData?.discover),
       
       // IMPORTANT: Plan attributes must be last to avoid being overridden
       // This includes USER_CATEGORY, PLAN_TYPE, PLAN_NAME, PLAN_ID
