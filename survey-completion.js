@@ -8,13 +8,14 @@
  * 
  * FEATURES:
  * - Detect ?survey=filled parameter
+ * - Immediately refresh page for fresh Memberstack data
  * - Show/hide DIV with ID "survey-filled" 
  * - Show canvas-confetti fireworks
  * - Hide button functionality
  * - Memberstack fresh data fetching
  * - UI unlocking for educators
  * 
- * VERSION: 2.0.0
+ * VERSION: 2.0.1
  * LAST UPDATED: January 2025
  */
 
@@ -31,19 +32,46 @@ document.addEventListener('DOMContentLoaded', function() {
     // --- State Variables ---
     let fireworksIntervalId = null;
 
+    // --- Check URL Parameter ---
+    const urlParams = new URLSearchParams(window.location.search);
+    const shouldShowDiv = urlParams.has(SURVEY_PARAM) && urlParams.get(SURVEY_PARAM) === SURVEY_VALUE;
+    
+    // --- Check if we already refreshed ---
+    const hasRefreshed = sessionStorage.getItem('survey_refreshed') === 'true';
+
+    console.log("Script 2 Loaded. Should show success DIV:", shouldShowDiv);
+
+    // --- IMMEDIATE REFRESH LOGIC ---
+    if (shouldShowDiv && !hasRefreshed) {
+        console.log("First load with survey parameter - refreshing page for fresh data...");
+        
+        // Mark as refreshed
+        sessionStorage.setItem('survey_refreshed', 'true');
+        
+        // Remove survey parameter and refresh
+        const url = new URL(window.location);
+        url.searchParams.delete(SURVEY_PARAM);
+        window.location.href = url.toString();
+        
+        // Exit here - page will reload
+        return;
+    }
+
+    // --- Clear refresh flag if no survey parameter ---
+    if (!shouldShowDiv) {
+        sessionStorage.removeItem('survey_refreshed');
+    }
+
     // --- Get Elements ---
     const successDiv = document.getElementById(SUCCESS_DIV_ID);
     const hideButton = document.getElementById(HIDE_BUTTON_ID);
 
-    // --- Check URL Parameter ---
-    const urlParams = new URLSearchParams(window.location.search);
-    const shouldShowDiv = urlParams.has(SURVEY_PARAM) && urlParams.get(SURVEY_PARAM) === SURVEY_VALUE;
+    // --- Show DIV and Trigger Actions after refresh ---
+    if (hasRefreshed) {
+        console.log("Second load after refresh - showing DIV and running actions.");
 
-    console.log("Script 2 Loaded. Should show success DIV:", shouldShowDiv);
-
-    // --- Show DIV and Trigger Actions if URL Parameter is Correct ---
-    if (shouldShowDiv) {
-        console.log("URL parameter found. Attempting to show DIV and run actions.");
+        // Clear the refresh flag
+        sessionStorage.removeItem('survey_refreshed');
 
         // --- Make the DIV visible ---
         if (successDiv) {
