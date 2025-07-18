@@ -3,9 +3,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Page refresh on load only if survey=filled parameter exists and hasn't been reloaded yet
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.has('survey') && urlParams.get('survey') === 'filled' && !urlParams.has('reloaded')) {
-        // Remove all parameters and reload
-        window.history.replaceState({}, document.title, window.location.pathname);
-        window.location.reload();
+        // Add reloaded parameter to prevent infinite refresh loop
+        urlParams.set('reloaded', 'true');
+        window.location.search = urlParams.toString();
         return;
     }
 
@@ -84,6 +84,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 fireworksIntervalId = null;
                 console.log('Fireworks stopped by hide button.');
             }
+            // Remove URL parameters
+            const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+            window.history.replaceState({}, document.title, cleanUrl);
+            console.log('URL parameters removed.');
         });
     } else {
         if (!successDiv) console.warn("Could not set up hide button: Success DIV not found.");
