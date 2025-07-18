@@ -1098,7 +1098,7 @@ export async function linkContactToCompany(email, companyId, linkData = {}) {
     
     console.log(`📋 [${syncId}] Link request body:`, JSON.stringify(linkBody, null, 2));
     
-    const result = await makeBrevoRequest(`/companies/link-unlink/${companyId}`, 'PATCH', linkBody);
+    const result = await makeBrevoRequest(`/companies/${companyId}/link-unlink`, 'PATCH', linkBody);
     
     console.log(`✅ [${syncId}] Successfully linked contact ${email} (ID: ${contactId}) to company ${companyId}`);
     
