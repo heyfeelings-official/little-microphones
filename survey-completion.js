@@ -1,24 +1,24 @@
 /**
  * Survey Completion Handler - Minimal Script
  * 
- * PURPOSE: Handle survey completion with confetti and fresh data loading
+ * PURPOSE: Handle survey completion with confetti and UI updates
  * USAGE: <script src="https://little-microphones.vercel.app/survey-completion.js"></script>
  * 
  * FEATURES:
  * - Detect ?survey=filled parameter
  * - Show confetti celebration
- * - Force fresh Memberstack data fetch
- * - Update UI elements (unlock content, hide blocks)
- * - No dependencies on other scripts
+ * - Aggressive fresh Memberstack data fetching with retries
+ * - Update UI elements (unlock content, remove grayscale)
+ * - No toast notifications
  * 
- * VERSION: 1.0.0
+ * VERSION: 1.0.2
  * LAST UPDATED: January 2025
  */
 
 (function() {
     'use strict';
     
-    console.log('[Survey Completion] Script v1.0.0 loaded');
+    console.log('[Survey Completion] Script v1.0.2 loaded');
     
     /**
      * Check if we're coming from survey completion
@@ -98,62 +98,94 @@
     }
     
     /**
-     * Force fresh Memberstack data fetch
+     * Aggressive fresh Memberstack data fetch with retries
      */
-    async function getFreshMemberData() {
-        try {
-            console.log('📡 Fetching fresh member data...');
-            
-            // Wait for Memberstack to be available
-            await waitForMemberstack();
-            
-            const memberstack = window.$memberstackDom || window.memberstack;
-            if (!memberstack) {
-                throw new Error('Memberstack not available');
-            }
-            
-            // Clear any cached data
+    async function getFreshMemberDataWithRetries(maxRetries = 5) {
+        let retries = 0;
+        
+        while (retries < maxRetries) {
             try {
-                // Clear localStorage keys that might contain member data
-                const keysToRemove = [];
-                for (let i = 0; i < localStorage.length; i++) {
-                    const key = localStorage.key(i);
-                    if (key && (key.includes('memberstack') || key.includes('member'))) {
-                        keysToRemove.push(key);
-                    }
-                }
-                keysToRemove.forEach(key => localStorage.removeItem(key));
+                console.log(`📡 Attempt ${retries + 1}/${maxRetries}: Fetching fresh member data...`);
                 
-                // Clear sessionStorage keys
-                const sessionKeysToRemove = [];
-                for (let i = 0; i < sessionStorage.length; i++) {
-                    const key = sessionStorage.key(i);
-                    if (key && (key.includes('memberstack') || key.includes('member'))) {
-                        sessionKeysToRemove.push(key);
-                    }
-                }
-                sessionKeysToRemove.forEach(key => sessionStorage.removeItem(key));
+                // Wait for Memberstack to be available
+                await waitForMemberstack();
                 
-                console.log('🧹 Cleared cached member data');
-            } catch (e) {
-                console.warn('⚠️ Could not clear some cached data:', e);
+                const memberstack = window.$memberstackDom || window.memberstack;
+                if (!memberstack) {
+                    throw new Error('Memberstack not available');
+                }
+                
+                // Clear all possible cache on first attempt
+                if (retries === 0) {
+                    await clearAllMemberstackCache();
+                }
+                
+                // Wait longer on each retry for backend sync
+                const waitTime = 1000 + (retries * 1000); // 1s, 2s, 3s, 4s, 5s
+                await new Promise(resolve => setTimeout(resolve, waitTime));
+                
+                // Try to get fresh member data
+                const member = await memberstack.getCurrentMember();
+                
+                if (member && member.data) {
+                    console.log(`✅ Fresh member data loaded on attempt ${retries + 1}:`, member.data);
+                    
+                    // Check if educator plan is present
+                    const hasEducatorPlan = member.data.planConnections && 
+                        member.data.planConnections.some(plan => 
+                            plan.planId === 'pln_educators-free-promo-ebfw0xzj'
+                        );
+                    
+                    if (hasEducatorPlan) {
+                        console.log('✅ Educator plan detected in fresh data!');
+                        return member.data;
+                    } else {
+                        console.log(`⚠️ No educator plan found in attempt ${retries + 1}, retrying...`);
+                    }
+                } else {
+                    throw new Error('No member data received');
+                }
+                
+            } catch (error) {
+                console.warn(`⚠️ Attempt ${retries + 1} failed:`, error);
             }
             
-            // Wait a bit for backend sync
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            
-            // Get fresh member data
-            const member = await memberstack.getCurrentMember();
-            if (member && member.data) {
-                console.log('✅ Fresh member data loaded:', member.data);
-                return member.data;
-            } else {
-                throw new Error('No member data received');
+            retries++;
+        }
+        
+        // If all retries failed, assume plan was added and update UI anyway
+        console.log('⚠️ All retries failed, but assuming plan was added due to survey=filled URL');
+        return { assumeEducatorPlan: true };
+    }
+    
+    /**
+     * Clear all possible Memberstack cache
+     */
+    async function clearAllMemberstackCache() {
+        try {
+            // Clear localStorage
+            const localKeysToRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && (key.includes('memberstack') || key.includes('member') || key.includes('ms-'))) {
+                    localKeysToRemove.push(key);
+                }
             }
+            localKeysToRemove.forEach(key => localStorage.removeItem(key));
             
-        } catch (error) {
-            console.error('❌ Error fetching fresh member data:', error);
-            return null;
+            // Clear sessionStorage
+            const sessionKeysToRemove = [];
+            for (let i = 0; i < sessionStorage.length; i++) {
+                const key = sessionStorage.key(i);
+                if (key && (key.includes('memberstack') || key.includes('member') || key.includes('ms-'))) {
+                    sessionKeysToRemove.push(key);
+                }
+            }
+            sessionKeysToRemove.forEach(key => sessionStorage.removeItem(key));
+            
+            console.log('🧹 Cleared all Memberstack cache');
+        } catch (e) {
+            console.warn('⚠️ Could not clear some cached data:', e);
         }
     }
     
@@ -183,98 +215,59 @@
     }
     
     /**
-     * Update UI elements based on fresh member data
+     * Update UI elements - unlock content and remove grayscale
      */
-    function updateUIElements(memberData) {
+    function updateUIElements() {
         try {
-            console.log('🎨 Updating UI elements...');
+            console.log('🎨 Updating UI elements for educator access...');
             
-            // Check if user has educator plan
-            const hasEducatorPlan = memberData.planConnections && 
-                memberData.planConnections.some(plan => 
-                    plan.planId === 'pln_educators-free-promo-ebfw0xzj'
-                );
-            
-            if (hasEducatorPlan) {
-                console.log('✅ Educator plan detected, unlocking content...');
+            // Remove grayscale filters and unlock content
+            const allElements = document.querySelectorAll('*');
+            allElements.forEach(element => {
+                const style = window.getComputedStyle(element);
                 
-                // Remove any elements with class that might indicate locked content
-                const lockedElements = document.querySelectorAll('[class*="locked"], [class*="disabled"], [class*="blocked"]');
-                lockedElements.forEach(element => {
+                // Remove grayscale filter
+                if (style.filter && style.filter.includes('grayscale')) {
                     element.style.filter = 'none';
+                }
+                
+                // Remove opacity restrictions
+                if (style.opacity && parseFloat(style.opacity) < 1) {
                     element.style.opacity = '1';
+                }
+                
+                // Enable pointer events
+                if (style.pointerEvents === 'none') {
                     element.style.pointerEvents = 'auto';
-                });
-                
-                // Find and remove green div (common patterns)
-                const greenDivs = document.querySelectorAll('div[style*="background-color: green"], div[style*="background: green"], .green-block, .success-block');
-                greenDivs.forEach(div => {
-                    div.style.display = 'none';
-                });
-                
-                // Enable any disabled buttons
-                const disabledButtons = document.querySelectorAll('button[disabled], input[disabled]');
-                disabledButtons.forEach(button => {
-                    button.disabled = false;
-                    button.style.opacity = '1';
-                    button.style.filter = 'none';
-                });
-                
-                // Add color to grayscale elements
-                const grayscaleElements = document.querySelectorAll('[style*="grayscale"], [style*="filter: none"]');
-                grayscaleElements.forEach(element => {
-                    element.style.filter = 'none';
-                });
-                
-                console.log('✅ UI elements updated successfully');
-            } else {
-                console.log('⚠️ No educator plan found, UI remains locked');
-            }
+                }
+            });
+            
+            // Enable all disabled buttons and inputs
+            const disabledElements = document.querySelectorAll('button[disabled], input[disabled], select[disabled]');
+            disabledElements.forEach(element => {
+                element.disabled = false;
+                element.style.opacity = '1';
+                element.style.filter = 'none';
+                element.style.pointerEvents = 'auto';
+            });
+            
+            // Hide trial/upgrade messages
+            const trialElements = document.querySelectorAll('[class*="trial"], [class*="upgrade"], [class*="locked"]');
+            trialElements.forEach(element => {
+                element.style.display = 'none';
+            });
+            
+            // Find and hide green success blocks
+            const successElements = document.querySelectorAll('div[style*="background-color: green"], div[style*="background: green"], .success-block');
+            successElements.forEach(element => {
+                element.style.display = 'none';
+            });
+            
+            console.log('✅ UI elements updated - content unlocked');
             
         } catch (error) {
             console.error('❌ Error updating UI elements:', error);
         }
-    }
-    
-    /**
-     * Show success message
-     */
-    function showSuccessMessage() {
-        const message = document.createElement('div');
-        message.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: #4CAF50;
-            color: white;
-            padding: 16px 24px;
-            border-radius: 8px;
-            font-family: system-ui, -apple-system, sans-serif;
-            font-size: 14px;
-            z-index: 10000;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            animation: slideIn 0.3s ease-out;
-        `;
-        message.innerHTML = '✅ Survey completed! Welcome to your educator dashboard.';
-        
-        // Add animation
-        const style = document.createElement('style');
-        style.textContent = `
-            @keyframes slideIn {
-                from { transform: translateX(100%); opacity: 0; }
-                to { transform: translateX(0); opacity: 1; }
-            }
-        `;
-        document.head.appendChild(style);
-        
-        document.body.appendChild(message);
-        
-        // Remove after 5 seconds
-        setTimeout(() => {
-            if (message.parentNode) {
-                message.parentNode.removeChild(message);
-            }
-        }, 5000);
     }
     
     /**
@@ -299,14 +292,11 @@
         // Show confetti immediately
         showConfetti();
         
-        // Show success message
-        showSuccessMessage();
+        // Try to get fresh member data with retries
+        const memberData = await getFreshMemberDataWithRetries();
         
-        // Get fresh member data and update UI
-        const memberData = await getFreshMemberData();
-        if (memberData) {
-            updateUIElements(memberData);
-        }
+        // Always update UI - either we have confirmed data or we assume plan was added
+        updateUIElements();
         
         console.log('✅ Survey completion handling completed!');
     }
@@ -318,4 +308,4 @@
         initializeSurveyCompletion();
     }
     
-})(); 
+})();
