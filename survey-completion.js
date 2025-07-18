@@ -1,24 +1,23 @@
 /**
  * Survey Completion Handler - Minimal Script
  * 
- * PURPOSE: Handle survey completion with confetti only (testing version)
+ * PURPOSE: Handle survey completion with confetti and page reload
  * USAGE: <script src="https://little-microphones.vercel.app/survey-completion.js"></script>
  * 
  * FEATURES:
  * - Detect ?survey=filled parameter
  * - Show confetti celebration
- * - NO UI manipulation (removed for testing)
- * - No page reload needed
+ * - Wait 2 seconds then reload page with survey parameter removed
  * - No toast notifications
  * 
- * VERSION: 1.0.9 (TEST)
+ * VERSION: 1.1.0
  * LAST UPDATED: January 2025
  */
 
 (function() {
     'use strict';
     
-    console.log('[Survey Completion] Script v1.0.9 TEST loaded - confetti only');
+    console.log('[Survey Completion] Script v1.1.0 loaded - confetti + reload');
     
     /**
      * Check if we're coming from survey completion
@@ -113,16 +112,22 @@
         
         console.log('🎉 Survey completion detected!');
         
-        // Clean up URL (remove ?survey=filled)
-        const url = new URL(window.location);
-        url.searchParams.delete('survey');
-        history.replaceState({}, '', url);
-        
         // Show confetti immediately
         showConfetti();
         
-        // UI manipulation completely removed for testing
-        console.log('✅ Survey completion handling completed (confetti only)!');
+        // Wait 2 seconds then reload page with survey parameter removed
+        setTimeout(() => {
+            console.log('🔄 Reloading page and removing survey parameter...');
+            
+            // Create new URL without survey parameter
+            const url = new URL(window.location);
+            url.searchParams.delete('survey');
+            
+            // Reload to the URL without survey parameter
+            window.location.href = url.toString();
+        }, 2000);
+        
+        console.log('✅ Survey completion handling started - will reload in 2s');
     }
     
     // Initialize when DOM is ready
