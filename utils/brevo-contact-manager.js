@@ -683,7 +683,7 @@ export async function syncMemberToBrevo(memberData) {
                 IS_PRIMARY_CONTACT: memberData.customFields?.role?.toLowerCase().includes('principal') || false
               };
               
-              const linkResult = await linkContactToCompany(email, schoolId, linkData);
+              const linkResult = await linkContactToCompany(email, companyResult.companyId, linkData);
               
               if (linkResult.success) {
                 console.log(`✅ [${syncId}] Contact linked to company successfully`);
@@ -776,7 +776,7 @@ export async function syncMemberToBrevo(memberData) {
             IS_PRIMARY_CONTACT: memberData.customFields?.role?.toLowerCase().includes('principal') || false
           };
           
-          const linkResult = await linkContactToCompany(email, schoolId, linkData);
+          const linkResult = await linkContactToCompany(email, companyResult.companyId, linkData);
           
           if (linkResult.success) {
             console.log(`✅ [${syncId}] Contact linked to company successfully`);
@@ -899,55 +899,86 @@ export async function removeContactFromBrevoList(email, listId = BREVO_MAIN_LIST
  */
 export async function createOrUpdateBrevoCompany(schoolData) {
   const syncId = Math.random().toString(36).substring(2, 15);
-  const schoolId = schoolData.SCHOOL_PLACE_ID || getSchoolIdFromMember({ metaData: schoolData });
+  const schoolPlaceId = schoolData.SCHOOL_PLACE_ID || getSchoolIdFromMember({ metaData: schoolData });
   
-  if (!schoolId) {
+  if (!schoolPlaceId) {
     console.error(`❌ [${syncId}] Cannot create company without SCHOOL_PLACE_ID`);
     return { success: false, error: 'Missing SCHOOL_PLACE_ID' };
   }
   
-  console.log(`🏢 [${syncId}] Creating/updating company: ${schoolData.SCHOOL_NAME} (ID: ${schoolId})`);
+  console.log(`🏢 [${syncId}] Processing company: ${schoolData.SCHOOL_NAME} (Place ID: ${schoolPlaceId})`);
   console.log(`🏢 [${syncId}] Full school data:`, JSON.stringify(schoolData, null, 2));
   
   try {
-    // Prepare company attributes
-    const companyAttributes = getCompanyAttributes(schoolData);
-    console.log(`📋 [${syncId}] Company attributes:`, JSON.stringify(companyAttributes, null, 2));
+    // First, check if company already exists by searching for SCHOOL_PLACE_ID attribute
+    console.log(`🔍 [${syncId}] Checking if company with SCHOOL_PLACE_ID=${schoolPlaceId} already exists`);
     
-    // Try to create company first
-    console.log(`➕ [${syncId}] Attempting to create company ${schoolId}`);
-    
-    const requestBody = {
-      name: companyAttributes.name || schoolData.SCHOOL_NAME || 'Unknown School'
-    };
-    console.log(`📋 [${syncId}] Company creation request:`, JSON.stringify(requestBody, null, 2));
+    // Use helper function to find company by school ID
+    let existingCompany = null;
+    let existingCompanyId = null;
     
     try {
-      const result = await makeBrevoRequest('/companies', 'POST', requestBody);
-      
-      console.log(`✅ [${syncId}] Successfully created company ${schoolId}`);
-      console.log(`📋 [${syncId}] Company creation response:`, JSON.stringify(result, null, 2));
-      return { success: true, syncId, companyId: schoolId, action: 'created', data: result };
-      
-    } catch (createError) {
-      // If creation fails with 409 (conflict), try to update
-      if (createError.message.includes('409') || createError.message.includes('already exists')) {
-        console.log(`📝 [${syncId}] Company exists, attempting to update ${schoolId}`);
-        
-        try {
-          const updateResult = await makeBrevoRequest(`/companies/${schoolId}`, 'PATCH', companyAttributes);
-          
-          console.log(`✅ [${syncId}] Successfully updated company ${schoolId}`);
-          return { success: true, syncId, companyId: schoolId, action: 'updated', data: updateResult };
-          
-        } catch (updateError) {
-          console.error(`❌ [${syncId}] Update also failed:`, updateError.message);
-          throw updateError;
-        }
+      const company = await getBrevoCompanyBySchoolId(schoolPlaceId);
+      if (company) {
+        existingCompany = company;
+        existingCompanyId = company.id;
+        console.log(`✅ [${syncId}] Found existing company: ${company.name} (Brevo ID: ${company.id})`);
       }
+    } catch (searchError) {
+      console.warn(`⚠️ [${syncId}] Error searching for existing company:`, searchError.message);
+    }
+    
+    // Prepare company attributes
+    const companyAttributes = getCompanyAttributes(schoolData);
+    
+    if (existingCompanyId) {
+      // Update existing company
+      console.log(`📝 [${syncId}] Updating existing company (Brevo ID: ${existingCompanyId})`);
       
-      // If it's not a conflict error, throw it
-      throw createError;
+      const updateBody = {
+        name: companyAttributes.name || schoolData.SCHOOL_NAME || existingCompany.name,
+        attributes: companyAttributes
+      };
+      
+      const updateResult = await makeBrevoRequest(`/companies/${existingCompanyId}`, 'PATCH', updateBody);
+      
+      console.log(`✅ [${syncId}] Successfully updated company ${existingCompanyId}`);
+      return { 
+        success: true, 
+        syncId, 
+        companyId: existingCompanyId, 
+        schoolPlaceId: schoolPlaceId,
+        action: 'updated', 
+        data: updateResult 
+      };
+      
+    } else {
+      // Create new company
+      console.log(`➕ [${syncId}] Creating new company for ${schoolPlaceId}`);
+      
+      const createBody = {
+        name: companyAttributes.name || schoolData.SCHOOL_NAME || 'Unknown School',
+        attributes: {
+          ...companyAttributes,
+          SCHOOL_PLACE_ID: schoolPlaceId // Ensure SCHOOL_PLACE_ID is always set
+        }
+      };
+      
+      console.log(`📋 [${syncId}] Company creation request:`, JSON.stringify(createBody, null, 2));
+      
+      const createResult = await makeBrevoRequest('/companies', 'POST', createBody);
+      
+      console.log(`✅ [${syncId}] Successfully created company with Brevo ID: ${createResult.id}`);
+      console.log(`📋 [${syncId}] Company creation response:`, JSON.stringify(createResult, null, 2));
+      
+      return { 
+        success: true, 
+        syncId, 
+        companyId: createResult.id, 
+        schoolPlaceId: schoolPlaceId,
+        action: 'created', 
+        data: createResult 
+      };
     }
     
   } catch (error) {
@@ -961,8 +992,47 @@ export async function createOrUpdateBrevoCompany(schoolData) {
 }
 
 /**
- * Get company data from Brevo
- * @param {string} companyId - Company ID (SCHOOL_PLACE_ID)
+ * Get company data from Brevo by SCHOOL_PLACE_ID
+ * @param {string} schoolPlaceId - School Place ID (not Brevo Company ID)
+ * @returns {Promise<Object|null>} Company data or null if not found
+ */
+export async function getBrevoCompanyBySchoolId(schoolPlaceId) {
+  if (!schoolPlaceId) return null;
+  
+  try {
+    // Search for company by SCHOOL_PLACE_ID attribute
+    let page = 0;
+    let hasMore = true;
+    
+    while (hasMore) {
+      const offset = page * 50;
+      const companiesResult = await makeBrevoRequest(`/companies?limit=50&offset=${offset}`);
+      
+      if (companiesResult.items && companiesResult.items.length > 0) {
+        for (const company of companiesResult.items) {
+          if (company.attributes && company.attributes.SCHOOL_PLACE_ID === schoolPlaceId) {
+            return company;
+          }
+        }
+        
+        // Check if there are more pages
+        hasMore = companiesResult.items.length === 50;
+        page++;
+      } else {
+        hasMore = false;
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error searching for company:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Get company data from Brevo by Brevo Company ID
+ * @param {string} companyId - Brevo Company ID
  * @returns {Promise<Object|null>} Company data or null if not found
  */
 export async function getBrevoCompany(companyId) {
@@ -982,7 +1052,7 @@ export async function getBrevoCompany(companyId) {
 /**
  * Link a contact to a company
  * @param {string} email - Contact email
- * @param {string} companyId - Company ID (SCHOOL_PLACE_ID)
+ * @param {string} companyId - Brevo Company ID (not SCHOOL_PLACE_ID)
  * @param {Object} linkData - Additional link data (role, department, etc.)
  * @returns {Promise<Object>} Link result
  */
@@ -992,18 +1062,41 @@ export async function linkContactToCompany(email, companyId, linkData = {}) {
   console.log(`🔗 [${syncId}] Linking contact ${email} to company ${companyId}`);
   
   try {
-    // In Brevo, linking is done by updating contact with company ID
-    const updateData = {
-      attributes: {
-        [COMPANY_CONTACT_LINK.CONTACT_COMPANY_FIELD]: companyId,
-        ...linkData
+    // First, get the contact ID from email
+    let contactId = null;
+    try {
+      const contact = await getBrevoContact(email);
+      if (contact && contact.id) {
+        contactId = contact.id;
+        console.log(`✅ [${syncId}] Found contact ID: ${contactId} for email: ${email}`);
+      } else {
+        throw new Error(`Contact not found for email: ${email}`);
       }
+    } catch (error) {
+      console.error(`❌ [${syncId}] Error getting contact ID:`, error.message);
+      return { success: false, syncId, error: `Failed to get contact ID: ${error.message}` };
+    }
+    
+    // Use the proper Brevo endpoint to link contact to company
+    const linkBody = {
+      linkContactsIds: [contactId]
     };
     
-    const result = await makeBrevoRequest(`/contacts/${encodeURIComponent(email)}`, 'PUT', updateData);
+    console.log(`📋 [${syncId}] Link request body:`, JSON.stringify(linkBody, null, 2));
     
-    console.log(`✅ [${syncId}] Successfully linked contact to company`);
-    return { success: true, syncId, email, companyId, result };
+    const result = await makeBrevoRequest(`/companies/link-unlink/${companyId}`, 'PATCH', linkBody);
+    
+    console.log(`✅ [${syncId}] Successfully linked contact ${email} (ID: ${contactId}) to company ${companyId}`);
+    
+    // Also update contact attributes with link data if provided
+    if (Object.keys(linkData).length > 0) {
+      console.log(`📝 [${syncId}] Updating contact with link data:`, linkData);
+      await makeBrevoRequest(`/contacts/${encodeURIComponent(email)}`, 'PUT', {
+        attributes: linkData
+      });
+    }
+    
+    return { success: true, syncId, email, contactId, companyId, result };
     
   } catch (error) {
     console.error(`❌ [${syncId}] Error linking contact to company:`, error.message);
@@ -1013,15 +1106,32 @@ export async function linkContactToCompany(email, companyId, linkData = {}) {
 
 /**
  * Get all contacts linked to a company
- * @param {string} companyId - Company ID (SCHOOL_PLACE_ID)
+ * @param {string} companyId - Brevo Company ID (not SCHOOL_PLACE_ID)
  * @returns {Promise<Object>} Contacts data
  */
 export async function getCompanyContacts(companyId) {
   try {
-    // Filter contacts by SCHOOL_PLACE_ID attribute
-    const filter = `${COMPANY_CONTACT_LINK.CONTACT_COMPANY_FIELD}='${companyId}'`;
-    const result = await makeBrevoRequest(`/contacts?filter=${encodeURIComponent(filter)}`);
-    return { success: true, data: result };
+    // Get company details including linked contacts
+    const company = await makeBrevoRequest(`/companies/${companyId}`);
+    
+    if (!company || !company.linkedContactsIds || company.linkedContactsIds.length === 0) {
+      return { success: true, data: { contacts: [] } };
+    }
+    
+    // Get details for each linked contact
+    const contacts = [];
+    for (const contactId of company.linkedContactsIds) {
+      try {
+        const contact = await makeBrevoRequest(`/contacts/${contactId}`);
+        if (contact) {
+          contacts.push(contact);
+        }
+      } catch (error) {
+        console.warn(`Failed to get contact ${contactId}:`, error.message);
+      }
+    }
+    
+    return { success: true, data: { contacts, totalContacts: contacts.length } };
   } catch (error) {
     return { success: false, error: error.message };
   }
@@ -1029,7 +1139,7 @@ export async function getCompanyContacts(companyId) {
 
 /**
  * Update company metrics (e.g., total students, educators)
- * @param {string} companyId - Company ID (SCHOOL_PLACE_ID)
+ * @param {string} companyId - Brevo Company ID (not SCHOOL_PLACE_ID)
  * @param {Object} metrics - Metrics to update
  * @returns {Promise<Object>} Update result
  */
@@ -1047,7 +1157,7 @@ export async function updateCompanyMetrics(companyId, metrics) {
       }
     };
     
-    const result = await makeBrevoRequest(`/crm/companies/${companyId}`, 'PATCH', updateData);
+    const result = await makeBrevoRequest(`/companies/${companyId}`, 'PATCH', updateData);
     
     console.log(`✅ [${syncId}] Successfully updated company metrics`);
     return { success: true, syncId, companyId, result };
