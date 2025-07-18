@@ -86,8 +86,8 @@ window.initMap = function() {
               const isChildEducation = isChildEducationPlace(place);
               
               // Update input field with place name
-              const input = document.getElementById("school-search") || 
-                           document.getElementById("search-input") || 
+              const input = document.getElementById("search-input") || 
+                           document.getElementById("school-search") || 
                            document.getElementById("school-search-input");
               if (input) {
                 input.value = place.name || place.formatted_address || results[0].formatted_address;
@@ -97,8 +97,8 @@ window.initMap = function() {
               populateFields(place, isChildEducation);
             } else {
               // Fallback if place details not available
-              const input = document.getElementById("school-search") || 
-                           document.getElementById("search-input") || 
+              const input = document.getElementById("search-input") || 
+                           document.getElementById("school-search") || 
                            document.getElementById("school-search-input");
               if (input) {
                 input.value = results[0].formatted_address;
@@ -123,14 +123,14 @@ window.initMap = function() {
 
 // Initialize autocomplete
 function initAutocomplete() {
-  // Get input element - try multiple possible IDs
-  const searchInput = document.getElementById("school-search") || 
-                      document.getElementById("search-input") || 
+  // Get input element - search-input is the correct ID
+  const searchInput = document.getElementById("search-input") || 
+                      document.getElementById("school-search") || 
                       document.getElementById("school-search-input") ||
                       document.querySelector('input[type="text"]'); // fallback to first text input
   
   if (!searchInput) {
-    console.error("Search input not found - tried IDs: school-search, search-input, school-search-input");
+    console.error("Search input not found - tried IDs: search-input, school-search, school-search-input");
     return;
   }
   
@@ -253,8 +253,8 @@ function populateFields(place, isChildEducation) {
   updateFieldIfExists("place-name", place.name || "");
   
   // Update search input
-  updateFieldIfExists("school-search", place.name || place.formatted_address || "");
   updateFieldIfExists("search-input", place.name || place.formatted_address || "");
+  updateFieldIfExists("school-search", place.name || place.formatted_address || "");
   updateFieldIfExists("school-search-input", place.name || place.formatted_address || "");
   
   // Update place ID
