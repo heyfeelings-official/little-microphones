@@ -1102,13 +1102,17 @@ export async function linkContactToCompany(email, companyId, linkData = {}) {
     
     console.log(`✅ [${syncId}] Successfully linked contact ${email} (ID: ${contactId}) to company ${companyId}`);
     
-    // Also update contact attributes with link data if provided
-    if (Object.keys(linkData).length > 0) {
-      console.log(`📝 [${syncId}] Updating contact with link data:`, linkData);
-      await makeBrevoRequest(`/contacts/${encodeURIComponent(email)}`, 'PUT', {
-        attributes: linkData
-      });
-    }
+    // Also update contact attributes with link data and company reference
+    const contactUpdateData = {
+      ...linkData,
+      COMPANY: companyId,  // Add company reference to contact
+      COMPANY_ID: companyId
+    };
+    
+    console.log(`📝 [${syncId}] Updating contact with link data and company reference:`, contactUpdateData);
+    await makeBrevoRequest(`/contacts/${encodeURIComponent(email)}`, 'PUT', {
+      attributes: contactUpdateData
+    });
     
     return { success: true, syncId, email, contactId, companyId, result };
     
