@@ -39,30 +39,26 @@
     // Wait for DOM and required dependencies
     document.addEventListener("DOMContentLoaded", async () => {
         
-        // ---- Survey Redirect Handler ----
-        // This MUST run before any other auth logic to ensure a clean state.
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('survey') === 'filled') {
-            console.log('✅ Survey completion detected. Forcing a refresh to get the latest plan data...');
-            
-            // Get the Memberstack instance
-            const memberstack = window.$memberstackDom || window.memberstack;
-            
-            if (memberstack && typeof memberstack.clearMemberSession === 'function') {
-                // Clear local session/cache to force a refetch from the server
-                await memberstack.clearMemberSession();
-                console.log('🧹 Memberstack session cleared.');
+        // ---- Survey Completion Handler ----
+        // Check if we're arriving from the educators survey
+        const surveyFlag = localStorage.getItem('educators_survey_completed');
+        let needsFreshData = false;
+        
+        if (surveyFlag) {
+            try {
+                const flagData = JSON.parse(surveyFlag);
+                // Check if flag is recent (within last 5 minutes)
+                if (Date.now() - flagData.timestamp < 5 * 60 * 1000) {
+                    console.log('✅ Detected recent survey completion. Will ensure fresh data loads.');
+                    needsFreshData = true;
+                    
+                    // Clear the flag immediately to prevent re-processing
+                    localStorage.removeItem('educators_survey_completed');
+                }
+            } catch (e) {
+                console.warn('⚠️ Could not parse survey flag:', e);
+                localStorage.removeItem('educators_survey_completed');
             }
-            
-            // Remove the query parameter and reload the page.
-            const newUrl = window.location.pathname;
-            window.history.replaceState({}, document.title, newUrl);
-            
-            // Force a hard reload from the server
-            window.location.reload(true);
-            
-            // Stop further execution of this script until the page reloads.
-            return; 
         }
         
         // Wait for auth system to be available
@@ -75,6 +71,14 @@
         try {
             // Initialize authentication system
             const authSystem = window.LMAuth.getAuthSystem();
+            
+            // If coming from survey, wait a bit for Memberstack data to sync
+            if (needsFreshData) {
+                console.log('⏳ Waiting for Memberstack data sync...');
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                console.log('✅ Proceeding with fresh data fetch...');
+            }
+            
             const authResult = await authSystem.initialize();
             
             if (!authResult.success) {

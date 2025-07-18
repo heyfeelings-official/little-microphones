@@ -194,21 +194,28 @@
                 const planResult = await assignPlan();
                 if (!planResult) {
                      console.error('❌ Plan assignment failed. Check previous logs for details.');
-                     // Optional: Stop redirect if plan assignment is critical
-                     // isSubmitting = false;
-                     // submitButton.disabled = false;
-                     // submitButton.textContent = "Try Again";
-                     // return;
                 } else {
                     console.log('✅ Plan assigned successfully.');
+                    
+                    // Set flag in localStorage to signal the destination page
+                    try {
+                        localStorage.setItem('educators_survey_completed', JSON.stringify({
+                            timestamp: Date.now(),
+                            planId: PLAN_ID,
+                            redirectFrom: 'educators-survey'
+                        }));
+                        console.log('📝 Set survey completion flag in localStorage');
+                    } catch (storageError) {
+                        console.warn('⚠️ Could not set localStorage flag:', storageError);
+                    }
                 }
                 
-                // Redirect to success page after a delay to allow backend processing
-                console.log('⏳ Waiting for 2 seconds before redirecting to allow data sync...');
+                // Redirect to success page after a shorter delay
+                console.log('⏳ Waiting 1 second before redirecting...');
                 setTimeout(() => {
                     console.log('🎉 Redirecting to success page...');
                     window.location.href = SUCCESS_REDIRECT_URL;
-                }, 2000); // Increased delay
+                }, 1000);
                 
             } catch (error) {
                 console.error('❌ Error during submission:', error);
