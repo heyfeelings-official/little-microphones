@@ -8,16 +8,15 @@
  * - Detect ?survey=filled parameter
  * - Show confetti celebration
  * - Wait 2 seconds then reload page with survey parameter removed
+ * - Show confetti for 5s after reload
  * - No toast notifications
  * 
- * VERSION: 1.1.0
+ * VERSION: 1.1.1
  * LAST UPDATED: January 2025
  */
 
 (function() {
     'use strict';
-    
-    console.log('[Survey Completion] Script v1.1.0 loaded - confetti + reload');
     
     /**
      * Check if we're coming from survey completion
@@ -28,9 +27,30 @@
     }
     
     /**
+     * Check if we're coming from a reload (second load)
+     */
+    function checkFromReload() {
+        return sessionStorage.getItem('survey_reload') === 'true';
+    }
+    
+    /**
+     * Mark as coming from reload
+     */
+    function markAsReload() {
+        sessionStorage.setItem('survey_reload', 'true');
+    }
+    
+    /**
+     * Clear reload flag
+     */
+    function clearReloadFlag() {
+        sessionStorage.removeItem('survey_reload');
+    }
+    
+    /**
      * Show confetti celebration
      */
-    function showConfetti() {
+    function showConfetti(duration = 6000) {
         // Create confetti container
         const confettiContainer = document.createElement('div');
         confettiContainer.id = 'survey-confetti';
@@ -91,9 +111,7 @@
             if (style.parentNode) {
                 style.parentNode.removeChild(style);
             }
-        }, 6000);
-        
-        console.log('🎉 Confetti celebration started!');
+        }, duration);
     }
     
     // UI manipulation completely removed for testing
@@ -102,32 +120,25 @@
      * Main initialization function
      */
     async function initializeSurveyCompletion() {
-        console.log('🎯 Initializing survey completion handler...');
-        
-        // Check if we're coming from survey
-        if (!checkSurveyCompletion()) {
-            console.log('📝 No survey completion detected, exiting...');
-            return;
+        // Check if we're coming from survey completion
+        if (checkSurveyCompletion()) {
+            // First load with survey parameter
+            showConfetti();
+            markAsReload();
+            
+            // Wait 2 seconds then reload page with survey parameter removed
+            setTimeout(() => {
+                const url = new URL(window.location);
+                url.searchParams.delete('survey');
+                window.location.href = url.toString();
+            }, 2000);
+            
+        } else if (checkFromReload()) {
+            // Second load after reload - show confetti for 5s
+            showConfetti(5000);
+            clearReloadFlag();
         }
-        
-        console.log('🎉 Survey completion detected!');
-        
-        // Show confetti immediately
-        showConfetti();
-        
-        // Wait 2 seconds then reload page with survey parameter removed
-        setTimeout(() => {
-            console.log('🔄 Reloading page and removing survey parameter...');
-            
-            // Create new URL without survey parameter
-            const url = new URL(window.location);
-            url.searchParams.delete('survey');
-            
-            // Reload to the URL without survey parameter
-            window.location.href = url.toString();
-        }, 2000);
-        
-        console.log('✅ Survey completion handling started - will reload in 2s');
+        // If neither condition is met, do nothing (no logs)
     }
     
     // Initialize when DOM is ready
