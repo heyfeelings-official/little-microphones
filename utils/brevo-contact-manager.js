@@ -37,14 +37,14 @@ import {
 const BREVO_API_BASE = 'https://api.brevo.com/v3';
 
 /**
- * Helper function to handle empty values - returns empty string for consistent clearing
+ * Helper function to handle empty values - returns null for consistent clearing
  * This ensures Brevo clears fields when values are removed from Memberstack
  * @param {*} value - Value to check
- * @returns {*} - Original value or empty string if empty
+ * @returns {*} - Original value or null if empty (to clear field in Brevo)
  */
 function handleEmptyValue(value) {
   if (value === null || value === undefined || value === '') {
-    return '';
+    return null;
   }
   return value;
 }
@@ -316,37 +316,25 @@ export async function createOrUpdateBrevoContact(memberData, planConfig) {
       PLAN_TYPE: allAttributes.PLAN_TYPE
     });
     
-    // Clean up null/undefined values - Brevo doesn't like them
-    // Also preserve existing values if new value is empty
-    const cleanedAttributes = {};
-    Object.keys(allAttributes).forEach(key => {
-      const value = allAttributes[key];
-      if (value !== null && value !== undefined && value !== '') {
-        cleanedAttributes[key] = value;
-      } else if (existingContact?.attributes?.[key]) {
-        // If new value is empty but existing contact has data, preserve it
-        cleanedAttributes[key] = existingContact.attributes[key];
-      }
-    });
-    
-    // Log final cleaned attributes for debugging
-    console.log(`📋 [${syncId}] Final cleaned attributes being sent to Brevo:`, {
-      ...cleanedAttributes,
-      fieldsCount: Object.keys(cleanedAttributes).length,
+    // Send all attributes including empty ones to ensure proper field clearing
+    // Log final attributes for debugging
+    console.log(`📋 [${syncId}] Final attributes being sent to Brevo:`, {
+      ...allAttributes,
+      fieldsCount: Object.keys(allAttributes).length,
       hasAllImportantFields: {
-        FIRSTNAME: !!cleanedAttributes.FIRSTNAME,
-        LASTNAME: !!cleanedAttributes.LASTNAME,
-        PLAN_NAME: !!cleanedAttributes.PLAN_NAME,
-        SCHOOL_CITY: !!cleanedAttributes.SCHOOL_CITY,
-        EDUCATOR_ROLE: !!cleanedAttributes.EDUCATOR_ROLE,
-        EDUCATOR_NO_KIDS: !!cleanedAttributes.EDUCATOR_NO_KIDS
+        FIRSTNAME: !!allAttributes.FIRSTNAME,
+        LASTNAME: !!allAttributes.LASTNAME,
+        PLAN_NAME: !!allAttributes.PLAN_NAME,
+        SCHOOL_CITY: !!allAttributes.SCHOOL_CITY,
+        EDUCATOR_ROLE: !!allAttributes.EDUCATOR_ROLE,
+        EDUCATOR_NO_KIDS: !!allAttributes.EDUCATOR_NO_KIDS
       }
     });
     
     // Prepare contact data
     const contactData = {
       email: email,
-      attributes: cleanedAttributes,
+      attributes: allAttributes,
       listIds: [BREVO_MAIN_LIST.HEY_FEELINGS_LIST], // Add to main list
       updateEnabled: true
     };
@@ -566,22 +554,14 @@ export async function syncMemberToBrevo(memberData) {
         PLAN_ID: existingContactData.attributes.PLAN_ID
       };
       
-      // Clean up null/undefined/empty values - only update fields with actual data
-      const cleanedAttributes = {};
-      Object.keys(updateAttributes).forEach(key => {
-        const value = updateAttributes[key];
-        if (value !== null && value !== undefined && value !== '') {
-          cleanedAttributes[key] = value;
-        }
-      });
-      
+      // Send all attributes including empty ones to ensure proper field clearing
       console.log(`📋 [${syncId}] Updating contact with preserved plan and mapped fields:`, {
-        ...cleanedAttributes,
-        fieldsCount: Object.keys(cleanedAttributes).length
+        ...updateAttributes,
+        fieldsCount: Object.keys(updateAttributes).length
       });
       
       await makeBrevoRequest(`/contacts/${encodeURIComponent(email)}`, 'PUT', {
-        attributes: cleanedAttributes
+        attributes: updateAttributes
       });
       
       console.log(`✅ [${syncId}] Updated contact preserving existing plan data`);
