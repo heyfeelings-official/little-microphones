@@ -85,6 +85,9 @@ export const BREVO_CONTACT_ATTRIBUTES = {
   LMIDS: 'string',            // Comma-separated LMID list
   LANGUAGE_PREF: 'string',    // pl, en
   
+  // Company linking
+  SCHOOL_ID: 'string',        // School ID for linking to Companies
+  
   // Custom fields for user preferences/settings
   RESOURCES: 'string',        // Resources preference/setting
   PAYMENTS: 'string',         // Payments preference/setting  

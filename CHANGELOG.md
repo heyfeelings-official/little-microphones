@@ -1,5 +1,31 @@
 # Changelog - Little Microphones
 
+## [6.1.0] - 2025-01-28 - Brevo Companies Integration 🏢
+
+### 🏢 Major Feature: Companies Integration
+- **Added**: Complete integration with Brevo Companies for school management
+- **Added**: New file `utils/brevo-company-config.js` with company attributes configuration
+- **Added**: Functions for creating/updating companies and linking contacts to companies
+- **Updated**: Contact synchronization now automatically creates/updates Companies for schools
+- **Updated**: Contacts are linked to Companies via SCHOOL_ID field
+- **Added**: Documentation `brevo-companies-integration.md` for setup instructions
+
+### 🔄 Synchronization Updates
+- **Added**: SCHOOL_ID attribute to contact records for company linking
+- **Added**: Custom fields synchronization for Companies (resources, payments, discover)
+- **Enhanced**: School data now stored in Companies instead of duplicated in Contacts
+- **Improved**: Better data organization with single source of truth for schools
+
+### 📊 Segmentation Strategy
+- **User Segments**: Parents, Educators Free, Educators Paid, Therapists (unchanged)
+- **Company Segments**: Schools with Paid Plans, Schools with Free Plans (new simplified approach)
+
+### 💡 Benefits
+- Clear separation between user and school data
+- Better targeting capabilities for school-level campaigns
+- Improved scalability and performance
+- Enhanced analytics with school-level metrics
+
 ## [6.0.1] - 2025-01-15 - Brevo Environment Variables Configuration ⚙️
 
 ### 🔧 Configuration Improvements

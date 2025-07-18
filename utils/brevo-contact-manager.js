@@ -25,6 +25,14 @@ import {
   getAttributesForPlan
 } from './brevo-contact-config.js';
 
+import {
+  BREVO_COMPANY_ATTRIBUTES,
+  COMPANY_CONTACT_LINK,
+  getCompanyAttributes,
+  shouldLinkToCompany,
+  getSchoolIdFromMember
+} from './brevo-company-config.js';
+
 // ===== BREVO API CONFIGURATION =====
 const BREVO_API_BASE = 'https://api.brevo.com/v3';
 
@@ -253,6 +261,9 @@ export async function createOrUpdateBrevoContact(memberData, planConfig) {
       
       // Application-specific
       LMIDS: memberData.metaData?.lmids || '',
+      
+      // Company linking
+      SCHOOL_ID: getSchoolIdFromMember(memberData) || '',
       
       // Custom fields for user preferences/settings
       RESOURCES: memberData.customFields?.['resources'] || 
@@ -550,9 +561,22 @@ export async function syncMemberToBrevo(memberData) {
       const basicAttributes = {
         FIRSTNAME: memberData.customFields?.['first-name'] || memberData.customFields?.firstName || '',
         LASTNAME: memberData.customFields?.['last-name'] || memberData.customFields?.lastName || '',
+        PHONE: memberData.customFields?.['phone'] || memberData.customFields?.phone || '',
         MEMBERSTACK_ID: memberData.id || '',
         REGISTRATION_DATE: memberData.createdAt || new Date().toISOString(),
         LAST_SYNC: new Date().toISOString(),
+        
+        // Custom fields for user preferences/settings
+        RESOURCES: memberData.customFields?.['resources'] || 
+                   memberData.customFields?.resources ||
+                   memberData.metaData?.resources || '',
+        PAYMENTS: memberData.customFields?.['payments'] || 
+                  memberData.customFields?.payments ||
+                  memberData.metaData?.payments || '',
+        DISCOVER: memberData.customFields?.['discover'] || 
+                  memberData.customFields?.discover ||
+                  memberData.metaData?.discover || '',
+        
         // Set default category as pending until plan is selected
         USER_CATEGORY: 'pending',
         PLAN_TYPE: 'none',
@@ -600,13 +624,90 @@ export async function syncMemberToBrevo(memberData) {
     // Create/update contact
     const contactResult = await createOrUpdateBrevoContact(memberData, planConfig);
     
-    if (contactResult.success) {
-      console.log(`✅ [${syncId}] Brevo sync completed successfully for ${email}`);
-      return { success: true, syncId, email, contactResult };
-    } else {
+    if (!contactResult.success) {
       console.error(`❌ [${syncId}] Brevo sync failed for ${email}: ${contactResult.error}`);
       return { success: false, syncId, email, error: contactResult.error };
     }
+    
+    // Handle Company creation/update for educators and therapists with school data
+    if (shouldLinkToCompany(memberData)) {
+      const schoolId = getSchoolIdFromMember(memberData);
+      
+      if (schoolId) {
+        console.log(`🏢 [${syncId}] Processing company for contact ${email}`);
+        
+        // Prepare school data from member data
+        const schoolData = {
+          SCHOOL_ID: schoolId,
+          SCHOOL_NAME: memberData.customFields?.schoolName || 
+                       memberData.customFields?.['school-name'] ||
+                       memberData.metaData?.schoolName || '',
+          SCHOOL_CITY: memberData.customFields?.city || 
+                       memberData.customFields?.['school-city'] ||
+                       memberData.metaData?.schoolCity || '',
+          SCHOOL_COUNTRY: memberData.customFields?.country || 
+                          memberData.customFields?.['school-country'] ||
+                          memberData.metaData?.schoolCountry || '',
+          SCHOOL_PHONE: memberData.customFields?.['school-phone'] ||
+                        memberData.metaData?.schoolPhone || '',
+          SCHOOL_WEBSITE: memberData.customFields?.website ||
+                          memberData.customFields?.['school-website'] ||
+                          memberData.metaData?.schoolWebsite || '',
+          SCHOOL_STREET_ADDRESS: memberData.customFields?.['street-address'] ||
+                                 memberData.metaData?.schoolStreetAddress || '',
+          SCHOOL_STATE_PROVINCE: memberData.customFields?.state ||
+                                 memberData.customFields?.['school-state'] ||
+                                 memberData.metaData?.schoolState || '',
+          SCHOOL_POSTAL_CODE: memberData.customFields?.zip ||
+                              memberData.customFields?.['school-zip'] ||
+                              memberData.metaData?.schoolZip || '',
+          SCHOOL_LATITUDE: memberData.customFields?.latitude ||
+                           memberData.customFields?.['school-latitude'] ||
+                           memberData.metaData?.schoolLatitude || '',
+          SCHOOL_LONGITUDE: memberData.customFields?.longitude ||
+                            memberData.customFields?.['school-longitude'] ||
+                            memberData.metaData?.schoolLongitude || '',
+          
+          // Add plan information if educator has school plan
+          PLAN_TYPE: planConfig?.attributes?.PLAN_TYPE || 'free',
+          PLAN_NAME: planConfig?.attributes?.PLAN_NAME || '',
+          PLAN_ID: plan?.planId || '',
+          
+          // Add custom fields
+          RESOURCES: memberData.customFields?.resources || memberData.metaData?.resources || '',
+          PAYMENTS: memberData.customFields?.payments || memberData.metaData?.payments || '',
+          DISCOVER: memberData.customFields?.discover || memberData.metaData?.discover || ''
+        };
+        
+        // Create or update company
+        const companyResult = await createOrUpdateBrevoCompany(schoolData);
+        
+        if (companyResult.success) {
+          console.log(`✅ [${syncId}] Company processed successfully`);
+          
+          // Link contact to company
+          const linkData = {
+            EDUCATOR_ROLE: memberData.customFields?.role || 
+                          memberData.customFields?.['educator-role'] ||
+                          memberData.metaData?.educatorRole || '',
+            IS_PRIMARY_CONTACT: memberData.customFields?.role?.toLowerCase().includes('principal') || false
+          };
+          
+          const linkResult = await linkContactToCompany(email, schoolId, linkData);
+          
+          if (linkResult.success) {
+            console.log(`✅ [${syncId}] Contact linked to company successfully`);
+          } else {
+            console.warn(`⚠️ [${syncId}] Failed to link contact to company: ${linkResult.error}`);
+          }
+        } else {
+          console.warn(`⚠️ [${syncId}] Failed to process company: ${companyResult.error}`);
+        }
+      }
+    }
+    
+    console.log(`✅ [${syncId}] Brevo sync completed successfully for ${email}`);
+    return { success: true, syncId, email, contactResult };
     
   } catch (error) {
     console.error(`❌ [${syncId}] Error in Brevo sync for ${email}:`, error.message);
@@ -703,5 +804,161 @@ export async function removeContactFromBrevoList(email, listId = BREVO_MAIN_LIST
   } catch (error) {
     console.error(`❌ [${syncId}] Error removing contact ${email} from list ${listId}:`, error.message);
     return { success: false, syncId, email, listId, error: error.message };
+  }
+}
+
+// ===== BREVO COMPANIES MANAGEMENT =====
+
+/**
+ * Create or update a company in Brevo
+ * @param {Object} schoolData - School data from Memberstack
+ * @returns {Promise<Object>} Company creation/update result
+ */
+export async function createOrUpdateBrevoCompany(schoolData) {
+  const syncId = Math.random().toString(36).substring(2, 15);
+  const schoolId = schoolData.SCHOOL_ID || getSchoolIdFromMember({ metaData: schoolData });
+  
+  if (!schoolId) {
+    console.error(`❌ [${syncId}] Cannot create company without SCHOOL_ID`);
+    return { success: false, error: 'Missing SCHOOL_ID' };
+  }
+  
+  console.log(`🏢 [${syncId}] Creating/updating company: ${schoolData.SCHOOL_NAME} (ID: ${schoolId})`);
+  
+  try {
+    // Check if company exists
+    const existingCompany = await getBrevoCompany(schoolId);
+    
+    // Prepare company attributes
+    const companyAttributes = getCompanyAttributes(schoolData);
+    
+    if (existingCompany) {
+      // Update existing company
+      console.log(`📝 [${syncId}] Updating existing company ${schoolId}`);
+      
+      const result = await makeBrevoRequest(`/companies/${schoolId}`, 'PATCH', {
+        attributes: companyAttributes
+      });
+      
+      console.log(`✅ [${syncId}] Successfully updated company ${schoolId}`);
+      return { success: true, syncId, companyId: schoolId, action: 'updated', data: result };
+      
+    } else {
+      // Create new company
+      console.log(`➕ [${syncId}] Creating new company ${schoolId}`);
+      
+      const result = await makeBrevoRequest('/companies', 'POST', {
+        name: companyAttributes.name || schoolData.SCHOOL_NAME,
+        attributes: companyAttributes,
+        countryCode: schoolData.SCHOOL_COUNTRY || 'US'
+      });
+      
+      console.log(`✅ [${syncId}] Successfully created company ${schoolId}`);
+      return { success: true, syncId, companyId: schoolId, action: 'created', data: result };
+    }
+    
+  } catch (error) {
+    console.error(`❌ [${syncId}] Error creating/updating company:`, error.message);
+    return { success: false, syncId, error: error.message };
+  }
+}
+
+/**
+ * Get company data from Brevo
+ * @param {string} companyId - Company ID (SCHOOL_ID)
+ * @returns {Promise<Object|null>} Company data or null if not found
+ */
+export async function getBrevoCompany(companyId) {
+  if (!companyId) return null;
+  
+  try {
+    const result = await makeBrevoRequest(`/companies/${encodeURIComponent(companyId)}`);
+    return result;
+  } catch (error) {
+    if (error.message.includes('404')) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+/**
+ * Link a contact to a company
+ * @param {string} email - Contact email
+ * @param {string} companyId - Company ID (SCHOOL_ID)
+ * @param {Object} linkData - Additional link data (role, department, etc.)
+ * @returns {Promise<Object>} Link result
+ */
+export async function linkContactToCompany(email, companyId, linkData = {}) {
+  const syncId = Math.random().toString(36).substring(2, 15);
+  
+  console.log(`🔗 [${syncId}] Linking contact ${email} to company ${companyId}`);
+  
+  try {
+    // In Brevo, linking is done by updating contact with company ID
+    const updateData = {
+      attributes: {
+        [COMPANY_CONTACT_LINK.CONTACT_COMPANY_FIELD]: companyId,
+        ...linkData
+      }
+    };
+    
+    const result = await makeBrevoRequest(`/contacts/${encodeURIComponent(email)}`, 'PUT', updateData);
+    
+    console.log(`✅ [${syncId}] Successfully linked contact to company`);
+    return { success: true, syncId, email, companyId, result };
+    
+  } catch (error) {
+    console.error(`❌ [${syncId}] Error linking contact to company:`, error.message);
+    return { success: false, syncId, error: error.message };
+  }
+}
+
+/**
+ * Get all contacts linked to a company
+ * @param {string} companyId - Company ID (SCHOOL_ID)
+ * @returns {Promise<Object>} Contacts data
+ */
+export async function getCompanyContacts(companyId) {
+  try {
+    // Filter contacts by SCHOOL_ID attribute
+    const filter = `${COMPANY_CONTACT_LINK.CONTACT_COMPANY_FIELD}='${companyId}'`;
+    const result = await makeBrevoRequest(`/contacts?filter=${encodeURIComponent(filter)}`);
+    return { success: true, data: result };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Update company metrics (e.g., total students, educators)
+ * @param {string} companyId - Company ID (SCHOOL_ID)
+ * @param {Object} metrics - Metrics to update
+ * @returns {Promise<Object>} Update result
+ */
+export async function updateCompanyMetrics(companyId, metrics) {
+  const syncId = Math.random().toString(36).substring(2, 15);
+  
+  console.log(`📊 [${syncId}] Updating metrics for company ${companyId}`);
+  
+  try {
+    const updateData = {
+      attributes: {
+        TOTAL_STUDENTS: metrics.totalStudents,
+        TOTAL_EDUCATORS: metrics.totalEducators,
+        TOTAL_CLASSES: metrics.totalClasses,
+        ACTIVE_LMIDS: metrics.activeLmids,
+        LAST_ACTIVITY: new Date().toISOString()
+      }
+    };
+    
+    const result = await makeBrevoRequest(`/companies/${companyId}`, 'PATCH', updateData);
+    
+    console.log(`✅ [${syncId}] Successfully updated company metrics`);
+    return { success: true, syncId, companyId, result };
+    
+  } catch (error) {
+    console.error(`❌ [${syncId}] Error updating company metrics:`, error.message);
+    return { success: false, syncId, error: error.message };
   }
 } 
