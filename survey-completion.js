@@ -97,6 +97,31 @@
         console.log('🎉 Confetti celebration started!');
     }
     
+    /**
+     * Wait for Memberstack to be available
+     */
+    function waitForMemberstack(timeout = 10000) {
+        return new Promise((resolve, reject) => {
+            const memberstack = window.$memberstackDom || window.memberstack;
+            if (memberstack) {
+                resolve();
+                return;
+            }
+            
+            const startTime = Date.now();
+            const checkInterval = setInterval(() => {
+                const memberstack = window.$memberstackDom || window.memberstack;
+                if (memberstack) {
+                    clearInterval(checkInterval);
+                    resolve();
+                } else if (Date.now() - startTime > timeout) {
+                    clearInterval(checkInterval);
+                    reject(new Error('Memberstack loading timeout'));
+                }
+            }, 100);
+        });
+    }
+    
     // UI manipulation completely removed for testing
     
     /**
