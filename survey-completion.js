@@ -1,24 +1,24 @@
 /**
  * Survey Completion Handler - Minimal Script
  * 
- * PURPOSE: Handle survey completion with confetti and UI updates
+ * PURPOSE: Handle survey completion with confetti and page reload for fresh data
  * USAGE: <script src="https://little-microphones.vercel.app/survey-completion.js"></script>
  * 
  * FEATURES:
  * - Detect ?survey=filled parameter
  * - Show confetti celebration
- * - Force fresh Memberstack data fetch WITHOUT clearing session
- * - Update UI elements (unlock content, remove grayscale)
+ * - Page reload to force fresh Memberstack data
+ * - Update UI elements after reload
  * - No toast notifications
  * 
- * VERSION: 1.0.3
+ * VERSION: 1.0.4
  * LAST UPDATED: January 2025
  */
 
 (function() {
     'use strict';
     
-    console.log('[Survey Completion] Script v1.0.3 loaded');
+    console.log('[Survey Completion] Script v1.0.4 loaded');
     
     /**
      * Check if we're coming from survey completion
@@ -26,6 +26,27 @@
     function checkSurveyCompletion() {
         const urlParams = new URLSearchParams(window.location.search);
         return urlParams.get('survey') === 'filled';
+    }
+    
+    /**
+     * Check if we already reloaded
+     */
+    function checkAlreadyReloaded() {
+        return sessionStorage.getItem('survey_reloaded') === 'true';
+    }
+    
+    /**
+     * Mark as reloaded
+     */
+    function markAsReloaded() {
+        sessionStorage.setItem('survey_reloaded', 'true');
+    }
+    
+    /**
+     * Clear reload flag
+     */
+    function clearReloadFlag() {
+        sessionStorage.removeItem('survey_reloaded');
     }
     
     /**
@@ -98,56 +119,6 @@
     }
     
     /**
-     * Wait for fresh member data with patience
-     */
-    async function waitForFreshMemberData() {
-        try {
-            console.log('📡 Waiting for fresh member data...');
-            
-            // Wait for Memberstack to be available
-            await waitForMemberstack();
-            
-            const memberstack = window.$memberstackDom || window.memberstack;
-            if (!memberstack) {
-                throw new Error('Memberstack not available');
-            }
-            
-            // IMPORTANT: Don't clear cache - it logs out the user!
-            // Instead, wait for backend sync
-            console.log('⏳ Waiting 3 seconds for backend sync...');
-            await new Promise(resolve => setTimeout(resolve, 3000));
-            
-            // Now get member data
-            const member = await memberstack.getCurrentMember();
-            
-            if (member && member.data) {
-                console.log('✅ Member data received:', member.data);
-                
-                // Check if educator plan is present
-                const hasEducatorPlan = member.data.planConnections && 
-                    member.data.planConnections.some(plan => 
-                        plan.planId === 'pln_educators-free-promo-ebfw0xzj'
-                    );
-                
-                if (hasEducatorPlan) {
-                    console.log('✅ Educator plan confirmed!');
-                } else {
-                    console.log('⚠️ Educator plan not found in data, but proceeding anyway');
-                }
-                
-                return member.data;
-            } else {
-                throw new Error('No member data received');
-            }
-            
-        } catch (error) {
-            console.error('❌ Error getting member data:', error);
-            // Return dummy data to still update UI
-            return { assumeEducatorPlan: true };
-        }
-    }
-    
-    /**
      * Wait for Memberstack to be available
      */
     function waitForMemberstack(timeout = 10000) {
@@ -175,9 +146,29 @@
     /**
      * Update UI elements - unlock content and remove grayscale
      */
-    function updateUIElements() {
+    async function updateUIElements() {
         try {
             console.log('🎨 Updating UI elements for educator access...');
+            
+            // Wait for Memberstack and check plan
+            await waitForMemberstack();
+            const memberstack = window.$memberstackDom || window.memberstack;
+            
+            if (memberstack) {
+                const member = await memberstack.getCurrentMember();
+                if (member && member.data) {
+                    console.log('📊 Member data:', member.data);
+                    
+                    const hasEducatorPlan = member.data.planConnections && 
+                        member.data.planConnections.some(plan => 
+                            plan.planId === 'pln_educators-free-promo-ebfw0xzj'
+                        );
+                    
+                    if (hasEducatorPlan) {
+                        console.log('✅ Educator plan confirmed!');
+                    }
+                }
+            }
             
             // Remove grayscale filters
             const grayscaleElements = document.querySelectorAll('[style*="filter"]');
@@ -191,14 +182,19 @@
                 }
             });
             
-            // Remove opacity restrictions on specific elements
-            const opaqueElements = document.querySelectorAll('.locked, .disabled, .blocked, [class*="trial"], [class*="upgrade"]');
-            opaqueElements.forEach(element => {
-                element.style.opacity = '1';
-                element.style.pointerEvents = 'auto';
+            // Remove opacity restrictions
+            const allElements = document.querySelectorAll('*');
+            allElements.forEach(element => {
+                const computedStyle = window.getComputedStyle(element);
+                if (computedStyle.opacity !== '1' && element.style.opacity) {
+                    element.style.opacity = '1';
+                }
+                if (computedStyle.pointerEvents === 'none' && element.style.pointerEvents) {
+                    element.style.pointerEvents = 'auto';
+                }
             });
             
-            // Enable all disabled buttons and inputs
+            // Enable disabled elements
             const disabledElements = document.querySelectorAll('button[disabled], input[disabled], select[disabled], a[disabled]');
             disabledElements.forEach(element => {
                 element.disabled = false;
@@ -207,35 +203,24 @@
                 element.style.cursor = 'pointer';
             });
             
-            // Hide trial/upgrade messages
-            const trialMessages = document.querySelectorAll('[class*="trial"], [class*="upgrade"], [class*="locked"], .trial-message, .upgrade-message');
-            trialMessages.forEach(element => {
-                // Only hide if it's actually a message/banner
+            // Hide trial messages
+            const trialElements = document.querySelectorAll('[class*="trial"], [class*="upgrade"], .trial-message, .upgrade-message');
+            trialElements.forEach(element => {
                 if (element.textContent.toLowerCase().includes('trial') || 
                     element.textContent.toLowerCase().includes('upgrade') ||
-                    element.textContent.toLowerCase().includes('unlock')) {
+                    element.textContent.toLowerCase().includes('free year')) {
                     element.style.display = 'none';
                 }
             });
             
-            // Find and hide green success blocks by content
-            const allDivs = document.querySelectorAll('div');
-            allDivs.forEach(div => {
+            // Hide green success blocks
+            const greenDivs = document.querySelectorAll('div');
+            greenDivs.forEach(div => {
                 const bgColor = window.getComputedStyle(div).backgroundColor;
-                const isGreen = bgColor.includes('rgb(0, 128, 0)') || 
-                               bgColor.includes('rgb(0, 255, 0)') || 
-                               bgColor.includes('green');
-                
-                if (isGreen && div.textContent.includes('FREE Access Unlocked')) {
+                if ((bgColor.includes('0, 128, 0') || bgColor.includes('0, 255, 0') || bgColor.includes('green')) && 
+                    div.textContent.includes('FREE Access Unlocked')) {
                     div.style.display = 'none';
                 }
-            });
-            
-            // Make world containers interactive
-            const worldContainers = document.querySelectorAll('[class*="world"], [class*="emotion"]');
-            worldContainers.forEach(container => {
-                container.style.pointerEvents = 'auto';
-                container.style.cursor = 'pointer';
             });
             
             console.log('✅ UI elements updated - content unlocked');
@@ -254,6 +239,8 @@
         // Check if we're coming from survey
         if (!checkSurveyCompletion()) {
             console.log('📝 No survey completion detected, exiting...');
+            // Clear any stale reload flag
+            clearReloadFlag();
             return;
         }
         
@@ -264,14 +251,26 @@
         url.searchParams.delete('survey');
         history.replaceState({}, '', url);
         
-        // Show confetti immediately
-        showConfetti();
-        
-        // Wait for member data (with 3s delay for backend sync)
-        await waitForFreshMemberData();
-        
-        // Always update UI
-        updateUIElements();
+        // Check if we already reloaded
+        if (checkAlreadyReloaded()) {
+            console.log('🔄 Already reloaded, updating UI now...');
+            // Clear the flag for next time
+            clearReloadFlag();
+            // Show confetti and update UI
+            showConfetti();
+            await updateUIElements();
+        } else {
+            console.log('🔄 First load after survey, will reload for fresh data...');
+            // Mark as reloaded and reload page
+            markAsReloaded();
+            // Show quick confetti before reload
+            showConfetti();
+            // Reload after 2 seconds to get fresh data
+            setTimeout(() => {
+                console.log('🔄 Reloading page for fresh data...');
+                window.location.reload();
+            }, 2000);
+        }
         
         console.log('✅ Survey completion handling completed!');
     }
@@ -280,7 +279,7 @@
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initializeSurveyCompletion);
     } else {
-        // Small delay to ensure Memberstack is ready
+        // Small delay to ensure everything is ready
         setTimeout(initializeSurveyCompletion, 100);
     }
     
