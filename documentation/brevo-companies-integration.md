@@ -25,7 +25,7 @@ The following attributes need to be created in Brevo Dashboard under Companies:
 ### Basic Information
 - `name` (string) - Company/School name (required by Brevo)
 - `SCHOOL_WEBSITE` (string) - School website URL
-- `SCHOOL_PHONE` (string) - School phone number
+- `SCHOOL_PHONE` (string) - School phone number (custom field, ignore Brevo's default Phone Number)
 
 ### Address Information
 - `SCHOOL_ADDRESS` (string) - Full address
@@ -36,37 +36,17 @@ The following attributes need to be created in Brevo Dashboard under Companies:
 - `SCHOOL_COUNTRY` (string) - Country
 
 ### Location Data
-- `SCHOOL_LATITUDE` (float) - Latitude for mapping
-- `SCHOOL_LONGITUDE` (float) - Longitude for mapping
+- `SCHOOL_LATITUDE` (text/string) - Latitude for mapping
+- `SCHOOL_LONGITUDE` (text/string) - Longitude for mapping
 
 ### School Metrics
 - `TOTAL_STUDENTS` (number) - Total number of students
 - `TOTAL_EDUCATORS` (number) - Total number of educators
 - `TOTAL_CLASSES` (number) - Total number of classes
-- `ACTIVE_LMIDS` (number) - Number of active LMIDs
-
-### Plan Information
-- `PLAN_TYPE` (string) - 'free' or 'paid'
-- `PLAN_NAME` (string) - Current plan name
-- `PLAN_ID` (string) - Memberstack plan ID
-- `PLAN_START_DATE` (date) - Plan start date
-- `PLAN_RENEWAL_DATE` (date) - Next renewal date
 
 ### System Information
-- `SCHOOL_ID` (string) - Unique school identifier (critical for linking)
-- `MEMBERSTACK_ORG_ID` (string) - Memberstack organization ID if applicable
+- `SCHOOL_ID` (text/string) - Unique school identifier (critical for linking)
 - `REGISTRATION_DATE` (date) - First registration date
-- `LAST_ACTIVITY` (date) - Last activity date
-
-### Contact Information
-- `PRIMARY_CONTACT_EMAIL` (string) - Primary contact email
-- `PRIMARY_CONTACT_NAME` (string) - Primary contact name
-- `PRIMARY_CONTACT_ROLE` (string) - Principal, Admin, etc.
-
-### Custom Fields
-- `RESOURCES` (string) - Resources preference
-- `PAYMENTS` (string) - Payments preference
-- `DISCOVER` (string) - Discover preference
 
 ## Contact-Company Linking
 
@@ -84,10 +64,7 @@ Continue using existing segments:
 - **Educators Paid** - Individual educators with paid plans
 - **Therapists** - All therapists
 
-### Company Segments (Schools)
-New simplified segments:
-- **Schools - Paid Plan** - Schools with active paid subscriptions
-- **Schools - Free Plan** - Schools using free plans
+Note: School segmentation is not needed - Companies are used only for data organization and relationship management.
 
 ## Implementation Flow
 

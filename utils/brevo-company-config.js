@@ -15,7 +15,7 @@ export const BREVO_COMPANY_ATTRIBUTES = {
   
   // School Information
   SCHOOL_WEBSITE: 'string',          // School website URL
-  SCHOOL_PHONE: 'string',            // School phone number
+  SCHOOL_PHONE: 'string',            // School phone number (our custom field, ignore Brevo's default Phone Number)
   
   // Address Information
   SCHOOL_ADDRESS: 'string',          // Full address
@@ -26,37 +26,17 @@ export const BREVO_COMPANY_ATTRIBUTES = {
   SCHOOL_COUNTRY: 'string',          // Country
   
   // Location Data
-  SCHOOL_LATITUDE: 'float',          // Latitude for mapping
-  SCHOOL_LONGITUDE: 'float',         // Longitude for mapping
+  SCHOOL_LATITUDE: 'string',         // Latitude for mapping (stored as text)
+  SCHOOL_LONGITUDE: 'string',        // Longitude for mapping (stored as text)
   
   // School Metrics
   TOTAL_STUDENTS: 'number',          // Total number of students
   TOTAL_EDUCATORS: 'number',         // Total number of educators
   TOTAL_CLASSES: 'number',           // Total number of classes
-  ACTIVE_LMIDS: 'number',            // Number of active LMIDs
-  
-  // Plan Information
-  PLAN_TYPE: 'string',               // 'free' or 'paid'
-  PLAN_NAME: 'string',               // Current plan name
-  PLAN_ID: 'string',                 // Memberstack plan ID
-  PLAN_START_DATE: 'date',           // Plan start date
-  PLAN_RENEWAL_DATE: 'date',         // Next renewal date
   
   // System Information
-  SCHOOL_ID: 'string',               // Unique school identifier (critical for linking)
-  MEMBERSTACK_ORG_ID: 'string',      // Memberstack organization ID if applicable
-  REGISTRATION_DATE: 'date',         // First registration date
-  LAST_ACTIVITY: 'date',             // Last activity date
-  
-  // Contact Information
-  PRIMARY_CONTACT_EMAIL: 'string',   // Primary contact email
-  PRIMARY_CONTACT_NAME: 'string',    // Primary contact name
-  PRIMARY_CONTACT_ROLE: 'string',    // Principal, Admin, etc.
-  
-  // Custom Fields (synchronized from Memberstack)
-  RESOURCES: 'string',               // Resources preference
-  PAYMENTS: 'string',                // Payments preference
-  DISCOVER: 'string'                 // Discover preference
+  SCHOOL_ID: 'string',               // Unique school identifier (critical for linking, stored as text)
+  REGISTRATION_DATE: 'date'          // First registration date
 };
 
 // Company-Contact link configuration

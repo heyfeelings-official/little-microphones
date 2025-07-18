@@ -661,22 +661,12 @@ export async function syncMemberToBrevo(memberData) {
           SCHOOL_POSTAL_CODE: memberData.customFields?.zip ||
                               memberData.customFields?.['school-zip'] ||
                               memberData.metaData?.schoolZip || '',
-          SCHOOL_LATITUDE: memberData.customFields?.latitude ||
+          SCHOOL_LATITUDE: String(memberData.customFields?.latitude ||
                            memberData.customFields?.['school-latitude'] ||
-                           memberData.metaData?.schoolLatitude || '',
-          SCHOOL_LONGITUDE: memberData.customFields?.longitude ||
+                           memberData.metaData?.schoolLatitude || ''),
+          SCHOOL_LONGITUDE: String(memberData.customFields?.longitude ||
                             memberData.customFields?.['school-longitude'] ||
-                            memberData.metaData?.schoolLongitude || '',
-          
-          // Add plan information if educator has school plan
-          PLAN_TYPE: planConfig?.attributes?.PLAN_TYPE || 'free',
-          PLAN_NAME: planConfig?.attributes?.PLAN_NAME || '',
-          PLAN_ID: plan?.planId || '',
-          
-          // Add custom fields
-          RESOURCES: memberData.customFields?.resources || memberData.metaData?.resources || '',
-          PAYMENTS: memberData.customFields?.payments || memberData.metaData?.payments || '',
-          DISCOVER: memberData.customFields?.discover || memberData.metaData?.discover || ''
+                            memberData.metaData?.schoolLongitude || '')
         };
         
         // Create or update company
@@ -946,9 +936,7 @@ export async function updateCompanyMetrics(companyId, metrics) {
       attributes: {
         TOTAL_STUDENTS: metrics.totalStudents,
         TOTAL_EDUCATORS: metrics.totalEducators,
-        TOTAL_CLASSES: metrics.totalClasses,
-        ACTIVE_LMIDS: metrics.activeLmids,
-        LAST_ACTIVITY: new Date().toISOString()
+        TOTAL_CLASSES: metrics.totalClasses
       }
     };
     
