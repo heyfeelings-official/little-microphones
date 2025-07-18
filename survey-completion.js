@@ -1,25 +1,25 @@
 /**
  * Survey Completion Handler - Minimal Script
  * 
- * PURPOSE: Handle survey completion with confetti and fresh member data
+ * PURPOSE: Handle survey completion with confetti and page reload for fresh data
  * USAGE: <script src="https://little-microphones.vercel.app/survey-completion.js"></script>
  * 
  * FEATURES:
  * - Detect ?survey=filled parameter
  * - Show confetti celebration
- * - Get fresh member data without clearing cache
- * - Update UI elements (unlock content, hide blocks)
+ * - Page reload to force fresh Memberstack data
+ * - Update UI elements after reload
  * - No toast notifications
- * - No page reload needed
+ * - Keep DIV with ID "survey-filled" visible
  * 
- * VERSION: 1.0.5
+ * VERSION: 1.0.6
  * LAST UPDATED: January 2025
  */
 
 (function() {
     'use strict';
     
-    console.log('[Survey Completion] Script v1.0.5 loaded');
+    console.log('[Survey Completion] Script v1.0.6 loaded');
     
     /**
      * Check if we're coming from survey completion
@@ -27,6 +27,27 @@
     function checkSurveyCompletion() {
         const urlParams = new URLSearchParams(window.location.search);
         return urlParams.get('survey') === 'filled';
+    }
+    
+    /**
+     * Check if we already reloaded
+     */
+    function checkAlreadyReloaded() {
+        return sessionStorage.getItem('survey_reloaded') === 'true';
+    }
+    
+    /**
+     * Mark as reloaded
+     */
+    function markAsReloaded() {
+        sessionStorage.setItem('survey_reloaded', 'true');
+    }
+    
+    /**
+     * Clear reload flag
+     */
+    function clearReloadFlag() {
+        sessionStorage.removeItem('survey_reloaded');
     }
     
     /**
@@ -99,39 +120,6 @@
     }
     
     /**
-     * Get fresh member data WITHOUT clearing cache to avoid logout
-     */
-    async function getFreshMemberData() {
-        try {
-            console.log('📡 Fetching fresh member data...');
-            
-            // Wait for Memberstack to be available
-            await waitForMemberstack();
-            
-            const memberstack = window.$memberstackDom || window.memberstack;
-            if (!memberstack) {
-                throw new Error('Memberstack not available');
-            }
-            
-            // Wait a bit for backend sync (shorter than before)
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
-            // Get fresh member data
-            const member = await memberstack.getCurrentMember();
-            if (member && member.data) {
-                console.log('✅ Fresh member data loaded:', member.data);
-                return member.data;
-            } else {
-                throw new Error('No member data received');
-            }
-            
-        } catch (error) {
-            console.error('❌ Error fetching fresh member data:', error);
-            return null;
-        }
-    }
-    
-    /**
      * Wait for Memberstack to be available
      */
     function waitForMemberstack(timeout = 10000) {
@@ -157,78 +145,93 @@
     }
     
     /**
-     * Update UI elements based on fresh member data
+     * Update UI elements - unlock content and remove grayscale
+     * BUT keep DIV with ID "survey-filled" visible
      */
-    function updateUIElements(memberData) {
+    async function updateUIElements() {
         try {
-            console.log('🎨 Updating UI elements...');
+            console.log('🎨 Updating UI elements for educator access...');
             
-            // Check if user has educator plan
-            const hasEducatorPlan = memberData.planConnections && 
-                memberData.planConnections.some(plan => 
-                    plan.planId === 'pln_educators-free-promo-ebfw0xzj'
-                );
+            // Wait for Memberstack and check plan
+            await waitForMemberstack();
+            const memberstack = window.$memberstackDom || window.memberstack;
             
-            if (hasEducatorPlan) {
-                console.log('✅ Educator plan detected, unlocking content...');
-                
-                // Remove grayscale filters
-                const grayscaleElements = document.querySelectorAll('[style*="filter"]');
-                grayscaleElements.forEach(element => {
-                    const currentFilter = element.style.filter;
-                    if (currentFilter && currentFilter.includes('grayscale')) {
-                        element.style.filter = currentFilter.replace(/grayscale\([^)]*\)/g, '').trim();
-                        if (element.style.filter === '') {
-                            element.style.removeProperty('filter');
-                        }
+            if (memberstack) {
+                const member = await memberstack.getCurrentMember();
+                if (member && member.data) {
+                    console.log('📊 Member data:', member.data);
+                    
+                    const hasEducatorPlan = member.data.planConnections && 
+                        member.data.planConnections.some(plan => 
+                            plan.planId === 'pln_educators-free-promo-ebfw0xzj'
+                        );
+                    
+                    if (hasEducatorPlan) {
+                        console.log('✅ Educator plan confirmed!');
                     }
-                });
-                
-                // Remove opacity restrictions
-                const allElements = document.querySelectorAll('*');
-                allElements.forEach(element => {
-                    const computedStyle = window.getComputedStyle(element);
-                    if (computedStyle.opacity !== '1' && element.style.opacity) {
-                        element.style.opacity = '1';
-                    }
-                    if (computedStyle.pointerEvents === 'none' && element.style.pointerEvents) {
-                        element.style.pointerEvents = 'auto';
-                    }
-                });
-                
-                // Enable disabled elements
-                const disabledElements = document.querySelectorAll('button[disabled], input[disabled], select[disabled], a[disabled]');
-                disabledElements.forEach(element => {
-                    element.disabled = false;
-                    element.style.opacity = '1';
-                    element.style.pointerEvents = 'auto';
-                    element.style.cursor = 'pointer';
-                });
-                
-                // Hide trial messages
-                const trialElements = document.querySelectorAll('[class*="trial"], [class*="upgrade"], .trial-message, .upgrade-message');
-                trialElements.forEach(element => {
-                    if (element.textContent.toLowerCase().includes('trial') || 
-                        element.textContent.toLowerCase().includes('upgrade') ||
-                        element.textContent.toLowerCase().includes('free year')) {
-                        element.style.display = 'none';
-                    }
-                });
-                
-                // Hide green success blocks
-                const greenDivs = document.querySelectorAll('div');
-                greenDivs.forEach(div => {
-                    const bgColor = window.getComputedStyle(div).backgroundColor;
-                    if ((bgColor.includes('0, 128, 0') || bgColor.includes('0, 255, 0') || bgColor.includes('green')) && 
-                        div.textContent.includes('FREE Access Unlocked')) {
-                        div.style.display = 'none';
-                    }
-                });
-                
-                console.log('✅ UI elements updated successfully');
-            } else {
-                console.log('⚠️ No educator plan found, UI remains locked');
+                }
             }
+            
+            // Remove grayscale filters
+            const grayscaleElements = document.querySelectorAll('[style*="filter"]');
+            grayscaleElements.forEach(element => {
+                const currentFilter = element.style.filter;
+                if (currentFilter && currentFilter.includes('grayscale')) {
+                    element.style.filter = currentFilter.replace(/grayscale\([^)]*\)/g, '').trim();
+                    if (element.style.filter === '') {
+                        element.style.removeProperty('filter');
+                    }
+                }
+            });
+            
+            // Remove opacity restrictions
+            const allElements = document.querySelectorAll('*');
+            allElements.forEach(element => {
+                const computedStyle = window.getComputedStyle(element);
+                if (computedStyle.opacity !== '1' && element.style.opacity) {
+                    element.style.opacity = '1';
+                }
+                if (computedStyle.pointerEvents === 'none' && element.style.pointerEvents) {
+                    element.style.pointerEvents = 'auto';
+                }
+            });
+            
+            // Enable disabled elements
+            const disabledElements = document.querySelectorAll('button[disabled], input[disabled], select[disabled], a[disabled]');
+            disabledElements.forEach(element => {
+                element.disabled = false;
+                element.style.opacity = '1';
+                element.style.pointerEvents = 'auto';
+                element.style.cursor = 'pointer';
+            });
+            
+            // Hide trial messages
+            const trialElements = document.querySelectorAll('[class*="trial"], [class*="upgrade"], .trial-message, .upgrade-message');
+            trialElements.forEach(element => {
+                if (element.textContent.toLowerCase().includes('trial') || 
+                    element.textContent.toLowerCase().includes('upgrade') ||
+                    element.textContent.toLowerCase().includes('free year')) {
+                    element.style.display = 'none';
+                }
+            });
+            
+            // Hide green success blocks BUT keep DIV with ID "survey-filled" visible
+            const greenDivs = document.querySelectorAll('div');
+            greenDivs.forEach(div => {
+                // Skip DIV with ID "survey-filled" - it should stay visible
+                if (div.id === 'survey-filled') {
+                    console.log('🎯 Keeping DIV with ID "survey-filled" visible');
+                    return;
+                }
+                
+                const bgColor = window.getComputedStyle(div).backgroundColor;
+                if ((bgColor.includes('0, 128, 0') || bgColor.includes('0, 255, 0') || bgColor.includes('green')) && 
+                    div.textContent.includes('FREE Access Unlocked')) {
+                    div.style.display = 'none';
+                }
+            });
+            
+            console.log('✅ UI elements updated - content unlocked');
             
         } catch (error) {
             console.error('❌ Error updating UI elements:', error);
@@ -244,6 +247,8 @@
         // Check if we're coming from survey
         if (!checkSurveyCompletion()) {
             console.log('📝 No survey completion detected, exiting...');
+            // Clear any stale reload flag
+            clearReloadFlag();
             return;
         }
         
@@ -254,13 +259,25 @@
         url.searchParams.delete('survey');
         history.replaceState({}, '', url);
         
-        // Show confetti immediately
-        showConfetti();
-        
-        // Get fresh member data and update UI
-        const memberData = await getFreshMemberData();
-        if (memberData) {
-            updateUIElements(memberData);
+        // Check if we already reloaded
+        if (checkAlreadyReloaded()) {
+            console.log('🔄 Already reloaded, updating UI now...');
+            // Clear the flag for next time
+            clearReloadFlag();
+            // Show confetti and update UI
+            showConfetti();
+            await updateUIElements();
+        } else {
+            console.log('🔄 First load after survey, will reload for fresh data...');
+            // Mark as reloaded and reload page
+            markAsReloaded();
+            // Show quick confetti before reload
+            showConfetti();
+            // Reload after 2 seconds to get fresh data
+            setTimeout(() => {
+                console.log('🔄 Reloading page for fresh data...');
+                window.location.reload();
+            }, 2000);
         }
         
         console.log('✅ Survey completion handling completed!');
