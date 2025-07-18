@@ -1,14 +1,13 @@
-// Little Microphones - Educators Survey Validation & Submission
-// Character validation, plan assignment, and success redirect
+// Little Microphones - Educators Survey Validation & Redirect
+// Character validation and success redirect only
 
 (function() {
     'use strict';
     
     // Configuration
     const MIN_CHARACTERS = 500;
-    const EDUCATORS_FREE_PROMO_PLAN = 'pln_educators-free-promo-ebfw0xzj';
     const SUCCESS_REDIRECT_URL = '/members/emotion-worlds?survey=completed&unlock=6months&confetti=true';
-    const REDIRECT_DELAY = 2000; // Increased delay for plan assignment
+    const REDIRECT_DELAY = 1500;
     
     const textareas = [
         {
@@ -89,118 +88,24 @@
             }
         }
         
-        // Function to wait for MemberStack to be ready
-        function waitForMemberStack() {
-            return new Promise((resolve) => {
-                if (window.MemberStack && window.MemberStack.onReady) {
-                    window.MemberStack.onReady.then(resolve);
-                } else {
-                    // Fallback: wait for MemberStack to load
-                    const checkMemberStack = () => {
-                        if (window.MemberStack && window.MemberStack.onReady) {
-                            window.MemberStack.onReady.then(resolve);
-                        } else {
-                            setTimeout(checkMemberStack, 100);
-                        }
-                    };
-                    checkMemberStack();
-                }
-            });
-        }
-        
-        // Function to assign plan to user
-        async function assignEducatorsPlan() {
-            try {
-                console.log('📋 Assigning educators free promo plan...');
-                
-                // Wait for MemberStack to be ready
-                await waitForMemberStack();
-                
-                // Use the correct MemberStack API
-                const result = await window.MemberStack.addPlanToMember({
-                    planId: EDUCATORS_FREE_PROMO_PLAN
-                });
-                
-                console.log('✅ Plan assignment result:', result);
-                console.log('✅ Successfully assigned educators free promo plan');
-                return true;
-                
-            } catch (error) {
-                console.error('❌ Error assigning plan:', error);
-                
-                // Try alternative method if available
-                try {
-                    if (window.$memberstackDom && window.$memberstackDom.addPlanToMember) {
-                        console.log('📋 Trying alternative method...');
-                        await window.$memberstackDom.addPlanToMember({
-                            planId: EDUCATORS_FREE_PROMO_PLAN
-                        });
-                        console.log('✅ Successfully assigned plan via alternative method');
-                        return true;
-                    }
-                } catch (altError) {
-                    console.error('❌ Alternative method also failed:', altError);
-                }
-                
-                return false;
-            }
-        }
-        
         // Function to handle form submission
-        async function handleFormSubmission(event) {
+        function handleFormSubmission(event) {
             if (isSubmitting) return;
             
             console.log('📝 Form submitted - processing...');
             isSubmitting = true;
             
-            // Update button state
+            // Don't prevent default - let Memberstack handle the form submission
+            // Update button state to show processing
             submitButton.disabled = true;
             submitButton.textContent = "Processing...";
             submitButton.style.backgroundColor = "#96c0fe";
             
-            try {
-                // Don't prevent default - let Memberstack handle form submission first
-                // This ensures custom fields are saved
-                
-                // Wait a bit for form to be processed
-                await new Promise(resolve => setTimeout(resolve, 500));
-                
-                // Now assign the plan
-                const planAssigned = await assignEducatorsPlan();
-                
-                if (planAssigned) {
-                    console.log('✅ Plan assigned successfully');
-                    submitButton.textContent = "Success! Redirecting...";
-                    submitButton.style.backgroundColor = "#4CAF50";
-                    
-                    // Redirect to success page with confetti parameters
-                    setTimeout(() => {
-                        console.log('🎉 Redirecting to success page with confetti...');
-                        window.location.href = SUCCESS_REDIRECT_URL;
-                    }, REDIRECT_DELAY);
-                } else {
-                    console.log('⚠️ Plan assignment failed, but continuing with redirect');
-                    submitButton.textContent = "Survey saved! Redirecting...";
-                    submitButton.style.backgroundColor = "#FF9800";
-                    
-                    // Still redirect even if plan assignment failed
-                    setTimeout(() => {
-                        console.log('🎉 Redirecting to success page...');
-                        window.location.href = SUCCESS_REDIRECT_URL;
-                    }, REDIRECT_DELAY);
-                }
-                
-            } catch (error) {
-                console.error('❌ Error in form submission:', error);
-                submitButton.textContent = "Survey saved! Redirecting...";
-                submitButton.style.backgroundColor = "#FF9800";
-                
-                // Still redirect even if there's an error
-                setTimeout(() => {
-                    console.log('🎉 Redirecting to success page...');
-                    window.location.href = SUCCESS_REDIRECT_URL;
-                }, REDIRECT_DELAY);
-            }
+            // Redirect to success page after delay
+            setTimeout(() => {
+                console.log('🎉 Redirecting to success page with confetti...');
+                window.location.href = SUCCESS_REDIRECT_URL;
+            }, REDIRECT_DELAY);
         }
         
         // Add event listeners to each textarea
@@ -253,7 +158,7 @@
     
     // Backup initialization after page load
     window.addEventListener('load', function() {
-        setTimeout(initSurveyValidation, 1000); // Increased delay for MemberStack
+        setTimeout(initSurveyValidation, 500);
     });
     
 })();
