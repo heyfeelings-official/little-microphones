@@ -112,6 +112,22 @@
     // Wait for DOM and required dependencies
     document.addEventListener("DOMContentLoaded", async () => {
         
+        // ---- Config Fallback ----
+        // Ensure LM_CONFIG is available with fallback
+        if (!window.LM_CONFIG) {
+            console.warn('⚠️ LM_CONFIG not found. Creating fallback config...');
+            window.LM_CONFIG = {
+                API_BASE_URL: 'https://little-microphones.vercel.app',
+                IS_DEVELOPMENT: window.location.hostname.includes('webflow.io'),
+                TIMEOUTS: { UI_UPDATE_DELAY: 100 },
+                PLAN_HELPERS: {
+                    isParentPlan: () => false,
+                    isEducatorPlan: () => false,
+                    isTherapistPlan: () => false
+                }
+            };
+        }
+        
         // ---- Survey Completion Handler ----
         // Check if we're arriving from the educators survey
         const surveyFlag = localStorage.getItem('educators_survey_completed');
