@@ -1,25 +1,25 @@
 /**
  * Survey Completion Handler - Minimal Script
  * 
- * PURPOSE: Handle survey completion with confetti and page reload for fresh data
+ * PURPOSE: Handle survey completion with confetti and immediate UI updates
  * USAGE: <script src="https://little-microphones.vercel.app/survey-completion.js"></script>
  * 
  * FEATURES:
  * - Detect ?survey=filled parameter
  * - Show confetti celebration
- * - Page reload to force fresh Memberstack data
- * - Update UI elements after reload
+ * - Update UI elements immediately
+ * - No page reload needed
  * - No toast notifications
  * - Keep DIV with ID "survey-filled" visible
  * 
- * VERSION: 1.0.6
+ * VERSION: 1.0.7
  * LAST UPDATED: January 2025
  */
 
 (function() {
     'use strict';
     
-    console.log('[Survey Completion] Script v1.0.6 loaded');
+    console.log('[Survey Completion] Script v1.0.7 loaded');
     
     /**
      * Check if we're coming from survey completion
@@ -27,27 +27,6 @@
     function checkSurveyCompletion() {
         const urlParams = new URLSearchParams(window.location.search);
         return urlParams.get('survey') === 'filled';
-    }
-    
-    /**
-     * Check if we already reloaded
-     */
-    function checkAlreadyReloaded() {
-        return sessionStorage.getItem('survey_reloaded') === 'true';
-    }
-    
-    /**
-     * Mark as reloaded
-     */
-    function markAsReloaded() {
-        sessionStorage.setItem('survey_reloaded', 'true');
-    }
-    
-    /**
-     * Clear reload flag
-     */
-    function clearReloadFlag() {
-        sessionStorage.removeItem('survey_reloaded');
     }
     
     /**
@@ -146,7 +125,7 @@
     
     /**
      * Update UI elements - unlock content and remove grayscale
-     * BUT keep DIV with ID "survey-filled" visible
+     * Keep DIV with ID "survey-filled" visible - DO NOT HIDE IT
      */
     async function updateUIElements() {
         try {
@@ -215,21 +194,8 @@
                 }
             });
             
-            // Hide green success blocks BUT keep DIV with ID "survey-filled" visible
-            const greenDivs = document.querySelectorAll('div');
-            greenDivs.forEach(div => {
-                // Skip DIV with ID "survey-filled" - it should stay visible
-                if (div.id === 'survey-filled') {
-                    console.log('🎯 Keeping DIV with ID "survey-filled" visible');
-                    return;
-                }
-                
-                const bgColor = window.getComputedStyle(div).backgroundColor;
-                if ((bgColor.includes('0, 128, 0') || bgColor.includes('0, 255, 0') || bgColor.includes('green')) && 
-                    div.textContent.includes('FREE Access Unlocked')) {
-                    div.style.display = 'none';
-                }
-            });
+            // DO NOT HIDE DIV WITH ID "survey-filled" - IT MUST STAY VISIBLE
+            console.log('🎯 DIV with ID "survey-filled" will remain visible (not hidden)');
             
             console.log('✅ UI elements updated - content unlocked');
             
@@ -247,8 +213,6 @@
         // Check if we're coming from survey
         if (!checkSurveyCompletion()) {
             console.log('📝 No survey completion detected, exiting...');
-            // Clear any stale reload flag
-            clearReloadFlag();
             return;
         }
         
@@ -259,26 +223,11 @@
         url.searchParams.delete('survey');
         history.replaceState({}, '', url);
         
-        // Check if we already reloaded
-        if (checkAlreadyReloaded()) {
-            console.log('🔄 Already reloaded, updating UI now...');
-            // Clear the flag for next time
-            clearReloadFlag();
-            // Show confetti and update UI
-            showConfetti();
-            await updateUIElements();
-        } else {
-            console.log('🔄 First load after survey, will reload for fresh data...');
-            // Mark as reloaded and reload page
-            markAsReloaded();
-            // Show quick confetti before reload
-            showConfetti();
-            // Reload after 2 seconds to get fresh data
-            setTimeout(() => {
-                console.log('🔄 Reloading page for fresh data...');
-                window.location.reload();
-            }, 2000);
-        }
+        // Show confetti immediately
+        showConfetti();
+        
+        // Update UI immediately (no reload needed)
+        await updateUIElements();
         
         console.log('✅ Survey completion handling completed!');
     }
