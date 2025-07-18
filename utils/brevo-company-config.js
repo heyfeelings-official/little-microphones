@@ -74,13 +74,26 @@ export function getCompanyAttributes(schoolData) {
 
 // Helper to determine if a contact should be linked to a company
 export function shouldLinkToCompany(memberData) {
-  // Check if member has school data
-  return !!(
+  // Check if member has school data - check all possible field variations
+  const hasSchoolData = !!(
     memberData.metaData?.schoolId || 
     memberData.customFields?.['school-id'] ||
+    memberData.customFields?.['school-place-id'] ||  // Google Places ID
     memberData.customFields?.schoolName ||
-    memberData.metaData?.schoolName
+    memberData.customFields?.['school-name'] ||  // Hyphenated version
+    memberData.metaData?.schoolName ||
+    memberData.metaData?.schoolPlaceId
   );
+  
+  if (hasSchoolData) {
+    console.log('✅ School data found in member:', {
+      schoolPlaceId: memberData.customFields?.['school-place-id'],
+      schoolName: memberData.customFields?.['school-name'] || memberData.customFields?.schoolName,
+      schoolCity: memberData.customFields?.['school-city'] || memberData.customFields?.city
+    });
+  }
+  
+  return hasSchoolData;
 }
 
 // Helper to extract school ID from member data

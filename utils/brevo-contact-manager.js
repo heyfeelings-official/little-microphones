@@ -369,6 +369,13 @@ export async function syncMemberToBrevo(memberData) {
   const email = memberData.auth?.email || memberData.email;
   
   console.log(`🔄 [${syncId}] Starting Brevo sync for ${email}`);
+  console.log(`📊 [${syncId}] Member data check:`, {
+    hasSchoolPlaceId: !!memberData.customFields?.['school-place-id'],
+    schoolPlaceId: memberData.customFields?.['school-place-id'],
+    hasSchoolName: !!(memberData.customFields?.['school-name'] || memberData.customFields?.schoolName),
+    schoolName: memberData.customFields?.['school-name'] || memberData.customFields?.schoolName,
+    shouldLinkToCompany: shouldLinkToCompany(memberData)
+  });
   
   try {
     // Get existing contact first to preserve plan data if needed
@@ -584,6 +591,15 @@ export async function syncMemberToBrevo(memberData) {
       };
       
       try {
+        // Add SCHOOL_ID if member has school data
+        if (shouldLinkToCompany(memberData)) {
+          const schoolId = getSchoolIdFromMember(memberData);
+          if (schoolId) {
+            basicAttributes.SCHOOL_ID = schoolId;
+            console.log(`📝 [${syncId}] Adding SCHOOL_ID to basic contact: ${schoolId}`);
+          }
+        }
+        
         // Check if contact exists
         const existingContact = await getBrevoContact(email);
         
@@ -593,7 +609,6 @@ export async function syncMemberToBrevo(memberData) {
             attributes: basicAttributes
           });
           console.log(`✅ [${syncId}] Updated basic contact for ${email} (no plan)`);
-          return { success: true, syncId, email, action: 'updated_basic' };
         } else {
           // Create new contact
           await makeBrevoRequest('/contacts', 'POST', {
@@ -602,8 +617,77 @@ export async function syncMemberToBrevo(memberData) {
             attributes: basicAttributes
           });
           console.log(`✅ [${syncId}] Created basic contact for ${email} (no plan)`);
-          return { success: true, syncId, email, action: 'created_basic' };
         }
+        
+        // Handle Company creation for users without plan but with school data (e.g., during onboarding)
+        if (shouldLinkToCompany(memberData)) {
+          const schoolId = getSchoolIdFromMember(memberData);
+          
+          if (schoolId) {
+            console.log(`🏢 [${syncId}] Processing company for contact ${email} (no plan yet)`);
+            
+            // Prepare school data from member data
+            const schoolData = {
+              SCHOOL_ID: schoolId,
+              SCHOOL_NAME: memberData.customFields?.['school-name'] ||
+                           memberData.customFields?.schoolName ||
+                           memberData.metaData?.schoolName || '',
+              SCHOOL_CITY: memberData.customFields?.['school-city'] ||
+                           memberData.customFields?.city ||
+                           memberData.metaData?.schoolCity || '',
+              SCHOOL_COUNTRY: memberData.customFields?.['school-country'] ||
+                              memberData.customFields?.country ||
+                              memberData.metaData?.schoolCountry || '',
+              SCHOOL_PHONE: memberData.customFields?.['school-phone'] ||
+                            memberData.metaData?.schoolPhone || '',
+              SCHOOL_WEBSITE: memberData.customFields?.['school-website'] ||
+                              memberData.customFields?.website ||
+                              memberData.metaData?.schoolWebsite || '',
+              SCHOOL_STREET_ADDRESS: memberData.customFields?.['school-street-address'] ||
+                                     memberData.customFields?.['street-address'] ||
+                                     memberData.metaData?.schoolStreetAddress || '',
+              SCHOOL_STATE_PROVINCE: memberData.customFields?.['school-state'] ||
+                                     memberData.customFields?.state ||
+                                     memberData.metaData?.schoolState || '',
+              SCHOOL_POSTAL_CODE: memberData.customFields?.['school-zip'] ||
+                                  memberData.customFields?.zip ||
+                                  memberData.metaData?.schoolZip || '',
+              SCHOOL_LATITUDE: String(memberData.customFields?.['school-latitude'] ||
+                                      memberData.customFields?.latitude ||
+                                      memberData.metaData?.schoolLatitude || ''),
+              SCHOOL_LONGITUDE: String(memberData.customFields?.['school-longitude'] ||
+                                       memberData.customFields?.longitude ||
+                                       memberData.metaData?.schoolLongitude || '')
+            };
+            
+            // Create or update company
+            const companyResult = await createOrUpdateBrevoCompany(schoolData);
+            
+            if (companyResult.success) {
+              console.log(`✅ [${syncId}] Company processed successfully for user without plan`);
+              
+              // Link contact to company
+              const linkData = {
+                EDUCATOR_ROLE: memberData.customFields?.role || 
+                              memberData.customFields?.['educator-role'] ||
+                              memberData.metaData?.educatorRole || '',
+                IS_PRIMARY_CONTACT: memberData.customFields?.role?.toLowerCase().includes('principal') || false
+              };
+              
+              const linkResult = await linkContactToCompany(email, schoolId, linkData);
+              
+              if (linkResult.success) {
+                console.log(`✅ [${syncId}] Contact linked to company successfully`);
+              } else {
+                console.warn(`⚠️ [${syncId}] Failed to link contact to company: ${linkResult.error}`);
+              }
+            } else {
+              console.warn(`⚠️ [${syncId}] Failed to process company: ${companyResult.error}`);
+            }
+          }
+        }
+        
+        return { success: true, syncId, email, action: 'synced_basic_with_company' };
       } catch (basicError) {
         console.error(`❌ [${syncId}] Basic sync failed:`, basicError.message);
         return { success: false, syncId, email, error: basicError.message };
