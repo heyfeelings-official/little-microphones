@@ -86,7 +86,9 @@ window.initMap = function() {
               const isChildEducation = isChildEducationPlace(place);
               
               // Update input field with place name
-              const input = document.getElementById("school-search");
+              const input = document.getElementById("school-search") || 
+                           document.getElementById("search-input") || 
+                           document.getElementById("school-search-input");
               if (input) {
                 input.value = place.name || place.formatted_address || results[0].formatted_address;
               }
@@ -95,7 +97,9 @@ window.initMap = function() {
               populateFields(place, isChildEducation);
             } else {
               // Fallback if place details not available
-              const input = document.getElementById("school-search");
+              const input = document.getElementById("school-search") || 
+                           document.getElementById("search-input") || 
+                           document.getElementById("school-search-input");
               if (input) {
                 input.value = results[0].formatted_address;
               }
@@ -119,12 +123,18 @@ window.initMap = function() {
 
 // Initialize autocomplete
 function initAutocomplete() {
-  // Get input element
-  const searchInput = document.getElementById("school-search");
+  // Get input element - try multiple possible IDs
+  const searchInput = document.getElementById("school-search") || 
+                      document.getElementById("search-input") || 
+                      document.getElementById("school-search-input") ||
+                      document.querySelector('input[type="text"]'); // fallback to first text input
+  
   if (!searchInput) {
-    console.error("Search input not found");
+    console.error("Search input not found - tried IDs: school-search, search-input, school-search-input");
     return;
   }
+  
+  console.log("Search input found:", searchInput.id || searchInput.className);
 
   // Initialize autocomplete
   autocomplete = new google.maps.places.Autocomplete(searchInput, {
@@ -244,6 +254,8 @@ function populateFields(place, isChildEducation) {
   
   // Update search input
   updateFieldIfExists("school-search", place.name || place.formatted_address || "");
+  updateFieldIfExists("search-input", place.name || place.formatted_address || "");
+  updateFieldIfExists("school-search-input", place.name || place.formatted_address || "");
   
   // Update place ID
   updateFieldIfExists("place-id", place.place_id || "");
