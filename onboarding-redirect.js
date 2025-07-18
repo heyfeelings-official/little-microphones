@@ -16,33 +16,27 @@
  */
 
 // --- Configuration ---
+const formIdentifier = '[data-ms-form="profile"]'; // IMPORTANT: Change "profile" if your form uses a different value for data-ms-form
 const redirectUrl = "/members/emotion-worlds";          // --- !!! CHANGE THIS URL !!! --- Replace with your target URL
 const redirectDelay = 1500; // Delay in milliseconds (1.5 seconds). Adjust if needed.
 // --- End Configuration ---
 
 document.addEventListener('DOMContentLoaded', (event) => {
-  const forms = document.querySelectorAll('form');
+  const formElement = document.querySelector(formIdentifier);
 
-  if (forms.length === 0) {
-    console.warn('No forms found on page for redirect script.');
-    return;
-  }
-
-  console.log(`Found ${forms.length} form(s) on page. Setting up redirects...`);
-
-  forms.forEach((form, index) => {
-    form.addEventListener('submit', function(e) {
+  if (formElement) {
+    formElement.addEventListener('submit', function(e) {
       // We DO NOT prevent the default submission (e.preventDefault())
       // because we need Memberstack to process the form.
 
-      console.log(`Form ${index + 1} submitted. Waiting for redirect...`);
+      console.log('Memberstack form submitted. Waiting for redirect...');
 
       // Wait for a short period before redirecting
       setTimeout(() => {
         window.location.href = redirectUrl;
       }, redirectDelay);
     });
-  });
-
-  console.log('✅ Universal form redirect handler ready');
+  } else {
+    console.warn(`Form with identifier "${formIdentifier}" not found for redirect script.`);
+  }
 }); 
