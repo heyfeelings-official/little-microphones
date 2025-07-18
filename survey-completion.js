@@ -3,9 +3,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Page refresh on load only if survey=filled parameter exists and hasn't been reloaded yet
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.has('survey') && urlParams.get('survey') === 'filled' && !urlParams.has('reloaded')) {
-        // Add reloaded parameter to prevent infinite refresh loop
-        urlParams.set('reloaded', 'true');
-        window.location.search = urlParams.toString();
+        // Remove all parameters and reload
+        window.history.replaceState({}, document.title, window.location.pathname);
+        window.location.reload();
         return;
     }
 
