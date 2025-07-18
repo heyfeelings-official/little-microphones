@@ -1,25 +1,24 @@
 /**
  * Survey Completion Handler - Minimal Script
  * 
- * PURPOSE: Handle survey completion with confetti and immediate UI updates
+ * PURPOSE: Handle survey completion with confetti only (testing version)
  * USAGE: <script src="https://little-microphones.vercel.app/survey-completion.js"></script>
  * 
  * FEATURES:
  * - Detect ?survey=filled parameter
  * - Show confetti celebration
- * - Update UI elements immediately
+ * - NO UI manipulation (removed for testing)
  * - No page reload needed
  * - No toast notifications
- * - Keep DIV with ID "survey-filled" visible
  * 
- * VERSION: 1.0.8
+ * VERSION: 1.0.9 (TEST)
  * LAST UPDATED: January 2025
  */
 
 (function() {
     'use strict';
     
-    console.log('[Survey Completion] Script v1.0.8 loaded');
+    console.log('[Survey Completion] Script v1.0.9 TEST loaded - confetti only');
     
     /**
      * Check if we're coming from survey completion
@@ -98,127 +97,7 @@
         console.log('🎉 Confetti celebration started!');
     }
     
-    /**
-     * Wait for Memberstack to be available
-     */
-    function waitForMemberstack(timeout = 10000) {
-        return new Promise((resolve, reject) => {
-            const memberstack = window.$memberstackDom || window.memberstack;
-            if (memberstack) {
-                resolve();
-                return;
-            }
-            
-            const startTime = Date.now();
-            const checkInterval = setInterval(() => {
-                const memberstack = window.$memberstackDom || window.memberstack;
-                if (memberstack) {
-                    clearInterval(checkInterval);
-                    resolve();
-                } else if (Date.now() - startTime > timeout) {
-                    clearInterval(checkInterval);
-                    reject(new Error('Memberstack loading timeout'));
-                }
-            }, 100);
-        });
-    }
-    
-    /**
-     * Update UI elements - unlock content and remove grayscale
-     * Keep DIV with ID "survey-filled" visible - DO NOT HIDE IT
-     */
-    async function updateUIElements() {
-        try {
-            console.log('🎨 Updating UI elements for educator access...');
-            
-            // Wait for Memberstack and check plan
-            await waitForMemberstack();
-            const memberstack = window.$memberstackDom || window.memberstack;
-            
-            if (memberstack) {
-                const member = await memberstack.getCurrentMember();
-                if (member && member.data) {
-                    console.log('📊 Member data:', member.data);
-                    
-                    const hasEducatorPlan = member.data.planConnections && 
-                        member.data.planConnections.some(plan => 
-                            plan.planId === 'pln_educators-free-promo-ebfw0xzj'
-                        );
-                    
-                    if (hasEducatorPlan) {
-                        console.log('✅ Educator plan confirmed!');
-                    }
-                }
-            }
-            
-            // Remove grayscale filters
-            const grayscaleElements = document.querySelectorAll('[style*="filter"]');
-            grayscaleElements.forEach(element => {
-                const currentFilter = element.style.filter;
-                if (currentFilter && currentFilter.includes('grayscale')) {
-                    element.style.filter = currentFilter.replace(/grayscale\([^)]*\)/g, '').trim();
-                    if (element.style.filter === '') {
-                        element.style.removeProperty('filter');
-                    }
-                }
-            });
-            
-            // Remove opacity restrictions
-            const allElements = document.querySelectorAll('*');
-            allElements.forEach(element => {
-                const computedStyle = window.getComputedStyle(element);
-                if (computedStyle.opacity !== '1' && element.style.opacity) {
-                    element.style.opacity = '1';
-                }
-                if (computedStyle.pointerEvents === 'none' && element.style.pointerEvents) {
-                    element.style.pointerEvents = 'auto';
-                }
-            });
-            
-            // Enable disabled elements
-            const disabledElements = document.querySelectorAll('button[disabled], input[disabled], select[disabled], a[disabled]');
-            disabledElements.forEach(element => {
-                element.disabled = false;
-                element.style.opacity = '1';
-                element.style.pointerEvents = 'auto';
-                element.style.cursor = 'pointer';
-            });
-            
-            // Hide trial messages BUT keep .grid-extra-card-wrapper .green visible
-            const trialElements = document.querySelectorAll('[class*="trial"], [class*="upgrade"], .trial-message, .upgrade-message');
-            trialElements.forEach(element => {
-                // Skip elements with class "green" inside .grid-extra-card-wrapper
-                if (element.classList.contains('green') && element.closest('.grid-extra-card-wrapper')) {
-                    console.log('🎯 Keeping .grid-extra-card-wrapper .green visible');
-                    return;
-                }
-                
-                if (element.textContent.toLowerCase().includes('trial') || 
-                    element.textContent.toLowerCase().includes('upgrade') ||
-                    element.textContent.toLowerCase().includes('free year')) {
-                    element.style.display = 'none';
-                }
-            });
-            
-            // Ensure .grid-extra-card-wrapper .green is visible
-            const greenCardElements = document.querySelectorAll('.grid-extra-card-wrapper .green');
-            greenCardElements.forEach(element => {
-                element.style.display = 'block';
-                element.style.opacity = '1';
-                element.style.pointerEvents = 'auto';
-                element.style.filter = 'none';
-                console.log('✅ Made .grid-extra-card-wrapper .green visible');
-            });
-            
-            // DO NOT HIDE DIV WITH ID "survey-filled" - IT MUST STAY VISIBLE
-            console.log('🎯 DIV with ID "survey-filled" will remain visible (not hidden)');
-            
-            console.log('✅ UI elements updated - content unlocked');
-            
-        } catch (error) {
-            console.error('❌ Error updating UI elements:', error);
-        }
-    }
+    // UI manipulation completely removed for testing
     
     /**
      * Main initialization function
@@ -242,10 +121,8 @@
         // Show confetti immediately
         showConfetti();
         
-        // Update UI immediately (no reload needed)
-        await updateUIElements();
-        
-        console.log('✅ Survey completion handling completed!');
+        // UI manipulation completely removed for testing
+        console.log('✅ Survey completion handling completed (confetti only)!');
     }
     
     // Initialize when DOM is ready
