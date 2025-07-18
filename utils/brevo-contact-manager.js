@@ -37,14 +37,14 @@ import {
 const BREVO_API_BASE = 'https://api.brevo.com/v3';
 
 /**
- * Helper function to handle empty values - returns null for clearing
- * This ensures Brevo clears fields when values are removed from Memberstack
+ * Helper function to handle empty values
+ * For Brevo API, we need to send explicit empty string to clear fields
  * @param {*} value - Value to check
- * @returns {*} - Original value or null if empty (to clear field in Brevo)
+ * @returns {*} - Original value or empty string if empty
  */
 function handleEmptyValue(value) {
   if (value === null || value === undefined || value === '') {
-    return null; // Return null to clear the field in Brevo
+    return ''; // Return empty string to clear field in Brevo
   }
   return value;
 }
@@ -316,12 +316,12 @@ export async function createOrUpdateBrevoContact(memberData, planConfig) {
       PLAN_TYPE: allAttributes.PLAN_TYPE
     });
     
-    // Send all attributes including null values to clear empty fields
+    // Send all attributes including empty strings to clear fields
     // Log final attributes for debugging
     console.log(`📋 [${syncId}] Final attributes being sent to Brevo:`, {
       ...allAttributes,
       fieldsCount: Object.keys(allAttributes).length,
-      nullFields: Object.keys(allAttributes).filter(key => allAttributes[key] === null),
+      emptyFields: Object.keys(allAttributes).filter(key => allAttributes[key] === ''),
       hasAllImportantFields: {
         FIRSTNAME: !!allAttributes.FIRSTNAME,
         LASTNAME: !!allAttributes.LASTNAME,
@@ -555,11 +555,11 @@ export async function syncMemberToBrevo(memberData) {
         PLAN_ID: existingContactData.attributes.PLAN_ID
       };
       
-      // Send all attributes including null values to clear empty fields
+      // Send all attributes including empty strings to clear fields
       console.log(`📋 [${syncId}] Updating contact with preserved plan and mapped fields:`, {
         ...updateAttributes,
         fieldsCount: Object.keys(updateAttributes).length,
-        nullFields: Object.keys(updateAttributes).filter(key => updateAttributes[key] === null)
+        emptyFields: Object.keys(updateAttributes).filter(key => updateAttributes[key] === '')
       });
       
       await makeBrevoRequest(`/contacts/${encodeURIComponent(email)}`, 'PUT', {
@@ -1166,4 +1166,4 @@ export async function updateCompanyMetrics(companyId, metrics) {
     console.error(`❌ [${syncId}] Error updating company metrics:`, error.message);
     return { success: false, syncId, error: error.message };
   }
-} 
+  } 

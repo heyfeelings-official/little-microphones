@@ -65,7 +65,7 @@ export function getCompanyAttributes(schoolData) {
     if (key === 'name' && schoolData.SCHOOL_NAME !== undefined) {
       attributes.name = schoolData.SCHOOL_NAME;
     } else if (schoolData[key] !== undefined) {
-      // Include all attributes, even null values (to clear fields)
+      // Include all attributes, even empty strings (to clear fields)
       attributes[key] = schoolData[key];
     }
   });
@@ -80,16 +80,18 @@ export function shouldLinkToCompany(memberData) {
     memberData.metaData?.schoolId || 
     memberData.customFields?.['school-id'] ||
     memberData.customFields?.['school-place-id'] ||  // Google Places ID
+    memberData.customFields?.['place-id'] ||  // Also check place-id
     memberData.customFields?.schoolName ||
     memberData.customFields?.['school-name'] ||  // Hyphenated version
+    memberData.customFields?.['place-name'] ||  // Also check place-name
     memberData.metaData?.schoolName ||
     memberData.metaData?.schoolPlaceId
   );
   
   if (hasSchoolData) {
     console.log('✅ School data found in member:', {
-      schoolPlaceId: memberData.customFields?.['school-place-id'],
-      schoolName: memberData.customFields?.['school-name'] || memberData.customFields?.schoolName,
+      schoolPlaceId: memberData.customFields?.['school-place-id'] || memberData.customFields?.['place-id'],
+      schoolName: memberData.customFields?.['school-name'] || memberData.customFields?.schoolName || memberData.customFields?.['place-name'],
       schoolCity: memberData.customFields?.['school-city'] || memberData.customFields?.city
     });
   }
@@ -99,10 +101,12 @@ export function shouldLinkToCompany(memberData) {
 
 // Helper to extract school ID from member data
 export function getSchoolIdFromMember(memberData) {
-  // First try to use school-place-id from Memberstack
+  // First try to use school-place-id or place-id from Memberstack
   const schoolPlaceId = memberData.customFields?.['school-place-id'] || 
+                       memberData.customFields?.['place-id'] || // Also check place-id
                        memberData.metaData?.schoolPlaceId ||
-                       memberData.customFields?.schoolPlaceId;
+                       memberData.customFields?.schoolPlaceId ||
+                       memberData.customFields?.placeId;
   
   if (schoolPlaceId) {
     return schoolPlaceId;
@@ -113,8 +117,8 @@ export function getSchoolIdFromMember(memberData) {
     memberData.metaData?.schoolId || 
     memberData.customFields?.['school-id'] ||
     // Generate from school name if no ID exists
-    (memberData.customFields?.schoolName || memberData.metaData?.schoolName) 
-      ? generateSchoolId(memberData.customFields?.schoolName || memberData.metaData?.schoolName)
+    (memberData.customFields?.schoolName || memberData.customFields?.['school-name'] || memberData.metaData?.schoolName) 
+      ? generateSchoolId(memberData.customFields?.schoolName || memberData.customFields?.['school-name'] || memberData.metaData?.schoolName)
       : null
   );
 }
