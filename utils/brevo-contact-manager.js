@@ -924,8 +924,8 @@ export async function createOrUpdateBrevoCompany(schoolData) {
   console.log(`🏢 [${syncId}] Full school data:`, JSON.stringify(schoolData, null, 2));
   
   try {
-    // First, check if company already exists by searching for SCHOOL_PLACE_ID attribute
-    console.log(`🔍 [${syncId}] Checking if company with SCHOOL_PLACE_ID=${schoolPlaceId} already exists`);
+    // First, check if company already exists by searching for school_id attribute
+    console.log(`🔍 [${syncId}] Checking if company with school_id=${schoolPlaceId} already exists`);
     
     // Use helper function to find company by school ID
     let existingCompany = null;
@@ -974,7 +974,7 @@ export async function createOrUpdateBrevoCompany(schoolData) {
         name: companyAttributes.name || schoolData.SCHOOL_NAME || 'Unknown School',
         attributes: {
           ...companyAttributes,
-          SCHOOL_PLACE_ID: schoolPlaceId // Ensure SCHOOL_PLACE_ID is always set
+          school_id: schoolPlaceId // Use Brevo's internal name for SCHOOL_PLACE_ID
         }
       };
       
@@ -1014,7 +1014,7 @@ export async function getBrevoCompanyBySchoolId(schoolPlaceId) {
   if (!schoolPlaceId) return null;
   
   try {
-    // Search for company by SCHOOL_PLACE_ID attribute
+    // Search for company by school_id attribute (Brevo's internal name)
     let page = 0;
     let hasMore = true;
     
@@ -1024,7 +1024,7 @@ export async function getBrevoCompanyBySchoolId(schoolPlaceId) {
       
       if (companiesResult.items && companiesResult.items.length > 0) {
         for (const company of companiesResult.items) {
-          if (company.attributes && company.attributes.SCHOOL_PLACE_ID === schoolPlaceId) {
+          if (company.attributes && company.attributes.school_id === schoolPlaceId) {
             return company;
           }
         }

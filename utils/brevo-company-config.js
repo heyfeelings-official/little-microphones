@@ -9,34 +9,54 @@
  */
 
 // Company attributes mapping for Brevo
+// IMPORTANT: These are the actual internal names from Brevo (lowercase!)
 export const BREVO_COMPANY_ATTRIBUTES = {
   // Basic Information
   name: 'string',                    // Company name (required by Brevo)
   
   // School Information
-  SCHOOL_WEBSITE: 'string',          // School website URL
-  SCHOOL_PHONE: 'string',            // School phone number (our custom field, ignore Brevo's default Phone Number)
+  school_website: 'string',          // School website URL
+  school_phone: 'string',            // School phone number
   
   // Address Information
-  SCHOOL_ADDRESS: 'string',          // Full address
-  SCHOOL_STREET_ADDRESS: 'string',   // Street address
-  SCHOOL_CITY: 'string',             // City
-  SCHOOL_STATE_PROVINCE: 'string',   // State/Province
-  SCHOOL_POSTAL_CODE: 'string',      // Postal/ZIP code
-  SCHOOL_COUNTRY: 'string',          // Country
+  school_address: 'string',          // Full address
+  school_street_address__memberdata_customfiel: 'string',   // Street address (truncated name in Brevo)
+  school_city: 'string',             // City
+  school_state_province: 'string',   // State/Province
+  school_postal_code: 'string',      // Postal/ZIP code
+  school_country: 'string',          // Country
   
   // Location Data
-  SCHOOL_LATITUDE: 'string',         // Latitude for mapping (stored as text)
-  SCHOOL_LONGITUDE: 'string',        // Longitude for mapping (stored as text)
+  school_latitude: 'string',         // Latitude for mapping (stored as text)
+  school_longitude: 'string',        // Longitude for mapping (stored as text)
   
   // School Metrics
-  TOTAL_STUDENTS: 'number',          // Total number of students
-  TOTAL_EDUCATORS: 'number',         // Total number of educators
-  TOTAL_CLASSES: 'number',           // Total number of classes
+  total_students: 'number',          // Total number of students
+  total_educators: 'number',         // Total number of educators
+  total_classes: 'number',           // Total number of classes
   
   // System Information
-  SCHOOL_PLACE_ID: 'string',         // Google Places ID for school (critical for linking, stored as text)
-  REGISTRATION_DATE: 'date'          // First registration date
+  school_id: 'string',               // Google Places ID (internal name is school_id, not school_place_id!)
+  registration_date: 'date'          // First registration date - not exists yet
+};
+
+// Mapping from our code's attribute names to Brevo's internal names
+export const ATTRIBUTE_NAME_MAPPING = {
+  SCHOOL_PLACE_ID: 'school_id',
+  SCHOOL_NAME: 'school_name',
+  SCHOOL_WEBSITE: 'school_website',
+  SCHOOL_PHONE: 'school_phone',
+  SCHOOL_ADDRESS: 'school_address',
+  SCHOOL_STREET_ADDRESS: 'school_street_address__memberdata_customfiel',
+  SCHOOL_CITY: 'school_city',
+  SCHOOL_STATE_PROVINCE: 'school_state_province',
+  SCHOOL_POSTAL_CODE: 'school_postal_code',
+  SCHOOL_COUNTRY: 'school_country',
+  SCHOOL_LATITUDE: 'school_latitude',
+  SCHOOL_LONGITUDE: 'school_longitude',
+  TOTAL_STUDENTS: 'total_students',
+  TOTAL_EDUCATORS: 'total_educators',
+  TOTAL_CLASSES: 'total_classes'
 };
 
 // Company-Contact link configuration
@@ -60,15 +80,17 @@ export const COMPANY_CONTACT_LINK = {
 export function getCompanyAttributes(schoolData) {
   const attributes = {};
   
-  // Map school data to Brevo company attributes
-  Object.keys(BREVO_COMPANY_ATTRIBUTES).forEach(key => {
-    if (key === 'name' && schoolData.SCHOOL_NAME !== undefined) {
-      attributes.name = schoolData.SCHOOL_NAME;
-    } else if (schoolData[key] !== undefined) {
-      // Include all attributes, even empty strings (to clear fields)
-      attributes[key] = schoolData[key];
+  // Map school data to Brevo company attributes using proper internal names
+  Object.entries(ATTRIBUTE_NAME_MAPPING).forEach(([ourName, brevoName]) => {
+    if (schoolData[ourName] !== undefined) {
+      attributes[brevoName] = schoolData[ourName];
     }
   });
+  
+  // Handle special case for company name
+  if (schoolData.SCHOOL_NAME !== undefined) {
+    attributes.name = schoolData.SCHOOL_NAME;
+  }
   
   return attributes;
 }
