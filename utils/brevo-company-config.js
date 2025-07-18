@@ -62,9 +62,10 @@ export function getCompanyAttributes(schoolData) {
   
   // Map school data to Brevo company attributes
   Object.keys(BREVO_COMPANY_ATTRIBUTES).forEach(key => {
-    if (key === 'name' && schoolData.SCHOOL_NAME) {
+    if (key === 'name' && schoolData.SCHOOL_NAME !== undefined) {
       attributes.name = schoolData.SCHOOL_NAME;
     } else if (schoolData[key] !== undefined) {
+      // Include all attributes, even null values (to clear fields)
       attributes[key] = schoolData[key];
     }
   });

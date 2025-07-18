@@ -37,14 +37,14 @@ import {
 const BREVO_API_BASE = 'https://api.brevo.com/v3';
 
 /**
- * Helper function to handle empty values - returns null for consistent clearing
+ * Helper function to handle empty values - returns null for clearing
  * This ensures Brevo clears fields when values are removed from Memberstack
  * @param {*} value - Value to check
  * @returns {*} - Original value or null if empty (to clear field in Brevo)
  */
 function handleEmptyValue(value) {
   if (value === null || value === undefined || value === '') {
-    return null;
+    return null; // Return null to clear the field in Brevo
   }
   return value;
 }
@@ -316,11 +316,12 @@ export async function createOrUpdateBrevoContact(memberData, planConfig) {
       PLAN_TYPE: allAttributes.PLAN_TYPE
     });
     
-    // Send all attributes including empty ones to ensure proper field clearing
+    // Send all attributes including null values to clear empty fields
     // Log final attributes for debugging
     console.log(`📋 [${syncId}] Final attributes being sent to Brevo:`, {
       ...allAttributes,
       fieldsCount: Object.keys(allAttributes).length,
+      nullFields: Object.keys(allAttributes).filter(key => allAttributes[key] === null),
       hasAllImportantFields: {
         FIRSTNAME: !!allAttributes.FIRSTNAME,
         LASTNAME: !!allAttributes.LASTNAME,
@@ -554,10 +555,11 @@ export async function syncMemberToBrevo(memberData) {
         PLAN_ID: existingContactData.attributes.PLAN_ID
       };
       
-      // Send all attributes including empty ones to ensure proper field clearing
+      // Send all attributes including null values to clear empty fields
       console.log(`📋 [${syncId}] Updating contact with preserved plan and mapped fields:`, {
         ...updateAttributes,
-        fieldsCount: Object.keys(updateAttributes).length
+        fieldsCount: Object.keys(updateAttributes).length,
+        nullFields: Object.keys(updateAttributes).filter(key => updateAttributes[key] === null)
       });
       
       await makeBrevoRequest(`/contacts/${encodeURIComponent(email)}`, 'PUT', {
