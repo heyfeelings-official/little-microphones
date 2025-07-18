@@ -1,7 +1,13 @@
 document.addEventListener('DOMContentLoaded', function() {
 
-    // Page refresh on load
-    window.location.reload();
+    // Page refresh on load only if survey=filled parameter exists and hasn't been reloaded yet
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('survey') && urlParams.get('survey') === 'filled' && !urlParams.has('reloaded')) {
+        // Add reloaded parameter to prevent infinite refresh loop
+        urlParams.set('reloaded', 'true');
+        window.location.search = urlParams.toString();
+        return;
+    }
 
     // --- Configuration ---
     const SURVEY_PARAM = 'survey';
@@ -18,7 +24,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const hideButton = document.getElementById(HIDE_BUTTON_ID);
 
     // --- Check URL Parameter ---
-    const urlParams = new URLSearchParams(window.location.search);
     const shouldShowDiv = urlParams.has(SURVEY_PARAM) && urlParams.get(SURVEY_PARAM) === SURVEY_VALUE;
 
     console.log("Script 2 Loaded. Should show success DIV:", shouldShowDiv);
