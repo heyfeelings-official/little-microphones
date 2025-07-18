@@ -386,10 +386,10 @@ export async function syncMemberToBrevo(memberData) {
   
   console.log(`🔄 [${syncId}] Starting Brevo sync for ${email}`);
   console.log(`📊 [${syncId}] Member data check:`, {
-    hasSchoolPlaceId: !!memberData.customFields?.['school-place-id'],
-    schoolPlaceId: memberData.customFields?.['school-place-id'],
-    hasSchoolName: !!(memberData.customFields?.['school-name'] || memberData.customFields?.schoolName),
-    schoolName: memberData.customFields?.['school-name'] || memberData.customFields?.schoolName,
+    hasSchoolPlaceId: !!(memberData.customFields?.['school-place-id'] || memberData.customFields?.['place-id']),
+    schoolPlaceId: memberData.customFields?.['school-place-id'] || memberData.customFields?.['place-id'],
+    hasSchoolName: !!(memberData.customFields?.['school-name'] || memberData.customFields?.['place-name'] || memberData.customFields?.schoolName),
+    schoolName: memberData.customFields?.['school-name'] || memberData.customFields?.['place-name'] || memberData.customFields?.schoolName,
     shouldLinkToCompany: shouldLinkToCompany(memberData)
   });
   

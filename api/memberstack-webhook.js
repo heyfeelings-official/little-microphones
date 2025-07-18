@@ -251,9 +251,13 @@ export default async function handler(req, res) {
                         email: fullMemberData.auth?.email || fullMemberData.email,
                         hasCustomFields: !!fullMemberData.customFields,
                         hasSchoolData: !!(fullMemberData.customFields?.['school-name'] || 
-                                         fullMemberData.customFields?.['school-place-id']),
-                        schoolName: fullMemberData.customFields?.['school-name'],
-                        schoolPlaceId: fullMemberData.customFields?.['school-place-id'],
+                                         fullMemberData.customFields?.['school-place-id'] ||
+                                         fullMemberData.customFields?.['place-id'] ||
+                                         fullMemberData.customFields?.['place-name']),
+                        schoolName: fullMemberData.customFields?.['school-name'] || 
+                                   fullMemberData.customFields?.['place-name'],
+                        schoolPlaceId: fullMemberData.customFields?.['school-place-id'] || 
+                                      fullMemberData.customFields?.['place-id'],
                         customFieldsCount: Object.keys(fullMemberData.customFields || {}).length,
                         customFieldsKeys: Object.keys(fullMemberData.customFields || {}),
                         planConnectionsCount: fullMemberData.planConnections?.length || 0
