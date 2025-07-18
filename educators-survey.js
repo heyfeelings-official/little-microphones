@@ -1,11 +1,15 @@
-// Little Microphones - Educators Survey Validation
-// Simple character validation and button control
+// Little Microphones - Educators Survey Validation & Submission
+// Character validation, plan assignment, and success redirect
 
 (function() {
     'use strict';
     
     // Configuration
     const MIN_CHARACTERS = 500;
+    const EDUCATORS_FREE_PROMO_PLAN = 'pln_educators-free-promo-ebfw0xzj';
+    const SUCCESS_REDIRECT_URL = '/members/emotion-worlds?survey=completed&unlock=6months&confetti=true';
+    const REDIRECT_DELAY = 1500;
+    
     const textareas = [
         {
             id: 'textarea-payments',
@@ -25,17 +29,27 @@
     ];
     
     let isInitialized = false;
+    let isSubmitting = false;
     
     function initSurveyValidation() {
         if (isInitialized) return;
         
-        console.log('🔍 Initializing survey validation...');
+        console.log('🔍 Initializing educators survey validation...');
         
         const submitButton = document.getElementById('survey-button');
         if (!submitButton) {
             console.log('❌ Submit button not found');
             return;
         }
+        
+        // Store original button text
+        const originalButtonText = submitButton.textContent || submitButton.innerText || "Submit & unlock";
+        
+        // Set initial button state - disabled and gray
+        submitButton.disabled = true;
+        submitButton.style.backgroundColor = "#D3D3D3";
+        submitButton.style.cursor = "not-allowed";
+        submitButton.textContent = "Fill in the survey to unlock";
         
         // Track character counts for each textarea
         const characterCounts = {};
@@ -63,13 +77,115 @@
             
             if (allValid) {
                 submitButton.disabled = false;
-                submitButton.textContent = 'Submit & unlock';
-                submitButton.style.cursor = 'pointer';
+                submitButton.style.backgroundColor = "";
+                submitButton.style.cursor = "pointer";
+                submitButton.textContent = originalButtonText;
                 console.log('✅ All fields valid - button enabled');
             } else {
                 submitButton.disabled = true;
-                submitButton.textContent = 'Complete all fields (min. 500 chars each)';
-                submitButton.style.cursor = 'not-allowed';
+                submitButton.style.backgroundColor = "#D3D3D3";
+                submitButton.style.cursor = "not-allowed";
+                submitButton.textContent = "Fill in the survey to unlock";
+            }
+        }
+        
+        // Function to assign plan to user
+        async function assignEducatorsPlan() {
+            try {
+                console.log('📋 Assigning educators free promo plan...');
+                
+                // Wait for Memberstack to be available
+                if (!window.$memberstackDom) {
+                    console.log('⏳ Waiting for Memberstack...');
+                    await new Promise(resolve => {
+                        const checkMemberstack = () => {
+                            if (window.$memberstackDom) {
+                                resolve();
+                            } else {
+                                setTimeout(checkMemberstack, 100);
+                            }
+                        };
+                        checkMemberstack();
+                    });
+                }
+                
+                // Get current member
+                const member = await window.$memberstackDom.getCurrentMember();
+                if (!member || !member.data) {
+                    throw new Error('No member found');
+                }
+                
+                console.log('👤 Current member:', member.data.id);
+                
+                // Add plan to member
+                await window.$memberstackDom.addPlanToMember({
+                    planId: EDUCATORS_FREE_PROMO_PLAN
+                });
+                
+                console.log('✅ Successfully assigned educators free promo plan');
+                return true;
+                
+            } catch (error) {
+                console.error('❌ Error assigning plan:', error);
+                return false;
+            }
+        }
+        
+        // Function to handle form submission
+        async function handleFormSubmission(event) {
+            if (isSubmitting) return;
+            
+            console.log('📝 Form submitted - processing...');
+            isSubmitting = true;
+            
+            // Update button state
+            submitButton.disabled = true;
+            submitButton.textContent = "Processing...";
+            submitButton.style.backgroundColor = "#96c0fe";
+            
+            try {
+                // Let Memberstack handle the form submission first
+                // Don't prevent default - we want the form data to be saved
+                
+                // Assign the plan
+                const planAssigned = await assignEducatorsPlan();
+                
+                if (planAssigned) {
+                    console.log('✅ Plan assigned successfully');
+                    submitButton.textContent = "Success! Redirecting...";
+                    submitButton.style.backgroundColor = "#4CAF50";
+                    
+                    // Redirect to success page with confetti parameters
+                    setTimeout(() => {
+                        console.log('🎉 Redirecting to success page with confetti...');
+                        window.location.href = SUCCESS_REDIRECT_URL;
+                    }, REDIRECT_DELAY);
+                } else {
+                    console.log('❌ Plan assignment failed');
+                    submitButton.textContent = "Error - Try again";
+                    submitButton.style.backgroundColor = "#f44336";
+                    
+                    // Reset button after delay
+                    setTimeout(() => {
+                        submitButton.disabled = false;
+                        submitButton.textContent = originalButtonText;
+                        submitButton.style.backgroundColor = "";
+                        isSubmitting = false;
+                    }, 3000);
+                }
+                
+            } catch (error) {
+                console.error('❌ Error in form submission:', error);
+                submitButton.textContent = "Error - Try again";
+                submitButton.style.backgroundColor = "#f44336";
+                
+                // Reset button after delay
+                setTimeout(() => {
+                    submitButton.disabled = false;
+                    submitButton.textContent = originalButtonText;
+                    submitButton.style.backgroundColor = "";
+                    isSubmitting = false;
+                }, 3000);
             }
         }
         
@@ -96,11 +212,22 @@
             }
         });
         
+        // Add form submission handler
+        const form = submitButton.closest('form');
+        if (form) {
+            form.addEventListener('submit', handleFormSubmission);
+            console.log('�� Form submission handler added');
+        } else {
+            // Fallback: add click handler to button
+            submitButton.addEventListener('click', handleFormSubmission);
+            console.log('📋 Button click handler added');
+        }
+        
         // Initial validation check
         checkAllFieldsValid();
         
         isInitialized = true;
-        console.log('✅ Survey validation initialized successfully');
+        console.log('✅ Educators survey validation initialized successfully');
     }
     
     // Initialize when DOM is ready
@@ -115,4 +242,4 @@
         setTimeout(initSurveyValidation, 500);
     });
     
-})(); 
+})();
