@@ -139,7 +139,7 @@ function initAutocomplete() {
   // Initialize autocomplete
   autocomplete = new google.maps.places.Autocomplete(searchInput, {
     fields: ["formatted_address", "geometry", "name", "place_id", "types", "address_components", "website", "formatted_phone_number", "rating"],
-    types: ['school', 'university', 'establishment']
+    types: ['establishment']
   });
 
   // Add listener for place selection
