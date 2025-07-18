@@ -37,14 +37,14 @@ import {
 const BREVO_API_BASE = 'https://api.brevo.com/v3';
 
 /**
- * Helper function to handle empty values - returns null instead of empty string
+ * Helper function to handle empty values - returns empty string for consistent clearing
  * This ensures Brevo clears fields when values are removed from Memberstack
  * @param {*} value - Value to check
- * @returns {*} - Original value or null if empty
+ * @returns {*} - Original value or empty string if empty
  */
 function handleEmptyValue(value) {
   if (value === null || value === undefined || value === '') {
-    return null;
+    return '';
   }
   return value;
 }
@@ -439,125 +439,125 @@ export async function syncMemberToBrevo(memberData) {
       // Update contact with new data but preserve plan attributes
       const updateAttributes = {
         // Basic contact information
-        FIRSTNAME: memberData.customFields?.['first-name'] || 
+        FIRSTNAME: handleEmptyValue(memberData.customFields?.['first-name'] || 
                    memberData.customFields?.firstName || 
-                   memberData.metaData?.firstName || '',
-        LASTNAME: memberData.customFields?.['last-name'] || 
+                   memberData.metaData?.firstName),
+        LASTNAME: handleEmptyValue(memberData.customFields?.['last-name'] || 
                   memberData.customFields?.lastName || 
-                  memberData.metaData?.lastName || '',
-        PHONE: memberData.customFields?.['phone'] || 
+                  memberData.metaData?.lastName),
+        PHONE: handleEmptyValue(memberData.customFields?.['phone'] || 
                memberData.customFields?.phone || 
-               memberData.metaData?.phone || '',
+               memberData.metaData?.phone),
         LANGUAGE_PREF: memberData.metaData?.language || 
                        memberData.customFields?.language || 
                        memberData.customFields?.['language-pref'] || 'en',
         
         // Memberstack integration
-        MEMBERSTACK_ID: memberData.id || '',
+        MEMBERSTACK_ID: handleEmptyValue(memberData.id),
         LAST_SYNC: new Date().toISOString(),
         
         // Teacher/School name (general)
-        TEACHER_NAME: memberData.customFields?.['teacher-name'] || 
+        TEACHER_NAME: handleEmptyValue(memberData.customFields?.['teacher-name'] || 
                      memberData.customFields?.teacherName ||
                      memberData.metaData?.teacherName ||
-                     `${memberData.customFields?.['first-name'] || ''} ${memberData.customFields?.['last-name'] || ''}`.trim(),
-        SCHOOL_NAME: memberData.customFields?.['school-name'] || 
+                     `${memberData.customFields?.['first-name'] || ''} ${memberData.customFields?.['last-name'] || ''}`.trim()),
+        SCHOOL_NAME: handleEmptyValue(memberData.customFields?.['school-name'] || 
                      memberData.customFields?.schoolName ||
                      memberData.customFields?.['school'] || 
                      memberData.customFields?.school ||
                      memberData.customFields?.['place-name'] || 
-                     memberData.metaData?.schoolName || '',
+                     memberData.metaData?.schoolName),
         
         // School details (map from generic field names)
-        SCHOOL_SEARCH_INPUT: memberData.customFields?.['search-input'] || 
+        SCHOOL_SEARCH_INPUT: handleEmptyValue(memberData.customFields?.['search-input'] || 
                             memberData.customFields?.searchInput ||
                             memberData.customFields?.['school-search-input'] || 
-                            memberData.metaData?.schoolSearchInput || '',
-        SCHOOL_ADDRESS: memberData.customFields?.['address-result'] || 
+                            memberData.metaData?.schoolSearchInput),
+        SCHOOL_ADDRESS: handleEmptyValue(memberData.customFields?.['address-result'] || 
                        memberData.customFields?.addressResult ||
                        memberData.customFields?.['school-address'] || 
                        memberData.customFields?.['school-address-result'] || 
-                       memberData.metaData?.schoolAddress || '',
-        SCHOOL_CITY: memberData.customFields?.['city'] || 
+                       memberData.metaData?.schoolAddress),
+        SCHOOL_CITY: handleEmptyValue(memberData.customFields?.['city'] || 
                      memberData.customFields?.city ||
                      memberData.customFields?.['school-city'] || 
-                     memberData.metaData?.schoolCity || '',
-        SCHOOL_COUNTRY: memberData.customFields?.['country'] || 
+                     memberData.metaData?.schoolCity),
+        SCHOOL_COUNTRY: handleEmptyValue(memberData.customFields?.['country'] || 
                         memberData.customFields?.country ||
                         memberData.customFields?.['school-country'] || 
-                        memberData.metaData?.schoolCountry || '',
-        SCHOOL_FACILITY_TYPE: memberData.customFields?.['facility-type'] || 
+                        memberData.metaData?.schoolCountry),
+        SCHOOL_FACILITY_TYPE: handleEmptyValue(memberData.customFields?.['facility-type'] || 
                              memberData.customFields?.facilityType ||
                              memberData.customFields?.['school-type'] || 
                              memberData.customFields?.['school-facility-type'] || 
-                             memberData.metaData?.schoolFacilityType || '',
-        SCHOOL_LATITUDE: String(memberData.customFields?.['latitude'] || 
+                             memberData.metaData?.schoolFacilityType),
+        SCHOOL_LATITUDE: handleEmptyValue(String(memberData.customFields?.['latitude'] || 
                                 memberData.customFields?.latitude ||
                                 memberData.customFields?.['school-latitude'] || 
-                                memberData.metaData?.schoolLatitude || ''),
-        SCHOOL_LONGITUDE: String(memberData.customFields?.['longitude'] || 
+                                memberData.metaData?.schoolLatitude || '')),
+        SCHOOL_LONGITUDE: handleEmptyValue(String(memberData.customFields?.['longitude'] || 
                                  memberData.customFields?.longitude ||
                                  memberData.customFields?.['school-longitude'] || 
-                                 memberData.metaData?.schoolLongitude || ''),
-        SCHOOL_PHONE: memberData.customFields?.['school-phone'] || 
+                                 memberData.metaData?.schoolLongitude || '')),
+        SCHOOL_PHONE: handleEmptyValue(memberData.customFields?.['school-phone'] || 
                       memberData.customFields?.schoolPhone ||
-                      memberData.metaData?.schoolPhone || '',
-        SCHOOL_PLACE_ID: memberData.customFields?.['place-id'] || 
+                      memberData.metaData?.schoolPhone),
+        SCHOOL_PLACE_ID: handleEmptyValue(memberData.customFields?.['place-id'] || 
                          memberData.customFields?.placeId ||
                          memberData.customFields?.['school-place-id'] || 
-                         memberData.metaData?.schoolPlaceId || '',
-        SCHOOL_PLACE_NAME: memberData.customFields?.['place-name'] || 
+                         memberData.metaData?.schoolPlaceId),
+        SCHOOL_PLACE_NAME: handleEmptyValue(memberData.customFields?.['place-name'] || 
                            memberData.customFields?.placeName ||
                            memberData.customFields?.['school-place-name'] || 
-                           memberData.metaData?.schoolPlaceName || '',
-        SCHOOL_RATING: memberData.customFields?.['rating'] || 
+                           memberData.metaData?.schoolPlaceName),
+        SCHOOL_RATING: handleEmptyValue(memberData.customFields?.['rating'] || 
                        memberData.customFields?.rating ||
                        memberData.customFields?.['school-rating'] || 
-                       memberData.metaData?.schoolRating || '',
-        SCHOOL_STATE: memberData.customFields?.['state'] || 
+                       memberData.metaData?.schoolRating),
+        SCHOOL_STATE: handleEmptyValue(memberData.customFields?.['state'] || 
                       memberData.customFields?.state ||
                       memberData.customFields?.['school-state'] || 
-                      memberData.metaData?.schoolState || '',
-        SCHOOL_STREET_ADDRESS: memberData.customFields?.['street-address'] || 
+                      memberData.metaData?.schoolState),
+        SCHOOL_STREET_ADDRESS: handleEmptyValue(memberData.customFields?.['street-address'] || 
                                memberData.customFields?.streetAddress ||
                                memberData.customFields?.['school-street-address'] || 
-                               memberData.metaData?.schoolStreetAddress || '',
-        SCHOOL_WEBSITE: memberData.customFields?.['website'] || 
+                               memberData.metaData?.schoolStreetAddress),
+        SCHOOL_WEBSITE: handleEmptyValue(memberData.customFields?.['website'] || 
                         memberData.customFields?.website ||
                         memberData.customFields?.['school-website'] || 
-                        memberData.metaData?.schoolWebsite || '',
-        SCHOOL_ZIP: memberData.customFields?.['zip'] || 
+                        memberData.metaData?.schoolWebsite),
+        SCHOOL_ZIP: handleEmptyValue(memberData.customFields?.['zip'] || 
                     memberData.customFields?.zip ||
                     memberData.customFields?.['school-zip'] || 
-                    memberData.metaData?.schoolZip || '',
+                    memberData.metaData?.schoolZip),
         
         // Professional information (map from generic field names)
-        EDUCATOR_ROLE: memberData.customFields?.['role'] || 
+        EDUCATOR_ROLE: handleEmptyValue(memberData.customFields?.['role'] || 
                        memberData.customFields?.role ||
                        memberData.customFields?.['educator-role'] || 
-                       memberData.metaData?.educatorRole || '',
-        EDUCATOR_NO_CLASSES: memberData.customFields?.['no-classes'] || 
+                       memberData.metaData?.educatorRole),
+        EDUCATOR_NO_CLASSES: handleEmptyValue(memberData.customFields?.['no-classes'] || 
                              memberData.customFields?.noClasses ||
                              memberData.customFields?.['educator-no-classes'] || 
-                             memberData.metaData?.educatorNoClasses || '',
-        EDUCATOR_NO_KIDS: memberData.customFields?.['no-kids'] || 
+                             memberData.metaData?.educatorNoClasses),
+        EDUCATOR_NO_KIDS: handleEmptyValue(memberData.customFields?.['no-kids'] || 
                           memberData.customFields?.noKids ||
                           memberData.customFields?.['educator-no-kids'] || 
-                          memberData.metaData?.educatorNoKids || '',
+                          memberData.metaData?.educatorNoKids),
         
         // Application-specific
-        LMIDS: memberData.metaData?.lmids || existingContactData.attributes?.LMIDS || '',
+        LMIDS: handleEmptyValue(memberData.metaData?.lmids || existingContactData.attributes?.LMIDS),
         
         // Custom fields for user preferences/settings  
-        RESOURCES: memberData.customFields?.['resources'] || 
+        RESOURCES: handleEmptyValue(memberData.customFields?.['resources'] || 
                    memberData.customFields?.resources ||
-                   memberData.metaData?.resources || '',
-        PAYMENTS: memberData.customFields?.['payments'] || 
+                   memberData.metaData?.resources),
+        PAYMENTS: handleEmptyValue(memberData.customFields?.['payments'] || 
                   memberData.customFields?.payments ||
-                  memberData.metaData?.payments || '',
-        DISCOVER: memberData.customFields?.['discover'] || 
+                  memberData.metaData?.payments),
+        DISCOVER: handleEmptyValue(memberData.customFields?.['discover'] || 
                   memberData.customFields?.discover ||
-                  memberData.metaData?.discover || '',
+                  memberData.metaData?.discover),
         
         // Preserve existing plan data
         USER_CATEGORY: existingContactData.attributes.USER_CATEGORY,
@@ -593,23 +593,23 @@ export async function syncMemberToBrevo(memberData) {
       
       // Create basic contact without plan-specific attributes
       const basicAttributes = {
-        FIRSTNAME: memberData.customFields?.['first-name'] || memberData.customFields?.firstName || '',
-        LASTNAME: memberData.customFields?.['last-name'] || memberData.customFields?.lastName || '',
-        PHONE: memberData.customFields?.['phone'] || memberData.customFields?.phone || '',
-        MEMBERSTACK_ID: memberData.id || '',
+        FIRSTNAME: handleEmptyValue(memberData.customFields?.['first-name'] || memberData.customFields?.firstName),
+        LASTNAME: handleEmptyValue(memberData.customFields?.['last-name'] || memberData.customFields?.lastName),
+        PHONE: handleEmptyValue(memberData.customFields?.['phone'] || memberData.customFields?.phone),
+        MEMBERSTACK_ID: handleEmptyValue(memberData.id),
         REGISTRATION_DATE: memberData.createdAt || new Date().toISOString(),
         LAST_SYNC: new Date().toISOString(),
         
         // Custom fields for user preferences/settings
-        RESOURCES: memberData.customFields?.['resources'] || 
+        RESOURCES: handleEmptyValue(memberData.customFields?.['resources'] || 
                    memberData.customFields?.resources ||
-                   memberData.metaData?.resources || '',
-        PAYMENTS: memberData.customFields?.['payments'] || 
+                   memberData.metaData?.resources),
+        PAYMENTS: handleEmptyValue(memberData.customFields?.['payments'] || 
                   memberData.customFields?.payments ||
-                  memberData.metaData?.payments || '',
-        DISCOVER: memberData.customFields?.['discover'] || 
+                  memberData.metaData?.payments),
+        DISCOVER: handleEmptyValue(memberData.customFields?.['discover'] || 
                   memberData.customFields?.discover ||
-                  memberData.metaData?.discover || '',
+                  memberData.metaData?.discover),
         
         // Set default category as pending until plan is selected
         USER_CATEGORY: 'pending',
@@ -656,35 +656,35 @@ export async function syncMemberToBrevo(memberData) {
             // Prepare school data from member data
             const schoolData = {
               SCHOOL_PLACE_ID: schoolId,
-              SCHOOL_NAME: memberData.customFields?.['school-name'] ||
+              SCHOOL_NAME: handleEmptyValue(memberData.customFields?.['school-name'] ||
                            memberData.customFields?.schoolName ||
-                           memberData.metaData?.schoolName || '',
-              SCHOOL_CITY: memberData.customFields?.['school-city'] ||
+                           memberData.metaData?.schoolName),
+              SCHOOL_CITY: handleEmptyValue(memberData.customFields?.['school-city'] ||
                            memberData.customFields?.city ||
-                           memberData.metaData?.schoolCity || '',
-              SCHOOL_COUNTRY: memberData.customFields?.['school-country'] ||
+                           memberData.metaData?.schoolCity),
+              SCHOOL_COUNTRY: handleEmptyValue(memberData.customFields?.['school-country'] ||
                               memberData.customFields?.country ||
-                              memberData.metaData?.schoolCountry || '',
-              SCHOOL_PHONE: memberData.customFields?.['school-phone'] ||
-                            memberData.metaData?.schoolPhone || '',
-              SCHOOL_WEBSITE: memberData.customFields?.['school-website'] ||
+                              memberData.metaData?.schoolCountry),
+              SCHOOL_PHONE: handleEmptyValue(memberData.customFields?.['school-phone'] ||
+                            memberData.metaData?.schoolPhone),
+              SCHOOL_WEBSITE: handleEmptyValue(memberData.customFields?.['school-website'] ||
                               memberData.customFields?.website ||
-                              memberData.metaData?.schoolWebsite || '',
-              SCHOOL_STREET_ADDRESS: memberData.customFields?.['school-street-address'] ||
+                              memberData.metaData?.schoolWebsite),
+              SCHOOL_STREET_ADDRESS: handleEmptyValue(memberData.customFields?.['school-street-address'] ||
                                      memberData.customFields?.['street-address'] ||
-                                     memberData.metaData?.schoolStreetAddress || '',
-              SCHOOL_STATE_PROVINCE: memberData.customFields?.['school-state'] ||
+                                     memberData.metaData?.schoolStreetAddress),
+              SCHOOL_STATE_PROVINCE: handleEmptyValue(memberData.customFields?.['school-state'] ||
                                      memberData.customFields?.state ||
-                                     memberData.metaData?.schoolState || '',
-              SCHOOL_POSTAL_CODE: memberData.customFields?.['school-zip'] ||
+                                     memberData.metaData?.schoolState),
+              SCHOOL_POSTAL_CODE: handleEmptyValue(memberData.customFields?.['school-zip'] ||
                                   memberData.customFields?.zip ||
-                                  memberData.metaData?.schoolZip || '',
-              SCHOOL_LATITUDE: String(memberData.customFields?.['school-latitude'] ||
+                                  memberData.metaData?.schoolZip),
+              SCHOOL_LATITUDE: handleEmptyValue(String(memberData.customFields?.['school-latitude'] ||
                                       memberData.customFields?.latitude ||
-                                      memberData.metaData?.schoolLatitude || ''),
-              SCHOOL_LONGITUDE: String(memberData.customFields?.['school-longitude'] ||
+                                      memberData.metaData?.schoolLatitude || '')),
+              SCHOOL_LONGITUDE: handleEmptyValue(String(memberData.customFields?.['school-longitude'] ||
                                        memberData.customFields?.longitude ||
-                                       memberData.metaData?.schoolLongitude || '')
+                                       memberData.metaData?.schoolLongitude || ''))
             };
             
             // Create or update company
@@ -695,9 +695,9 @@ export async function syncMemberToBrevo(memberData) {
               
               // Link contact to company
               const linkData = {
-                EDUCATOR_ROLE: memberData.customFields?.role || 
+                EDUCATOR_ROLE: handleEmptyValue(memberData.customFields?.role || 
                               memberData.customFields?.['educator-role'] ||
-                              memberData.metaData?.educatorRole || '',
+                              memberData.metaData?.educatorRole),
                 IS_PRIMARY_CONTACT: memberData.customFields?.role?.toLowerCase().includes('principal') || false
               };
               
@@ -750,34 +750,34 @@ export async function syncMemberToBrevo(memberData) {
         // Prepare school data from member data
         const schoolData = {
           SCHOOL_PLACE_ID: schoolId,
-          SCHOOL_NAME: memberData.customFields?.schoolName || 
+          SCHOOL_NAME: handleEmptyValue(memberData.customFields?.schoolName || 
                        memberData.customFields?.['school-name'] ||
-                       memberData.metaData?.schoolName || '',
-          SCHOOL_CITY: memberData.customFields?.city || 
+                       memberData.metaData?.schoolName),
+          SCHOOL_CITY: handleEmptyValue(memberData.customFields?.city || 
                        memberData.customFields?.['school-city'] ||
-                       memberData.metaData?.schoolCity || '',
-          SCHOOL_COUNTRY: memberData.customFields?.country || 
+                       memberData.metaData?.schoolCity),
+          SCHOOL_COUNTRY: handleEmptyValue(memberData.customFields?.country || 
                           memberData.customFields?.['school-country'] ||
-                          memberData.metaData?.schoolCountry || '',
-          SCHOOL_PHONE: memberData.customFields?.['school-phone'] ||
-                        memberData.metaData?.schoolPhone || '',
-          SCHOOL_WEBSITE: memberData.customFields?.website ||
+                          memberData.metaData?.schoolCountry),
+          SCHOOL_PHONE: handleEmptyValue(memberData.customFields?.['school-phone'] ||
+                        memberData.metaData?.schoolPhone),
+          SCHOOL_WEBSITE: handleEmptyValue(memberData.customFields?.website ||
                           memberData.customFields?.['school-website'] ||
-                          memberData.metaData?.schoolWebsite || '',
-          SCHOOL_STREET_ADDRESS: memberData.customFields?.['street-address'] ||
-                                 memberData.metaData?.schoolStreetAddress || '',
-          SCHOOL_STATE_PROVINCE: memberData.customFields?.state ||
+                          memberData.metaData?.schoolWebsite),
+          SCHOOL_STREET_ADDRESS: handleEmptyValue(memberData.customFields?.['street-address'] ||
+                                 memberData.metaData?.schoolStreetAddress),
+          SCHOOL_STATE_PROVINCE: handleEmptyValue(memberData.customFields?.state ||
                                  memberData.customFields?.['school-state'] ||
-                                 memberData.metaData?.schoolState || '',
-          SCHOOL_POSTAL_CODE: memberData.customFields?.zip ||
+                                 memberData.metaData?.schoolState),
+          SCHOOL_POSTAL_CODE: handleEmptyValue(memberData.customFields?.zip ||
                               memberData.customFields?.['school-zip'] ||
-                              memberData.metaData?.schoolZip || '',
-          SCHOOL_LATITUDE: String(memberData.customFields?.latitude ||
+                              memberData.metaData?.schoolZip),
+          SCHOOL_LATITUDE: handleEmptyValue(String(memberData.customFields?.latitude ||
                            memberData.customFields?.['school-latitude'] ||
-                           memberData.metaData?.schoolLatitude || ''),
-          SCHOOL_LONGITUDE: String(memberData.customFields?.longitude ||
+                           memberData.metaData?.schoolLatitude || '')),
+          SCHOOL_LONGITUDE: handleEmptyValue(String(memberData.customFields?.longitude ||
                             memberData.customFields?.['school-longitude'] ||
-                            memberData.metaData?.schoolLongitude || '')
+                            memberData.metaData?.schoolLongitude || ''))
         };
         
         // Create or update company
@@ -788,9 +788,9 @@ export async function syncMemberToBrevo(memberData) {
           
           // Link contact to company
           const linkData = {
-            EDUCATOR_ROLE: memberData.customFields?.role || 
+            EDUCATOR_ROLE: handleEmptyValue(memberData.customFields?.role || 
                           memberData.customFields?.['educator-role'] ||
-                          memberData.metaData?.educatorRole || '',
+                          memberData.metaData?.educatorRole),
             IS_PRIMARY_CONTACT: memberData.customFields?.role?.toLowerCase().includes('principal') || false
           };
           
