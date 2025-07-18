@@ -15,95 +15,28 @@
  * STATUS: Production Ready ✅
  */
 
-// Configuration
-const REDIRECT_URL = "/members/emotion-worlds";
-const REDIRECT_DELAY = 1500; // 1.5 seconds delay to allow Memberstack processing
+// --- Configuration ---
+const formIdentifier = '[data-ms-form="onboarding"]'; // IMPORTANT: Change "onboarding" if your form uses a different value for data-ms-form
+const redirectUrl = "/members/emotion-worlds";          // --- !!! CHANGE THIS URL !!! --- Replace with your target URL
+const redirectDelay = 1500; // Delay in milliseconds (1.5 seconds). Adjust if needed.
+// --- End Configuration ---
 
-// Debug logging
-const DEBUG = false;
+document.addEventListener('DOMContentLoaded', (event) => {
+  const formElement = document.querySelector(formIdentifier);
 
-function log(message, data = null) {
-  if (DEBUG) {
-    console.log(`🔄 [Onboarding Redirect] ${message}`, data || '');
-  }
-}
+  if (formElement) {
+    formElement.addEventListener('submit', function(e) {
+      // We DO NOT prevent the default submission (e.preventDefault())
+      // because we need Memberstack to process the form.
 
-// Initialize redirect handler when DOM is ready
-document.addEventListener('DOMContentLoaded', function() {
-  log('Initializing universal form redirect handler');
-  
-  // Find all forms on the page
-  const forms = document.querySelectorAll('form');
-  
-  if (forms.length === 0) {
-    log('⚠️ No forms found on onboarding page');
-    return;
-  }
-  
-  log(`Found ${forms.length} form(s) on onboarding page`);
-  
-  // Add submit handler to each form
-  forms.forEach((form, index) => {
-    const formId = form.id || form.className || `form-${index + 1}`;
-    log(`Setting up redirect for form: ${formId}`);
-    
-    form.addEventListener('submit', function(event) {
-      log(`Form submitted: ${formId}`);
-      
-      // Don't prevent default - let Memberstack handle the submission
-      // Just schedule the redirect
+      console.log('Memberstack form submitted. Waiting for redirect...');
+
+      // Wait for a short period before redirecting
       setTimeout(() => {
-        log(`Redirecting to: ${REDIRECT_URL}`);
-        
-        // Show user feedback
-        const submitButton = form.querySelector('input[type="submit"], button[type="submit"]');
-        if (submitButton) {
-          const originalText = submitButton.textContent || submitButton.value;
-          
-          if (submitButton.tagName === 'INPUT') {
-            submitButton.value = 'Redirecting...';
-          } else {
-            submitButton.textContent = 'Redirecting...';
-          }
-          
-          // Disable button to prevent multiple submissions
-          submitButton.disabled = true;
-        }
-        
-        // Perform redirect
-        window.location.href = REDIRECT_URL;
-        
-      }, REDIRECT_DELAY);
+        window.location.href = redirectUrl;
+      }, redirectDelay);
     });
-  });
-  
-  log('✅ Universal form redirect handler ready');
-});
-
-// Alternative approach: Listen for Memberstack events if available
-if (typeof window !== 'undefined' && window.MemberStack) {
-  window.MemberStack.onReady.then(() => {
-    log('MemberStack ready, setting up form submission listener');
-    
-    // Listen for successful form submissions
-    window.MemberStack.on('form:submit:success', function(data) {
-      log('MemberStack form submission successful:', data);
-      
-      // Redirect after successful submission
-      setTimeout(() => {
-        log(`Redirecting to: ${REDIRECT_URL}`);
-        window.location.href = REDIRECT_URL;
-      }, REDIRECT_DELAY);
-    });
-  }).catch(error => {
-    log('MemberStack initialization failed:', error);
-  });
-}
-
-// Export for potential use in other scripts
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = {
-    REDIRECT_URL,
-    REDIRECT_DELAY
-  };
-} 
+  } else {
+    console.warn(`Form with identifier "${formIdentifier}" not found for redirect script.`);
+  }
+}); 
