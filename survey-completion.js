@@ -7,18 +7,18 @@
  * FEATURES:
  * - Detect ?survey=filled parameter
  * - Show confetti celebration
- * - Aggressive fresh Memberstack data fetching with retries
+ * - Force fresh Memberstack data fetch WITHOUT clearing session
  * - Update UI elements (unlock content, remove grayscale)
  * - No toast notifications
  * 
- * VERSION: 1.0.2
+ * VERSION: 1.0.3
  * LAST UPDATED: January 2025
  */
 
 (function() {
     'use strict';
     
-    console.log('[Survey Completion] Script v1.0.2 loaded');
+    console.log('[Survey Completion] Script v1.0.3 loaded');
     
     /**
      * Check if we're coming from survey completion
@@ -98,94 +98,52 @@
     }
     
     /**
-     * Aggressive fresh Memberstack data fetch with retries
+     * Wait for fresh member data with patience
      */
-    async function getFreshMemberDataWithRetries(maxRetries = 5) {
-        let retries = 0;
-        
-        while (retries < maxRetries) {
-            try {
-                console.log(`📡 Attempt ${retries + 1}/${maxRetries}: Fetching fresh member data...`);
-                
-                // Wait for Memberstack to be available
-                await waitForMemberstack();
-                
-                const memberstack = window.$memberstackDom || window.memberstack;
-                if (!memberstack) {
-                    throw new Error('Memberstack not available');
-                }
-                
-                // Clear all possible cache on first attempt
-                if (retries === 0) {
-                    await clearAllMemberstackCache();
-                }
-                
-                // Wait longer on each retry for backend sync
-                const waitTime = 1000 + (retries * 1000); // 1s, 2s, 3s, 4s, 5s
-                await new Promise(resolve => setTimeout(resolve, waitTime));
-                
-                // Try to get fresh member data
-                const member = await memberstack.getCurrentMember();
-                
-                if (member && member.data) {
-                    console.log(`✅ Fresh member data loaded on attempt ${retries + 1}:`, member.data);
-                    
-                    // Check if educator plan is present
-                    const hasEducatorPlan = member.data.planConnections && 
-                        member.data.planConnections.some(plan => 
-                            plan.planId === 'pln_educators-free-promo-ebfw0xzj'
-                        );
-                    
-                    if (hasEducatorPlan) {
-                        console.log('✅ Educator plan detected in fresh data!');
-                        return member.data;
-                    } else {
-                        console.log(`⚠️ No educator plan found in attempt ${retries + 1}, retrying...`);
-                    }
-                } else {
-                    throw new Error('No member data received');
-                }
-                
-            } catch (error) {
-                console.warn(`⚠️ Attempt ${retries + 1} failed:`, error);
-            }
-            
-            retries++;
-        }
-        
-        // If all retries failed, assume plan was added and update UI anyway
-        console.log('⚠️ All retries failed, but assuming plan was added due to survey=filled URL');
-        return { assumeEducatorPlan: true };
-    }
-    
-    /**
-     * Clear all possible Memberstack cache
-     */
-    async function clearAllMemberstackCache() {
+    async function waitForFreshMemberData() {
         try {
-            // Clear localStorage
-            const localKeysToRemove = [];
-            for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                if (key && (key.includes('memberstack') || key.includes('member') || key.includes('ms-'))) {
-                    localKeysToRemove.push(key);
-                }
-            }
-            localKeysToRemove.forEach(key => localStorage.removeItem(key));
+            console.log('📡 Waiting for fresh member data...');
             
-            // Clear sessionStorage
-            const sessionKeysToRemove = [];
-            for (let i = 0; i < sessionStorage.length; i++) {
-                const key = sessionStorage.key(i);
-                if (key && (key.includes('memberstack') || key.includes('member') || key.includes('ms-'))) {
-                    sessionKeysToRemove.push(key);
-                }
-            }
-            sessionKeysToRemove.forEach(key => sessionStorage.removeItem(key));
+            // Wait for Memberstack to be available
+            await waitForMemberstack();
             
-            console.log('🧹 Cleared all Memberstack cache');
-        } catch (e) {
-            console.warn('⚠️ Could not clear some cached data:', e);
+            const memberstack = window.$memberstackDom || window.memberstack;
+            if (!memberstack) {
+                throw new Error('Memberstack not available');
+            }
+            
+            // IMPORTANT: Don't clear cache - it logs out the user!
+            // Instead, wait for backend sync
+            console.log('⏳ Waiting 3 seconds for backend sync...');
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            
+            // Now get member data
+            const member = await memberstack.getCurrentMember();
+            
+            if (member && member.data) {
+                console.log('✅ Member data received:', member.data);
+                
+                // Check if educator plan is present
+                const hasEducatorPlan = member.data.planConnections && 
+                    member.data.planConnections.some(plan => 
+                        plan.planId === 'pln_educators-free-promo-ebfw0xzj'
+                    );
+                
+                if (hasEducatorPlan) {
+                    console.log('✅ Educator plan confirmed!');
+                } else {
+                    console.log('⚠️ Educator plan not found in data, but proceeding anyway');
+                }
+                
+                return member.data;
+            } else {
+                throw new Error('No member data received');
+            }
+            
+        } catch (error) {
+            console.error('❌ Error getting member data:', error);
+            // Return dummy data to still update UI
+            return { assumeEducatorPlan: true };
         }
     }
     
@@ -221,46 +179,63 @@
         try {
             console.log('🎨 Updating UI elements for educator access...');
             
-            // Remove grayscale filters and unlock content
-            const allElements = document.querySelectorAll('*');
-            allElements.forEach(element => {
-                const style = window.getComputedStyle(element);
-                
-                // Remove grayscale filter
-                if (style.filter && style.filter.includes('grayscale')) {
-                    element.style.filter = 'none';
-                }
-                
-                // Remove opacity restrictions
-                if (style.opacity && parseFloat(style.opacity) < 1) {
-                    element.style.opacity = '1';
-                }
-                
-                // Enable pointer events
-                if (style.pointerEvents === 'none') {
-                    element.style.pointerEvents = 'auto';
+            // Remove grayscale filters
+            const grayscaleElements = document.querySelectorAll('[style*="filter"]');
+            grayscaleElements.forEach(element => {
+                const currentFilter = element.style.filter;
+                if (currentFilter && currentFilter.includes('grayscale')) {
+                    element.style.filter = currentFilter.replace(/grayscale\([^)]*\)/g, '').trim();
+                    if (element.style.filter === '') {
+                        element.style.removeProperty('filter');
+                    }
                 }
             });
             
-            // Enable all disabled buttons and inputs
-            const disabledElements = document.querySelectorAll('button[disabled], input[disabled], select[disabled]');
-            disabledElements.forEach(element => {
-                element.disabled = false;
+            // Remove opacity restrictions on specific elements
+            const opaqueElements = document.querySelectorAll('.locked, .disabled, .blocked, [class*="trial"], [class*="upgrade"]');
+            opaqueElements.forEach(element => {
                 element.style.opacity = '1';
-                element.style.filter = 'none';
                 element.style.pointerEvents = 'auto';
             });
             
-            // Hide trial/upgrade messages
-            const trialElements = document.querySelectorAll('[class*="trial"], [class*="upgrade"], [class*="locked"]');
-            trialElements.forEach(element => {
-                element.style.display = 'none';
+            // Enable all disabled buttons and inputs
+            const disabledElements = document.querySelectorAll('button[disabled], input[disabled], select[disabled], a[disabled]');
+            disabledElements.forEach(element => {
+                element.disabled = false;
+                element.style.opacity = '1';
+                element.style.pointerEvents = 'auto';
+                element.style.cursor = 'pointer';
             });
             
-            // Find and hide green success blocks
-            const successElements = document.querySelectorAll('div[style*="background-color: green"], div[style*="background: green"], .success-block');
-            successElements.forEach(element => {
-                element.style.display = 'none';
+            // Hide trial/upgrade messages
+            const trialMessages = document.querySelectorAll('[class*="trial"], [class*="upgrade"], [class*="locked"], .trial-message, .upgrade-message');
+            trialMessages.forEach(element => {
+                // Only hide if it's actually a message/banner
+                if (element.textContent.toLowerCase().includes('trial') || 
+                    element.textContent.toLowerCase().includes('upgrade') ||
+                    element.textContent.toLowerCase().includes('unlock')) {
+                    element.style.display = 'none';
+                }
+            });
+            
+            // Find and hide green success blocks by content
+            const allDivs = document.querySelectorAll('div');
+            allDivs.forEach(div => {
+                const bgColor = window.getComputedStyle(div).backgroundColor;
+                const isGreen = bgColor.includes('rgb(0, 128, 0)') || 
+                               bgColor.includes('rgb(0, 255, 0)') || 
+                               bgColor.includes('green');
+                
+                if (isGreen && div.textContent.includes('FREE Access Unlocked')) {
+                    div.style.display = 'none';
+                }
+            });
+            
+            // Make world containers interactive
+            const worldContainers = document.querySelectorAll('[class*="world"], [class*="emotion"]');
+            worldContainers.forEach(container => {
+                container.style.pointerEvents = 'auto';
+                container.style.cursor = 'pointer';
             });
             
             console.log('✅ UI elements updated - content unlocked');
@@ -292,10 +267,10 @@
         // Show confetti immediately
         showConfetti();
         
-        // Try to get fresh member data with retries
-        const memberData = await getFreshMemberDataWithRetries();
+        // Wait for member data (with 3s delay for backend sync)
+        await waitForFreshMemberData();
         
-        // Always update UI - either we have confirmed data or we assume plan was added
+        // Always update UI
         updateUIElements();
         
         console.log('✅ Survey completion handling completed!');
@@ -305,7 +280,8 @@
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initializeSurveyCompletion);
     } else {
-        initializeSurveyCompletion();
+        // Small delay to ensure Memberstack is ready
+        setTimeout(initializeSurveyCompletion, 100);
     }
     
 })();
