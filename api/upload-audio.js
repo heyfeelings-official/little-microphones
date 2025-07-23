@@ -408,12 +408,17 @@ async function sendNewRecordingNotifications(lmid, world, questionId, lang, uplo
             console.log(`🌍 [${requestId}] Forced environment: ${isDevelopment ? 'development' : 'production'}, using ${heyFeelingsBaseUrl}`);
         }
         
+        // Get the correct ShareID for this specific world
+        const worldShareId = lmidData.shareIds?.[world] || lmidData.shareId;
+        
+        console.log(`📻 [${requestId}] ShareID for world "${world}": ${worldShareId} (from ${lmidData.shareIds?.[world] ? 'world-specific' : 'fallback'})`);
+        
         // SIMPLIFIED: Only dynamic data - contact data automatic from Brevo
         const dynamicData = {
             world: translateWorldName(world, lang),
             lmid: lmid,
             dashboardUrl: `${heyFeelingsBaseUrl}/${lang}/members/little-microphones`,
-            radioUrl: `${heyFeelingsBaseUrl}/little-microphones?ID=${lmidData.shareId}`,
+            radioUrl: `${heyFeelingsBaseUrl}/little-microphones?ID=${worldShareId}`, // ← Now using world-specific ShareID!
             uploaderName: uploaderName
         };
         
@@ -542,7 +547,8 @@ async function getLmidData(lmid) {
             schoolName: data.data.schoolName,
             parentEmails: data.data.parentEmails || [],
             parentMemberIdToEmail: data.data.parentMemberIdToEmail || {},
-            shareId: data.data.shareId
+            shareId: data.data.shareId, // Legacy compatibility  
+            shareIds: data.data.shareIds || {} // NEW: All world-specific ShareIDs
         };
         
         console.log(`✅ LMID ${lmid} data retrieved successfully`);

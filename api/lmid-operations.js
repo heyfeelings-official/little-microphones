@@ -420,16 +420,21 @@ async function handleGetLmidData(lmid) {
             console.log(`📧 Using ${parentEmails.length} parent emails directly from database`);
         }
         
-        // Find the ShareID for any world (we'll use the first one we find)
-        let shareId = null;
+        // Create ShareIDs mapping for all worlds (not just first found)
+        const shareIds = {};
         const worlds = ['spookyland', 'waterpark', 'shopping_spree', 'amusement_park', 'big_city', 'neighborhood'];
-        for (const world of worlds) {
+        
+        worlds.forEach(world => {
             const worldColumn = `share_id_${world.replace('-', '_')}`;
             if (data[worldColumn]) {
-                shareId = data[worldColumn];
-                break;
+                shareIds[world] = data[worldColumn];
             }
-        }
+        });
+        
+        console.log(`🌍 ShareIDs available for LMID ${lmid}:`, shareIds);
+        
+        // For backward compatibility, still provide a single shareId (first found)
+        const shareId = Object.values(shareIds)[0] || null;
         
         const result = {
             lmid: data.lmid,
@@ -438,7 +443,8 @@ async function handleGetLmidData(lmid) {
             schoolName: data.teacher_school_name || 'School',
             parentEmails: parentEmails,
             parentMemberIdToEmail: parentMemberIdToEmail,
-            shareId: shareId
+            shareId: shareId, // Legacy compatibility
+            shareIds: shareIds // NEW: All world-specific ShareIDs
         };
         
         console.log(`✅ [handleGetLmidData] Retrieved data for LMID ${lmid}:`, {
