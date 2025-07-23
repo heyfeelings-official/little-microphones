@@ -119,8 +119,10 @@ export default async function handler(req, res) {
         
         // Add world image data if world is provided
         if (dynamicData?.world) {
-            const worldImageData = getWorldImageData(dynamicData.world, language);
-            console.log(`🖼️ Adding image data for world "${dynamicData.world}" (${language}):`, {
+            // Use originalWorld for image lookup if available, otherwise use world with normalization
+            const worldForImageLookup = dynamicData.originalWorld || dynamicData.world;
+            const worldImageData = getWorldImageData(worldForImageLookup, language);
+            console.log(`🖼️ Adding image data for world "${worldForImageLookup}" (from ${dynamicData.originalWorld ? 'originalWorld' : 'world'}) (${language}):`, {
                 isSuccess: worldImageData.isSuccess,
                 hasImageUrl: !!worldImageData.worldImageUrl,
                 displayName: worldImageData.worldName

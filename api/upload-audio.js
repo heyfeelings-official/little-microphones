@@ -408,17 +408,19 @@ async function sendNewRecordingNotifications(lmid, world, questionId, lang, uplo
             console.log(`🌍 [${requestId}] Forced environment: ${isDevelopment ? 'development' : 'production'}, using ${heyFeelingsBaseUrl}`);
         }
         
-        // Get the correct ShareID for this specific world
+        // IMPORTANT: Use ORIGINAL world (not translated) for ShareID lookup
+        // ShareIDs are stored under original keys like 'shopping-spree', not 'Shopping Spree'
         const worldShareId = lmidData.shareIds?.[world] || lmidData.shareId;
         
-        console.log(`📻 [${requestId}] ShareID for world "${world}": ${worldShareId} (from ${lmidData.shareIds?.[world] ? 'world-specific' : 'fallback'})`);
+        console.log(`📻 [${requestId}] ShareID lookup for ORIGINAL world "${world}": ${worldShareId} (from ${lmidData.shareIds?.[world] ? 'world-specific' : 'fallback'})`);
         
         // SIMPLIFIED: Only dynamic data - contact data automatic from Brevo
         const dynamicData = {
-            world: translateWorldName(world, lang),
+            world: translateWorldName(world, lang), // ← Translated for display only
+            originalWorld: world, // ← Original world key for image/ShareID lookup
             lmid: lmid,
             dashboardUrl: `${heyFeelingsBaseUrl}/${lang}/members/little-microphones`,
-            radioUrl: `${heyFeelingsBaseUrl}/little-microphones?ID=${worldShareId}`, // ← Now using world-specific ShareID!
+            radioUrl: `${heyFeelingsBaseUrl}/little-microphones?ID=${worldShareId}`, // ← Using ShareID from ORIGINAL world key!
             uploaderName: uploaderName
         };
         
