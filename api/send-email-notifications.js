@@ -28,6 +28,7 @@
  */
 
 import { makeBrevoRequest } from '../utils/brevo-contact-manager.js';
+import { getWorldImageData } from '../utils/brevo-world-images.js';
 
 export default async function handler(req, res) {
     // Secure CORS headers
@@ -113,6 +114,31 @@ export default async function handler(req, res) {
             });
         }
         
+        // Enhance dynamic data with world-specific images
+        const enhancedDynamicData = { ...dynamicData };
+        
+        // Add world image data if world is provided
+        if (dynamicData?.world) {
+            const worldImageData = getWorldImageData(dynamicData.world, language);
+            console.log(`🖼️ Adding image data for world "${dynamicData.world}" (${language}):`, {
+                isSuccess: worldImageData.isSuccess,
+                hasImageUrl: !!worldImageData.worldImageUrl,
+                displayName: worldImageData.worldName
+            });
+            
+            // Add world image parameters to template
+            enhancedDynamicData.worldImageUrl = worldImageData.worldImageUrl;
+            enhancedDynamicData.worldImageAlt = worldImageData.worldImageAlt;
+            enhancedDynamicData.worldName = worldImageData.worldName;
+            
+            // Add warning if configuration is missing
+            if (!worldImageData.isSuccess && worldImageData.warning) {
+                console.warn(`⚠️ ${worldImageData.warning}`);
+            }
+        } else {
+            console.log(`📝 No world provided in dynamicData, skipping image enhancement`);
+        }
+        
         // Prepare MINIMAL email data - Brevo handles all personalization from contact
         const emailPayload = {
             to: [{
@@ -120,7 +146,7 @@ export default async function handler(req, res) {
                 // Name will be auto-filled by Brevo from contact.FIRSTNAME + contact.LASTNAME
             }],
             templateId: templateId,
-            params: dynamicData || {}, // Only dynamic data (world, lmid, urls), contact data is automatic
+            params: enhancedDynamicData, // Enhanced with world images + original dynamic data
             // ADD TRACKING TAGS for better Dashboard identification
             tags: [
                 'little-microphones',
@@ -132,8 +158,9 @@ export default async function handler(req, res) {
         };
         
         console.log(`📧 Sending to Brevo - Template: ${templateId}`);
-        console.log(`📋 Dynamic params: ${Object.keys(dynamicData || {}).length} (rest automatic from contact)`);
-        console.log(`🎯 Available in template: {{contact.*}} (32 attributes) + {{params.*}} (${Object.keys(dynamicData || {}).length} dynamic)`);
+        console.log(`📋 Enhanced dynamic params: ${Object.keys(enhancedDynamicData).length} (includes world images)`);
+        console.log(`🎯 Available in template: {{contact.*}} (32 attributes) + {{params.*}} (${Object.keys(enhancedDynamicData).length} enhanced)`);
+        console.log(`🖼️ World image params: worldImageUrl, worldImageAlt, worldName`);
         
         // Send email via native HTTP request (Brevo SDK has issues)
         const result = await makeBrevoRequest('/smtp/email', 'POST', emailPayload);
@@ -149,7 +176,9 @@ export default async function handler(req, res) {
                 notificationType: notificationType,
                 language: language,
                 contactAttributesAvailable: Object.keys(brevoContact.attributes || {}).length,
-                dynamicParamsUsed: Object.keys(dynamicData || {}).length
+                originalDynamicParams: Object.keys(dynamicData || {}).length,
+                enhancedDynamicParams: Object.keys(enhancedDynamicData).length,
+                worldImageEnhanced: !!(dynamicData?.world && enhancedDynamicData.worldImageUrl)
             }
         });
         
