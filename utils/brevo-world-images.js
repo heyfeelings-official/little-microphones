@@ -114,9 +114,67 @@ const FALLBACK_IMAGE = {
   }
 };
 
+// ===== WORLD NAME NORMALIZATION =====
+const WORLD_NAME_MAPPING = {
+  // Handle different name formats from frontend/API calls
+  'Shopping Spree': 'shopping-spree',
+  'shopping spree': 'shopping-spree',
+  'SHOPPING SPREE': 'shopping-spree',
+  'shopping-spree': 'shopping-spree',
+  
+  'Amusement Park': 'amusement-park',
+  'amusement park': 'amusement-park', 
+  'AMUSEMENT PARK': 'amusement-park',
+  'amusement-park': 'amusement-park',
+  
+  'Big City': 'big-city',
+  'big city': 'big-city',
+  'BIG CITY': 'big-city',
+  'big-city': 'big-city',
+  
+  'Spookyland': 'spookyland',
+  'spookyland': 'spookyland',
+  'SPOOKYLAND': 'spookyland',
+  
+  'Waterpark': 'waterpark',
+  'waterpark': 'waterpark',
+  'WATERPARK': 'waterpark',
+  'Water Park': 'waterpark',
+  'water park': 'waterpark',
+  
+  'Neighborhood': 'neighborhood',
+  'neighborhood': 'neighborhood',
+  'NEIGHBORHOOD': 'neighborhood'
+};
+
+/**
+ * Normalize world name to match configuration keys
+ * @param {string} worldName - World name in any format
+ * @returns {string} Normalized world name matching WORLD_IMAGES_CONFIG keys
+ */
+function normalizeWorldName(worldName) {
+  if (!worldName) return null;
+  
+  // First try direct mapping
+  if (WORLD_NAME_MAPPING[worldName]) {
+    return WORLD_NAME_MAPPING[worldName];
+  }
+  
+  // Try lowercase with spaces converted to hyphens
+  const normalized = worldName.toLowerCase().replace(/\s+/g, '-');
+  if (WORLD_IMAGES_CONFIG[normalized]) {
+    console.log(`🔄 Auto-normalized "${worldName}" → "${normalized}"`);
+    return normalized;
+  }
+  
+  // If no match found, return original
+  console.warn(`⚠️ Could not normalize world name: "${worldName}"`);
+  return worldName;
+}
+
 /**
  * Get world image data for email templates
- * @param {string} world - World name (e.g., 'spookyland')
+ * @param {string} world - World name (e.g., 'spookyland', 'Shopping Spree')
  * @param {string} language - Language code ('pl' or 'en')
  * @returns {Object} Image data with URL, alt text, and display name
  */
@@ -124,17 +182,21 @@ export function getWorldImageData(world, language = 'en') {
   // Validate language
   const lang = ['pl', 'en'].includes(language) ? language : 'en';
   
+  // Normalize world name to match configuration
+  const normalizedWorld = normalizeWorldName(world);
+  console.log(`🌍 World normalization: "${world}" → "${normalizedWorld}"`);
+  
   // Get world configuration
-  const worldConfig = WORLD_IMAGES_CONFIG[world];
+  const worldConfig = WORLD_IMAGES_CONFIG[normalizedWorld];
   
   if (!worldConfig || !worldConfig[lang]) {
-    console.warn(`⚠️ No image configuration found for world "${world}" in language "${lang}", using fallback`);
+    console.warn(`⚠️ No image configuration found for world "${normalizedWorld}" (original: "${world}") in language "${lang}", using fallback`);
     return {
       worldImageUrl: FALLBACK_IMAGE[lang].imageUrl,
       worldImageAlt: FALLBACK_IMAGE[lang].alt,
       worldName: FALLBACK_IMAGE[lang].displayName,
       isSuccess: false,
-      warning: `Missing configuration for ${world}_${lang}`
+      warning: `Missing configuration for ${normalizedWorld}_${lang} (original: ${world})`
     };
   }
   
