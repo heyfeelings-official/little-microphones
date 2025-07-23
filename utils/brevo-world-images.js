@@ -23,12 +23,12 @@
 export const WORLD_IMAGES_CONFIG = {
   'spookyland': {
     pl: {
-      imageUrl: 'https://img.mailinblue.com/XXXXXX/spookyland-pl.png', // REPLACE: Upload to Brevo and paste URL
+      imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/6880a0e0ec03072a1fa85842.png', // REPLACE: Upload to Brevo and paste URL
       alt: 'Straszny Park - świat Halloween pełen duchów i potworów',
       displayName: 'Straszny Park'
     },
     en: {
-      imageUrl: 'https://img.mailinblue.com/XXXXXX/spookyland-en.png', // REPLACE: Upload to Brevo and paste URL
+      imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/6880a0e0e4e4ea1a183ac37f.png', // REPLACE: Upload to Brevo and paste URL
       alt: 'Spookyland - Halloween world full of ghosts and monsters',
       displayName: 'Spookyland'
     }
@@ -36,12 +36,12 @@ export const WORLD_IMAGES_CONFIG = {
   
   'waterpark': {
     pl: {
-      imageUrl: 'https://img.mailinblue.com/XXXXXX/waterpark-pl.png', // REPLACE: Upload to Brevo and paste URL
+      imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/6880a0e0a931bca9947fb9da.png', // REPLACE: Upload to Brevo and paste URL
       alt: 'Aquapark - świat wodnych zabaw i zjeżdżalni',
       displayName: 'Aquapark'
     },
     en: {
-      imageUrl: 'https://img.mailinblue.com/XXXXXX/waterpark-en.png', // REPLACE: Upload to Brevo and paste URL
+      imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/6880a0e0a931bca9947fb9dc.png', // REPLACE: Upload to Brevo and paste URL
       alt: 'Waterpark - world of water fun and slides',
       displayName: 'Waterpark'
     }
@@ -49,12 +49,12 @@ export const WORLD_IMAGES_CONFIG = {
   
   'shopping-spree': {
     pl: {
-      imageUrl: 'https://img.mailinblue.com/XXXXXX/shopping-spree-pl.png', // REPLACE: Upload to Brevo and paste URL
+      imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/6880a0e0e4e4ea1a183ac380.png', // REPLACE: Upload to Brevo and paste URL
       alt: 'Szaleństwo Zakupów - świat sklepów i centrum handlowych',
       displayName: 'Szaleństwo Zakupów'
     },
     en: {
-      imageUrl: 'https://img.mailinblue.com/XXXXXX/shopping-spree-en.png', // REPLACE: Upload to Brevo and paste URL
+      imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/6880a0e031a9a1e0f502fa83.png', // REPLACE: Upload to Brevo and paste URL
       alt: 'Shopping Spree - world of stores and shopping centers',
       displayName: 'Shopping Spree'
     }
@@ -62,12 +62,12 @@ export const WORLD_IMAGES_CONFIG = {
   
   'amusement-park': {
     pl: {
-      imageUrl: 'https://img.mailinblue.com/XXXXXX/amusement-park-pl.png', // REPLACE: Upload to Brevo and paste URL
+      imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/6880a0d7e4e4ea1a183ac37a.png', // REPLACE: Upload to Brevo and paste URL
       alt: 'Park Rozrywki - świat karuzel, kolejek górskich i zabawy',
       displayName: 'Park Rozrywki'
     },
     en: {
-      imageUrl: 'https://img.mailinblue.com/XXXXXX/amusement-park-en.png', // REPLACE: Upload to Brevo and paste URL
+      imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/6880a0d7e4e4ea1a183ac37b.png', // REPLACE: Upload to Brevo and paste URL
       alt: 'Amusement Park - world of carousels, roller coasters and fun',
       displayName: 'Amusement Park'
     }
@@ -75,12 +75,12 @@ export const WORLD_IMAGES_CONFIG = {
   
   'big-city': {
     pl: {
-      imageUrl: 'https://img.mailinblue.com/XXXXXX/big-city-pl.png', // REPLACE: Upload to Brevo and paste URL
+      imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/6880a0e0e4e4ea1a183ac37e.png', // REPLACE: Upload to Brevo and paste URL
       alt: 'Wielkie Miasto - świat drapaczy chmur i miejskiego życia',
       displayName: 'Wielkie Miasto'
     },
     en: {
-      imageUrl: 'https://img.mailinblue.com/XXXXXX/big-city-en.png', // REPLACE: Upload to Brevo and paste URL
+      imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/6880a0e0ec03072a1fa85841.png', // REPLACE: Upload to Brevo and paste URL
       alt: 'Big City - world of skyscrapers and urban life',
       displayName: 'Big City'
     }
@@ -88,12 +88,12 @@ export const WORLD_IMAGES_CONFIG = {
   
   'neighborhood': {
     pl: {
-      imageUrl: 'https://img.mailinblue.com/XXXXXX/neighborhood-pl.png', // REPLACE: Upload to Brevo and paste URL
+      imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/6880a0e0a931bca9947fb9db.png', // REPLACE: Upload to Brevo and paste URL
       alt: 'Sąsiedztwo - świat domów, ulic i lokalnej społeczności',
       displayName: 'Sąsiedztwo'
     },
     en: {
-      imageUrl: 'https://img.mailinblue.com/XXXXXX/neighborhood-en.png', // REPLACE: Upload to Brevo and paste URL
+      imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/6880a0e0a931bca9947fb9d9.png', // REPLACE: Upload to Brevo and paste URL
       alt: 'Neighborhood - world of houses, streets and local community',
       displayName: 'Neighborhood'
     }
@@ -103,12 +103,12 @@ export const WORLD_IMAGES_CONFIG = {
 // ===== FALLBACK CONFIGURATION =====
 const FALLBACK_IMAGE = {
   pl: {
-    imageUrl: 'https://img.mailinblue.com/XXXXXX/default-world-pl.png', // REPLACE: Upload default image to Brevo
+    imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/6880a0e0ec03072a1fa85842.png', // REPLACE: Upload default image to Brevo
     alt: 'Hey Feelings - świat emocji i nauki',
     displayName: 'Hey Feelings'
   },
   en: {
-    imageUrl: 'https://img.mailinblue.com/XXXXXX/default-world-en.png', // REPLACE: Upload default image to Brevo
+    imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/6880a0e0e4e4ea1a183ac37f.png', // REPLACE: Upload default image to Brevo
     alt: 'Hey Feelings - world of emotions and learning',
     displayName: 'Hey Feelings'
   }
