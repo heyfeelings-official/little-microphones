@@ -8,6 +8,9 @@ const API_BASE = window.location.hostname === 'localhost'
     ? 'http://localhost:3000' 
     : window.location.origin;
 
+// Debug logging
+console.log('🎯 Admin API Base URL:', API_BASE);
+
 // Application State
 const AppState = {
     fileTree: {},
@@ -89,25 +92,59 @@ function setupEventListeners() {
 // File Tree Management
 async function loadFileTree() {
     const treeContainer = document.getElementById('file-tree');
-    treeContainer.innerHTML = '<div class="loading">Loading files...</div>';
+    treeContainer.innerHTML = `
+        <div class="flex items-center justify-center py-12">
+            <div class="text-center">
+                <svg class="animate-spin h-8 w-8 text-blue-500 mx-auto" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p class="mt-2 text-sm text-gray-500">Loading files...</p>
+            </div>
+        </div>
+    `;
     
     try {
-        const response = await fetch(`${API_BASE}/api/admin/list-all-files`);
+        console.log('🔄 Fetching file tree from:', `${API_BASE}/api/admin/list-all-files`);
+        const response = await fetch(`${API_BASE}/api/admin/list-all-files`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+        
+        console.log('📡 Response status:', response.status);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
         const data = await response.json();
+        console.log('📊 Received data:', data);
         
         if (data.success) {
             AppState.fileTree = data.tree;
             renderFileTree(treeContainer, AppState.fileTree);
             
-            showToast(`Loaded ${data.summary.totalFiles} files (${data.summary.totalSizeMB} MB)`, 'success');
+            showToast(`✅ Loaded ${data.summary.totalFiles} files (${data.summary.totalSizeMB} MB)`, 'success');
         } else {
-            treeContainer.innerHTML = '<div class="error">Failed to load files</div>';
-            showToast('Failed to load files', 'error');
+            throw new Error(data.error || 'Failed to load files');
         }
     } catch (error) {
-        console.error('Error loading file tree:', error);
-        treeContainer.innerHTML = '<div class="error">Error loading files</div>';
-        showToast('Error loading files', 'error');
+        console.error('❌ Error loading file tree:', error);
+        treeContainer.innerHTML = `
+            <div class="text-center py-12">
+                <svg class="mx-auto h-12 w-12 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L5.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                </svg>
+                <h3 class="mt-2 text-sm font-medium text-gray-900">Error loading files</h3>
+                <p class="mt-1 text-sm text-gray-500">${error.message}</p>
+                <button onclick="loadFileTree()" class="mt-3 inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                    Try Again
+                </button>
+            </div>
+        `;
+        showToast(`❌ Error: ${error.message}`, 'error');
     }
 }
 
@@ -688,13 +725,41 @@ function showToast(message, type = 'info') {
     const toast = document.getElementById('status-toast');
     const messageEl = document.getElementById('status-message');
     
-    toast.className = `status-toast ${type}`;
+    // Update icon based on type
+    const iconContainer = toast.querySelector('.flex-shrink-0');
+    let iconSvg = '';
+    
+    switch (type) {
+        case 'success':
+            iconSvg = `<svg class="h-6 w-6 text-green-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>`;
+            break;
+        case 'error':
+            iconSvg = `<svg class="h-6 w-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+            </svg>`;
+            break;
+        case 'warning':
+            iconSvg = `<svg class="h-6 w-6 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+            </svg>`;
+            break;
+        default:
+            iconSvg = `<svg class="h-6 w-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+            </svg>`;
+    }
+    
+    iconContainer.innerHTML = iconSvg;
     messageEl.textContent = message;
-    toast.style.display = 'block';
+    toast.style.display = 'flex';
+    
+    console.log(`🔔 Toast: ${type.toUpperCase()} - ${message}`);
     
     setTimeout(() => {
         toast.style.display = 'none';
-    }, 3000);
+    }, 4000);
 }
 
 function exportAllChanges() {

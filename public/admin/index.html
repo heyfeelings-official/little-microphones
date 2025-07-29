@@ -1,159 +1,307 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="h-full">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Radio Admin - Audio File Management</title>
-    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/admin/styles.css">
     <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            200: '#bfdbfe',
+                            300: '#93bbfc',
+                            400: '#60a5fa',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            800: '#1e40af',
+                            900: '#1e3a8a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
 </head>
-<body>
-    <div class="radio-admin-container">
+<body class="h-full bg-gray-50">
+    <div class="min-h-full">
         <!-- Header -->
-        <div class="admin-header">
-            <h1>🎵 Radio Admin - Audio File Management</h1>
-            <div class="header-actions">
-                <button id="refresh-tree" class="btn btn-secondary">
-                    <span class="icon">🔄</span> Refresh
-                </button>
-                <button id="export-all" class="btn btn-primary">
-                    <span class="icon">💾</span> Export All Changes
-                </button>
+        <header class="bg-white shadow-sm border-b border-gray-200">
+            <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <div class="flex h-16 items-center justify-between">
+                    <div class="flex items-center">
+                        <h1 class="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                            <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
+                            </svg>
+                            Radio Admin
+                        </h1>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button id="refresh-tree" class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                            Refresh
+                        </button>
+                        <button id="export-all" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            Export Changes
+                        </button>
+                    </div>
+                </div>
             </div>
-        </div>
+        </header>
 
         <!-- Main Content -->
-        <div class="admin-content">
-            <!-- File Tree Panel -->
-            <div class="file-tree-panel">
-                <div class="panel-header">
-                    <h2>📁 File Structure</h2>
-                    <button id="upload-new" class="btn btn-small">
-                        <span class="icon">⬆️</span> Upload
-                    </button>
-                </div>
-                <div id="file-tree" class="file-tree">
-                    <div class="loading">Loading files...</div>
+        <main class="flex-1">
+            <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
+                <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                    <!-- File Tree Panel -->
+                    <div class="lg:col-span-1">
+                        <div class="bg-white shadow rounded-lg">
+                            <div class="px-4 py-5 sm:p-6 border-b border-gray-200">
+                                <div class="flex items-center justify-between">
+                                    <h2 class="text-lg font-medium text-gray-900">File Structure</h2>
+                                    <button id="upload-new" class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-primary-700 bg-primary-100 hover:bg-primary-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                                        </svg>
+                                        Upload
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="px-4 py-5 sm:p-6">
+                                <div id="file-tree" class="space-y-1 max-h-[600px] overflow-y-auto">
+                                    <div class="flex items-center justify-center py-12">
+                                        <div class="text-center">
+                                            <svg class="animate-spin h-8 w-8 text-primary-600 mx-auto" fill="none" viewBox="0 0 24 24">
+                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            <p class="mt-2 text-sm text-gray-500">Loading files...</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Audio Editor Panel -->
+                    <div class="lg:col-span-2">
+                        <div class="bg-white shadow rounded-lg">
+                            <!-- Empty State -->
+                            <div id="no-file-selected" class="px-4 py-12 sm:p-12">
+                                <div class="text-center">
+                                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
+                                    </svg>
+                                    <h3 class="mt-2 text-sm font-medium text-gray-900">No file selected</h3>
+                                    <p class="mt-1 text-sm text-gray-500">Select an audio file from the tree to start editing</p>
+                                </div>
+                            </div>
+
+                            <!-- Editor Content -->
+                            <div id="editor-content" style="display: none;">
+                                <!-- File Info -->
+                                <div class="px-4 py-5 sm:p-6 border-b border-gray-200">
+                                    <h3 id="file-name" class="text-lg font-medium text-gray-900">File Name</h3>
+                                    <div class="mt-1 flex items-center gap-4 text-sm text-gray-500">
+                                        <span id="file-size" class="flex items-center">
+                                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                                            </svg>
+                                            0 MB
+                                        </span>
+                                        <span id="file-duration" class="flex items-center">
+                                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                            </svg>
+                                            0:00
+                                        </span>
+                                        <span id="file-path" class="flex items-center text-xs">
+                                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
+                                            </svg>
+                                            path/to/file
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <!-- Audio Player Section -->
+                                <div class="px-4 py-5 sm:p-6">
+                                    <audio id="audio-player" controls class="w-full rounded-lg shadow-sm"></audio>
+                                    
+                                    <!-- Waveform & Timeline -->
+                                    <div class="mt-4">
+                                        <div class="relative bg-gray-100 rounded-lg overflow-hidden" style="height: 120px;">
+                                            <canvas id="waveform-canvas" class="w-full h-full"></canvas>
+                                            <div class="timeline-markers">
+                                                <div id="trim-start" class="trim-marker start">
+                                                    <span class="marker-time">0:00</span>
+                                                </div>
+                                                <div id="trim-end" class="trim-marker end">
+                                                    <span class="marker-time">0:00</span>
+                                                </div>
+                                                <div id="playhead" class="playhead"></div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Timeline Controls -->
+                                        <div class="mt-4 flex flex-wrap gap-2">
+                                            <button id="play-pause" class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                                                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                </svg>
+                                                Play
+                                            </button>
+                                            <button id="detect-silence" class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                                                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                                </svg>
+                                                Detect Silence
+                                            </button>
+                                            <button id="reset-trim" class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                                                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                                </svg>
+                                                Reset
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Trim Controls -->
+                                    <div class="mt-6 bg-gray-50 rounded-lg p-4">
+                                        <h4 class="text-sm font-medium text-gray-900 mb-3">Trim Settings</h4>
+                                        <div class="grid grid-cols-3 gap-4">
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-700 mb-1">Start Time (s)</label>
+                                                <input type="number" id="trim-start-input" step="0.1" min="0" value="0" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-700 mb-1">End Time (s)</label>
+                                                <input type="number" id="trim-end-input" step="0.1" min="0" value="0" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                                            </div>
+                                            <div class="flex items-end">
+                                                <button id="apply-trim" class="w-full inline-flex justify-center items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700">
+                                                    Apply Trim
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- File Actions -->
+                                    <div class="mt-6 flex gap-3 justify-end">
+                                        <button id="delete-file" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-red-700 bg-white hover:bg-gray-50">
+                                            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                            </svg>
+                                            Delete File
+                                        </button>
+                                        <button id="save-file" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700">
+                                            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path>
+                                            </svg>
+                                            Save Changes
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-
-            <!-- Audio Editor Panel -->
-            <div class="audio-editor-panel">
-                <div id="no-file-selected" class="empty-state">
-                    <span class="icon">🎵</span>
-                    <p>Select an audio file to edit</p>
-                </div>
-
-                <div id="editor-content" style="display: none;">
-                    <!-- File Info -->
-                    <div class="file-info">
-                        <h2 id="file-name">File Name</h2>
-                        <div class="file-meta">
-                            <span id="file-size">0 MB</span>
-                            <span id="file-duration">0:00</span>
-                            <span id="file-path">path/to/file</span>
-                        </div>
-                    </div>
-
-                    <!-- Audio Player with Timeline -->
-                    <div class="audio-player-section">
-                        <audio id="audio-player" controls></audio>
-                        
-                        <!-- Waveform & Timeline -->
-                        <div class="timeline-container">
-                            <canvas id="waveform-canvas"></canvas>
-                            <div class="timeline-markers">
-                                <div id="trim-start" class="trim-marker start" draggable="true">
-                                    <span class="marker-time">0:00</span>
-                                </div>
-                                <div id="trim-end" class="trim-marker end" draggable="true">
-                                    <span class="marker-time">0:00</span>
-                                </div>
-                                <div id="playhead" class="playhead"></div>
-                            </div>
-                        </div>
-
-                        <!-- Timeline Controls -->
-                        <div class="timeline-controls">
-                            <button id="play-pause" class="btn">
-                                <span class="icon">▶️</span> Play
-                            </button>
-                            <button id="detect-silence" class="btn">
-                                <span class="icon">🔍</span> Detect Silence
-                            </button>
-                            <button id="reset-trim" class="btn">
-                                <span class="icon">↩️</span> Reset
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Trim Controls -->
-                    <div class="trim-controls">
-                        <h3>✂️ Trim Settings</h3>
-                        <div class="trim-inputs">
-                            <div class="input-group">
-                                <label>Start Time (s)</label>
-                                <input type="number" id="trim-start-input" step="0.1" min="0" value="0">
-                            </div>
-                            <div class="input-group">
-                                <label>End Time (s)</label>
-                                <input type="number" id="trim-end-input" step="0.1" min="0" value="0">
-                            </div>
-                            <button id="apply-trim" class="btn btn-primary">
-                                Apply Trim
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- File Actions -->
-                    <div class="file-actions">
-                        <button id="save-file" class="btn btn-success">
-                            <span class="icon">💾</span> Save Changes
-                        </button>
-                        <button id="delete-file" class="btn btn-danger">
-                            <span class="icon">🗑️</span> Delete File
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
+        </main>
 
         <!-- Upload Modal -->
-        <div id="upload-modal" class="modal" style="display: none;">
-            <div class="modal-content">
-                <h2>Upload Audio File</h2>
-                <div class="upload-area">
-                    <input type="file" id="file-input" accept="audio/*" multiple>
-                    <div class="drop-zone" id="drop-zone">
-                        <span class="icon">📤</span>
-                        <p>Drop audio files here or click to browse</p>
+        <div id="upload-modal" class="relative z-50" style="display: none;">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
+            <div class="fixed inset-0 z-10 overflow-y-auto">
+                <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+                    <div class="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
+                        <div>
+                            <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary-100">
+                                <svg class="h-6 w-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                                </svg>
+                            </div>
+                            <div class="mt-3 text-center sm:mt-5">
+                                <h3 class="text-base font-semibold leading-6 text-gray-900">Upload Audio Files</h3>
+                                <div class="mt-2">
+                                    <input type="file" id="file-input" accept="audio/*" multiple class="hidden">
+                                    <div id="drop-zone" class="mt-4 flex justify-center rounded-lg border border-dashed border-gray-900/25 px-6 py-10 hover:border-gray-900/50 cursor-pointer transition-colors">
+                                        <div class="text-center">
+                                            <svg class="mx-auto h-12 w-12 text-gray-300" viewBox="0 0 24 24" fill="currentColor">
+                                                <path fill-rule="evenodd" d="M1.5 6a2.25 2.25 0 012.25-2.25h16.5A2.25 2.25 0 0122.5 6v12a2.25 2.25 0 01-2.25 2.25H3.75A2.25 2.25 0 011.5 18V6zM3 16.06V18c0 .414.336.75.75.75h16.5A.75.75 0 0021 18v-1.94l-2.69-2.689a1.5 1.5 0 00-2.12 0l-.88.879.97.97a.75.75 0 11-1.06 1.06l-5.16-5.159a1.5 1.5 0 00-2.12 0L3 16.061zm10.125-7.81a1.125 1.125 0 112.25 0 1.125 1.125 0 01-2.25 0z" clip-rule="evenodd" />
+                                            </svg>
+                                            <div class="mt-4 flex text-sm leading-6 text-gray-600">
+                                                <span class="relative cursor-pointer rounded-md font-semibold text-primary-600 focus-within:outline-none focus-within:ring-2 focus-within:ring-primary-600 focus-within:ring-offset-2 hover:text-primary-500">
+                                                    <span>Upload files</span>
+                                                </span>
+                                                <p class="pl-1">or drag and drop</p>
+                                            </div>
+                                            <p class="text-xs leading-5 text-gray-600">Audio files up to 100MB</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-5">
+                            <label class="block text-sm font-medium leading-6 text-gray-900">Upload to folder</label>
+                            <select id="upload-path-select" class="mt-2 block w-full rounded-md border-0 py-1.5 pl-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-primary-600 sm:text-sm sm:leading-6">
+                                <option value="audio/other/">Other (intro/outro)</option>
+                                <option value="audio/spookyland/">Spookyland</option>
+                                <option value="audio/waterpark/">Waterpark</option>
+                                <option value="audio/shopping-spree/">Shopping Spree</option>
+                                <option value="audio/amusement-park/">Amusement Park</option>
+                                <option value="audio/big-city/">Big City</option>
+                                <option value="audio/neighborhood/">Neighborhood</option>
+                            </select>
+                        </div>
+                        <div class="mt-5 sm:mt-6 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-3">
+                            <button id="start-upload" type="button" class="inline-flex w-full justify-center rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 sm:col-start-2">
+                                Upload
+                            </button>
+                            <button id="cancel-upload" type="button" class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:col-start-1 sm:mt-0">
+                                Cancel
+                            </button>
+                        </div>
                     </div>
-                </div>
-                <div class="upload-path">
-                    <label>Upload to path:</label>
-                    <select id="upload-path-select">
-                        <option value="audio/other/">Other (intro/outro)</option>
-                        <option value="audio/spookyland/">Spookyland</option>
-                        <option value="audio/waterpark/">Waterpark</option>
-                        <option value="audio/shopping-spree/">Shopping Spree</option>
-                        <option value="audio/amusement-park/">Amusement Park</option>
-                        <option value="audio/big-city/">Big City</option>
-                        <option value="audio/neighborhood/">Neighborhood</option>
-                    </select>
-                </div>
-                <div class="modal-actions">
-                    <button id="cancel-upload" class="btn btn-secondary">Cancel</button>
-                    <button id="start-upload" class="btn btn-primary">Upload</button>
                 </div>
             </div>
         </div>
 
         <!-- Status Toast -->
-        <div id="status-toast" class="status-toast" style="display: none;">
-            <span id="status-message"></span>
+        <div id="status-toast" class="pointer-events-none fixed inset-0 flex items-end px-4 py-6 sm:items-start sm:p-6" style="display: none;">
+            <div class="flex w-full flex-col items-center space-y-4 sm:items-end">
+                <div class="pointer-events-auto w-full max-w-sm overflow-hidden rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5">
+                    <div class="p-4">
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0">
+                                <svg class="h-6 w-6 text-green-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                            <div class="ml-3 w-0 flex-1 pt-0.5">
+                                <p id="status-message" class="text-sm font-medium text-gray-900">Status message</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <script src="app.js"></script>
+    <script src="/admin/app.js"></script>
 </body>
 </html> 
