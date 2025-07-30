@@ -1,15 +1,16 @@
+import { setCorsHeaders } from '../../utils/api-utils.js';
+import { checkRateLimit } from '../../utils/simple-rate-limiter.js';
+
 /**
  * Admin API: Delete Static Audio File
  * Deletes a specific audio file from Bunny.net storage
  */
 export default async function handler(req, res) {
     // Secure CORS headers
-    const { setCorsHeaders } = await import('../../utils/api-utils.js');
     const corsHandler = setCorsHeaders(res, ['DELETE', 'OPTIONS']);
     corsHandler(req);
 
     // Rate limiting
-    const { checkRateLimit } = await import('../../utils/simple-rate-limiter.js');
     if (!checkRateLimit(req, res, 'admin-delete-static-audio', 20)) {
         return;
     }
