@@ -58,6 +58,10 @@ function setupEventListeners() {
     // Audio player events
     AppState.audioPlayer.addEventListener('timeupdate', updatePlayhead);
     AppState.audioPlayer.addEventListener('loadedmetadata', initializeTimeline);
+    AppState.audioPlayer.addEventListener('loadeddata', initializeTimeline);
+    AppState.audioPlayer.addEventListener('canplay', initializeTimeline);
+    AppState.audioPlayer.addEventListener('durationchange', initializeTimeline);
+    AppState.audioPlayer.addEventListener('error', handleAudioError);
     
     // Timeline controls
     document.getElementById('detect-silence').addEventListener('click', detectSilence);
@@ -304,6 +308,37 @@ function createFileElement(name, file, level) {
     return wrapper;
 }
 
+// Audio Error Handler
+function handleAudioError(e) {
+    console.error('🔊 Audio error:', e);
+    const audio = e.target;
+    const error = audio.error;
+    
+    if (error) {
+        console.error('Audio error details:', {
+            code: error.code,
+            message: error.message,
+            src: audio.src
+        });
+        
+        showToast(`❌ Audio loading error: ${getAudioErrorMessage(error.code)}`, 'error');
+    }
+    
+    // Reset UI state
+    document.getElementById('file-duration').textContent = 'Error';
+    AppState.audioDuration = 0;
+}
+
+function getAudioErrorMessage(code) {
+    switch (code) {
+        case 1: return 'MEDIA_ERR_ABORTED - Audio loading aborted';
+        case 2: return 'MEDIA_ERR_NETWORK - Network error';
+        case 3: return 'MEDIA_ERR_DECODE - Audio decode error';
+        case 4: return 'MEDIA_ERR_SRC_NOT_SUPPORTED - Audio format not supported';
+        default: return 'Unknown audio error';
+    }
+}
+
 // File Selection and Loading
 async function selectFile(file, element) {
     AppState.selectedFile = file;
@@ -319,8 +354,9 @@ async function selectFile(file, element) {
     document.getElementById('file-size').textContent = `${(file.size / 1024 / 1024).toFixed(2)} MB`;
     document.getElementById('file-path').textContent = file.path;
     
-    // Load audio with cache busting
-    AppState.audioPlayer.src = `${file.url}?v=${Date.now()}`;
+    // Reset UI state first
+    document.getElementById('file-duration').textContent = 'Loading...';
+    AppState.audioDuration = 0;
     
     // Mark selected in tree
     document.querySelectorAll('.tree-item').forEach(el => {
@@ -328,25 +364,64 @@ async function selectFile(file, element) {
     });
     element.classList.add('selected');
     
-    // Reset trim markers
-    resetTrim();
+    // Load audio with cache busting and timeout
+    const audio = AppState.audioPlayer;
+    audio.src = `${file.url}?v=${Date.now()}`;
+    
+    // Set up a timeout for metadata loading
+    const loadTimeout = setTimeout(() => {
+        console.warn('⏰ Audio metadata loading timeout');
+        document.getElementById('file-duration').textContent = 'Timeout';
+        showToast('⚠️ Audio loading timed out. File may be corrupted.', 'warning');
+    }, 10000); // 10 second timeout
+    
+    // Clear timeout when metadata loads
+    const clearTimeoutOnLoad = () => {
+        clearTimeout(loadTimeout);
+        audio.removeEventListener('loadedmetadata', clearTimeoutOnLoad);
+        audio.removeEventListener('error', clearTimeoutOnLoad);
+    };
+    
+    audio.addEventListener('loadedmetadata', clearTimeoutOnLoad, { once: true });
+    audio.addEventListener('error', clearTimeoutOnLoad, { once: true });
+    
+    // Force load
+    audio.load();
+    
+    // Reset trim markers after a short delay to ensure audio is loaded
+    setTimeout(() => {
+        if (AppState.audioDuration > 0) {
+            resetTrim();
+        }
+    }, 100);
 }
 
 // Timeline Management
 function initializeTimeline() {
-    const duration = AppState.audioPlayer.duration || 0;
+    const audio = AppState.audioPlayer;
     
-    // Handle Infinity duration error
-    if (!isFinite(duration) || duration === 0) {
-        console.warn('⚠️ Audio duration is not valid:', duration);
+    // Wait for metadata to fully load
+    if (audio.readyState < 1) {
+        console.log('⏳ Waiting for audio metadata to load...');
+        return;
+    }
+    
+    const duration = audio.duration;
+    
+    // Handle invalid duration cases
+    if (!duration || !isFinite(duration) || duration <= 0 || isNaN(duration)) {
+        console.warn('⚠️ Audio duration is not valid:', duration, 'readyState:', audio.readyState);
         AppState.audioDuration = 0;
-        document.getElementById('file-duration').textContent = 'Unknown';
+        document.getElementById('file-duration').textContent = 'Loading...';
+        
+        // Try to reload metadata
+        audio.load();
         return;
     }
     
     AppState.audioDuration = duration;
     
-    console.log('⏱️ Audio duration:', duration);
+    console.log('⏱️ Audio duration loaded:', duration, 'seconds');
     
     // Update duration display
     document.getElementById('file-duration').textContent = formatTime(duration);
