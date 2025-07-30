@@ -412,11 +412,15 @@ function initializeTimeline() {
     if (!duration || !isFinite(duration) || duration <= 0 || isNaN(duration)) {
         console.warn('⚠️ Audio duration is not valid:', duration, 'readyState:', audio.readyState);
         AppState.audioDuration = 0;
-        document.getElementById('file-duration').textContent = 'Loading...';
         
-        // Try to reload metadata
-        audio.load();
-        return;
+        // Don't set inputs with invalid values
+        document.getElementById('trim-start-input').value = '';
+        document.getElementById('trim-end-input').value = '';
+        document.getElementById('trim-start-input').max = '';
+        document.getElementById('trim-end-input').max = '';
+        
+        document.getElementById('file-duration').textContent = 'Loading...';
+        return; // Don't try to reload - it might cause infinite loop
     }
     
     AppState.audioDuration = duration;
@@ -658,11 +662,21 @@ function resetTrim() {
 }
 
 function updateTrimFromInputs() {
+    // Don't update if audio duration is invalid
+    if (!AppState.audioDuration || !isFinite(AppState.audioDuration) || AppState.audioDuration <= 0) {
+        console.warn('Cannot update trim inputs - invalid audio duration:', AppState.audioDuration);
+        return;
+    }
+    
     const startInput = document.getElementById('trim-start-input');
     const endInput = document.getElementById('trim-end-input');
     
     let newStart = parseFloat(startInput.value) || 0;
     let newEnd = parseFloat(endInput.value) || AppState.audioDuration;
+    
+    // Validate that inputs are finite numbers
+    if (!isFinite(newStart)) newStart = 0;
+    if (!isFinite(newEnd)) newEnd = AppState.audioDuration;
     
     // Validate bounds
     newStart = Math.max(0, Math.min(newStart, AppState.audioDuration - 0.1));
@@ -671,9 +685,13 @@ function updateTrimFromInputs() {
     AppState.trimStartMarker = newStart;
     AppState.trimEndMarker = newEnd;
     
-    // Update inputs with validated values
-    startInput.value = newStart.toFixed(1);
-    endInput.value = newEnd.toFixed(1);
+    // Update inputs with validated values - only set if finite
+    if (isFinite(newStart)) {
+        startInput.value = newStart.toFixed(1);
+    }
+    if (isFinite(newEnd)) {
+        endInput.value = newEnd.toFixed(1);
+    }
     
     updateMarkerPositions();
 }
@@ -782,13 +800,43 @@ async function replaceFileWithNew(targetFile, newFile) {
         if (data.success) {
             showToast(`✅ File replaced successfully!`, 'success');
             
-            // Reload file tree and reselect if it was the current file
-            await loadFileTree();
-            
+            // Update file info with new data
             if (AppState.selectedFile && AppState.selectedFile.path === targetFile.path) {
-                // Reload the audio player
+                // Update selected file object with new data
+                AppState.selectedFile.size = newFile.size;
+                AppState.selectedFile.lastModified = Date.now();
+                AppState.selectedFile.url = data.url;
+                
+                // Update UI display
+                document.getElementById('file-name').textContent = newFile.name;
+                document.getElementById('file-size').textContent = `${(newFile.size / 1024 / 1024).toFixed(2)} MB`;
+                
+                // Reload the audio player with new file
                 AppState.audioPlayer.src = `${data.url}?v=${Date.now()}`;
+                
+                // Reset audio state
+                document.getElementById('file-duration').textContent = 'Loading...';
+                AppState.audioDuration = 0;
+                
+                // Force metadata reload
+                AppState.audioPlayer.load();
             }
+            
+            // Update only the file in the tree (find and update the specific file element)
+            const fileElements = document.querySelectorAll('.tree-file');
+            fileElements.forEach(el => {
+                if (el.textContent.trim() === targetFile.path.split('/').pop()) {
+                    // Update visual indicator that file was changed
+                    el.style.fontStyle = 'italic';
+                    el.style.color = '#059669'; // Green to show it was updated
+                    
+                    // Reset style after 3 seconds
+                    setTimeout(() => {
+                        el.style.fontStyle = '';
+                        el.style.color = '';
+                    }, 3000);
+                }
+            });
         } else {
             throw new Error(data.error || 'Replace failed');
         }

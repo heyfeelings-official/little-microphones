@@ -30,10 +30,19 @@ import path from 'path';
 import os from 'os';
 import { detectSilence, trimAudio, autoTrimAudio, getAudioDuration } from '../../utils/audio-trim.js';
 import { downloadFile } from '../../utils/audio-ffmpeg.js';
-import { withCors } from '../../utils/api-utils.js';
-import { withRateLimit } from '../../utils/simple-rate-limiter.js';
 
-const handler = async (req, res) => {
+export default async function handler(req, res) {
+    // Secure CORS headers
+    const { setCorsHeaders } = await import('../../utils/api-utils.js');
+    const corsHandler = setCorsHeaders(res, ['POST', 'OPTIONS']);
+    corsHandler(req);
+
+    // Rate limiting
+    const { checkRateLimit } = await import('../../utils/simple-rate-limiter.js');
+    if (!checkRateLimit(req, res, 'admin-trim-audio', 10)) {
+        return;
+    }
+
     console.log('✂️ Trim audio request:', {
         method: req.method,
         body: req.body,
@@ -196,10 +205,4 @@ const handler = async (req, res) => {
             details: error.message
         });
     }
-};
-
-// Apply rate limiting and CORS
-export default withCors(withRateLimit(handler, {
-    windowMs: 60000, // 1 minute
-    maxRequests: 10 // Allow up to 10 trim operations per minute
-})); 
+} 
