@@ -175,12 +175,15 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'Missing required fields: audioData and filename' });
         }
 
-        if (!world || !lmid || !questionId) {
-            return res.status(400).json({ error: 'Missing required fields: world, lmid, and questionId' });
-        }
+        // Skip validation for admin mode since it uses different parameters
+        if (!adminMode) {
+            if (!world || !lmid || !questionId) {
+                return res.status(400).json({ error: 'Missing required fields: world, lmid, and questionId' });
+            }
 
-        if (!lang) {
-            return res.status(400).json({ error: 'Missing required field: lang' });
+            if (!lang) {
+                return res.status(400).json({ error: 'Missing required field: lang' });
+            }
         }
         
         // Filename validation moved to enhanced security validation above
@@ -288,14 +291,23 @@ export default async function handler(req, res) {
             return { valid: true };
         }
 
-        // Enhanced filename validation
-        const filenameValidation = validateAudioFilename(filename, world, lmid, questionId);
-        if (!filenameValidation.valid) {
-            return res.status(400).json({ error: filenameValidation.error });
+        // Enhanced filename validation (skip for admin mode)
+        if (!adminMode) {
+            const filenameValidation = validateAudioFilename(filename, world, lmid, questionId);
+            if (!filenameValidation.valid) {
+                return res.status(400).json({ error: filenameValidation.error });
+            }
         }
 
-        // Upload to Bunny.net with folder structure: lang/lmid/world/filename
-        const filePath = `${lang}/${lmid}/${world}/${filename}`;
+        // Upload path depends on mode
+        let filePath;
+        if (adminMode) {
+            // Admin mode should have been handled above - this is fallback
+            return res.status(400).json({ error: 'Admin mode should be handled above' });
+        } else {
+            // Upload to Bunny.net with folder structure: lang/lmid/world/filename
+            filePath = `${lang}/${lmid}/${world}/${filename}`;
+        }
         const uploadUrl = `https://storage.bunnycdn.com/${process.env.BUNNY_STORAGE_ZONE}/${filePath}`;
         
         console.log(`📤 Uploading ${filename} (${audioBuffer.length} bytes)`);

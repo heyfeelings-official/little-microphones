@@ -195,12 +195,18 @@ export default async function handler(req, res) {
         }
 
         // Handle single file deletion (existing functionality)
-        if (!filename) {
-            return res.status(400).json({ error: 'Missing required field: filename' });
-        }
+        // Skip validation for admin mode since it uses different parameters
+        if (!adminMode) {
+            if (!filename) {
+                return res.status(400).json({ error: 'Missing required field: filename' });
+            }
 
-        if (!world || !lmid || !questionId || !lang) {
-            return res.status(400).json({ error: 'Missing required fields: world, lmid, questionId, and lang' });
+            if (!world || !lmid || !questionId || !lang) {
+                return res.status(400).json({ error: 'Missing required fields: world, lmid, questionId, and lang' });
+            }
+        } else {
+            // Admin mode requires different validation - this should not happen as admin mode is handled above
+            return res.status(400).json({ error: 'Admin mode should be handled above' });
         }
 
         // Validate filename format for security - support both teacher and parent formats
