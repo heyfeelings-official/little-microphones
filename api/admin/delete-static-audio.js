@@ -29,6 +29,15 @@ const handler = async (req, res) => {
             });
         }
 
+        // Check environment variables
+        if (!process.env.BUNNY_API_KEY || !process.env.BUNNY_STORAGE_ZONE) {
+            console.error('Missing Bunny.net configuration');
+            return res.status(500).json({
+                success: false,
+                error: 'Server configuration error'
+            });
+        }
+
         console.log('📂 Deleting file at path:', path);
 
         // Remove leading slash if present
@@ -43,7 +52,7 @@ const handler = async (req, res) => {
         const response = await fetch(deleteUrl, {
             method: 'DELETE',
             headers: {
-                'AccessKey': process.env.BUNNY_STORAGE_PASSWORD,
+                'AccessKey': process.env.BUNNY_API_KEY,
                 'Content-Type': 'application/json'
             }
         });
