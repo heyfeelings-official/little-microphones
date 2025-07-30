@@ -785,10 +785,11 @@ async function replaceFileWithNew(targetFile, newFile) {
             uploadPath = 'audio/' + uploadPath;
         }
         
-        const response = await fetch(`${API_BASE}/api/admin/upload-static-audio`, {
+        const response = await fetch(`${API_BASE}/api/upload-audio`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+                adminMode: true,
                 audioData: base64,
                 filename: newFile.name,
                 path: uploadPath
@@ -863,11 +864,12 @@ async function deleteFile() {
     btn.innerHTML = '<svg class="animate-spin w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Deleting...';
     
     try {
-        // Use admin delete endpoint for static files
-        const response = await fetch(`${API_BASE}/api/admin/delete-static-audio`, {
+        // Use consolidated delete endpoint with admin mode
+        const response = await fetch(`${API_BASE}/api/delete-audio`, {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+                adminMode: true,
                 path: AppState.selectedFile.path
             })
         });
@@ -1024,10 +1026,11 @@ async function startUpload() {
                 fullPath = 'audio/' + fullPath;
             }
             
-            const response = await fetch(`${API_BASE}/api/admin/upload-static-audio`, {
+            const response = await fetch(`${API_BASE}/api/upload-audio`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    adminMode: true,
                     audioData: base64,
                     filename: file.name,
                     path: fullPath

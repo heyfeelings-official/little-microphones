@@ -109,7 +109,7 @@ export default async function handler(req, res) {
     }
 
     try {
-        let { audioData, filename, world, lmid, questionId, lang } = req.body;
+        let { audioData, filename, world, lmid, questionId, lang, adminMode, path } = req.body;
 
         // SECURITY: Input sanitization
         function sanitizeInput(data) {
@@ -125,9 +125,52 @@ export default async function handler(req, res) {
         lmid = sanitizeInput(lmid);
         questionId = sanitizeInput(questionId);
         lang = sanitizeInput(lang);
+        path = sanitizeInput(path);
         // Note: audioData is not sanitized as it's base64 encoded binary data
 
-        // Validation
+        // Handle admin mode - upload static audio files to /audio/ directory
+        if (adminMode && path) {
+            console.log(`🛠️ Admin mode: Uploading static audio to path: ${path}`);
+            
+            // Admin mode validation
+            if (!audioData || !filename || !path) {
+                return res.status(400).json({ 
+                    success: false,
+                    error: 'Admin mode: Missing required fields: audioData, filename, path' 
+                });
+            }
+
+            // Validate path format for admin mode (must start with audio/)
+            if (!path.startsWith('audio/')) {
+                return res.status(400).json({ 
+                    success: false,
+                    error: 'Admin mode: Path must start with "audio/"' 
+                });
+            }
+
+            // Check environment variables
+            if (!process.env.BUNNY_API_KEY || !process.env.BUNNY_STORAGE_ZONE || !process.env.BUNNY_CDN_URL) {
+                console.error('Missing Bunny.net configuration');
+                return res.status(500).json({ 
+                    success: false,
+                    error: 'Server configuration error' 
+                });
+            }
+
+            try {
+                const adminResult = await handleAdminUpload(audioData, filename, path);
+                return res.status(200).json(adminResult);
+            } catch (error) {
+                console.error('Admin upload error:', error);
+                return res.status(500).json({
+                    success: false,
+                    error: 'Admin upload failed',
+                    details: error.message
+                });
+            }
+        }
+
+        // Regular mode validation
         if (!audioData || !filename) {
             return res.status(400).json({ error: 'Missing required fields: audioData and filename' });
         }
@@ -616,4 +659,123 @@ function translateWorldName(world, language) {
     };
     
     return translations[language]?.[world] || world;
-} 
+}
+
+/**
+ * Handle admin upload with FFmpeg conversion
+ * @param {string} audioData - Base64 audio data
+ * @param {string} filename - Original filename
+ * @param {string} uploadPath - Upload path (must start with audio/)
+ * @returns {Promise<Object>} Upload result
+ */
+async function handleAdminUpload(audioData, filename, uploadPath) {
+    const { promises: fs } = await import('fs');
+    const path = await import('path');
+    const os = await import('os');
+    
+    console.log(`📤 Admin uploading: ${uploadPath}`);
+
+    // Convert base64 to buffer
+    const base64Data = audioData.replace(/^data:audio\/[a-zA-Z0-9+]+;base64,/, '');
+    const audioBuffer = Buffer.from(base64Data, 'base64');
+
+    // Create temp directory
+    const tempDir = path.join(os.tmpdir(), `admin-upload-${Date.now()}`);
+    await fs.mkdir(tempDir, { recursive: true });
+
+    const originalFile = path.join(tempDir, filename);
+    await fs.writeFile(originalFile, audioBuffer);
+
+    let finalFilePath = originalFile;
+    let converted = false;
+
+    // Check if conversion is needed (non-webm files)
+    if (!filename.endsWith('.webm')) {
+        console.log(`🔄 Admin converting ${filename} to WebM format...`);
+        
+        // Import FFmpeg modules
+        const ffmpeg = (await import('fluent-ffmpeg')).default;
+        const ffmpegInstaller = (await import('@ffmpeg-installer/ffmpeg')).default;
+        
+        // Set up FFmpeg
+        ffmpeg.setFfmpegPath(ffmpegInstaller.path);
+        
+        const webmFilename = filename.replace(/\.[^.]+$/, '.webm');
+        const webmFilePath = path.join(tempDir, webmFilename);
+
+        // Convert to WebM
+        await new Promise((resolve, reject) => {
+            ffmpeg(originalFile)
+                .toFormat('webm')
+                .audioCodec('libvorbis')
+                .audioChannels(2)
+                .audioFrequency(44100)
+                .audioBitrate('128k')
+                .on('start', cmd => {
+                    console.log('🎵 Admin FFmpeg command:', cmd);
+                })
+                .on('progress', progress => {
+                    console.log(`⏳ Admin converting: ${Math.round(progress.percent || 0)}%`);
+                })
+                .on('end', () => {
+                    console.log('✅ Admin conversion complete');
+                    resolve();
+                })
+                .on('error', reject)
+                .save(webmFilePath);
+        });
+
+        finalFilePath = webmFilePath;
+        converted = true;
+    }
+
+    // Read final file
+    const finalBuffer = await fs.readFile(finalFilePath);
+    const fileStats = await fs.stat(finalFilePath);
+
+    // Determine final upload path (replace extension if converted)
+    let finalUploadPath = uploadPath;
+    if (converted) {
+        finalUploadPath = uploadPath.replace(/\.[^.]+$/, '.webm');
+    }
+
+    // Upload to Bunny.net
+    const uploadUrl = `https://storage.bunnycdn.com/${process.env.BUNNY_STORAGE_ZONE}/${finalUploadPath}`;
+    
+    const response = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: {
+            'AccessKey': process.env.BUNNY_API_KEY,
+            'Content-Type': 'audio/webm',
+            'Content-Length': fileStats.size.toString()
+        },
+        body: finalBuffer
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Admin Bunny.net upload failed: ${response.status} - ${errorText}`);
+        throw new Error(`Admin upload failed: ${response.status}`);
+    }
+
+    // Clean up temp files
+    try {
+        await fs.rm(tempDir, { recursive: true, force: true });
+    } catch (cleanupError) {
+        console.warn('Failed to cleanup admin temp files:', cleanupError);
+    }
+
+    const cdnUrl = `https://${process.env.BUNNY_CDN_URL}/${finalUploadPath}`;
+    console.log(`✅ Admin upload successful: ${cdnUrl}`);
+
+    return {
+        success: true,
+        url: cdnUrl,
+        path: finalUploadPath,
+        converted: converted,
+        originalFilename: filename,
+        finalFilename: path.basename(finalUploadPath),
+        size: fileStats.size,
+        timestamp: new Date().toISOString()
+    };
+}
