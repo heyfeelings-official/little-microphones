@@ -95,14 +95,30 @@
     position: absolute;
     top: 0;
     bottom: 0;
-    width: 3px;
+    width: 4px;
     cursor: ew-resize;
     pointer-events: all;
-    transition: opacity 0.2s;
+    transition: all 0.2s;
+    user-select: none;
+    z-index: 20;
 }
 
-.trim-marker:hover {
-    opacity: 0.8;
+.trim-marker::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: -6px;
+    width: 16px;
+    height: 28px;
+    border-radius: 6px;
+    transform: translateY(-50%);
+    border: 2px solid white;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    transition: all 0.2s;
+}
+
+.trim-marker:hover::before {
+    transform: translateY(-50%) scale(1.1);
 }
 
 .trim-marker.start {
@@ -110,30 +126,52 @@
     left: 0;
 }
 
+.trim-marker.start::before {
+    background: #10b981;
+}
+
+.trim-marker.start:hover::before {
+    background: #059669;
+}
+
 .trim-marker.end {
     background: #ef4444;
     right: 0;
 }
 
+.trim-marker.end::before {
+    background: #ef4444;
+}
+
+.trim-marker.end:hover::before {
+    background: #dc2626;
+}
+
 .trim-marker .marker-time {
     position: absolute;
-    top: 5px;
-    background: rgba(0,0,0,0.8);
+    top: -32px;
+    background: rgba(0,0,0,0.9);
     color: white;
-    padding: 2px 8px;
-    border-radius: 3px;
+    padding: 4px 8px;
+    border-radius: 4px;
     font-size: 11px;
     font-weight: 500;
     white-space: nowrap;
     user-select: none;
+    pointer-events: none;
+    transform: translateX(-50%);
+    left: 50%;
 }
 
 .trim-marker.start .marker-time {
-    left: 5px;
+    left: 8px;
+    transform: none;
 }
 
 .trim-marker.end .marker-time {
-    right: 5px;
+    right: 8px;
+    left: auto;
+    transform: none;
 }
 
 /* Playhead */
