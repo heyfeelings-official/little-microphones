@@ -237,9 +237,36 @@ function createFolderElement(name, folder, level) {
     const wrapper = document.createElement('div');
     
     const div = document.createElement('div');
-    div.className = 'tree-item tree-folder';
-    div.style.paddingLeft = `${level * 20}px`;
-    div.textContent = name;
+    div.className = 'tree-item tree-folder flex items-center justify-between group hover:bg-gray-50 rounded px-1 py-0.5';
+    div.style.paddingLeft = `${level * 12}px`;
+    
+    // Folder name with icon
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'flex items-center flex-1';
+    nameSpan.innerHTML = `
+        <svg class="w-3 h-3 mr-1.5 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"></path>
+        </svg>
+        <span class="text-sm font-medium text-gray-700">${name}</span>
+    `;
+    
+    // Upload button for folders (visible on hover)
+    const uploadBtn = document.createElement('button');
+    uploadBtn.className = 'opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded text-xs bg-blue-100 text-blue-700 hover:bg-blue-200';
+    uploadBtn.innerHTML = `
+        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+        </svg>
+    `;
+    uploadBtn.title = `Upload to ${name}`;
+    
+    uploadBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openUploadModalForFolder(`audio/${name}`);
+    });
+    
+    div.appendChild(nameSpan);
+    div.appendChild(uploadBtn);
     
     const childrenDiv = document.createElement('div');
     childrenDiv.className = 'tree-children';
@@ -270,12 +297,19 @@ function createFolderElement(name, folder, level) {
 
 function createFileElement(name, file, level) {
     const wrapper = document.createElement('div');
-    wrapper.className = 'flex items-center justify-between group hover:bg-gray-50 rounded px-2 py-1';
+    wrapper.className = 'flex items-center justify-between group hover:bg-gray-50 rounded px-1 py-0.5';
     
     const fileDiv = document.createElement('div');
-    fileDiv.className = 'tree-item tree-file flex-1';
-    fileDiv.style.paddingLeft = `${level * 20}px`;
-    fileDiv.textContent = name;
+    fileDiv.className = 'tree-item tree-file flex-1 flex items-center';
+    fileDiv.style.paddingLeft = `${level * 12}px`;
+    
+    // File icon and name
+    fileDiv.innerHTML = `
+        <svg class="w-3 h-3 mr-1.5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"></path>
+        </svg>
+        <span class="text-sm text-gray-600 truncate">${name}</span>
+    `;
     
     if (AppState.editedFiles.has(file.path)) {
         fileDiv.classList.add('file-edited');
@@ -777,10 +811,37 @@ async function replaceFileWithNew(targetFile, newFile) {
     try {
         showToast(`🔄 Replacing ${targetFile.path.split('/').pop()}...`, 'info');
         
+        // Step 1: Delete the old file first
+        console.log('🗑️ Deleting old file:', targetFile.path);
+        const deleteResponse = await fetch(`${API_BASE}/api/delete-audio`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                adminMode: true,
+                path: targetFile.path
+            })
+        });
+        
+        if (!deleteResponse.ok) {
+            const deleteData = await deleteResponse.json();
+            console.warn('⚠️ Failed to delete old file, continuing with replacement:', deleteData.error);
+        } else {
+            console.log('✅ Old file deleted successfully');
+        }
+        
+        // Step 2: Upload the new file to the same location but with new filename
         const base64 = await fileToBase64(newFile);
         
+        // Use the directory of the old file but the name of the new file
+        const oldFileParts = targetFile.path.split('/');
+        const directory = oldFileParts.slice(0, -1).join('/'); // Remove filename, keep directory
+        const newFilename = newFile.name;
+        const newPath = `${directory}/${newFilename}`;
+        
+        console.log('📤 Uploading new file to:', newPath);
+        
         // Ensure path starts with "audio/" as required by API
-        let uploadPath = targetFile.path;
+        let uploadPath = newPath;
         if (!uploadPath.startsWith('audio/')) {
             uploadPath = 'audio/' + uploadPath;
         }
@@ -799,11 +860,12 @@ async function replaceFileWithNew(targetFile, newFile) {
         const data = await response.json();
         
         if (data.success) {
-            showToast(`✅ File replaced successfully!`, 'success');
+            showToast(`✅ File replaced: ${newFile.name}!`, 'success');
             
-            // Update file info with new data
+            // Update selected file to point to the new file
             if (AppState.selectedFile && AppState.selectedFile.path === targetFile.path) {
-                // Update selected file object with new data
+                // Update selected file object with new path and data
+                AppState.selectedFile.path = data.path;
                 AppState.selectedFile.size = newFile.size;
                 AppState.selectedFile.lastModified = Date.now();
                 AppState.selectedFile.url = data.url;
@@ -823,21 +885,9 @@ async function replaceFileWithNew(targetFile, newFile) {
                 AppState.audioPlayer.load();
             }
             
-            // Update only the file in the tree (find and update the specific file element)
-            const fileElements = document.querySelectorAll('.tree-file');
-            fileElements.forEach(el => {
-                if (el.textContent.trim() === targetFile.path.split('/').pop()) {
-                    // Update visual indicator that file was changed
-                    el.style.fontStyle = 'italic';
-                    el.style.color = '#059669'; // Green to show it was updated
-                    
-                    // Reset style after 3 seconds
-                    setTimeout(() => {
-                        el.style.fontStyle = '';
-                        el.style.color = '';
-                    }, 3000);
-                }
-            });
+            // Reload the entire file tree to show the new file structure
+            console.log('🔄 Reloading file tree to show replaced file');
+            await loadFileTree();
         } else {
             throw new Error(data.error || 'Replace failed');
         }
@@ -1163,4 +1213,41 @@ function handleKeyboard(e) {
         e.preventDefault();
         replaceFile();
     }
+}
+
+// Upload modal functions
+function openUploadModalForFolder(folderPath) {
+    const modal = document.getElementById('upload-modal');
+    const select = document.getElementById('upload-path-select');
+    
+    // Set the folder path in the select dropdown or add custom option
+    let optionExists = false;
+    for(let option of select.options) {
+        if(option.value === folderPath + '/') {
+            option.selected = true;
+            optionExists = true;
+            break;
+        }
+    }
+    
+    if (!optionExists) {
+        // Add custom option for this folder
+        const customOption = document.createElement('option');
+        customOption.value = folderPath + '/';
+        customOption.textContent = folderPath.replace('audio/', '').toUpperCase();
+        customOption.selected = true;
+        select.appendChild(customOption);
+    }
+    
+    modal.style.display = 'block';
+}
+
+function showUploadModal() {
+    const modal = document.getElementById('upload-modal');
+    modal.style.display = 'block';
+}
+
+function hideUploadModal() {
+    const modal = document.getElementById('upload-modal');
+    modal.style.display = 'none';
 }
