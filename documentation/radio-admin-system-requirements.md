@@ -55,13 +55,11 @@ public/admin/
 - **Method**: Client-side Web Audio API processing (avoid server-side FFmpeg)
 - **Process**: Download → AudioContext.decodeAudioData → trim → encode → upload
 - **Encoding Priority**: 
-  1. WebM (90% smaller files, 128kbps bitrate)
-  2. WAV fallback (if WebM not supported)
+  WebM (90% smaller files, 128kbps bitrate)
 - **WebM Implementation**: Use MediaRecorder API with timeout-based stopping (not onended events)
 
 ### 3. FILE UPLOAD STRATEGY
-- **Small files**: Base64 encoding via existing JSON API
-- **Large files**: Consider multipart/form-data or chunked upload
+- **Files**: Base64 encoding via existing JSON API
 - **Security**: Never expose Bunny.net API keys to frontend
 - **Path validation**: Ensure uploads maintain `/audio/` prefix structure
 

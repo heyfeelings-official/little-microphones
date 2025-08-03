@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radio Admin - Audio File Manager</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Howler.js for audio playback -->
+    <script src="https://cdn.jsdelivr.net/npm/howler@2.2.4/dist/howler.min.js"></script>
+    
+    <!-- Custom styles -->
+    <link rel="stylesheet" href="/admin/styles.css">
+    
+    <!-- Configure Tailwind -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#10b981',
+                        danger: '#ef4444',
+                        warning: '#f59e0b'
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-50 text-gray-900 min-h-screen">
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <h1 class="text-xl font-semibold">Radio Admin - Audio File Manager</h1>
+                <button id="upload-btn" class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                    <span class="flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                        </svg>
+                        Upload Audio
+                    </span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- File Tree Column -->
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+                    <div class="p-4 border-b border-gray-200">
+                        <h2 class="font-medium text-gray-900">Audio Files</h2>
+                    </div>
+                    <div id="file-tree" class="p-4 min-h-[400px] max-h-[600px] overflow-y-auto">
+                        <div class="text-center text-gray-500 py-8">
+                            <svg class="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            Loading files...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Audio Player & Controls Column -->
+            <div class="lg:col-span-2">
+                <!-- Audio Player Section -->
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
+                    <div class="p-4 border-b border-gray-200">
+                        <h2 class="font-medium text-gray-900">Audio Player</h2>
+                    </div>
+                    <div class="p-6">
+                        <div id="no-file-selected" class="text-center py-12 text-gray-500">
+                            <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
+                            </svg>
+                            Select an audio file to begin
+                        </div>
+
+                        <!-- Player Controls (hidden by default) -->
+                        <div id="player-controls" class="hidden">
+                            <div class="mb-4">
+                                <div class="text-sm text-gray-600 mb-1">
+                                    <span id="current-file-name" class="font-medium">No file selected</span>
+                                </div>
+                            </div>
+
+                            <!-- Playback Controls -->
+                            <div class="flex items-center gap-3 mb-6">
+                                <button id="play-pause-btn" class="bg-primary text-white p-3 rounded-full hover:bg-blue-600 transition-colors">
+                                    <svg id="play-icon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    <svg id="pause-icon" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                </button>
+                                <button id="stop-btn" class="text-gray-600 p-3 rounded-full hover:bg-gray-100 transition-colors">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10h6v4H9z"></path>
+                                    </svg>
+                                </button>
+                                
+                                <!-- Time Display -->
+                                <div class="flex-1 flex items-center gap-2 text-sm text-gray-600">
+                                    <span id="current-time">0:00</span>
+                                    <span>/</span>
+                                    <span id="total-time">0:00</span>
+                                </div>
+
+                                <!-- Volume Control -->
+                                <div class="flex items-center gap-2">
+                                    <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path>
+                                    </svg>
+                                    <input type="range" id="volume-slider" min="0" max="100" value="100" class="w-24">
+                                </div>
+                            </div>
+
+                            <!-- Timeline/Waveform -->
+                            <div class="mb-6">
+                                <div id="timeline" class="relative bg-gray-100 rounded-lg h-24 cursor-pointer overflow-hidden">
+                                    <!-- Waveform visualization -->
+                                    <div id="waveform" class="absolute inset-0 flex items-end justify-around px-1">
+                                        <!-- Static waveform bars will be generated here -->
+                                    </div>
+                                    
+                                    <!-- Playhead -->
+                                    <div id="playhead" class="absolute top-0 bottom-0 w-0.5 bg-red-500 pointer-events-none" style="left: 0;"></div>
+                                    
+                                    <!-- Trim Markers -->
+                                    <div id="trim-start" class="trim-marker trim-start" style="left: 0;">
+                                        <div class="trim-handle"></div>
+                                        <div class="trim-time">0:00</div>
+                                    </div>
+                                    <div id="trim-end" class="trim-marker trim-end" style="right: 0;">
+                                        <div class="trim-handle"></div>
+                                        <div class="trim-time">0:00</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Trim Controls -->
+                            <div class="grid grid-cols-2 gap-4 mb-6">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Start Time</label>
+                                    <input type="text" id="trim-start-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary" placeholder="0:00">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">End Time</label>
+                                    <input type="text" id="trim-end-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary" placeholder="0:00">
+                                </div>
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div class="flex gap-3">
+                                <button id="trim-btn" class="bg-secondary text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors">
+                                    <span class="flex items-center gap-2">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5"></path>
+                                        </svg>
+                                        Trim Audio
+                                    </span>
+                                </button>
+                                <button id="replace-btn" class="bg-warning text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors">
+                                    <span class="flex items-center gap-2">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                        </svg>
+                                        Replace File
+                                    </span>
+                                </button>
+                                <button id="delete-btn" class="bg-danger text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors">
+                                    <span class="flex items-center gap-2">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                        </svg>
+                                        Delete
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed bottom-4 right-4 z-50 space-y-2"></div>
+
+    <!-- Hidden file inputs -->
+    <input type="file" id="file-upload-input" accept="audio/*" multiple style="display: none;">
+    <input type="file" id="replace-file-input" accept="audio/*" style="display: none;">
+
+    <!-- Load main script -->
+    <script src="/admin/admin-ui.js"></script>
+</body>
+</html>
