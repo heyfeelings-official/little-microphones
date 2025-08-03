@@ -266,18 +266,20 @@ function createFileElement(name, file, level) {
     div.appendChild(sizeSpan);
     
     // Click to select file
-    div.onclick = () => selectFile(file);
+    div.onclick = (event) => selectFile(file, event);
     
     return div;
 }
 
 // Select a file for playback/editing
-async function selectFile(file) {
+async function selectFile(file, event) {
     console.log('📄 Selecting file:', file);
     
     // Update UI
     document.querySelectorAll('.tree-item').forEach(el => el.classList.remove('selected'));
-    event.currentTarget.classList.add('selected');
+    if (event && event.currentTarget) {
+        event.currentTarget.classList.add('selected');
+    }
     
     // Update state
     AppState.currentFile = file;
@@ -606,8 +608,10 @@ async function handleFileUpload(event) {
     
     console.log('📤 Uploading files:', files);
     
-    // TODO: Implement file upload
-    showToast('info', 'File upload not yet implemented');
+    // Default path for main upload button
+    const uploadPath = '/audio';
+    
+    await uploadFilesToPath(files, uploadPath);
     
     // Clear input for next upload
     event.target.value = '';
@@ -628,8 +632,74 @@ async function handleFileReplace(event) {
     
     console.log('🔄 Replacing file:', AppState.currentFile.name, 'with:', file.name);
     
-    // TODO: Implement file replacement
-    showToast('info', 'File replacement not yet implemented');
+    try {
+        showToast('info', 'Replacing file...');
+        
+        // First delete the old file
+        const deleteResponse = await fetch('/api/delete-audio', {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                adminMode: true,
+                filePath: AppState.currentFile.path
+            })
+        });
+        
+        if (!deleteResponse.ok) {
+            const error = await deleteResponse.json();
+            throw new Error(error.error || 'Failed to delete old file');
+        }
+        
+        // Convert file to base64
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const base64Audio = e.target.result.split(',')[1];
+                
+                // Upload new file to the same location
+                const folderPath = AppState.currentFile.path.substring(0, AppState.currentFile.path.lastIndexOf('/'));
+                
+                const uploadResponse = await fetch('/api/upload-audio', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        adminMode: true,
+                        audioData: base64Audio,
+                        fileName: file.name,
+                        filePath: folderPath
+                    })
+                });
+                
+                if (!uploadResponse.ok) {
+                    const error = await uploadResponse.json();
+                    throw new Error(error.error || 'Failed to upload new file');
+                }
+                
+                showToast('success', 'File replaced successfully');
+                
+                // Reload file tree
+                await loadFileTree();
+                
+            } catch (error) {
+                console.error('Upload error:', error);
+                showToast('error', `Failed to upload replacement: ${error.message}`);
+            }
+        };
+        
+        reader.onerror = () => {
+            showToast('error', 'Failed to read file');
+        };
+        
+        reader.readAsDataURL(file);
+        
+    } catch (error) {
+        console.error('Replace error:', error);
+        showToast('error', `Failed to replace file: ${error.message}`);
+    }
     
     // Clear input
     event.target.value = '';
@@ -647,8 +717,44 @@ async function handleDelete() {
     
     console.log('🗑️ Deleting file:', AppState.currentFile);
     
-    // TODO: Implement file deletion
-    showToast('info', 'File deletion not yet implemented');
+    try {
+        showToast('info', 'Deleting file...');
+        
+        const response = await fetch('/api/delete-audio', {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                adminMode: true,
+                filePath: AppState.currentFile.path
+            })
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to delete file');
+        }
+        
+        showToast('success', 'File deleted successfully');
+        
+        // Clear current selection
+        AppState.currentFile = null;
+        document.getElementById('no-file-selected').classList.remove('hidden');
+        document.getElementById('player-controls').classList.add('hidden');
+        
+        // Stop audio if playing
+        if (AppState.audioManager) {
+            AppState.audioManager.stop();
+        }
+        
+        // Reload file tree
+        await loadFileTree();
+        
+    } catch (error) {
+        console.error('Delete error:', error);
+        showToast('error', `Failed to delete file: ${error.message}`);
+    }
 }
 
 async function handleTrim() {
@@ -676,15 +782,177 @@ async function handleTrim() {
         end: AppState.trimEnd
     });
     
-    // TODO: Implement audio trimming
-    showToast('info', 'Audio trimming not yet implemented');
+    try {
+        // Show loading state
+        showToast('info', 'Processing audio trim...');
+        
+        // Initialize audio processor
+        const processor = new ClientAudioProcessor();
+        
+        if (!processor.isSupported()) {
+            throw new Error('Your browser does not support audio processing');
+        }
+        
+        // Get audio URL
+        const audioUrl = `https://little-microphones.b-cdn.net${AppState.currentFile.path}`;
+        
+        // Trim the audio
+        const trimmedBlob = await processor.trimAudioFile(
+            audioUrl,
+            AppState.trimStart,
+            AppState.trimEnd
+        );
+        
+        // Convert to base64 for upload
+        const base64Audio = await processor.blobToBase64(trimmedBlob);
+        
+        // Determine file extension based on blob type
+        const extension = trimmedBlob.type.includes('webm') ? '.webm' : '.wav';
+        
+        // Generate new filename
+        const baseName = AppState.currentFile.name.replace(/\.[^/.]+$/, '');
+        const newFileName = `${baseName}_trimmed${extension}`;
+        
+        // Upload trimmed file
+        showToast('info', 'Uploading trimmed audio...');
+        
+        const uploadResponse = await fetch('/api/upload-audio', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                adminMode: true,
+                audioData: base64Audio,
+                fileName: newFileName,
+                filePath: AppState.currentFile.path.substring(0, AppState.currentFile.path.lastIndexOf('/'))
+            })
+        });
+        
+        if (!uploadResponse.ok) {
+            const error = await uploadResponse.json();
+            throw new Error(error.message || 'Failed to upload trimmed audio');
+        }
+        
+        showToast('success', 'Audio trimmed and uploaded successfully!');
+        
+        // Reload file tree to show new file
+        await loadFileTree();
+        
+    } catch (error) {
+        console.error('Trim error:', error);
+        showToast('error', `Trim failed: ${error.message}`);
+    }
 }
 
 function handleFolderUpload(folder, folderName) {
     console.log('📁 Upload to folder:', folderName);
     
-    // TODO: Implement folder upload
-    showToast('info', 'Folder upload not yet implemented');
+    // Create hidden file input
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'audio/*';
+    input.multiple = true;
+    
+    input.onchange = async (event) => {
+        const files = Array.from(event.target.files);
+        if (files.length === 0) return;
+        
+        // Build folder path
+        let path = '/audio';
+        const buildPath = (item, currentPath) => {
+            if (item.type === 'folder') {
+                currentPath += '/' + item.name;
+                // Check if this is our target folder
+                if (item === folder) {
+                    path = currentPath;
+                    return true;
+                }
+                // Search children
+                for (const child of Object.values(item.children)) {
+                    if (buildPath(child, currentPath)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        };
+        
+        // Find the folder path
+        for (const item of Object.values(AppState.fileTree)) {
+            if (buildPath(item, '/audio')) {
+                break;
+            }
+        }
+        
+        await uploadFilesToPath(files, path);
+    };
+    
+    // Trigger file selection
+    input.click();
+}
+
+// Helper function to upload files to a specific path
+async function uploadFilesToPath(files, folderPath) {
+    let successCount = 0;
+    let errorCount = 0;
+    
+    showToast('info', `Uploading ${files.length} file(s)...`);
+    
+    for (const file of files) {
+        try {
+            console.log(`📤 Uploading ${file.name} to ${folderPath}`);
+            
+            // Convert to base64
+            const reader = new FileReader();
+            const base64Promise = new Promise((resolve, reject) => {
+                reader.onload = (e) => resolve(e.target.result.split(',')[1]);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+            
+            const base64Audio = await base64Promise;
+            
+            // Upload file
+            const response = await fetch('/api/upload-audio', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    adminMode: true,
+                    audioData: base64Audio,
+                    fileName: file.name,
+                    filePath: folderPath
+                })
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Upload failed');
+            }
+            
+            successCount++;
+            
+        } catch (error) {
+            console.error(`Failed to upload ${file.name}:`, error);
+            errorCount++;
+        }
+    }
+    
+    // Show results
+    if (successCount > 0 && errorCount === 0) {
+        showToast('success', `Successfully uploaded ${successCount} file(s)`);
+    } else if (successCount > 0 && errorCount > 0) {
+        showToast('warning', `Uploaded ${successCount} file(s), ${errorCount} failed`);
+    } else {
+        showToast('error', `Failed to upload all ${errorCount} file(s)`);
+    }
+    
+    // Reload file tree if any uploads succeeded
+    if (successCount > 0) {
+        await loadFileTree();
+    }
 }
 
 // Keyboard shortcuts
@@ -723,8 +991,20 @@ function setupDragAndDrop() {
         const files = Array.from(e.dataTransfer.files);
         if (files.length > 0) {
             console.log('📥 Files dropped:', files);
-            // TODO: Handle dropped files
-            showToast('info', 'Drag and drop not yet implemented');
+            
+            // Filter only audio files
+            const audioFiles = files.filter(file => {
+                const ext = '.' + file.name.split('.').pop().toLowerCase();
+                return ['.mp3', '.wav', '.webm', '.ogg', '.m4a', '.aac'].includes(ext);
+            });
+            
+            if (audioFiles.length === 0) {
+                showToast('warning', 'Please drop only audio files');
+                return;
+            }
+            
+            // Upload to root audio folder
+            await uploadFilesToPath(audioFiles, '/audio');
         }
     });
 }

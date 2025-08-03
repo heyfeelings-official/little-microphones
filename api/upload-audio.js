@@ -109,7 +109,7 @@ export default async function handler(req, res) {
     }
 
     try {
-        let { audioData, filename, world, lmid, questionId, lang } = req.body;
+        let { audioData, filename, world, lmid, questionId, lang, adminMode, fileName, filePath } = req.body;
 
         // SECURITY: Input sanitization
         function sanitizeInput(data) {
@@ -125,19 +125,42 @@ export default async function handler(req, res) {
         lmid = sanitizeInput(lmid);
         questionId = sanitizeInput(questionId);
         lang = sanitizeInput(lang);
+        fileName = sanitizeInput(fileName);
+        filePath = sanitizeInput(filePath);
         // Note: audioData is not sanitized as it's base64 encoded binary data
 
-        // Validation
-        if (!audioData || !filename) {
-            return res.status(400).json({ error: 'Missing required fields: audioData and filename' });
-        }
+        // Admin mode handling
+        if (adminMode) {
+            console.log('📁 Admin mode upload:', { fileName, filePath });
+            
+            // Validation for admin mode
+            if (!audioData || !fileName) {
+                return res.status(400).json({ error: 'Missing required fields for admin mode: audioData and fileName' });
+            }
+            
+            // Set default path if not provided
+            if (!filePath) {
+                filePath = '/audio';
+            }
+            
+            // Ensure path starts with /audio
+            if (!filePath.startsWith('/audio')) {
+                filePath = '/audio' + (filePath.startsWith('/') ? filePath : '/' + filePath);
+            }
+            
+        } else {
+            // Normal validation for non-admin mode
+            if (!audioData || !filename) {
+                return res.status(400).json({ error: 'Missing required fields: audioData and filename' });
+            }
 
-        if (!world || !lmid || !questionId) {
-            return res.status(400).json({ error: 'Missing required fields: world, lmid, and questionId' });
-        }
+            if (!world || !lmid || !questionId) {
+                return res.status(400).json({ error: 'Missing required fields: world, lmid, and questionId' });
+            }
 
-        if (!lang) {
-            return res.status(400).json({ error: 'Missing required field: lang' });
+            if (!lang) {
+                return res.status(400).json({ error: 'Missing required field: lang' });
+            }
         }
         
         // Filename validation moved to enhanced security validation above
@@ -245,20 +268,41 @@ export default async function handler(req, res) {
             return { valid: true };
         }
 
-        // Enhanced filename validation
-        const filenameValidation = validateAudioFilename(filename, world, lmid, questionId);
-        if (!filenameValidation.valid) {
-            return res.status(400).json({ error: filenameValidation.error });
-        }
-
-        // Upload to Bunny.net with folder structure: lang/lmid/world/filename
-        const filePath = `${lang}/${lmid}/${world}/${filename}`;
-        const uploadUrl = `https://storage.bunnycdn.com/${process.env.BUNNY_STORAGE_ZONE}/${filePath}`;
+        // Setup upload path and URL
+        let uploadPath, uploadUrl;
         
-        console.log(`📤 Uploading ${filename} (${audioBuffer.length} bytes)`);
+        if (adminMode) {
+            // Admin mode: direct path control
+            uploadPath = `${filePath}/${fileName}`.replace(/\/+/g, '/').replace(/^\//, '');
+            uploadUrl = `https://storage.bunnycdn.com/${process.env.BUNNY_STORAGE_ZONE}/${uploadPath}`;
+        } else {
+            // Enhanced filename validation for normal mode
+            const filenameValidation = validateAudioFilename(filename, world, lmid, questionId);
+            if (!filenameValidation.valid) {
+                return res.status(400).json({ error: filenameValidation.error });
+            }
+            
+            // Normal mode: structured path
+            uploadPath = `${lang}/${lmid}/${world}/${filename}`;
+            uploadUrl = `https://storage.bunnycdn.com/${process.env.BUNNY_STORAGE_ZONE}/${uploadPath}`;
+        }
+        
+        const displayName = adminMode ? fileName : filename;
+        console.log(`📤 Uploading ${displayName} (${audioBuffer.length} bytes)`);
         
         // Determine Content-Type based on filename extension
-        const contentType = filename.endsWith('.webm') ? 'audio/webm' : 'audio/mpeg';
+        const fileToCheck = adminMode ? fileName : filename;
+        let contentType = 'audio/mpeg'; // default
+        
+        if (fileToCheck.endsWith('.webm')) {
+            contentType = 'audio/webm';
+        } else if (fileToCheck.endsWith('.wav')) {
+            contentType = 'audio/wav';
+        } else if (fileToCheck.endsWith('.ogg')) {
+            contentType = 'audio/ogg';
+        } else if (fileToCheck.endsWith('.m4a')) {
+            contentType = 'audio/mp4';
+        }
         
         const response = await fetch(uploadUrl, {
             method: 'PUT',
@@ -270,16 +314,18 @@ export default async function handler(req, res) {
         });
 
         if (response.ok) {
-            const cdnUrl = `https://${process.env.BUNNY_CDN_URL}/${filePath}`;
+            const cdnUrl = `https://${process.env.BUNNY_CDN_URL}/${uploadPath}`;
             console.log(`✅ Upload successful: ${audioBuffer.length} bytes`);
             
             // Send email notifications after successful upload
             let emailNotificationStatus = 'not_applicable';
             let emailNotificationMessage = '';
             
-            try {
-                // Only send notifications for parent uploads (not teacher uploads)
-                const isParentUpload = filename.startsWith('parent_');
+            // Skip email notifications in admin mode
+            if (!adminMode) {
+                try {
+                    // Only send notifications for parent uploads (not teacher uploads)
+                    const isParentUpload = filename.startsWith('parent_');
                 
                 if (isParentUpload) {
                     // Get LMID data first (contains all emails)
@@ -314,13 +360,14 @@ export default async function handler(req, res) {
                 emailNotificationStatus = 'failed';
                 emailNotificationMessage = 'Upload successful, email notification failed';
             }
+            } // End of !adminMode check
             
             res.json({ 
                 success: true, 
                 url: cdnUrl,
-                filename: filename,
+                filename: adminMode ? fileName : filename,
                 size: audioBuffer.length,
-                emailNotification: {
+                emailNotification: adminMode ? undefined : {
                     status: emailNotificationStatus,
                     message: emailNotificationMessage
                 }

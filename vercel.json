@@ -2,8 +2,24 @@
   "functions": {
     "api/combine-audio.js": {
       "maxDuration": 60
+    },
+    "api/upload-audio.js": {
+      "maxDuration": 60
+    },
+    "api/admin/*.js": {
+      "maxDuration": 30
     }
   },
+  "routes": [
+    {
+      "src": "/admin/?",
+      "dest": "/public/admin/index.html"
+    },
+    {
+      "src": "/admin/(.*)",
+      "dest": "/public/admin/$1"
+    }
+  ],
   "headers": [
     {
       "source": "/api/(.*)",

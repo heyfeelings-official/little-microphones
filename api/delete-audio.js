@@ -100,7 +100,7 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { filename, world, lmid, questionId, deleteLmidFolder, lang } = req.body;
+        const { filename, world, lmid, questionId, deleteLmidFolder, lang, adminMode, filePath } = req.body;
 
         // Check environment variables
         if (!process.env.BUNNY_API_KEY || !process.env.BUNNY_STORAGE_ZONE) {
@@ -133,6 +133,43 @@ export default async function handler(req, res) {
             return;
         }
 
+        // Handle admin mode deletion
+        if (adminMode) {
+            console.log('📁 Admin mode deletion:', { filePath });
+            
+            if (!filePath) {
+                return res.status(400).json({ error: 'Missing required field for admin mode: filePath' });
+            }
+            
+            // Remove leading slash if present
+            const cleanPath = filePath.startsWith('/') ? filePath.substring(1) : filePath;
+            
+            const deleteUrl = `https://storage.bunnycdn.com/${process.env.BUNNY_STORAGE_ZONE}/${cleanPath}`;
+            console.log(`🗑️ Attempting to delete: ${cleanPath}`);
+            
+            const response = await fetch(deleteUrl, {
+                method: 'DELETE',
+                headers: {
+                    'AccessKey': process.env.BUNNY_API_KEY
+                }
+            });
+            
+            if (response.ok || response.status === 404) {
+                console.log(`✅ File deleted successfully: ${cleanPath}`);
+                return res.json({ 
+                    success: true, 
+                    message: `File deleted: ${cleanPath}`
+                });
+            } else {
+                const errorText = await response.text();
+                console.error(`❌ Delete failed: ${response.status} - ${errorText}`);
+                return res.status(response.status).json({ 
+                    error: 'Delete failed', 
+                    details: errorText 
+                });
+            }
+        }
+        
         // Handle single file deletion (existing functionality)
         if (!filename) {
             return res.status(400).json({ error: 'Missing required field: filename' });
