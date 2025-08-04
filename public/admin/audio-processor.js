@@ -76,113 +76,101 @@ class ClientAudioProcessor {
         return arrayBuffer;
     }
     
-    // Encode audio buffer to WebM using MediaRecorder
+    // Encode audio buffer to WebM - optimized for speed
     async encodeToWebM(audioBuffer) {
-        console.log('🎵 Encoding to WebM using MediaRecorder...');
+        console.log('🎵 Starting fast WebM encoding...');
+        const startTime = performance.now();
+        
+        const durationSeconds = audioBuffer.length / audioBuffer.sampleRate;
+        console.log(`⚡ Encoding ${durationSeconds.toFixed(1)}s audio to WebM...`);
         
         return new Promise((resolve, reject) => {
             try {
                 // Check for MediaRecorder support first
                 if (!window.MediaRecorder || !MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
-                    console.warn('⚠️ WebM with Opus not supported, falling back to WAV.');
-                    const wavBlob = this.encodeToWAV(audioBuffer);
-                    resolve(wavBlob);
+                    console.error('❌ WebM with Opus not supported in this browser');
+                    reject(new Error('WebM encoding not supported in this browser'));
                     return;
                 }
                 
-                // Create offline context for rendering
-                const offlineContext = new OfflineAudioContext(
-                    audioBuffer.numberOfChannels,
-                    audioBuffer.length,
-                    audioBuffer.sampleRate
-                );
+                // Timeout for the entire encoding process (5 seconds max)
+                const encodingTimeout = setTimeout(() => {
+                    console.error('⏰ WebM encoding timeout after 5 seconds');
+                    reject(new Error('WebM encoding timeout - process took too long'));
+                }, 5000);
                 
-                // Create buffer source
-                const source = offlineContext.createBufferSource();
-                source.buffer = audioBuffer;
-                source.connect(offlineContext.destination);
+                // Optimized: Skip offline rendering, use direct stream
+                const audioContext = new AudioContext();
+                const streamDestination = audioContext.createMediaStreamDestination();
+                const streamSource = audioContext.createBufferSource();
+                streamSource.buffer = audioBuffer;
+                streamSource.connect(streamDestination);
                 
-                // Render audio in offline context to get a clean buffer
-                offlineContext.startRendering().then(renderedBuffer => {
-                    console.log('Audio rendered offline.');
-                    
-                    // Create a media stream from the rendered buffer
-                    const audioContext = new AudioContext();
-                    const streamDestination = audioContext.createMediaStreamDestination();
-                    const streamSource = audioContext.createBufferSource();
-                    streamSource.buffer = renderedBuffer;
-                    streamSource.connect(streamDestination);
-                    
-                    // Setup MediaRecorder
-                    const mediaRecorder = new MediaRecorder(streamDestination.stream, {
-                        mimeType: 'audio/webm;codecs=opus',
-                        audioBitsPerSecond: 128000
-                    });
-                    
-                    const chunks = [];
-                    let hasStopped = false;
-                    
-                    mediaRecorder.onstart = () => {
-                        console.log('MediaRecorder started.');
-                    };
-                    
-                    mediaRecorder.ondataavailable = (e) => {
-                        if (e.data.size > 0) {
-                            console.log(`Data available: ${e.data.size} bytes`);
-                            chunks.push(e.data);
-                        }
-                    };
-                    
-                    mediaRecorder.onstop = () => {
-                        if (hasStopped) return;
-                        hasStopped = true;
-                        
-                        console.log('MediaRecorder stopped.');
-                        const blob = new Blob(chunks, { type: 'audio/webm' });
-                        
-                        // Clean up resources
-                        streamSource.stop();
-                        audioContext.close();
-                        
-                        if (blob.size === 0) {
-                            console.error('❌ WebM encoding resulted in an empty file.');
-                            reject(new Error('WebM encoding failed, empty file.'));
-                        } else {
-                            console.log('✅ WebM encoding complete:', blob.size, 'bytes');
-                            resolve(blob);
-                        }
-                    };
-                    
-                    mediaRecorder.onerror = (error) => {
-                        console.error('❌ MediaRecorder error:', error);
-                        reject(error);
-                    };
-                    
-                    // Start recording and audio playback
-                    mediaRecorder.start();
-                    source.start(0);
-                    streamSource.start(0);
-                    
-                    // More reliable timeout to stop recording
-                    const durationMs = (renderedBuffer.length / renderedBuffer.sampleRate) * 1000;
-                    setTimeout(() => {
-                        if (mediaRecorder.state === 'recording') {
-                            console.log('Stopping MediaRecorder via timeout.');
-                            mediaRecorder.stop();
-                        }
-                    }, durationMs + 250); // Increased buffer
-                    
-                }).catch(err => {
-                    console.error('Offline rendering failed:', err);
-                    reject(err);
+                // Setup MediaRecorder with optimized settings for speed
+                const mediaRecorder = new MediaRecorder(streamDestination.stream, {
+                    mimeType: 'audio/webm;codecs=opus',
+                    audioBitsPerSecond: 48000 // Optimized bitrate for speed vs quality
                 });
+                
+                const chunks = [];
+                let hasStopped = false;
+                
+                mediaRecorder.onstart = () => {
+                    console.log('⚡ Fast MediaRecorder started.');
+                };
+                
+                mediaRecorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) {
+                        chunks.push(e.data);
+                    }
+                };
+                
+                mediaRecorder.onstop = () => {
+                    if (hasStopped) return;
+                    hasStopped = true;
+                    
+                    clearTimeout(encodingTimeout);
+                    
+                    const blob = new Blob(chunks, { type: 'audio/webm' });
+                    
+                    // Clean up resources
+                    streamSource.stop();
+                    audioContext.close();
+                    
+                    const endTime = performance.now();
+                    const encodingTime = (endTime - startTime).toFixed(0);
+                    
+                    if (blob.size === 0) {
+                        console.error('❌ WebM encoding resulted in an empty file.');
+                        reject(new Error('WebM encoding failed - empty file generated'));
+                    } else {
+                        console.log(`✅ WebM encoding complete in ${encodingTime}ms:`, blob.size, 'bytes');
+                        resolve(blob);
+                    }
+                };
+                
+                mediaRecorder.onerror = (error) => {
+                    clearTimeout(encodingTimeout);
+                    console.error('❌ MediaRecorder error:', error);
+                    reject(new Error(`WebM encoding failed: ${error.message || 'Unknown MediaRecorder error'}`));
+                };
+                
+                // Start recording immediately with optimized settings
+                mediaRecorder.start(50); // Request data every 50ms for faster processing
+                streamSource.start(0);
+                
+                // Stop recording after audio duration with minimal buffer
+                const durationMs = durationSeconds * 1000;
+                setTimeout(() => {
+                    if (mediaRecorder.state === 'recording') {
+                        console.log('⏹️ Stopping MediaRecorder via timeout.');
+                        mediaRecorder.stop();
+                    }
+                }, Math.max(durationMs + 100, 500)); // Minimum 500ms, but add buffer for longer files
                 
             } catch (error) {
                 console.error('❌ WebM encoding failed:', error);
-                // Fallback to WAV if WebM fails
-                console.log('⚠️ Falling back to WAV encoding...');
-                const wavBlob = this.encodeToWAV(audioBuffer);
-                resolve(wavBlob);
+                reject(new Error(`WebM encoding failed: ${error.message || 'Unknown error'}`));
             }
         });
     }

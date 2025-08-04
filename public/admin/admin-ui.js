@@ -852,7 +852,15 @@ async function handleTrim() {
         
     } catch (error) {
         console.error('Trim error:', error);
-        showToast('error', `Trim failed: ${error.message}`);
+        
+        // Show specific error messages for WebM encoding issues
+        if (error.message.includes('WebM encoding not supported')) {
+            showToast('error', 'WebM encoding not supported in this browser. Please use Chrome or Firefox.');
+        } else if (error.message.includes('timeout')) {
+            showToast('error', 'Audio processing took too long. Try with a shorter audio file.');
+        } else {
+            showToast('error', `Trim failed: ${error.message}`);
+        }
     }
 }
 
