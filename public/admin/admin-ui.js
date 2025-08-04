@@ -850,7 +850,11 @@ async function handleTrim() {
     console.log('✂️ Trimming audio:', {
         file: AppState.currentFile.name,
         start: AppState.trimStart,
-        end: AppState.trimEnd
+        end: AppState.trimEnd,
+        duration: duration,
+        trimLength: AppState.trimEnd - AppState.trimStart,
+        startPercent: (AppState.trimStart / duration * 100).toFixed(1) + '%',
+        endPercent: (AppState.trimEnd / duration * 100).toFixed(1) + '%'
     });
     
     try {
@@ -954,12 +958,14 @@ async function handleTrim() {
         const audioUrlWithCache = `${AppState.currentFile.path}?v=${cacheBreaker}`;
         console.log('🔄 Reloading audio with cache buster:', audioUrlWithCache);
         
-        // Force reload audio with cache buster
+        // Force reload audio with cache buster and wait a bit for CDN propagation
         if (AppState.audioManager) {
             AppState.audioManager.destroy();
         }
         
-        AppState.audioManager = new HowlerAudioManager(`https://little-microphones.b-cdn.net${audioUrlWithCache}`, {
+        // Wait 2 seconds for CDN to propagate the new file
+        setTimeout(() => {
+            AppState.audioManager = new HowlerAudioManager(`https://little-microphones.b-cdn.net${audioUrlWithCache}`, {
             onload: () => {
                 console.log('✅ Audio reloaded successfully with new version');
                 initializeTimeline();
@@ -970,9 +976,10 @@ async function handleTrim() {
                 showToast('error', 'Failed to reload updated audio');
             }
         });
+        }, 2000); // Wait 2 seconds for CDN propagation
         
-        // Reset trim markers to full duration
-        resetTrimMarkers();
+        // Don't reset trim markers - let user see the new file length
+        // resetTrimMarkers(); // Commented out to preserve user's trim selection
         
     } catch (error) {
         console.error('Trim error:', error);

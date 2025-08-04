@@ -146,26 +146,39 @@ export default async function handler(req, res) {
             
             const deleteUrl = `https://storage.bunnycdn.com/${process.env.BUNNY_STORAGE_ZONE}/${cleanPath}`;
             console.log(`🗑️ Attempting to delete: ${cleanPath}`);
+            console.log(`🔑 Using API key: ${process.env.BUNNY_API_KEY ? 'Present' : 'Missing'}`);
+            console.log(`📦 Storage zone: ${process.env.BUNNY_STORAGE_ZONE}`);
             
-            const response = await fetch(deleteUrl, {
-                method: 'DELETE',
-                headers: {
-                    'AccessKey': process.env.BUNNY_API_KEY
-                }
-            });
-            
-            if (response.ok || response.status === 404) {
-                console.log(`✅ File deleted successfully: ${cleanPath}`);
-                return res.json({ 
-                    success: true, 
-                    message: `File deleted: ${cleanPath}`
+            try {
+                const response = await fetch(deleteUrl, {
+                    method: 'DELETE',
+                    headers: {
+                        'AccessKey': process.env.BUNNY_API_KEY
+                    }
                 });
-            } else {
-                const errorText = await response.text();
-                console.error(`❌ Delete failed: ${response.status} - ${errorText}`);
-                return res.status(response.status).json({ 
-                    error: 'Delete failed', 
-                    details: errorText 
+                
+                console.log(`📡 Delete response status: ${response.status}`);
+                
+                if (response.ok || response.status === 404) {
+                    console.log(`✅ File deleted successfully: ${cleanPath}`);
+                    return res.json({ 
+                        success: true, 
+                        message: `File deleted: ${cleanPath}`
+                    });
+                } else {
+                    const errorText = await response.text();
+                    console.error(`❌ Delete failed: ${response.status} - ${errorText}`);
+                    return res.status(response.status).json({ 
+                        error: 'Delete failed', 
+                        details: errorText,
+                        status: response.status
+                    });
+                }
+            } catch (fetchError) {
+                console.error('❌ Fetch error during delete:', fetchError);
+                return res.status(500).json({ 
+                    error: 'Network error during delete', 
+                    details: fetchError.message 
                 });
             }
         }
