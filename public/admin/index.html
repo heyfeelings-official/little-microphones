@@ -128,26 +128,38 @@
                                 </div>
                             </div>
 
-                            <!-- Timeline/Waveform -->
+                            <!-- Enhanced Timeline/Waveform -->
                             <div class="mb-6">
-                                <div id="timeline" class="relative bg-gray-100 rounded-lg h-24 cursor-pointer overflow-hidden">
+                                <div id="timeline" class="relative bg-gray-100 rounded-lg h-32 cursor-pointer overflow-hidden shadow-inner">
                                     <!-- Waveform visualization -->
                                     <div id="waveform" class="absolute inset-0 flex items-end justify-around px-1">
                                         <!-- Static waveform bars will be generated here -->
                                     </div>
                                     
-                                    <!-- Playhead -->
-                                    <div id="playhead" class="absolute top-0 bottom-0 w-0.5 bg-red-500 pointer-events-none" style="left: 0;"></div>
+                                    <!-- Trim selection area -->
+                                    <div id="trim-selection" class="trim-selection" style="left: 0; right: 0;"></div>
                                     
-                                    <!-- Trim Markers -->
+                                    <!-- Trim area outside indicators -->
+                                    <div id="trim-area-left" class="trim-area-outside left" style="width: 0;"></div>
+                                    <div id="trim-area-right" class="trim-area-outside right" style="width: 0;"></div>
+                                    
+                                    <!-- Playhead -->
+                                    <div id="playhead" class="absolute top-0 bottom-0 w-0.5 bg-red-500 pointer-events-none z-20" style="left: 0;"></div>
+                                    
+                                    <!-- Enhanced Trim Markers -->
                                     <div id="trim-start" class="trim-marker trim-start" style="left: 0;">
-                                        <div class="trim-handle"></div>
+                                        <div class="trim-handle" title="Drag to set start time"></div>
                                         <div class="trim-time">0:00</div>
                                     </div>
                                     <div id="trim-end" class="trim-marker trim-end" style="right: 0;">
-                                        <div class="trim-handle"></div>
+                                        <div class="trim-handle" title="Drag to set end time"></div>
                                         <div class="trim-time">0:00</div>
                                     </div>
+                                </div>
+                                
+                                <!-- Trim controls info -->
+                                <div class="text-xs text-gray-500 mt-2 text-center">
+                                    Drag the green handles to set trim start/end points
                                 </div>
                             </div>
 

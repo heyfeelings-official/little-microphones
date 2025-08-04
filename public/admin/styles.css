@@ -57,46 +57,115 @@
     background-color: #3b82f6;
 }
 
-/* Trim markers */
+/* Enhanced Trim markers */
 .trim-marker {
     position: absolute;
     top: 0;
     bottom: 0;
-    width: 3px;
-    background-color: #10b981;
+    width: 4px;
+    background: linear-gradient(to bottom, #10b981, #059669);
     cursor: ew-resize;
-    z-index: 10;
+    z-index: 15;
+    border-radius: 2px;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
 }
 
 .trim-marker:hover {
-    width: 5px;
+    width: 6px;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.5);
+    transform: scaleY(1.05);
+}
+
+.trim-marker.dragging {
+    width: 6px;
+    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.7);
+    background: linear-gradient(to bottom, #059669, #047857);
 }
 
 .trim-handle {
     position: absolute;
-    top: -8px;
+    top: -12px;
     left: 50%;
     transform: translateX(-50%);
-    width: 12px;
-    height: 12px;
-    background-color: #10b981;
+    width: 20px;
+    height: 20px;
+    background: linear-gradient(135deg, #10b981, #059669);
     border-radius: 50%;
-    border: 2px solid white;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    border: 3px solid white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    cursor: ew-resize;
+    transition: all 0.2s ease;
+}
+
+.trim-handle:hover {
+    transform: translateX(-50%) scale(1.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.trim-handle:active,
+.trim-marker.dragging .trim-handle {
+    transform: translateX(-50%) scale(1.2);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+    background: linear-gradient(135deg, #059669, #047857);
 }
 
 .trim-time {
     position: absolute;
-    bottom: -20px;
+    bottom: -28px;
     left: 50%;
     transform: translateX(-50%);
     font-size: 0.75rem;
-    background-color: rgba(0, 0, 0, 0.7);
+    font-weight: 600;
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.9));
     color: white;
-    padding: 2px 6px;
-    border-radius: 4px;
+    padding: 4px 8px;
+    border-radius: 6px;
     white-space: nowrap;
     pointer-events: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(4px);
+}
+
+/* Trim selection area */
+.trim-selection {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    background: linear-gradient(to bottom, 
+        rgba(16, 185, 129, 0.1), 
+        rgba(16, 185, 129, 0.2));
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    border-radius: 4px;
+    pointer-events: none;
+    z-index: 5;
+}
+
+/* Enhanced trim marker positioning */
+.trim-start {
+    left: 0;
+}
+
+.trim-end {
+    right: 0;
+}
+
+/* Visual feedback for trim area */
+.trim-area-outside {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.1);
+    pointer-events: none;
+    z-index: 3;
+}
+
+.trim-area-outside.left {
+    left: 0;
+}
+
+.trim-area-outside.right {
+    right: 0;
 }
 
 /* Volume slider styling */

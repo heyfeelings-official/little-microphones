@@ -485,6 +485,12 @@ function startTrimDrag(event, type) {
     event.preventDefault();
     AppState.isDraggingTrim = true;
     AppState.dragTarget = type;
+    
+    // Add visual feedback
+    const marker = event.currentTarget;
+    marker.classList.add('dragging');
+    
+    console.log(`🎯 Started dragging ${type} marker`);
 }
 
 function handleTrimDrag(event) {
@@ -509,11 +515,19 @@ function handleTrimDrag(event) {
 }
 
 function endTrimDrag() {
+    if (AppState.isDraggingTrim) {
+        console.log(`🎯 Finished dragging ${AppState.dragTarget} marker`);
+        
+        // Remove visual feedback
+        const markers = document.querySelectorAll('.trim-marker');
+        markers.forEach(marker => marker.classList.remove('dragging'));
+    }
+    
     AppState.isDraggingTrim = false;
     AppState.dragTarget = null;
 }
 
-// Update trim marker positions
+// Update trim marker positions and visual feedback
 function updateMarkerPositions() {
     if (!AppState.audioManager) return;
     
@@ -523,6 +537,7 @@ function updateMarkerPositions() {
     const startPercent = (AppState.trimStart / duration) * 100;
     const endPercent = (AppState.trimEnd / duration) * 100;
     
+    // Update trim markers
     const trimStartEl = document.getElementById('trim-start');
     const trimEndEl = document.getElementById('trim-end');
     
@@ -532,8 +547,28 @@ function updateMarkerPositions() {
     }
     
     if (trimEndEl) {
-        trimEndEl.style.left = `${endPercent}%`;
+        trimEndEl.style.right = `${100 - endPercent}%`;
+        trimEndEl.style.left = 'auto';
         trimEndEl.querySelector('.trim-time').textContent = formatTime(AppState.trimEnd);
+    }
+    
+    // Update trim selection area
+    const trimSelection = document.getElementById('trim-selection');
+    if (trimSelection) {
+        trimSelection.style.left = `${startPercent}%`;
+        trimSelection.style.right = `${100 - endPercent}%`;
+    }
+    
+    // Update outside areas (dimmed areas)
+    const trimAreaLeft = document.getElementById('trim-area-left');
+    const trimAreaRight = document.getElementById('trim-area-right');
+    
+    if (trimAreaLeft) {
+        trimAreaLeft.style.width = `${startPercent}%`;
+    }
+    
+    if (trimAreaRight) {
+        trimAreaRight.style.width = `${100 - endPercent}%`;
     }
 }
 
@@ -819,19 +854,18 @@ async function handleTrim() {
             newExtension = '.wav';
         }
         
-        // Create timestamped copy instead of overwriting original
+        // Replace original file with trimmed version
         const baseName = AppState.currentFile.name.replace(/\.[^/.]+$/, '');
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-        const finalFileName = `${baseName}_trimmed_${timestamp}${newExtension}`;
+        const finalFileName = `${baseName}${newExtension}`;
         
-        console.log('📝 Creating trimmed copy:', finalFileName);
+        console.log('📝 Replacing original file:', finalFileName);
         console.log('📁 Original file path:', AppState.currentFile.path);
         
         const targetFolderPath = AppState.currentFile.path.substring(0, AppState.currentFile.path.lastIndexOf('/'));
         console.log('📁 Target folder path:', targetFolderPath);
         
-        // Upload trimmed file as new copy
-        showToast('info', 'Uploading trimmed audio copy...');
+        // Upload trimmed file to replace original
+        showToast('info', 'Uploading trimmed audio...');
         
         const uploadPayload = {
             adminMode: true,
@@ -871,10 +905,20 @@ async function handleTrim() {
             throw uploadError;
         }
         
-        showToast('success', 'Trimmed audio copy uploaded successfully!');
+        showToast('success', 'Audio trimmed and replaced successfully!');
         
-        // Reload file tree to show the new trimmed copy
-        await loadFileTree();
+        // Update current file info and reload audio without refreshing file tree
+        AppState.currentFile.name = finalFileName;
+        AppState.currentFile.path = `${targetFolderPath}/${finalFileName}`;
+        
+        // Update file info display
+        updateFileInfoDisplay();
+        
+        // Reload audio with the new trimmed version
+        await loadAudio(AppState.currentFile);
+        
+        // Reset trim markers to full duration
+        resetTrimMarkers();
         
     } catch (error) {
         console.error('Trim error:', error);
