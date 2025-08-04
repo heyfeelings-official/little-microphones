@@ -240,6 +240,7 @@ function createFileElement(name, file, level) {
     const div = document.createElement('div');
     div.className = 'tree-item';
     div.style.paddingLeft = `${level * 1.25 + 1.5}rem`;
+    div.setAttribute('data-file-path', file.path);
     
     // File icon
     const icon = document.createElement('svg');
@@ -807,13 +808,14 @@ async function handleTrim() {
         const base64Audio = await processor.blobToBase64(trimmedBlob);
         
         // Determine file extension based on blob type
-        const extension = trimmedBlob.type.includes('webm') ? '.webm' : '.wav';
+        const newExtension = trimmedBlob.type.includes('webm') ? '.webm' : '.wav';
         
-        // Generate new filename
+        // Keep original filename but update extension if needed
         const baseName = AppState.currentFile.name.replace(/\.[^/.]+$/, '');
-        const newFileName = `${baseName}_trimmed${extension}`;
+        const originalExtension = AppState.currentFile.name.split('.').pop();
+        const finalFileName = `${baseName}${newExtension}`;
         
-        // Upload trimmed file
+        // Upload trimmed file (replaces original)
         showToast('info', 'Uploading trimmed audio...');
         
         const uploadResponse = await fetch('/api/upload-audio', {
@@ -824,7 +826,7 @@ async function handleTrim() {
             body: JSON.stringify({
                 adminMode: true,
                 audioData: base64Audio,
-                fileName: newFileName,
+                fileName: finalFileName,
                 filePath: AppState.currentFile.path.substring(0, AppState.currentFile.path.lastIndexOf('/'))
             })
         });
@@ -834,14 +836,66 @@ async function handleTrim() {
             throw new Error(error.message || 'Failed to upload trimmed audio');
         }
         
-        showToast('success', 'Audio trimmed and uploaded successfully!');
+        showToast('success', 'Audio trimmed and replaced successfully!');
         
-        // Reload file tree to show new file
-        await loadFileTree();
+        // Update current file info if extension changed
+        if (originalExtension !== newExtension.substring(1)) {
+            AppState.currentFile.name = finalFileName;
+            AppState.currentFile.path = AppState.currentFile.path.replace(/\.[^/.]+$/, newExtension);
+            
+            // Update file info display
+            updateFileInfoDisplay();
+        }
+        
+        // Refresh the specific file in the tree instead of reloading everything
+        await refreshCurrentFile();
         
     } catch (error) {
         console.error('Trim error:', error);
         showToast('error', `Trim failed: ${error.message}`);
+    }
+}
+
+// Update file info display after changes
+function updateFileInfoDisplay() {
+    if (AppState.currentFile) {
+        document.getElementById('current-file-name').textContent = AppState.currentFile.name;
+        console.log('📄 Updated file display:', AppState.currentFile.name);
+    }
+}
+
+// Refresh current file after modifications
+async function refreshCurrentFile() {
+    if (!AppState.currentFile) return;
+    
+    try {
+        console.log('🔄 Refreshing current file:', AppState.currentFile.name);
+        
+        // Reload audio with new file
+        await loadAudio(AppState.currentFile);
+        
+        // Update the file tree to reflect changes
+        const response = await fetch('/api/admin/list-all-files');
+        if (response.ok) {
+            const data = await response.json();
+            AppState.fileTree = filterAudioFiles(data.files || []);
+            
+            // Re-render only the affected part of the tree
+            const fileTreeElement = document.getElementById('file-tree');
+            renderFileTree(fileTreeElement, AppState.fileTree);
+            
+            // Re-select the current file in the tree
+            const currentTreeItem = document.querySelector(`[data-file-path="${AppState.currentFile.path}"]`);
+            if (currentTreeItem) {
+                currentTreeItem.classList.add('selected');
+            }
+        }
+        
+        showToast('success', 'File refreshed successfully');
+        
+    } catch (error) {
+        console.error('Error refreshing file:', error);
+        showToast('warning', 'File updated but refresh failed');
     }
 }
 
