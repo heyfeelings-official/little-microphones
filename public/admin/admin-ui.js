@@ -9,12 +9,14 @@ const AppState = {
     trimStart: 0,
     trimEnd: 0,
     isDraggingTrim: false,
-    dragTarget: null
+    dragTarget: null,
+    expandedFolders: new Set() // Track expanded folders
 };
 
 // Initialize on DOM load
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🎵 Radio Admin UI initializing...');
+    loadExpandedState(); // Load saved folder states
     initializeUI();
     loadFileTree();
     setupEventListeners();
@@ -214,15 +216,38 @@ function createFolderElement(name, folder, level) {
     const childrenDiv = document.createElement('div');
     childrenDiv.className = 'tree-children hidden';
     
-    // Toggle expansion
-    header.onclick = () => {
-        header.classList.toggle('expanded');
-        childrenDiv.classList.toggle('hidden');
-        
-        // Lazy load children if needed
-        if (childrenDiv.children.length === 0 && Object.keys(folder.children).length > 0) {
+    // Toggle expansion with state tracking
+    const folderPath = `${name}_${level}`; // Simple path for now
+    
+    // Restore expanded state
+    if (AppState.expandedFolders.has(folderPath)) {
+        header.classList.add('expanded');
+        childrenDiv.classList.remove('hidden');
+        if (Object.keys(folder.children).length > 0) {
             renderFileTree(childrenDiv, folder.children, level + 1);
         }
+    }
+    
+    header.onclick = () => {
+        const isExpanded = header.classList.contains('expanded');
+        
+        if (isExpanded) {
+            header.classList.remove('expanded');
+            childrenDiv.classList.add('hidden');
+            AppState.expandedFolders.delete(folderPath);
+        } else {
+            header.classList.add('expanded');
+            childrenDiv.classList.remove('hidden');
+            AppState.expandedFolders.add(folderPath);
+            
+            // Lazy load children if needed
+            if (childrenDiv.children.length === 0 && Object.keys(folder.children).length > 0) {
+                renderFileTree(childrenDiv, folder.children, level + 1);
+            }
+        }
+        
+        // Save state to localStorage
+        saveExpandedState();
     };
     
     // Show upload button on hover
@@ -756,21 +781,31 @@ async function handleDelete() {
     try {
         showToast('info', 'Deleting file...');
         
+        const deletePayload = {
+            adminMode: true,
+            filePath: AppState.currentFile.path
+        };
+        
+        console.log('🗑️ Delete payload:', deletePayload);
+        
         const response = await fetch('/api/delete-audio', {
             method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                adminMode: true,
-                filePath: AppState.currentFile.path
-            })
+            body: JSON.stringify(deletePayload)
         });
         
+        console.log('🗑️ Delete response status:', response.status);
+        
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Failed to delete file');
+            const errorText = await response.text();
+            console.error('❌ Delete failed:', response.status, errorText);
+            throw new Error(`Delete failed (${response.status}): ${errorText}`);
         }
+        
+        const result = await response.json();
+        console.log('✅ Delete successful:', result);
         
         showToast('success', 'File deleted successfully');
         
@@ -914,8 +949,27 @@ async function handleTrim() {
         // Update file info display
         updateFileInfoDisplay();
         
-        // Reload audio with the new trimmed version
-        await loadAudio(AppState.currentFile);
+        // Reload audio with the new trimmed version (with cache busting)
+        const cacheBreaker = Date.now();
+        const audioUrlWithCache = `${AppState.currentFile.path}?v=${cacheBreaker}`;
+        console.log('🔄 Reloading audio with cache buster:', audioUrlWithCache);
+        
+        // Force reload audio with cache buster
+        if (AppState.audioManager) {
+            AppState.audioManager.destroy();
+        }
+        
+        AppState.audioManager = new HowlerAudioManager(`https://little-microphones.b-cdn.net${audioUrlWithCache}`, {
+            onload: () => {
+                console.log('✅ Audio reloaded successfully with new version');
+                initializeTimeline();
+                showToast('success', 'Audio updated');
+            },
+            onloaderror: (error) => {
+                console.error('❌ Audio reload error:', error);
+                showToast('error', 'Failed to reload updated audio');
+            }
+        });
         
         // Reset trim markers to full duration
         resetTrimMarkers();
@@ -1158,6 +1212,32 @@ function formatFileSize(bytes) {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
+// Save expanded folder state to localStorage
+function saveExpandedState() {
+    try {
+        const expandedArray = Array.from(AppState.expandedFolders);
+        localStorage.setItem('radio-admin-expanded-folders', JSON.stringify(expandedArray));
+        console.log('💾 Saved expanded folders state:', expandedArray);
+    } catch (error) {
+        console.warn('Failed to save expanded state:', error);
+    }
+}
+
+// Load expanded folder state from localStorage
+function loadExpandedState() {
+    try {
+        const saved = localStorage.getItem('radio-admin-expanded-folders');
+        if (saved) {
+            const expandedArray = JSON.parse(saved);
+            AppState.expandedFolders = new Set(expandedArray);
+            console.log('📂 Loaded expanded folders state:', expandedArray);
+        }
+    } catch (error) {
+        console.warn('Failed to load expanded state:', error);
+        AppState.expandedFolders = new Set();
+    }
 }
 
 // UI Helper functions
