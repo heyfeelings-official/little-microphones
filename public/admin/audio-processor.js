@@ -1,5 +1,6 @@
 // Client-side audio trimming using Web Audio API
 // Based on proven solutions from documentation
+// Now with LAME.js for fast MP3 encoding
 
 class ClientAudioProcessor {
     constructor() {
@@ -50,10 +51,17 @@ class ClientAudioProcessor {
             
             console.log('✂️ Audio trimmed successfully');
             
-            // Encode to WebM
-            const blob = await this.encodeToWebM(trimmedBuffer);
+            // Try MP3 encoding first (fast), fallback to WebM if needed
+            let blob;
+            try {
+                blob = await this.encodeToMP3(trimmedBuffer);
+                console.log('✅ MP3 encoding complete:', blob.size, 'bytes');
+            } catch (mp3Error) {
+                console.warn('⚠️ MP3 encoding failed, falling back to WebM:', mp3Error.message);
+                blob = await this.encodeToWebM(trimmedBuffer);
+                console.log('✅ WebM fallback complete:', blob.size, 'bytes');
+            }
             
-            console.log('✅ Encoding complete:', blob.size, 'bytes');
             return blob;
             
         } catch (error) {
@@ -217,6 +225,82 @@ class ClientAudioProcessor {
         const blob = new Blob([buffer], { type: 'audio/wav' });
         console.log('✅ WAV encoding complete:', blob.size, 'bytes');
         return blob;
+    }
+    
+    // Fast MP3 encoding using LAME.js
+    async encodeToMP3(audioBuffer) {
+        console.log('🎵 Encoding to MP3 using LAME.js...');
+        const startTime = performance.now();
+        
+        return new Promise((resolve, reject) => {
+            try {
+                // Check if LAME.js is available
+                if (typeof lamejs === 'undefined') {
+                    throw new Error('LAME.js not loaded. Please include lamejs library.');
+                }
+                
+                const sampleRate = audioBuffer.sampleRate;
+                const channels = audioBuffer.numberOfChannels;
+                const bitRate = 128; // 128 kbps for good quality/speed balance
+                
+                console.log(`🎛️ MP3 settings: ${channels}ch, ${sampleRate}Hz, ${bitRate}kbps`);
+                
+                // Initialize LAME encoder
+                const mp3encoder = new lamejs.Mp3Encoder(channels, sampleRate, bitRate);
+                const mp3Data = [];
+                
+                // Convert float32 samples to int16
+                const samples = new Int16Array(audioBuffer.length * channels);
+                
+                if (channels === 1) {
+                    // Mono
+                    const channelData = audioBuffer.getChannelData(0);
+                    for (let i = 0; i < audioBuffer.length; i++) {
+                        samples[i] = Math.max(-32768, Math.min(32767, channelData[i] * 32768));
+                    }
+                } else {
+                    // Stereo
+                    const leftChannel = audioBuffer.getChannelData(0);
+                    const rightChannel = audioBuffer.getChannelData(1);
+                    
+                    for (let i = 0; i < audioBuffer.length; i++) {
+                        samples[i * 2] = Math.max(-32768, Math.min(32767, leftChannel[i] * 32768));
+                        samples[i * 2 + 1] = Math.max(-32768, Math.min(32767, rightChannel[i] * 32768));
+                    }
+                }
+                
+                console.log('🔄 Converting samples to MP3...');
+                
+                // Encode in blocks for better performance
+                const blockSize = 1152; // Standard MP3 frame size
+                for (let i = 0; i < samples.length; i += blockSize * channels) {
+                    const sampleBlock = samples.subarray(i, i + blockSize * channels);
+                    const mp3buf = mp3encoder.encodeBuffer(sampleBlock);
+                    if (mp3buf.length > 0) {
+                        mp3Data.push(mp3buf);
+                    }
+                }
+                
+                // Flush remaining data
+                const mp3buf = mp3encoder.flush();
+                if (mp3buf.length > 0) {
+                    mp3Data.push(mp3buf);
+                }
+                
+                // Create blob
+                const blob = new Blob(mp3Data, { type: 'audio/mp3' });
+                
+                const endTime = performance.now();
+                const encodingTime = (endTime - startTime).toFixed(0);
+                
+                console.log(`✅ MP3 encoding complete in ${encodingTime}ms:`, blob.size, 'bytes');
+                resolve(blob);
+                
+            } catch (error) {
+                console.error('❌ MP3 encoding failed:', error);
+                reject(error);
+            }
+        });
     }
     
     // Convert blob to base64 for upload

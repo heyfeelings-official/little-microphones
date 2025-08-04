@@ -808,7 +808,14 @@ async function handleTrim() {
         const base64Audio = await processor.blobToBase64(trimmedBlob);
         
         // Determine file extension based on blob type
-        const newExtension = trimmedBlob.type.includes('webm') ? '.webm' : '.wav';
+        let newExtension = '.webm'; // default
+        if (trimmedBlob.type.includes('mp3')) {
+            newExtension = '.mp3';
+        } else if (trimmedBlob.type.includes('webm')) {
+            newExtension = '.webm';
+        } else if (trimmedBlob.type.includes('wav')) {
+            newExtension = '.wav';
+        }
         
         // Keep original filename but update extension if needed
         const baseName = AppState.currentFile.name.replace(/\.[^/.]+$/, '');
