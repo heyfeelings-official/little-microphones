@@ -817,45 +817,50 @@ async function handleTrim() {
             newExtension = '.wav';
         }
         
-        // Keep original filename but update extension if needed
+        // Create timestamped copy instead of overwriting original
         const baseName = AppState.currentFile.name.replace(/\.[^/.]+$/, '');
-        const originalExtension = AppState.currentFile.name.split('.').pop();
-        const finalFileName = `${baseName}${newExtension}`;
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        const finalFileName = `${baseName}_trimmed_${timestamp}${newExtension}`;
         
-        // Upload trimmed file (replaces original)
-        showToast('info', 'Uploading trimmed audio...');
+        console.log('📝 Creating trimmed copy:', finalFileName);
+        
+        // Upload trimmed file as new copy
+        showToast('info', 'Uploading trimmed audio copy...');
+        
+        const uploadPayload = {
+            adminMode: true,
+            audioData: base64Audio,
+            fileName: finalFileName,
+            filePath: AppState.currentFile.path.substring(0, AppState.currentFile.path.lastIndexOf('/'))
+        };
+        
+        console.log('📤 Upload payload:', {
+            fileName: uploadPayload.fileName,
+            filePath: uploadPayload.filePath,
+            audioDataSize: uploadPayload.audioData.length
+        });
         
         const uploadResponse = await fetch('/api/upload-audio', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                adminMode: true,
-                audioData: base64Audio,
-                fileName: finalFileName,
-                filePath: AppState.currentFile.path.substring(0, AppState.currentFile.path.lastIndexOf('/'))
-            })
+            body: JSON.stringify(uploadPayload)
         });
         
         if (!uploadResponse.ok) {
-            const error = await uploadResponse.json();
-            throw new Error(error.message || 'Failed to upload trimmed audio');
+            const errorText = await uploadResponse.text();
+            console.error('❌ Upload failed:', uploadResponse.status, errorText);
+            throw new Error(`Upload failed (${uploadResponse.status}): ${errorText}`);
         }
         
-        showToast('success', 'Audio trimmed and replaced successfully!');
+        const uploadResult = await uploadResponse.json();
+        console.log('✅ Upload successful:', uploadResult);
         
-        // Update current file info if extension changed
-        if (originalExtension !== newExtension.substring(1)) {
-            AppState.currentFile.name = finalFileName;
-            AppState.currentFile.path = AppState.currentFile.path.replace(/\.[^/.]+$/, newExtension);
-            
-            // Update file info display
-            updateFileInfoDisplay();
-        }
+        showToast('success', 'Trimmed audio copy uploaded successfully!');
         
-        // Refresh the specific file in the tree instead of reloading everything
-        await refreshCurrentFile();
+        // Reload file tree to show the new trimmed copy
+        await loadFileTree();
         
     } catch (error) {
         console.error('Trim error:', error);
