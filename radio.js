@@ -180,6 +180,9 @@
         const audioSegments = [];
         const lang = window.LM_CONFIG.getCurrentLanguage();
         
+        // Determine user role based on recording type
+        const userRole = type === 'kids' ? 'educators' : 'parents';
+        
         // Group recordings by questionId
         const recordingsByQuestion = {};
         recordings.forEach(recording => {
@@ -201,21 +204,28 @@
         // Sort question IDs numerically
         const sortedQuestionIds = Object.keys(recordingsByQuestion).sort((a, b) => parseInt(a) - parseInt(b));
         
-        // 1. Add intro
+        // 1. Add intro jingle
         audioSegments.push({
             type: 'single',
-                            url: window.LM_CONFIG.getLocalizedAudioUrl(`audio/other/intro.webm?t=${Date.now()}`, lang)
+            url: window.LM_CONFIG.getLocalizedAudioUrl(`audio/jingles/intro-jingle.mp3?t=${Date.now()}`, lang)
         });
         
-        // 2. Add questions and answers in order
+        // 2. Add world-specific intro (role-based)
+        const worldIntroTimestamp = Date.now() + 1;
+        audioSegments.push({
+            type: 'single',
+            url: window.LM_CONFIG.getLocalizedAudioUrl(`audio/${world}/other/${world}-intro-${userRole}.mp3?t=${worldIntroTimestamp}`, lang)
+        });
+        
+        // 3. Add questions and answers in order
         sortedQuestionIds.forEach(questionId => {
             const questionRecordings = recordingsByQuestion[questionId];
             
-            // Add question prompt
+            // Add question prompt from world-specific questions folder
             const cacheBustTimestamp = Date.now() + Math.random();
             audioSegments.push({
                 type: 'single',
-                                    url: window.LM_CONFIG.getLocalizedAudioUrl(`audio/${world}/${world}-QID${questionId}.webm?t=${cacheBustTimestamp}`, lang)
+                url: window.LM_CONFIG.getLocalizedAudioUrl(`audio/${world}/questions/${world}-QID${questionId}.mp3?t=${cacheBustTimestamp}`, lang)
             });
             
             // Sort answers by timestamp (first recorded = first played)
@@ -228,22 +238,29 @@
                 return getTimestamp(a.filename) - getTimestamp(b.filename);
             });
             
-            // Combine answers with background music
+            // Combine answers with world-specific background music
             const backgroundTimestamp = Date.now() + Math.random();
             audioSegments.push({
                 type: 'combine_with_background',
                 answerUrls: sortedAnswers.map(recording => recording.url || recording.cloudUrl),
-                                    backgroundUrl: window.LM_CONFIG.getLocalizedAudioUrl(`audio/other/monkeys.webm?t=${backgroundTimestamp}`, lang),
+                backgroundUrl: window.LM_CONFIG.getLocalizedAudioUrl(`audio/${world}/other/${world}-background.mp3?t=${backgroundTimestamp}`, lang),
                 questionId: questionId,
                 recordingType: type // Add type identifier
             });
         });
         
-        // 3. Add outro
-        const outroTimestamp = Date.now() + 1;
+        // 4. Add world-specific outro (role-based)
+        const worldOutroTimestamp = Date.now() + 2;
         audioSegments.push({
             type: 'single',
-                            url: window.LM_CONFIG.getLocalizedAudioUrl(`audio/other/outro.webm?t=${outroTimestamp}`, lang)
+            url: window.LM_CONFIG.getLocalizedAudioUrl(`audio/${world}/other/${world}-outro-${userRole}.mp3?t=${worldOutroTimestamp}`, lang)
+        });
+        
+        // 5. Add outro jingle
+        const outroJingleTimestamp = Date.now() + 3;
+        audioSegments.push({
+            type: 'single',
+            url: window.LM_CONFIG.getLocalizedAudioUrl(`audio/jingles/outro-jingle.mp3?t=${outroJingleTimestamp}`, lang)
         });
         
         return audioSegments;

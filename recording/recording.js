@@ -1686,27 +1686,39 @@ async function generateRadioProgram(world, lmid) {
         // Build audio segments in correct order
         const audioSegments = [];
         
-        // 1. Add intro
-        const introTimestamp = Date.now();
-                    const introUrl = `https://little-microphones.b-cdn.net/audio/other/intro.webm?t=${introTimestamp}`;
+        // 1. Add intro jingle
+        const introJingleTimestamp = Date.now();
+        const introJingleUrl = `https://little-microphones.b-cdn.net/audio/jingles/intro-jingle.mp3?t=${introJingleTimestamp}`;
         audioSegments.push({
             type: 'single',
-            url: introUrl
+            url: introJingleUrl
         });
         
-        // 2. Add questions and answers in numeric order
+        // 2. Add world-specific intro (role-based)
+        // Detect user role from recordings structure
+        const allRecordings = Object.values(recordings).flat();
+        const userRole = allRecordings.length > 0 && allRecordings[0].filename.startsWith('kids-') ? 'educators' : 'parents';
+        
+        const worldIntroTimestamp = Date.now() + 1;
+        const worldIntroUrl = `https://little-microphones.b-cdn.net/audio/${world}/other/${world}-intro-${userRole}.mp3?t=${worldIntroTimestamp}`;
+        audioSegments.push({
+            type: 'single',
+            url: worldIntroUrl
+        });
+        
+        // 3. Add questions and answers in numeric order
         for (let i = 0; i < sortedQuestionIds.length; i++) {
             const questionId = sortedQuestionIds[i];
             const questionRecordings = recordings[questionId];
             
-            // Add question prompt with cache-busting
-            const cacheBustTimestamp = Date.now();
-                            const questionUrl = `https://little-microphones.b-cdn.net/audio/${world}/${world}-QID${questionId}.webm?t=${cacheBustTimestamp}`;
+            // Add question prompt from world-specific questions folder
+            const cacheBustTimestamp = Date.now() + Math.random();
+            const questionUrl = `https://little-microphones.b-cdn.net/audio/${world}/questions/${world}-QID${questionId}.mp3?t=${cacheBustTimestamp}`;
             audioSegments.push({
                 type: 'single',
                 url: questionUrl
             });
-            console.log(`📁 Question ${questionId} prompt added`);
+            console.log(`📁 Question ${questionId} prompt added from world-specific folder`);
             
             // Sort answers by timestamp (first recorded = first played)
             const sortedAnswers = questionRecordings.sort((a, b) => a.timestamp - b.timestamp);
@@ -1714,9 +1726,9 @@ async function generateRadioProgram(world, lmid) {
             
             console.log(`🎤 Question ${questionId}: ${answerUrls.length} answers`);
             
-            // Combine answers with background music (cache-busted)
+            // Combine answers with world-specific background music
             const backgroundTimestamp = Date.now() + Math.random(); // Unique timestamp per question
-                                const backgroundUrl = `https://little-microphones.b-cdn.net/audio/other/monkeys.webm?t=${backgroundTimestamp}`;
+            const backgroundUrl = `https://little-microphones.b-cdn.net/audio/${world}/other/${world}-background.mp3?t=${backgroundTimestamp}`;
             audioSegments.push({
                 type: 'combine_with_background',
                 answerUrls: answerUrls,
@@ -1725,12 +1737,20 @@ async function generateRadioProgram(world, lmid) {
             });
         }
         
-        // 3. Add outro
-        const outroTimestamp = Date.now() + 1;
-                    const outroUrl = `https://little-microphones.b-cdn.net/audio/other/outro.webm?t=${outroTimestamp}`;
+        // 4. Add world-specific outro (role-based)
+        const worldOutroTimestamp = Date.now() + 2;
+        const worldOutroUrl = `https://little-microphones.b-cdn.net/audio/${world}/other/${world}-outro-${userRole}.mp3?t=${worldOutroTimestamp}`;
         audioSegments.push({
             type: 'single',
-            url: outroUrl
+            url: worldOutroUrl
+        });
+        
+        // 5. Add outro jingle
+        const outroJingleTimestamp = Date.now() + 3;
+        const outroJingleUrl = `https://little-microphones.b-cdn.net/audio/jingles/outro-jingle.mp3?t=${outroJingleTimestamp}`;
+        audioSegments.push({
+            type: 'single',
+            url: outroJingleUrl
         });
         
         console.log(`🎼 Audio plan complete: ${audioSegments.length} segments`);

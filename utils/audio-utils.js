@@ -31,9 +31,10 @@
  * Convert raw recordings to audioSegments format expected by combine-audio API
  * @param {Array} recordings - Raw recordings from get-radio-data
  * @param {string} world - World name
+ * @param {string} userRole - User role ('parents' or 'educators') 
  * @returns {Array} Formatted audioSegments
  */
-export function convertRecordingsToAudioSegments(recordings, world) {
+export function convertRecordingsToAudioSegments(recordings, world, userRole = 'parents') {
     const audioSegments = [];
     
     // Group recordings by questionId
@@ -49,22 +50,29 @@ export function convertRecordingsToAudioSegments(recordings, world) {
     // Sort question IDs numerically
     const sortedQuestionIds = Object.keys(recordingsByQuestion).sort((a, b) => parseInt(a) - parseInt(b));
     
-    // 1. Add intro
-    const introTimestamp = Date.now();
+    // 1. Add intro jingle
+    const introJingleTimestamp = Date.now();
     audioSegments.push({
         type: 'single',
-        url: `https://little-microphones.b-cdn.net/audio/other/intro.webm?t=${introTimestamp}`
+        url: `https://little-microphones.b-cdn.net/audio/jingles/intro-jingle.mp3?t=${introJingleTimestamp}`
     });
     
-    // 2. Add questions and answers in order
+    // 2. Add world-specific intro (role-based)
+    const worldIntroTimestamp = Date.now() + 1;
+    audioSegments.push({
+        type: 'single',
+        url: `https://little-microphones.b-cdn.net/audio/${world}/other/${world}-intro-${userRole}.mp3?t=${worldIntroTimestamp}`
+    });
+    
+    // 3. Add questions and answers in order
     sortedQuestionIds.forEach(questionId => {
         const questionRecordings = recordingsByQuestion[questionId];
         
-        // Add question prompt
+        // Add question prompt from world-specific questions folder
         const cacheBustTimestamp = Date.now() + Math.random();
         audioSegments.push({
             type: 'single',
-            url: `https://little-microphones.b-cdn.net/audio/${world}/${world}-QID${questionId}.webm?t=${cacheBustTimestamp}`
+            url: `https://little-microphones.b-cdn.net/audio/${world}/questions/${world}-QID${questionId}.mp3?t=${cacheBustTimestamp}`
         });
         
         // Sort answers by filename timestamp (first recorded = first played)
@@ -74,25 +82,59 @@ export function convertRecordingsToAudioSegments(recordings, world) {
             return timestampA - timestampB;
         });
         
-        // Combine answers with background music
+        // Combine answers with world-specific background music
         const backgroundTimestamp = Date.now() + Math.random();
         audioSegments.push({
             type: 'combine_with_background',
             answerUrls: sortedAnswers.map(recording => recording.url),
-                            backgroundUrl: `https://little-microphones.b-cdn.net/audio/other/monkeys.webm?t=${backgroundTimestamp}`,
+            backgroundUrl: `https://little-microphones.b-cdn.net/audio/${world}/other/${world}-background.mp3?t=${backgroundTimestamp}`,
             questionId: questionId
         });
     });
     
-    // 3. Add outro
-    const outroTimestamp = Date.now() + 1;
+    // 4. Add world-specific outro (role-based)
+    const worldOutroTimestamp = Date.now() + 2;
     audioSegments.push({
         type: 'single',
-        url: `https://little-microphones.b-cdn.net/audio/other/outro.webm?t=${outroTimestamp}`
+        url: `https://little-microphones.b-cdn.net/audio/${world}/other/${world}-outro-${userRole}.mp3?t=${worldOutroTimestamp}`
     });
     
-    console.log(`🎼 Generated ${audioSegments.length} audio segments for ${sortedQuestionIds.length} questions`);
+    // 5. Add outro jingle
+    const outroJingleTimestamp = Date.now() + 3;
+    audioSegments.push({
+        type: 'single',
+        url: `https://little-microphones.b-cdn.net/audio/jingles/outro-jingle.mp3?t=${outroJingleTimestamp}`
+    });
+    
+    console.log(`🎼 Generated ${audioSegments.length} audio segments for ${world} (${userRole}) with ${sortedQuestionIds.length} questions`);
     return audioSegments;
+}
+
+/**
+ * Detect user role based on recordings structure
+ * @param {Array} recordings - Array of recordings
+ * @returns {string} User role ('parents' or 'educators')
+ */
+export function detectUserRole(recordings) {
+    if (!recordings || recordings.length === 0) {
+        return 'parents'; // Default fallback
+    }
+    
+    // Check first recording filename to determine role
+    const firstRecording = recordings[0];
+    if (firstRecording && firstRecording.filename) {
+        // Educators (kids) have "kids-" prefix
+        if (firstRecording.filename.startsWith('kids-')) {
+            return 'educators';
+        }
+        // Parents have "parent_mem_sb_" prefix
+        if (firstRecording.filename.startsWith('parent_mem_sb_')) {
+            return 'parents';
+        }
+    }
+    
+    // Default to parents if detection fails
+    return 'parents';
 }
 
 /**
