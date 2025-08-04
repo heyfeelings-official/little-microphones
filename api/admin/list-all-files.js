@@ -1,8 +1,11 @@
-import { setCorsHeaders } from '../utils/api-utils.js';
-import { checkRateLimit } from '../utils/simple-rate-limiter.js';
-
 export default async function handler(req, res) {
-    setCorsHeaders(res);
+    // Secure CORS headers
+    const { setCorsHeaders } = await import('../utils/api-utils.js');
+    const corsHandler = setCorsHeaders(res, ['GET', 'OPTIONS']);
+    corsHandler(req);
+
+    // Rate limiting
+    const { checkRateLimit } = await import('../utils/simple-rate-limiter.js');
     
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
@@ -12,22 +15,18 @@ export default async function handler(req, res) {
         return res.status(405).json({ error: 'Method not allowed' });
     }
     
+    // Rate limiting - 20 requests per minute
+    if (!checkRateLimit(req, res, 'list-files', 20)) {
+        return; // Rate limit exceeded
+    }
+
     try {
-        // Rate limiting
-        const rateLimitResult = checkRateLimit(req);
-        if (!rateLimitResult.allowed) {
-            return res.status(429).json({ 
-                error: 'Too many requests', 
-                retryAfter: rateLimitResult.retryAfter 
-            });
-        }
         
         // Bunny.net configuration
         const BUNNY_API_KEY = process.env.BUNNY_API_KEY;
         const BUNNY_STORAGE_ZONE = process.env.BUNNY_STORAGE_ZONE;
-        const BUNNY_STORAGE_PASSWORD = process.env.BUNNY_STORAGE_PASSWORD;
         
-        if (!BUNNY_API_KEY || !BUNNY_STORAGE_ZONE || !BUNNY_STORAGE_PASSWORD) {
+        if (!BUNNY_API_KEY || !BUNNY_STORAGE_ZONE) {
             console.error('Missing Bunny.net configuration');
             return res.status(500).json({ error: 'Server configuration error' });
         }
@@ -41,7 +40,7 @@ export default async function handler(req, res) {
         const response = await fetch(bunnyUrl, {
             method: 'GET',
             headers: {
-                'AccessKey': BUNNY_STORAGE_PASSWORD,
+                'AccessKey': BUNNY_API_KEY,
                 'Accept': 'application/json'
             }
         });
@@ -81,7 +80,7 @@ async function transformFileList(items, currentPath) {
         if (item.IsDirectory) {
             // Fetch contents of subdirectory
             const BUNNY_STORAGE_ZONE = process.env.BUNNY_STORAGE_ZONE;
-            const BUNNY_STORAGE_PASSWORD = process.env.BUNNY_STORAGE_PASSWORD;
+            const BUNNY_API_KEY = process.env.BUNNY_API_KEY;
             
             const subDirUrl = `https://storage.bunnycdn.com/${BUNNY_STORAGE_ZONE}/${fullPath}/`;
             
@@ -89,7 +88,7 @@ async function transformFileList(items, currentPath) {
                 const response = await fetch(subDirUrl, {
                     method: 'GET',
                     headers: {
-                        'AccessKey': BUNNY_STORAGE_PASSWORD,
+                        'AccessKey': BUNNY_API_KEY,
                         'Accept': 'application/json'
                     }
                 });
