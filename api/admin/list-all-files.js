@@ -1,11 +1,9 @@
+// Simplified version for debugging
 export default async function handler(req, res) {
-    // Secure CORS headers
-    const { setCorsHeaders } = await import('../utils/api-utils.js');
-    const corsHandler = setCorsHeaders(res, ['GET', 'OPTIONS']);
-    corsHandler(req);
-
-    // Rate limiting
-    const { checkRateLimit } = await import('../utils/simple-rate-limiter.js');
+    // Basic CORS
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
@@ -15,10 +13,7 @@ export default async function handler(req, res) {
         return res.status(405).json({ error: 'Method not allowed' });
     }
     
-    // Rate limiting - 20 requests per minute
-    if (!checkRateLimit(req, res, 'list-files', 20)) {
-        return; // Rate limit exceeded
-    }
+    console.log('📁 List files API called');
 
     try {
         
