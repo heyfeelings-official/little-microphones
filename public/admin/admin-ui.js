@@ -805,7 +805,9 @@ async function handleTrim() {
         );
         
         // Convert to base64 for upload
+        console.log('🔄 Converting blob to base64...', trimmedBlob.size, 'bytes');
         const base64Audio = await processor.blobToBase64(trimmedBlob);
+        console.log('✅ Base64 conversion complete, length:', base64Audio.length);
         
         // Determine file extension based on blob type
         let newExtension = '.webm'; // default
@@ -823,6 +825,10 @@ async function handleTrim() {
         const finalFileName = `${baseName}_trimmed_${timestamp}${newExtension}`;
         
         console.log('📝 Creating trimmed copy:', finalFileName);
+        console.log('📁 Original file path:', AppState.currentFile.path);
+        
+        const targetFolderPath = AppState.currentFile.path.substring(0, AppState.currentFile.path.lastIndexOf('/'));
+        console.log('📁 Target folder path:', targetFolderPath);
         
         // Upload trimmed file as new copy
         showToast('info', 'Uploading trimmed audio copy...');
@@ -831,7 +837,7 @@ async function handleTrim() {
             adminMode: true,
             audioData: base64Audio,
             fileName: finalFileName,
-            filePath: AppState.currentFile.path.substring(0, AppState.currentFile.path.lastIndexOf('/'))
+            filePath: targetFolderPath
         };
         
         console.log('📤 Upload payload:', {
@@ -840,22 +846,30 @@ async function handleTrim() {
             audioDataSize: uploadPayload.audioData.length
         });
         
-        const uploadResponse = await fetch('/api/upload-audio', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(uploadPayload)
-        });
-        
-        if (!uploadResponse.ok) {
-            const errorText = await uploadResponse.text();
-            console.error('❌ Upload failed:', uploadResponse.status, errorText);
-            throw new Error(`Upload failed (${uploadResponse.status}): ${errorText}`);
+        try {
+            const uploadResponse = await fetch('/api/upload-audio', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(uploadPayload)
+            });
+            
+            console.log('📡 Upload response status:', uploadResponse.status);
+            
+            if (!uploadResponse.ok) {
+                const errorText = await uploadResponse.text();
+                console.error('❌ Upload failed:', uploadResponse.status, errorText);
+                throw new Error(`Upload failed (${uploadResponse.status}): ${errorText}`);
+            }
+            
+            const uploadResult = await uploadResponse.json();
+            console.log('✅ Upload successful:', uploadResult);
+            
+        } catch (uploadError) {
+            console.error('❌ Upload error:', uploadError);
+            throw uploadError;
         }
-        
-        const uploadResult = await uploadResponse.json();
-        console.log('✅ Upload successful:', uploadResult);
         
         showToast('success', 'Trimmed audio copy uploaded successfully!');
         
