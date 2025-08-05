@@ -477,9 +477,9 @@ async function combineAnswersWithBackground(answerPaths, backgroundPath, outputP
         const bgIndex = answerPaths.length;
         filters.push(`[${bgIndex}:a]aloop=loop=-1:size=2e+09[background_loop]`);
         
-        // Mix enhanced answers with background at 30% volume for ENTIRE duration
-        filters.push(`[background_loop]volume=0.3[background_30]`);
-        filters.push(`[answers_combined][background_30]amix=inputs=2:duration=first:dropout_transition=0[mixed]`);
+        // Mix enhanced answers with background at 20% volume for ENTIRE duration
+        filters.push(`[background_loop]volume=0.2[background_20]`);
+        filters.push(`[answers_combined][background_20]amix=inputs=2:duration=first:dropout_transition=0[mixed]`);
         
         command
             .complexFilter(filters)
@@ -550,8 +550,8 @@ async function assembleFinalProgram(processedSegments, outputPath, backgroundUrl
                     filters.push(`[1:a]acopy[all_content]`);
                 }
                 
-                // Loop background music and mix with ALL content at 30% volume for ENTIRE duration
-                filters.push(`[${backgroundInputIndex}:a]aloop=loop=-1:size=2e+09,volume=0.3[background_loop]`);
+                // Loop background music and mix with ALL content at 20% volume for ENTIRE duration
+                filters.push(`[${backgroundInputIndex}:a]aloop=loop=-1:size=2e+09,volume=0.2[background_loop]`);
                 filters.push(`[all_content][background_loop]amix=inputs=2:duration=first:dropout_transition=0[content_with_bg]`);
                 
                 // Final concatenation: intro-jingle + all-content-with-background
