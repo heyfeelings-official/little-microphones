@@ -64,20 +64,13 @@ export function convertRecordingsToAudioSegments(recordings, world, userRole = '
         url: `https://little-microphones.b-cdn.net/audio/${world}/other/${world}-intro-${userRole}.mp3?t=${worldIntroTimestamp}`
     });
     
-    // 3. Add middle jingle
-    const middleJingleTimestamp = Date.now() + 2;
-    audioSegments.push({
-        type: 'single',
-        url: `https://little-microphones.b-cdn.net/audio/jingles/middle-jingle.mp3?t=${middleJingleTimestamp}`
-    });
-    
-    // 4. Add 1 second silence before questions
+    // 3. Add 1 second silence before questions
     audioSegments.push({
         type: 'silence',
         duration: 1
     });
     
-    // 5. Add questions and answers in order
+    // 4. Add questions and answers in order
     sortedQuestionIds.forEach(questionId => {
         const questionRecordings = recordingsByQuestion[questionId];
         
@@ -111,21 +104,21 @@ export function convertRecordingsToAudioSegments(recordings, world, userRole = '
         });
     });
     
-    // 6. Add middle jingle before outros
+    // 5. Add middle jingle before outros
     const middleJingleTimestamp = Date.now() + 3;
     audioSegments.push({
         type: 'single',
         url: `https://little-microphones.b-cdn.net/audio/jingles/middle-jingle.mp3?t=${middleJingleTimestamp}`
     });
     
-    // 7. Add outro jingle
+    // 6. Add outro jingle
     const outroJingleTimestamp = Date.now() + 4;
     audioSegments.push({
         type: 'single',
         url: `https://little-microphones.b-cdn.net/audio/jingles/outro-jingle.mp3?t=${outroJingleTimestamp}`
     });
     
-    // 8. Add world-specific outro (role-based) - LAST
+    // 7. Add world-specific outro (role-based) - LAST
     const worldOutroTimestamp = Date.now() + 5;
     audioSegments.push({
         type: 'single',

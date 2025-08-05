@@ -217,20 +217,13 @@
             url: window.LM_CONFIG.getLocalizedAudioUrl(`audio/${world}/other/${world}-intro-${userRole}.mp3?t=${worldIntroTimestamp}`, lang)
         });
         
-        // 3. Add middle jingle
-        const middleJingleTimestamp = Date.now() + 2;
-        audioSegments.push({
-            type: 'single',
-            url: window.LM_CONFIG.getLocalizedAudioUrl(`audio/jingles/middle-jingle.mp3?t=${middleJingleTimestamp}`, lang)
-        });
-        
-        // 4. Add 1 second silence before questions
+        // 3. Add 1 second silence before questions
         audioSegments.push({
             type: 'silence',
             duration: 1
         });
         
-        // 5. Add questions and answers in order
+        // 4. Add questions and answers in order
         sortedQuestionIds.forEach(questionId => {
             const questionRecordings = recordingsByQuestion[questionId];
             
@@ -268,15 +261,22 @@
             });
         });
         
+        // 5. Add middle jingle before outros
+        const middleJingleTimestamp = Date.now() + 3;
+        audioSegments.push({
+            type: 'single',
+            url: window.LM_CONFIG.getLocalizedAudioUrl(`audio/jingles/middle-jingle.mp3?t=${middleJingleTimestamp}`, lang)
+        });
+        
         // 6. Add outro jingle
-        const outroJingleTimestamp = Date.now() + 3;
+        const outroJingleTimestamp = Date.now() + 4;
         audioSegments.push({
             type: 'single',
             url: window.LM_CONFIG.getLocalizedAudioUrl(`audio/jingles/outro-jingle.mp3?t=${outroJingleTimestamp}`, lang)
         });
         
         // 7. Add world-specific outro (role-based) - LAST
-        const worldOutroTimestamp = Date.now() + 4;
+        const worldOutroTimestamp = Date.now() + 5;
         audioSegments.push({
             type: 'single',
             url: window.LM_CONFIG.getLocalizedAudioUrl(`audio/${world}/other/${world}-outro-${userRole}.mp3?t=${worldOutroTimestamp}`, lang)
