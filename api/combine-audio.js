@@ -485,17 +485,15 @@ async function assembleFinalProgram(processedSegments, outputPath, backgroundUrl
             const command = ffmpeg();
             
             // Identify jingle segments 
-            // Structure: intro-jingle, world-intro, questions+answers, middle-jingle, outro-jingle, world-outro
+            // Structure: intro-jingle, world-intro, [middle-jingles + questions+answers], outro-jingle, world-outro
             const introJingleIndex = 0; // First segment: intro jingle
-            const middleJingleIndex = processedSegments.length - 3; // Third to last: middle jingle
             const outroJingleIndex = processedSegments.length - 2; // Second to last: outro jingle  
             const lastSegmentIndex = processedSegments.length - 1; // Last segment: world outro
             
             console.log(`🎵 Assembling program: ${processedSegments.length} segments`);
             console.log(`🎵 Intro jingle: segment ${introJingleIndex + 1} (no background)`);
-            console.log(`🎵 Middle jingle: segment ${middleJingleIndex + 1} (no background)`);
             console.log(`🎵 Outro jingle: segment ${outroJingleIndex + 1} (no background)`);
-            console.log(`🎵 Background will be under segments ${introJingleIndex + 2} to ${middleJingleIndex}`);
+            console.log(`🎵 Background will be under segments ${introJingleIndex + 2} to ${outroJingleIndex}`);
             
             // Add all processed segments as inputs
             processedSegments.forEach(segment => command.input(segment.path));
@@ -511,11 +509,11 @@ async function assembleFinalProgram(processedSegments, outputPath, backgroundUrl
             
             const filters = [];
             
-            // Structure: intro-jingle + [middle content with background] + middle-jingle + outro-jingle + world-outro
-            if (processedSegments.length > 4) {
-                // Concatenate middle segments (everything except intro-jingle, middle-jingle, outro-jingle, and world-outro)
+            // Structure: intro-jingle + [middle content with background] + outro-jingle + world-outro
+            if (processedSegments.length > 3) {
+                // Concatenate middle segments (everything except intro-jingle, outro-jingle, and world-outro)
                 const middleSegments = [];
-                for (let i = 1; i < middleJingleIndex; i++) {
+                for (let i = 1; i < outroJingleIndex; i++) {
                     middleSegments.push(`[${i}:a]`);
                 }
                 
@@ -529,8 +527,8 @@ async function assembleFinalProgram(processedSegments, outputPath, backgroundUrl
                 filters.push(`[${backgroundInputIndex}:a]aloop=loop=-1:size=2e+09,volume=0.5[background_loop]`);
                 filters.push(`[middle_content][background_loop]amix=inputs=2:duration=shortest:dropout_transition=0[middle_with_bg]`);
                 
-                // Final concatenation: intro-jingle + middle-with-background + middle-jingle + outro-jingle + world-outro
-                filters.push(`[${introJingleIndex}:a][middle_with_bg][${middleJingleIndex}:a][${outroJingleIndex}:a][${lastSegmentIndex}:a]concat=n=5:v=0:a=1[final]`);
+                // Final concatenation: intro-jingle + middle-with-background + outro-jingle + world-outro
+                filters.push(`[${introJingleIndex}:a][middle_with_bg][${outroJingleIndex}:a][${lastSegmentIndex}:a]concat=n=4:v=0:a=1[final]`);
                 
                 // Light normalization of final program (preserves dynamics)
                 filters.push(`[final]dynaudnorm=f=75:g=15:p=0.8[outa]`);

@@ -74,10 +74,11 @@ export function convertRecordingsToAudioSegments(recordings, world, userRole = '
     sortedQuestionIds.forEach(questionId => {
         const questionRecordings = recordingsByQuestion[questionId];
         
-        // Add 1 second silence before each question
+        // Add middle jingle before each question
+        const middleJingleTimestamp = Date.now() + Math.random();
         audioSegments.push({
-            type: 'silence',
-            duration: 1
+            type: 'single',
+            url: `https://little-microphones.b-cdn.net/audio/jingles/middle-jingle.mp3?t=${middleJingleTimestamp}`
         });
         
         // Add question prompt from world-specific questions folder
@@ -104,22 +105,15 @@ export function convertRecordingsToAudioSegments(recordings, world, userRole = '
         });
     });
     
-    // 5. Add middle jingle before outros
-    const middleJingleTimestamp = Date.now() + 3;
-    audioSegments.push({
-        type: 'single',
-        url: `https://little-microphones.b-cdn.net/audio/jingles/middle-jingle.mp3?t=${middleJingleTimestamp}`
-    });
-    
-    // 6. Add outro jingle
-    const outroJingleTimestamp = Date.now() + 4;
+    // 5. Add outro jingle
+    const outroJingleTimestamp = Date.now() + 3;
     audioSegments.push({
         type: 'single',
         url: `https://little-microphones.b-cdn.net/audio/jingles/outro-jingle.mp3?t=${outroJingleTimestamp}`
     });
     
-    // 7. Add world-specific outro (role-based) - LAST
-    const worldOutroTimestamp = Date.now() + 5;
+    // 6. Add world-specific outro (role-based) - LAST
+    const worldOutroTimestamp = Date.now() + 4;
     audioSegments.push({
         type: 'single',
         url: `https://little-microphones.b-cdn.net/audio/${world}/other/${world}-outro-${userRole}.mp3?t=${worldOutroTimestamp}`

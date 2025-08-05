@@ -1717,10 +1717,12 @@ async function generateRadioProgram(world, lmid) {
             const questionId = sortedQuestionIds[i];
             const questionRecordings = recordings[questionId];
             
-            // Add 1 second silence before each question
+            // Add middle jingle before each question
+            const middleJingleTimestamp = Date.now() + Math.random();
+            const middleJingleUrl = `https://little-microphones.b-cdn.net/audio/jingles/middle-jingle.mp3?t=${middleJingleTimestamp}`;
             audioSegments.push({
-                type: 'silence',
-                duration: 1
+                type: 'single',
+                url: middleJingleUrl
             });
             
             // Add question prompt from world-specific questions folder
@@ -1749,24 +1751,16 @@ async function generateRadioProgram(world, lmid) {
             });
         }
         
-        // 5. Add middle jingle before outros
-        const middleJingleTimestamp = Date.now() + 3;
-        const middleJingleUrl = `https://little-microphones.b-cdn.net/audio/jingles/middle-jingle.mp3?t=${middleJingleTimestamp}`;
-        audioSegments.push({
-            type: 'single',
-            url: middleJingleUrl
-        });
-        
-        // 6. Add outro jingle
-        const outroJingleTimestamp = Date.now() + 4;
+        // 5. Add outro jingle
+        const outroJingleTimestamp = Date.now() + 3;
         const outroJingleUrl = `https://little-microphones.b-cdn.net/audio/jingles/outro-jingle.mp3?t=${outroJingleTimestamp}`;
         audioSegments.push({
             type: 'single',
             url: outroJingleUrl
         });
         
-        // 7. Add world-specific outro (role-based) - LAST
-        const worldOutroTimestamp = Date.now() + 5;
+        // 6. Add world-specific outro (role-based) - LAST
+        const worldOutroTimestamp = Date.now() + 4;
         const worldOutroUrl = `https://little-microphones.b-cdn.net/audio/${world}/other/${world}-outro-${userRole}.mp3?t=${worldOutroTimestamp}`;
         audioSegments.push({
             type: 'single',
