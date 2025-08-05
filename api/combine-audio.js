@@ -520,7 +520,7 @@ async function assembleFinalProgram(processedSegments, outputPath, backgroundUrl
             console.log(`🎵 Intro jingle: segment ${introJingleIndex + 1} (no background)`);
             console.log(`🎵 Final middle jingle: segment ${finalMiddleJingleIndex + 1} (no background)`);
             console.log(`🎵 Outro jingle: segment ${outroJingleIndex + 1} (no background)`);
-            console.log(`🎵 Background will be under segments ${introJingleIndex + 2} to ${finalMiddleJingleIndex}`);
+            console.log(`🎵 Background will be under segments ${introJingleIndex + 2} to ${lastSegmentIndex} (world-outro)`);
             
             // Add all processed segments as inputs
             processedSegments.forEach(segment => command.input(segment.path));
@@ -536,26 +536,26 @@ async function assembleFinalProgram(processedSegments, outputPath, backgroundUrl
             
             const filters = [];
             
-            // Structure: intro-jingle + [middle content with background] + final-middle-jingle + outro-jingle + world-outro
+            // Structure: intro-jingle + [ALL content with background from world-intro to world-outro]
             if (processedSegments.length > 4) {
-                // Concatenate middle segments (everything except intro-jingle, final-middle-jingle, outro-jingle, and world-outro)
-                const middleSegments = [];
-                for (let i = 1; i < finalMiddleJingleIndex; i++) {
-                    middleSegments.push(`[${i}:a]`);
+                // Concatenate ALL segments except intro-jingle (everything from world-intro to world-outro)
+                const contentWithBackgroundSegments = [];
+                for (let i = 1; i < processedSegments.length; i++) {
+                    contentWithBackgroundSegments.push(`[${i}:a]`);
                 }
                 
-                if (middleSegments.length > 1) {
-                    filters.push(`${middleSegments.join('')}concat=n=${middleSegments.length}:v=0:a=1[middle_content]`);
+                if (contentWithBackgroundSegments.length > 1) {
+                    filters.push(`${contentWithBackgroundSegments.join('')}concat=n=${contentWithBackgroundSegments.length}:v=0:a=1[all_content]`);
                 } else {
-                    filters.push(`[1:a]acopy[middle_content]`);
+                    filters.push(`[1:a]acopy[all_content]`);
                 }
                 
-                // Loop background music and mix with middle content at 30% volume for ENTIRE duration
+                // Loop background music and mix with ALL content at 30% volume for ENTIRE duration
                 filters.push(`[${backgroundInputIndex}:a]aloop=loop=-1:size=2e+09,volume=0.3[background_loop]`);
-                filters.push(`[middle_content][background_loop]amix=inputs=2:duration=first:dropout_transition=0[middle_with_bg]`);
+                filters.push(`[all_content][background_loop]amix=inputs=2:duration=first:dropout_transition=0[content_with_bg]`);
                 
-                // Final concatenation: intro-jingle + middle-with-background + final-middle-jingle + outro-jingle + world-outro
-                filters.push(`[${introJingleIndex}:a][middle_with_bg][${finalMiddleJingleIndex}:a][${outroJingleIndex}:a][${lastSegmentIndex}:a]concat=n=5:v=0:a=1[final]`);
+                // Final concatenation: intro-jingle + all-content-with-background
+                filters.push(`[${introJingleIndex}:a][content_with_bg]concat=n=2:v=0:a=1[final]`);
                 
                 // Light normalization of final program (preserves dynamics)
                 filters.push(`[final]dynaudnorm=f=75:g=15:p=0.8[outa]`);
