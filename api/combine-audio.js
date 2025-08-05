@@ -331,6 +331,16 @@ async function combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams, p
                 console.log(`📥 Downloading: ${segment.url}`);
                 await downloadFile(segment.url, filePath);
                 
+                // Normalize system files (not user recordings - those are already normalized before upload)
+                const isSystemFile = segment.url.includes('/jingles/') || 
+                                   segment.url.includes('/other/') || 
+                                   segment.url.includes('/questions/') ||
+                                   segment.url.includes('-QID');
+                                   
+                if (isSystemFile) {
+                    await normalizeSystemFile(filePath);
+                }
+                
                 processedSegments.push({
                     path: filePath,
                     type: 'single',
@@ -557,15 +567,15 @@ async function assembleFinalProgram(processedSegments, outputPath, backgroundUrl
                 // Final concatenation: intro-jingle + all-content-with-background
                 filters.push(`[${introJingleIndex}:a][content_with_bg]concat=n=2:v=0:a=1[final]`);
                 
-                // Light normalization of final program (preserves dynamics)
-                filters.push(`[final]dynaudnorm=f=75:g=15:p=0.8[outa]`);
+                // No final normalization - all voice content already normalized individually
+                filters.push(`[final]acopy[outa]`);
             } else {
                 // Minimal segments - just concatenate all without background
                 const allSegments = processedSegments.map((_, index) => `[${index}:a]`).join('');
                 filters.push(`${allSegments}concat=n=${processedSegments.length}:v=0:a=1[final]`);
                 
-                // Light normalization of final program (preserves dynamics)
-                filters.push(`[final]dynaudnorm=f=75:g=15:p=0.8[outa]`);
+                // No final normalization - all voice content already normalized individually
+                filters.push(`[final]acopy[outa]`);
             }
             
             command
@@ -680,6 +690,48 @@ function downloadFile(url, filePath) {
             
             fileStream.on('error', reject);
         }).on('error', reject);
+    });
+}
+
+/**
+ * Normalize system audio files (intros, outros, QID questions) to match user recording levels
+ * @param {string} filePath - Path to the audio file to normalize
+ * @returns {Promise<void>}
+ */
+async function normalizeSystemFile(filePath) {
+    const tempOutputPath = `${filePath}.normalized`;
+    
+    return new Promise((resolve, reject) => {
+        // Apply same normalization as user recordings (matching upload-audio.js)
+        const targetLUFS = -16.0;  // EBU R128 standard for broadcast content
+        const targetLRA = 7.0;     // Loudness range for speech content
+        const targetTP = -1.0;     // True peak to prevent clipping
+        
+        ffmpeg(filePath)
+            .audioFilters([
+                // Intelligent loudness normalization - matches each recording to standard level
+                `loudnorm=I=${targetLUFS}:LRA=${targetLRA}:TP=${targetTP}:print_format=json`,
+                // Light enhancement for speech clarity
+                'highpass=f=80',           // Remove low-frequency noise
+                'lowpass=f=8000',          // Remove high-frequency noise
+                'compand=0.02,0.20:-60/-60,-30/-15,-20/-10,-5/-5,0/-3:6:0:-3' // Speech compressor
+            ])
+            .output(tempOutputPath)
+            .on('start', () => {
+                console.log(`🎵 Normalizing system file: ${path.basename(filePath)}`);
+            })
+            .on('end', async () => {
+                try {
+                    // Replace original with normalized version
+                    await fs.rename(tempOutputPath, filePath);
+                    console.log(`✨ System file normalized: ${path.basename(filePath)}`);
+                    resolve();
+                } catch (error) {
+                    reject(error);
+                }
+            })
+            .on('error', reject)
+            .run();
     });
 }
 
