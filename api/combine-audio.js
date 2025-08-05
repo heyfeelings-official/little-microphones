@@ -331,15 +331,7 @@ async function combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams, p
                 console.log(`📥 Downloading: ${segment.url}`);
                 await downloadFile(segment.url, filePath);
                 
-                // Normalize system files (not user recordings - those are already normalized before upload)
-                const isSystemFile = segment.url.includes('/jingles/') || 
-                                   segment.url.includes('/other/') || 
-                                   segment.url.includes('/questions/') ||
-                                   segment.url.includes('-QID');
-                                   
-                if (isSystemFile) {
-                    await normalizeSystemFile(filePath);
-                }
+                // Skip normalization here - will be done collectively after analysis
                 
                 processedSegments.push({
                     path: filePath,
@@ -410,8 +402,37 @@ async function combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams, p
             }
         }
         
+        // NEW APPROACH: Analyze and normalize all voice files together
+        console.log('🔍 Step 1: Analyzing voice levels for optimal normalization...');
+        
+        // Identify voice files (exclude jingles, include QIDs, answers, intros, outros)
+        const voiceFiles = [];
+        for (const segment of processedSegments) {
+            const isJingle = segment.url && segment.url.includes('/jingles/');
+            const isVoiceFile = !isJingle; // Everything except jingles is voice content
+            
+            if (isVoiceFile && segment.path) {
+                voiceFiles.push(segment.path);
+            }
+        }
+        
+        console.log(`📊 Found ${voiceFiles.length} voice files to analyze (excluding ${processedSegments.length - voiceFiles.length} jingles)`);
+        
+        // Analyze all voice files to determine optimal common level
+        const targetLevels = await analyzeAllVoiceLevels(voiceFiles);
+        
+        console.log('🎵 Step 2: Normalizing all voice files to common level...');
+        
+        // Normalize all voice files to the common target level
+        for (const filePath of voiceFiles) {
+            console.log(`🔧 Normalizing: ${path.basename(filePath)}`);
+            await normalizeVoiceFile(filePath, targetLevels);
+        }
+        
+        console.log(`✨ All ${voiceFiles.length} voice files normalized to ${targetLevels.targetLUFS.toFixed(1)} LUFS`);
+        
         // Final assembly of all segments IN ORDER
-        console.log('🎼 Assembling final radio program in correct order...');
+        console.log('🎼 Step 3: Assembling final radio program with background...');
         const outputPath = path.join(tempDir, `radio-program-${programType}-${world}-${lmid}.webm`);
         await assembleFinalProgram(processedSegments, outputPath, backgroundUrl, tempDir);
         
@@ -694,37 +715,119 @@ function downloadFile(url, filePath) {
 }
 
 /**
- * Normalize system audio files (intros, outros, QID questions) to match user recording levels
+ * Analyze loudness of all voice files to determine optimal common level
+ * @param {Array} voiceFiles - Array of voice file paths
+ * @returns {Promise<Object>} Analysis results with recommended target levels
+ */
+async function analyzeAllVoiceLevels(voiceFiles) {
+    console.log(`🔍 Analyzing loudness of ${voiceFiles.length} voice files...`);
+    
+    const analyses = [];
+    
+    for (const filePath of voiceFiles) {
+        try {
+            const analysis = await analyzeSingleFileLoudness(filePath);
+            if (analysis.inputLUFS !== null) {
+                analyses.push({
+                    file: path.basename(filePath),
+                    lufs: analysis.inputLUFS,
+                    lra: analysis.inputLRA,
+                    tp: analysis.inputTP
+                });
+                console.log(`📊 ${path.basename(filePath)}: ${analysis.inputLUFS.toFixed(1)} LUFS`);
+            }
+        } catch (error) {
+            console.warn(`⚠️ Could not analyze ${path.basename(filePath)}: ${error.message}`);
+        }
+    }
+    
+    if (analyses.length === 0) {
+        console.warn('⚠️ No files could be analyzed, using default levels');
+        return { targetLUFS: -16.0, targetLRA: 7.0, targetTP: -1.0 };
+    }
+    
+    // Calculate statistics
+    const lufsValues = analyses.map(a => a.lufs);
+    const avgLUFS = lufsValues.reduce((sum, val) => sum + val, 0) / lufsValues.length;
+    const minLUFS = Math.min(...lufsValues);
+    const maxLUFS = Math.max(...lufsValues);
+    
+    // Choose target level - slightly above average but not too loud
+    const targetLUFS = Math.max(-18.0, Math.min(-14.0, avgLUFS + 2.0));
+    
+    console.log(`📈 Voice analysis complete:`);
+    console.log(`   Average: ${avgLUFS.toFixed(1)} LUFS`);
+    console.log(`   Range: ${minLUFS.toFixed(1)} to ${maxLUFS.toFixed(1)} LUFS`);
+    console.log(`   Target: ${targetLUFS.toFixed(1)} LUFS`);
+    
+    return {
+        targetLUFS: targetLUFS,
+        targetLRA: 7.0,
+        targetTP: -1.0,
+        analysisCount: analyses.length,
+        avgLUFS: avgLUFS
+    };
+}
+
+/**
+ * Analyze loudness of a single audio file
+ * @param {string} filePath - Path to audio file
+ * @returns {Promise<Object>} Loudness analysis data
+ */
+async function analyzeSingleFileLoudness(filePath) {
+    return new Promise((resolve, reject) => {
+        let analysisOutput = '';
+        
+        ffmpeg(filePath)
+            .audioFilters(['loudnorm=print_format=json'])
+            .format('null')
+            .output('-')
+            .on('stderr', (stderrLine) => {
+                analysisOutput += stderrLine + '\n';
+            })
+            .on('end', () => {
+                try {
+                    const jsonMatch = analysisOutput.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                        const analysisData = JSON.parse(jsonMatch[0]);
+                        resolve({
+                            inputLUFS: parseFloat(analysisData.input_i) || null,
+                            inputLRA: parseFloat(analysisData.input_lra) || null,
+                            inputTP: parseFloat(analysisData.input_tp) || null
+                        });
+                    } else {
+                        resolve({ inputLUFS: null, inputLRA: null, inputTP: null });
+                    }
+                } catch (parseError) {
+                    resolve({ inputLUFS: null, inputLRA: null, inputTP: null });
+                }
+            })
+            .on('error', reject)
+            .run();
+    });
+}
+
+/**
+ * Normalize voice file to target levels
  * @param {string} filePath - Path to the audio file to normalize
+ * @param {Object} targetLevels - Target loudness levels
  * @returns {Promise<void>}
  */
-async function normalizeSystemFile(filePath) {
+async function normalizeVoiceFile(filePath, targetLevels) {
     const tempOutputPath = `${filePath}.normalized`;
     
     return new Promise((resolve, reject) => {
-        // Apply same normalization as user recordings (matching upload-audio.js)
-        const targetLUFS = -16.0;  // EBU R128 standard for broadcast content
-        const targetLRA = 7.0;     // Loudness range for speech content
-        const targetTP = -1.0;     // True peak to prevent clipping
-        
         ffmpeg(filePath)
             .audioFilters([
-                // Intelligent loudness normalization - matches each recording to standard level
-                `loudnorm=I=${targetLUFS}:LRA=${targetLRA}:TP=${targetTP}:print_format=json`,
-                // Light enhancement for speech clarity
-                'highpass=f=80',           // Remove low-frequency noise
-                'lowpass=f=8000',          // Remove high-frequency noise
-                'compand=0.02,0.20:-60/-60,-30/-15,-20/-10,-5/-5,0/-3:6:0:-3' // Speech compressor
+                `loudnorm=I=${targetLevels.targetLUFS}:LRA=${targetLevels.targetLRA}:TP=${targetLevels.targetTP}:print_format=json`,
+                'highpass=f=80',
+                'lowpass=f=8000',
+                'compand=0.02,0.20:-60/-60,-30/-15,-20/-10,-5/-5,0/-3:6:0:-3'
             ])
             .output(tempOutputPath)
-            .on('start', () => {
-                console.log(`🎵 Normalizing system file: ${path.basename(filePath)}`);
-            })
             .on('end', async () => {
                 try {
-                    // Replace original with normalized version
                     await fs.rename(tempOutputPath, filePath);
-                    console.log(`✨ System file normalized: ${path.basename(filePath)}`);
                     resolve();
                 } catch (error) {
                     reject(error);

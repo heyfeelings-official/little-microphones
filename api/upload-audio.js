@@ -368,22 +368,9 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: filenameValidation.error });
         }
 
-        // Process audio before upload (40% volume boost + normalization for user recordings)
+        // Upload original audio without normalization - will be normalized during program generation
         let processedAudioBuffer = audioBuffer;
-        
-        // Only process user recordings (kids/parent), not system audio files
-        const isUserRecording = filename.includes('kids-world_') || filename.includes('parent_');
-        
-        if (isUserRecording) {
-            try {
-                console.log(`🎵 Normalizing user recording to broadcast standards: ${filename}`);
-                processedAudioBuffer = await processAudioForUpload(audioBuffer, audioValidation.format);
-                console.log(`✨ Audio normalized to consistent loudness level`);
-            } catch (processError) {
-                console.warn(`⚠️ Audio normalization failed, uploading original: ${processError.message}`);
-                // Continue with original buffer if processing fails
-            }
-        }
+        console.log(`📤 Uploading original audio without pre-normalization: ${filename}`);
 
         // Upload to Bunny.net with folder structure: lang/lmid/world/filename
         const filePath = `${lang}/${lmid}/${world}/${filename}`;
