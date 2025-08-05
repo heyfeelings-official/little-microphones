@@ -33,7 +33,7 @@
  * 
  * AUDIO PARAMETERS (Classroom-Optimized):
  * - User Recordings: Light noise reduction, moderate volume boost, balanced EQ
- * - Background Music: 50% volume, filtered frequency range, seamless looping
+ * - Background Music: 50% volume, under entire program except jingles, seamless looping
  * - System Audio: Standard processing for intro/outro/questions
  * - Master Output: Professional mastering with dynamic normalization
  * 
@@ -332,8 +332,8 @@ async function combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams, p
                 console.log(`✅ Processed ${segment.type} segment ${i + 1}: ${fileName}`);
                 
             } else if (segment.type === 'combine_with_background') {
-                // Combine multiple answers with background music
-                console.log(`🎵 Processing ${segment.answerUrls.length} answers for ${segment.questionId} with background`);
+                // Just concatenate answers without background (background will be added globally)
+                console.log(`🎵 Processing ${segment.answerUrls.length} answers for ${segment.questionId} (background will be added globally)`);
                 
                 // Download all answer files
                 const answerPaths = [];
@@ -344,23 +344,18 @@ async function combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams, p
                     answerPaths.push(answerPath);
                 }
                 
-                // Download background music - URL is already localized by frontend
-                const backgroundPath = path.join(tempDir, `background-${String(i).padStart(3, '0')}.webm`);
-                console.log(`📥 Downloading background: ${segment.backgroundUrl}`);
-                await downloadFile(segment.backgroundUrl, backgroundPath);
-                
-                // Combine answers with background (no processing)
-                const combinedPath = path.join(tempDir, `segment-${String(i).padStart(3, '0')}-combined.webm`);
-                await combineAnswersWithBackground(answerPaths, backgroundPath, combinedPath);
+                // Just concatenate answers without background
+                const combinedPath = path.join(tempDir, `segment-${String(i).padStart(3, '0')}-answers.webm`);
+                await concatenateAnswers(answerPaths, combinedPath);
                 
                 processedSegments.push({
                     path: combinedPath,
-                    type: 'combined',
+                    type: 'answers',
                     questionId: segment.questionId,
                     originalIndex: i
                 });
                 
-                console.log(`✅ Processed combined segment ${i + 1}: ${segment.questionId}`);
+                console.log(`✅ Processed answers segment ${i + 1}: ${segment.questionId}`);
             }
         }
         
@@ -370,10 +365,19 @@ async function combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams, p
             console.log(`  ${index + 1}. [${segment.type.toUpperCase()}] Original index: ${segment.originalIndex}, Path: ${path.basename(segment.path)}`);
         });
         
+        // Extract background URL from segments (use first background found)
+        let backgroundUrl = null;
+        for (const segment of audioSegments) {
+            if (segment.type === 'combine_with_background' && segment.backgroundUrl) {
+                backgroundUrl = segment.backgroundUrl;
+                break;
+            }
+        }
+        
         // Final assembly of all segments IN ORDER
         console.log('🎼 Assembling final radio program in correct order...');
         const outputPath = path.join(tempDir, `radio-program-${programType}-${world}-${lmid}.webm`);
-        await assembleFinalProgram(processedSegments, outputPath);
+        await assembleFinalProgram(processedSegments, outputPath, backgroundUrl, tempDir);
         
         // Upload to Bunny.net
         const uploadUrl = await uploadToBunny(outputPath, world, lmid, programType, lang);
@@ -391,7 +395,41 @@ async function combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams, p
 }
 
 /**
- * Combine multiple answer recordings with background music (no processing)
+ * Concatenate multiple answer recordings without background
+ */
+async function concatenateAnswers(answerPaths, outputPath) {
+    return new Promise((resolve, reject) => {
+        const command = ffmpeg();
+        
+        // Add all answer inputs
+        answerPaths.forEach(path => command.input(path));
+        
+        // Simple concatenation of answers
+        const answerStreams = answerPaths.map((_, index) => `[${index}:a]`).join('');
+        const filter = `${answerStreams}concat=n=${answerPaths.length}:v=0:a=1[outa]`;
+        
+        command
+            .complexFilter([filter])
+            .outputOptions(['-map', '[outa]'])
+            .format('webm')
+            .audioCodec('libvorbis')
+            .on('start', (commandLine) => {
+                console.log(`🎵 Concatenating ${answerPaths.length} answers: ${commandLine}`);
+            })
+            .on('progress', (progress) => {
+                console.log(`⏳ Concatenating progress: ${Math.round(progress.percent || 0)}%`);
+            })
+            .on('end', () => {
+                console.log('✅ Answers concatenated');
+                resolve();
+            })
+            .on('error', reject)
+            .save(outputPath);
+    });
+}
+
+/**
+ * Combine multiple answer recordings with background music (no processing) - LEGACY
  */
 async function combineAnswersWithBackground(answerPaths, backgroundPath, outputPath) {
     return new Promise((resolve, reject) => {
@@ -438,42 +476,88 @@ async function combineAnswersWithBackground(answerPaths, backgroundPath, outputP
 }
 
 /**
- * Assemble final program from processed segments (no processing)
+ * Assemble final program with background music under everything except jingles
  */
-async function assembleFinalProgram(processedSegments, outputPath) {
-    return new Promise((resolve, reject) => {
-        const command = ffmpeg();
-        
-        // Add all processed segments as inputs
-        processedSegments.forEach(segment => command.input(segment.path));
-        
-        // Simple concatenation of all segments (no processing)
-        const segmentStreams = processedSegments.map((_, index) => `[${index}:a]`).join('');
-        const filter = `${segmentStreams}concat=n=${processedSegments.length}:v=0:a=1[outa]`;
-        
-        command
-            .complexFilter([filter])
-            .outputOptions([
-                '-map', '[outa]',
-                '-ar', '44100',
-                '-ac', '2',
-                '-b:a', '128k',
-                '-compression_level', '2'
-            ])
-            .format('webm')
-            .audioCodec('libvorbis')
-            .on('start', (commandLine) => {
-                console.log('🎵 Final assembly command (no processing):', commandLine);
-            })
-            .on('progress', (progress) => {
-                console.log(`⏳ Final assembly: ${Math.round(progress.percent || 0)}% done`);
-            })
-            .on('end', () => {
-                console.log('✅ Radio program assembly complete');
-                resolve();
-            })
-            .on('error', reject)
-            .save(outputPath);
+async function assembleFinalProgram(processedSegments, outputPath, backgroundUrl, tempDir) {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const command = ffmpeg();
+            
+            // Identify jingle segments (first and last should be jingles)
+            const introJingleIndex = 0; // First segment should be intro jingle
+            const outroJingleIndex = processedSegments.length - 1; // Last segment should be outro jingle
+            
+            console.log(`🎵 Assembling program: ${processedSegments.length} segments`);
+            console.log(`🎵 Intro jingle: segment ${introJingleIndex + 1}`);
+            console.log(`🎵 Outro jingle: segment ${outroJingleIndex + 1}`);
+            console.log(`🎵 Background will be under segments ${introJingleIndex + 2} to ${outroJingleIndex}`);
+            
+            // Add all processed segments as inputs
+            processedSegments.forEach(segment => command.input(segment.path));
+            
+            // Download background music for the main content
+            const backgroundPath = path.join(tempDir, 'main-background.mp3');
+            console.log(`📥 Downloading main background: ${backgroundUrl}`);
+            await downloadFile(backgroundUrl, backgroundPath);
+            
+            // Add background as additional input
+            command.input(backgroundPath);
+            const backgroundInputIndex = processedSegments.length;
+            
+            const filters = [];
+            
+            // If we have more than 2 segments (more than just jingles)
+            if (processedSegments.length > 2) {
+                // Concatenate middle segments (everything except first and last jingle)
+                const middleSegments = [];
+                for (let i = 1; i < processedSegments.length - 1; i++) {
+                    middleSegments.push(`[${i}:a]`);
+                }
+                
+                if (middleSegments.length > 1) {
+                    filters.push(`${middleSegments.join('')}concat=n=${middleSegments.length}:v=0:a=1[middle_content]`);
+                } else {
+                    filters.push(`[1:a]acopy[middle_content]`);
+                }
+                
+                // Loop background music and mix with middle content at 50% volume
+                filters.push(`[${backgroundInputIndex}:a]aloop=loop=-1:size=2e+09,volume=0.5[background_loop]`);
+                filters.push(`[middle_content][background_loop]amix=inputs=2:duration=shortest:dropout_transition=0[middle_with_bg]`);
+                
+                // Final concatenation: intro jingle + middle with background + outro jingle
+                filters.push(`[${introJingleIndex}:a][middle_with_bg][${outroJingleIndex}:a]concat=n=3:v=0:a=1[outa]`);
+            } else {
+                // Only jingles, no middle content - just concatenate jingles
+                filters.push(`[${introJingleIndex}:a][${outroJingleIndex}:a]concat=n=2:v=0:a=1[outa]`);
+            }
+            
+            command
+                .complexFilter(filters)
+                .outputOptions([
+                    '-map', '[outa]',
+                    '-ar', '44100',
+                    '-ac', '2',
+                    '-b:a', '128k',
+                    '-compression_level', '2'
+                ])
+                .format('webm')
+                .audioCodec('libvorbis')
+                .on('start', (commandLine) => {
+                    console.log('🎵 Final assembly with background:', commandLine);
+                })
+                .on('progress', (progress) => {
+                    console.log(`⏳ Final assembly: ${Math.round(progress.percent || 0)}% done`);
+                })
+                .on('end', () => {
+                    console.log('✅ Radio program assembly with background complete');
+                    resolve();
+                })
+                .on('error', reject)
+                .save(outputPath);
+                
+        } catch (error) {
+            reject(error);
+        }
     });
 }
 
