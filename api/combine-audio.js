@@ -477,9 +477,9 @@ async function combineAnswersWithBackground(answerPaths, backgroundPath, outputP
         const bgIndex = answerPaths.length;
         filters.push(`[${bgIndex}:a]aloop=loop=-1:size=2e+09[background_loop]`);
         
-        // Mix enhanced answers with background at 50% volume
-        filters.push(`[background_loop]volume=0.5[background_50]`);
-        filters.push(`[answers_combined][background_50]amix=inputs=2:duration=shortest:dropout_transition=0[mixed]`);
+        // Mix enhanced answers with background at 30% volume for ENTIRE duration
+        filters.push(`[background_loop]volume=0.3[background_30]`);
+        filters.push(`[answers_combined][background_30]amix=inputs=2:duration=first:dropout_transition=0[mixed]`);
         
         command
             .complexFilter(filters)
