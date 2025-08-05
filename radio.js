@@ -249,18 +249,18 @@
             });
         });
         
-        // 4. Add world-specific outro (role-based)
-        const worldOutroTimestamp = Date.now() + 2;
-        audioSegments.push({
-            type: 'single',
-            url: window.LM_CONFIG.getLocalizedAudioUrl(`audio/${world}/other/${world}-outro-${userRole}.mp3?t=${worldOutroTimestamp}`, lang)
-        });
-        
-        // 5. Add outro jingle
-        const outroJingleTimestamp = Date.now() + 3;
+        // 4. Add outro jingle
+        const outroJingleTimestamp = Date.now() + 2;
         audioSegments.push({
             type: 'single',
             url: window.LM_CONFIG.getLocalizedAudioUrl(`audio/jingles/outro-jingle.mp3?t=${outroJingleTimestamp}`, lang)
+        });
+        
+        // 5. Add world-specific outro (role-based) - LAST
+        const worldOutroTimestamp = Date.now() + 3;
+        audioSegments.push({
+            type: 'single',
+            url: window.LM_CONFIG.getLocalizedAudioUrl(`audio/${world}/other/${world}-outro-${userRole}.mp3?t=${worldOutroTimestamp}`, lang)
         });
         
         return audioSegments;

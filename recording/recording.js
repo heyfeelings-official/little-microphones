@@ -1737,20 +1737,20 @@ async function generateRadioProgram(world, lmid) {
             });
         }
         
-        // 4. Add world-specific outro (role-based)
-        const worldOutroTimestamp = Date.now() + 2;
-        const worldOutroUrl = `https://little-microphones.b-cdn.net/audio/${world}/other/${world}-outro-${userRole}.mp3?t=${worldOutroTimestamp}`;
-        audioSegments.push({
-            type: 'single',
-            url: worldOutroUrl
-        });
-        
-        // 5. Add outro jingle
-        const outroJingleTimestamp = Date.now() + 3;
+        // 4. Add outro jingle
+        const outroJingleTimestamp = Date.now() + 2;
         const outroJingleUrl = `https://little-microphones.b-cdn.net/audio/jingles/outro-jingle.mp3?t=${outroJingleTimestamp}`;
         audioSegments.push({
             type: 'single',
             url: outroJingleUrl
+        });
+        
+        // 5. Add world-specific outro (role-based) - LAST
+        const worldOutroTimestamp = Date.now() + 3;
+        const worldOutroUrl = `https://little-microphones.b-cdn.net/audio/${world}/other/${world}-outro-${userRole}.mp3?t=${worldOutroTimestamp}`;
+        audioSegments.push({
+            type: 'single',
+            url: worldOutroUrl
         });
         
         console.log(`🎼 Audio plan complete: ${audioSegments.length} segments`);

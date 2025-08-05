@@ -33,7 +33,7 @@
  * 
  * AUDIO PARAMETERS (Classroom-Optimized):
  * - User Recordings: Light noise reduction, moderate volume boost, balanced EQ
- * - Background Music: 25% volume, filtered frequency range, seamless looping
+ * - Background Music: 50% volume, filtered frequency range, seamless looping
  * - System Audio: Standard processing for intro/outro/questions
  * - Master Output: Professional mastering with dynamic normalization
  * 
@@ -413,8 +413,9 @@ async function combineAnswersWithBackground(answerPaths, backgroundPath, outputP
         const bgIndex = answerPaths.length;
         filters.push(`[${bgIndex}:a]aloop=loop=-1:size=2e+09[background_loop]`);
         
-        // Simple mix answers with background (no processing)
-        filters.push(`[answers_combined][background_loop]amix=inputs=2:duration=shortest:dropout_transition=0[mixed]`);
+        // Mix answers with background at 50% volume
+        filters.push(`[background_loop]volume=0.5[background_50]`);
+        filters.push(`[answers_combined][background_50]amix=inputs=2:duration=shortest:dropout_transition=0[mixed]`);
         
         command
             .complexFilter(filters)

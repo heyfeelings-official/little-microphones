@@ -58,10 +58,10 @@ audio/
 1. **intro-jingle.mp3** (global jingle)
 2. **{world}-intro-{role}.mp3** (world-specific, role-based intro)
 3. **{world}-QID{n}.mp3** (question from world-specific questions folder)
-4. **User recordings + {world}-background.mp3** (answers with world-specific background)
+4. **User recordings + {world}-background.mp3** (answers with world-specific background at 50% volume)
 5. **Repeat steps 3-4 for each question with recordings**
-6. **{world}-outro-{role}.mp3** (world-specific, role-based outro) 
-7. **outro-jingle.mp3** (global jingle)
+6. **outro-jingle.mp3** (global jingle)
+7. **{world}-outro-{role}.mp3** (world-specific, role-based outro - LAST)
 
 ### Role Detection:
 - **Educators**: Recordings with filename prefix `kids-`

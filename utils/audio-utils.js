@@ -92,18 +92,18 @@ export function convertRecordingsToAudioSegments(recordings, world, userRole = '
         });
     });
     
-    // 4. Add world-specific outro (role-based)
-    const worldOutroTimestamp = Date.now() + 2;
-    audioSegments.push({
-        type: 'single',
-        url: `https://little-microphones.b-cdn.net/audio/${world}/other/${world}-outro-${userRole}.mp3?t=${worldOutroTimestamp}`
-    });
-    
-    // 5. Add outro jingle
-    const outroJingleTimestamp = Date.now() + 3;
+    // 4. Add outro jingle
+    const outroJingleTimestamp = Date.now() + 2;
     audioSegments.push({
         type: 'single',
         url: `https://little-microphones.b-cdn.net/audio/jingles/outro-jingle.mp3?t=${outroJingleTimestamp}`
+    });
+    
+    // 5. Add world-specific outro (role-based) - LAST
+    const worldOutroTimestamp = Date.now() + 3;
+    audioSegments.push({
+        type: 'single',
+        url: `https://little-microphones.b-cdn.net/audio/${world}/other/${world}-outro-${userRole}.mp3?t=${worldOutroTimestamp}`
     });
     
     console.log(`🎼 Generated ${audioSegments.length} audio segments for ${world} (${userRole}) with ${sortedQuestionIds.length} questions`);
