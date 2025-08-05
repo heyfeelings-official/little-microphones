@@ -40,19 +40,36 @@ import https from 'https';
  */
 async function fetchAllRecordingsFromCloud(world, lmid, lang) {
     try {
-        // We need to get recordings for all questions, so we'll use the existing list-recordings API
-        // but we need to discover all questions first
+        // Import list-recordings handler directly to avoid HTTP call loop
+        const listRecordingsModule = await import('./list-recordings.js');
+        const listRecordingsHandler = listRecordingsModule.default;
         
-        // Get all recordings for this lmid/world combination by calling list-recordings without questionId
-        const response = await fetch(`https://little-microphones.vercel.app/api/list-recordings?world=${world}&lmid=${lmid}&lang=${lang}`);
+        // Create mock request/response objects
+        const mockReq = {
+            method: 'GET',
+            query: { world, lmid, lang }
+        };
         
-        if (!response.ok) {
-            console.warn(`Failed to fetch recordings for ${lang}/${world}/${lmid}: ${response.status}`);
+        let responseData = null;
+        let statusCode = 200;
+        const mockRes = {
+            status: (code) => { statusCode = code; return mockRes; },
+            json: (data) => { responseData = data; return mockRes; },
+            end: () => mockRes,
+            setHeader: () => mockRes,
+            getHeader: () => null,
+            statusCode: 200
+        };
+        
+        // Call handler directly
+        await listRecordingsHandler(mockReq, mockRes);
+        
+        if (responseData && responseData.success) {
+            return responseData.recordings || [];
+        } else {
+            console.warn(`Failed to fetch recordings for ${lang}/${world}/${lmid}: ${responseData?.error || 'Unknown error'}`);
             return [];
         }
-        
-        const data = await response.json();
-        return data.recordings || [];
         
     } catch (error) {
         console.error(`Error fetching recordings for ${lang}/${world}/${lmid}:`, error);
