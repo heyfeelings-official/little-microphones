@@ -47,7 +47,11 @@ async function fetchAllRecordingsFromCloud(world, lmid, lang) {
         // Create mock request/response objects
         const mockReq = {
             method: 'GET',
-            query: { world, lmid, lang }
+            query: { world, lmid, lang },
+            headers: {
+                'origin': 'https://little-microphones.vercel.app',
+                'user-agent': 'internal-api-call'
+            }
         };
         
         let responseData = null;

@@ -84,6 +84,12 @@ const rateLimiter = new SimpleRateLimiter();
  * @returns {boolean} True if allowed, false if blocked
  */
 export function checkRateLimit(req, res, endpoint, maxRequests = 60) {
+    // Bypass rate limiting for internal API calls
+    if (req.headers['user-agent'] === 'internal-api-call') {
+        console.log(`🔓 Bypassing rate limit for internal call: ${endpoint}`);
+        return true;
+    }
+    
     const ip = req.headers['x-forwarded-for']?.split(',')[0] || 
                req.headers['x-real-ip'] || 
                req.connection.remoteAddress || 

@@ -179,9 +179,34 @@ export default async function handler(req, res) {
             // Count recordings by type for recordingCount
             let recordingCount = 0;
             try {
-                const response = await fetch(`https://little-microphones.vercel.app/api/list-recordings?world=${world}&lmid=${lmid}&lang=${lang}`);
-                if (response.ok) {
-                    const data = await response.json();
+                // Import list-recordings handler directly to avoid HTTP call loop
+                const listRecordingsModule = await import('./list-recordings.js');
+                const listRecordingsHandler = listRecordingsModule.default;
+                
+                // Create mock request/response objects
+                const mockReq = {
+                    method: 'GET',
+                    query: { world, lmid, lang },
+                    headers: {
+                        'origin': 'https://little-microphones.vercel.app',
+                        'user-agent': 'internal-api-call'
+                    }
+                };
+                
+                let responseData = null;
+                const mockRes = {
+                    status: (code) => mockRes,
+                    json: (data) => { responseData = data; return mockRes; },
+                    end: () => mockRes,
+                    setHeader: () => mockRes,
+                    getHeader: () => null
+                };
+                
+                // Call handler directly
+                await listRecordingsHandler(mockReq, mockRes);
+                
+                if (responseData && responseData.success) {
+                    const data = responseData;
                     
                     if (type === 'kids') {
                         // Count kids recordings
