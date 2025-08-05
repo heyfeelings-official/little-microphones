@@ -105,15 +105,22 @@ export function convertRecordingsToAudioSegments(recordings, world, userRole = '
         });
     });
     
-    // 5. Add outro jingle
-    const outroJingleTimestamp = Date.now() + 3;
+    // 5. Add middle-jingle before outro
+    const finalMiddleJingleTimestamp = Date.now() + 3;
+    audioSegments.push({
+        type: 'single',
+        url: `https://little-microphones.b-cdn.net/audio/jingles/middle-jingle.mp3?t=${finalMiddleJingleTimestamp}`
+    });
+    
+    // 6. Add outro jingle
+    const outroJingleTimestamp = Date.now() + 4;
     audioSegments.push({
         type: 'single',
         url: `https://little-microphones.b-cdn.net/audio/jingles/outro-jingle.mp3?t=${outroJingleTimestamp}`
     });
     
-    // 6. Add world-specific outro (role-based) - LAST
-    const worldOutroTimestamp = Date.now() + 4;
+    // 7. Add world-specific outro (role-based) - LAST
+    const worldOutroTimestamp = Date.now() + 5;
     audioSegments.push({
         type: 'single',
         url: `https://little-microphones.b-cdn.net/audio/${world}/other/${world}-outro-${userRole}.mp3?t=${worldOutroTimestamp}`
@@ -180,7 +187,7 @@ export const PROCESSING_DEFAULTS = {
     sampleRate: 44100,
     bitRate: '128k',
     channels: 2,
-    backgroundVolume: 0.25,
+    backgroundVolume: 0.3,
     maxDuration: 600, // 10 minutes max
     fadeDuration: 0.5 // 0.5 seconds fade
 };

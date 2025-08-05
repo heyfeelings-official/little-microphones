@@ -57,7 +57,7 @@ const AUDIO_CONFIG = {
     channels: 2,
     format: 'mp3',
     quality: '2', // VBR quality (0=best, 9=worst)
-    backgroundVolume: '0.1', // Background music volume (10% of original)
+    backgroundVolume: '0.3', // Background music volume (30% of original)
     crossfadeDuration: 1, // Crossfade duration in seconds
     maxFileSize: 100 * 1024 * 1024, // 100MB max file size
     timeout: 300000 // 5 minutes timeout for processing

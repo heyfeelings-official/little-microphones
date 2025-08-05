@@ -1751,16 +1751,24 @@ async function generateRadioProgram(world, lmid) {
             });
         }
         
-        // 5. Add outro jingle
-        const outroJingleTimestamp = Date.now() + 3;
+        // 5. Add middle-jingle before outro
+        const finalMiddleJingleTimestamp = Date.now() + 3;
+        const finalMiddleJingleUrl = `https://little-microphones.b-cdn.net/audio/jingles/middle-jingle.mp3?t=${finalMiddleJingleTimestamp}`;
+        audioSegments.push({
+            type: 'single',
+            url: finalMiddleJingleUrl
+        });
+        
+        // 6. Add outro jingle
+        const outroJingleTimestamp = Date.now() + 4;
         const outroJingleUrl = `https://little-microphones.b-cdn.net/audio/jingles/outro-jingle.mp3?t=${outroJingleTimestamp}`;
         audioSegments.push({
             type: 'single',
             url: outroJingleUrl
         });
         
-        // 6. Add world-specific outro (role-based) - LAST
-        const worldOutroTimestamp = Date.now() + 4;
+        // 7. Add world-specific outro (role-based) - LAST
+        const worldOutroTimestamp = Date.now() + 5;
         const worldOutroUrl = `https://little-microphones.b-cdn.net/audio/${world}/other/${world}-outro-${userRole}.mp3?t=${worldOutroTimestamp}`;
         audioSegments.push({
             type: 'single',

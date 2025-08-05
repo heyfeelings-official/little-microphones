@@ -262,15 +262,22 @@
             });
         });
         
-        // 5. Add outro jingle
-        const outroJingleTimestamp = Date.now() + 3;
+        // 5. Add middle-jingle before outro
+        const finalMiddleJingleTimestamp = Date.now() + 3;
+        audioSegments.push({
+            type: 'single',
+            url: window.LM_CONFIG.getLocalizedAudioUrl(`audio/jingles/middle-jingle.mp3?t=${finalMiddleJingleTimestamp}`, lang)
+        });
+        
+        // 6. Add outro jingle
+        const outroJingleTimestamp = Date.now() + 4;
         audioSegments.push({
             type: 'single',
             url: window.LM_CONFIG.getLocalizedAudioUrl(`audio/jingles/outro-jingle.mp3?t=${outroJingleTimestamp}`, lang)
         });
         
-        // 6. Add world-specific outro (role-based) - LAST
-        const worldOutroTimestamp = Date.now() + 4;
+        // 7. Add world-specific outro (role-based) - LAST
+        const worldOutroTimestamp = Date.now() + 5;
         audioSegments.push({
             type: 'single',
             url: window.LM_CONFIG.getLocalizedAudioUrl(`audio/${world}/other/${world}-outro-${userRole}.mp3?t=${worldOutroTimestamp}`, lang)
@@ -806,8 +813,14 @@
                     console.log('✅ Using existing programs - no changes detected');
                     showExistingProgram(data);
                 } else {
-                    console.log('⚙️ No existing programs found - generating first programs');
-                    generateNewProgram(data, { needsKids: hasKidsRecordings, needsParent: hasParentRecordings, hasKidsRecordings, hasParentRecordings });
+                    console.log('⚙️ No existing programs found - checking if we have recordings to generate from');
+                    if (hasKidsRecordings || hasParentRecordings) {
+                        console.log('📻 Found recordings - generating first programs');
+                        generateNewProgram(data, { needsKids: hasKidsRecordings, needsParent: hasParentRecordings, hasKidsRecordings, hasParentRecordings });
+                    } else {
+                        console.log('📻 No recordings available - showing empty state');
+                        showExistingProgram(data); // This will show "No radio programs available yet."
+                    }
                 }
             } else {
                 throw new Error(data.error || 'Failed to fetch radio data');
