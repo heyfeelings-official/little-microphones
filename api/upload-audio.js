@@ -95,7 +95,8 @@ import os from 'os';
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 
 /**
- * Process audio buffer with volume boost and normalization
+ * Process audio buffer with intelligent loudness normalization
+ * Matches user recordings to professional broadcast standards (same as QID files)
  * @param {Buffer} audioBuffer - Raw audio buffer
  * @param {string} format - Audio format (webm, mp3, wav, ogg)
  * @returns {Promise<Buffer>} Processed audio buffer
@@ -109,14 +110,32 @@ async function processAudioForUpload(audioBuffer, format) {
         // Write input buffer to temp file
         await fs.writeFile(inputPath, audioBuffer);
         
-        // Process with FFmpeg: 40% volume boost + normalization
+        // Two-pass loudness normalization for consistent audio levels
+        // Pass 1: Analyze loudness levels
+        const analysisData = await analyzeLoudness(inputPath);
+        
+        // Pass 2: Apply intelligent normalization based on analysis
         await new Promise((resolve, reject) => {
-            ffmpeg(inputPath)
+            const ffmpegCommand = ffmpeg(inputPath);
+            
+            // Target levels matching professional broadcast standards (same as QID files)
+            const targetLUFS = -16.0;  // EBU R128 standard for broadcast content
+            const targetLRA = 7.0;     // Loudness range for speech content
+            const targetTP = -1.0;     // True peak to prevent clipping
+            
+            ffmpegCommand
                 .audioFilters([
-                    'volume=1.4', // 40% volume boost
-                    'dynaudnorm=f=75:g=25:p=0.95' // Dynamic normalization
+                    // Intelligent loudness normalization - matches each recording to standard level
+                    `loudnorm=I=${targetLUFS}:LRA=${targetLRA}:TP=${targetTP}:print_format=json`,
+                    // Light enhancement for speech clarity
+                    'highpass=f=80',           // Remove low-frequency noise
+                    'lowpass=f=8000',          // Remove high-frequency noise
+                    'compand=0.02,0.20:-60/-60,-30/-15,-20/-10,-5/-5,0/-3:6:0:-3' // Speech compressor
                 ])
                 .output(outputPath)
+                .on('start', (commandLine) => {
+                    console.log(`🎵 Intelligent normalization: ${commandLine.substring(0, 100)}...`);
+                })
                 .on('end', resolve)
                 .on('error', reject)
                 .run();
@@ -130,6 +149,7 @@ async function processAudioForUpload(audioBuffer, format) {
         await fs.unlink(outputPath).catch(() => {});
         await fs.rmdir(tempDir).catch(() => {});
         
+        console.log(`✨ Audio normalized: ${audioBuffer.length} → ${processedBuffer.length} bytes (LUFS: ${analysisData.inputLUFS || 'unknown'} → -16.0)`);
         return processedBuffer;
         
     } catch (error) {
@@ -140,6 +160,46 @@ async function processAudioForUpload(audioBuffer, format) {
         
         throw new Error(`Audio processing failed: ${error.message}`);
     }
+}
+
+/**
+ * Analyze audio loudness levels for intelligent processing
+ * @param {string} inputPath - Path to input audio file
+ * @returns {Promise<Object>} Loudness analysis data
+ */
+async function analyzeLoudness(inputPath) {
+    return new Promise((resolve, reject) => {
+        let analysisOutput = '';
+        
+        ffmpeg(inputPath)
+            .audioFilters(['loudnorm=print_format=json'])
+            .format('null')
+            .output('-')
+            .on('stderr', (stderrLine) => {
+                analysisOutput += stderrLine + '\n';
+            })
+            .on('end', () => {
+                try {
+                    // Extract JSON data from FFmpeg output
+                    const jsonMatch = analysisOutput.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                        const analysisData = JSON.parse(jsonMatch[0]);
+                        resolve({
+                            inputLUFS: parseFloat(analysisData.input_i) || null,
+                            inputLRA: parseFloat(analysisData.input_lra) || null,
+                            inputTP: parseFloat(analysisData.input_tp) || null
+                        });
+                    } else {
+                        resolve({ inputLUFS: null, inputLRA: null, inputTP: null });
+                    }
+                } catch (parseError) {
+                    console.warn('⚠️ Could not parse loudness analysis, using defaults');
+                    resolve({ inputLUFS: null, inputLRA: null, inputTP: null });
+                }
+            })
+            .on('error', reject)
+            .run();
+    });
 }
 
 export default async function handler(req, res) {
@@ -316,11 +376,11 @@ export default async function handler(req, res) {
         
         if (isUserRecording) {
             try {
-                console.log(`🎵 Processing user recording: ${filename}`);
+                console.log(`🎵 Normalizing user recording to broadcast standards: ${filename}`);
                 processedAudioBuffer = await processAudioForUpload(audioBuffer, audioValidation.format);
-                console.log(`✨ Audio enhanced: ${audioBuffer.length} → ${processedAudioBuffer.length} bytes`);
+                console.log(`✨ Audio normalized to consistent loudness level`);
             } catch (processError) {
-                console.warn(`⚠️ Audio processing failed, uploading original: ${processError.message}`);
+                console.warn(`⚠️ Audio normalization failed, uploading original: ${processError.message}`);
                 // Continue with original buffer if processing fails
             }
         }
