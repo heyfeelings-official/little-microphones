@@ -9,6 +9,7 @@ New audio folder structure with world-specific organization, jingles, and role-b
 audio/
 ├── jingles/
 │   ├── intro-jingle.mp3        # Global intro jingle (all programs start with this)
+│   ├── middle-jingle.mp3       # Middle jingle (after world-specific intro)
 │   └── outro-jingle.mp3        # Global outro jingle (all programs end with this)
 ├── amusement-park/
 │   ├── other/
@@ -57,11 +58,13 @@ audio/
 ### New Generation Order:
 1. **intro-jingle.mp3** (global jingle)
 2. **{world}-intro-{role}.mp3** (world-specific, role-based intro)
-3. **{world}-QID{n}.mp3** (question from world-specific questions folder)
-4. **User recordings** (answers without background - background added globally)
-5. **Repeat steps 3-4 for each question with recordings**
-6. **outro-jingle.mp3** (global jingle)
-7. **{world}-outro-{role}.mp3** (world-specific, role-based outro - LAST)
+3. **middle-jingle.mp3** (global middle jingle)
+4. **1s silence** (pause before questions)
+5. **{world}-QID{n}.mp3** (question from world-specific questions folder)
+6. **User recordings** (answers without background - background added globally)
+7. **Repeat steps 4-6 for each question with recordings**
+8. **outro-jingle.mp3** (global jingle)
+9. **{world}-outro-{role}.mp3** (world-specific, role-based outro - LAST)
 
 ### Background Music:
 - **Global Background**: Applied to entire program except intro/outro jingles

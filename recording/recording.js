@@ -1706,10 +1706,30 @@ async function generateRadioProgram(world, lmid) {
             url: worldIntroUrl
         });
         
-        // 3. Add questions and answers in numeric order
+        // 3. Add middle jingle
+        const middleJingleTimestamp = Date.now() + 2;
+        const middleJingleUrl = `https://little-microphones.b-cdn.net/audio/jingles/middle-jingle.mp3?t=${middleJingleTimestamp}`;
+        audioSegments.push({
+            type: 'single',
+            url: middleJingleUrl
+        });
+        
+        // 4. Add 1 second silence before questions
+        audioSegments.push({
+            type: 'silence',
+            duration: 1
+        });
+        
+        // 5. Add questions and answers in numeric order
         for (let i = 0; i < sortedQuestionIds.length; i++) {
             const questionId = sortedQuestionIds[i];
             const questionRecordings = recordings[questionId];
+            
+            // Add 1 second silence before each question
+            audioSegments.push({
+                type: 'silence',
+                duration: 1
+            });
             
             // Add question prompt from world-specific questions folder
             const cacheBustTimestamp = Date.now() + Math.random();
@@ -1737,16 +1757,16 @@ async function generateRadioProgram(world, lmid) {
             });
         }
         
-        // 4. Add outro jingle
-        const outroJingleTimestamp = Date.now() + 2;
+        // 6. Add outro jingle
+        const outroJingleTimestamp = Date.now() + 3;
         const outroJingleUrl = `https://little-microphones.b-cdn.net/audio/jingles/outro-jingle.mp3?t=${outroJingleTimestamp}`;
         audioSegments.push({
             type: 'single',
             url: outroJingleUrl
         });
         
-        // 5. Add world-specific outro (role-based) - LAST
-        const worldOutroTimestamp = Date.now() + 3;
+        // 7. Add world-specific outro (role-based) - LAST
+        const worldOutroTimestamp = Date.now() + 4;
         const worldOutroUrl = `https://little-microphones.b-cdn.net/audio/${world}/other/${world}-outro-${userRole}.mp3?t=${worldOutroTimestamp}`;
         audioSegments.push({
             type: 'single',

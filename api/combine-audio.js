@@ -34,6 +34,7 @@
  * AUDIO PARAMETERS (Classroom-Optimized):
  * - User Recordings: Light noise reduction, moderate volume boost, balanced EQ
  * - Background Music: 50% volume, under entire program except jingles, seamless looping
+ * - Intro/Outro Files: Original volume preserved (no modification)
  * - System Audio: Standard processing for intro/outro/questions
  * - Master Output: Professional mastering with dynamic normalization
  * 
@@ -314,8 +315,8 @@ async function combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams, p
                 
                 console.log(`✅ Processed single segment ${i + 1}: ${fileName}`);
                 
-            } else if (segment.type === 'question_intro' || segment.type === 'pause' || segment.type === 'question_transition') {
-                // Generate silent audio for intro/pause/transition segments
+            } else if (segment.type === 'question_intro' || segment.type === 'pause' || segment.type === 'question_transition' || segment.type === 'silence') {
+                // Generate silent audio for intro/pause/transition/silence segments
                 const fileName = `segment-${String(i).padStart(3, '0')}-${segment.type}.webm`;
                 const filePath = path.join(tempDir, fileName);
                 
@@ -483,13 +484,15 @@ async function assembleFinalProgram(processedSegments, outputPath, backgroundUrl
         try {
             const command = ffmpeg();
             
-            // Identify jingle segments (first and last should be jingles)
-            const introJingleIndex = 0; // First segment should be intro jingle
-            const outroJingleIndex = processedSegments.length - 1; // Last segment should be outro jingle
+            // Identify jingle segments 
+            // Structure: intro-jingle, world-intro, middle-jingle, silence, questions+answers, outro-jingle, world-outro
+            const introJingleIndex = 0; // First segment: intro jingle
+            const outroJingleIndex = processedSegments.length - 2; // Second to last: outro jingle  
+            const lastSegmentIndex = processedSegments.length - 1; // Last segment: world outro
             
             console.log(`🎵 Assembling program: ${processedSegments.length} segments`);
-            console.log(`🎵 Intro jingle: segment ${introJingleIndex + 1}`);
-            console.log(`🎵 Outro jingle: segment ${outroJingleIndex + 1}`);
+            console.log(`🎵 Intro jingle: segment ${introJingleIndex + 1} (no background)`);
+            console.log(`🎵 Outro jingle: segment ${outroJingleIndex + 1} (no background)`);
             console.log(`🎵 Background will be under segments ${introJingleIndex + 2} to ${outroJingleIndex}`);
             
             // Add all processed segments as inputs
@@ -506,11 +509,11 @@ async function assembleFinalProgram(processedSegments, outputPath, backgroundUrl
             
             const filters = [];
             
-            // If we have more than 2 segments (more than just jingles)
-            if (processedSegments.length > 2) {
-                // Concatenate middle segments (everything except first and last jingle)
+            // Structure: intro-jingle + [middle content with background] + outro-jingle + world-outro
+            if (processedSegments.length > 3) {
+                // Concatenate middle segments (everything except intro-jingle, outro-jingle, and world-outro)
                 const middleSegments = [];
-                for (let i = 1; i < processedSegments.length - 1; i++) {
+                for (let i = 1; i < outroJingleIndex; i++) {
                     middleSegments.push(`[${i}:a]`);
                 }
                 
@@ -524,11 +527,12 @@ async function assembleFinalProgram(processedSegments, outputPath, backgroundUrl
                 filters.push(`[${backgroundInputIndex}:a]aloop=loop=-1:size=2e+09,volume=0.5[background_loop]`);
                 filters.push(`[middle_content][background_loop]amix=inputs=2:duration=shortest:dropout_transition=0[middle_with_bg]`);
                 
-                // Final concatenation: intro jingle + middle with background + outro jingle
-                filters.push(`[${introJingleIndex}:a][middle_with_bg][${outroJingleIndex}:a]concat=n=3:v=0:a=1[outa]`);
+                // Final concatenation: intro-jingle + middle-with-background + outro-jingle + world-outro
+                filters.push(`[${introJingleIndex}:a][middle_with_bg][${outroJingleIndex}:a][${lastSegmentIndex}:a]concat=n=4:v=0:a=1[outa]`);
             } else {
-                // Only jingles, no middle content - just concatenate jingles
-                filters.push(`[${introJingleIndex}:a][${outroJingleIndex}:a]concat=n=2:v=0:a=1[outa]`);
+                // Minimal segments - just concatenate all without background
+                const allSegments = processedSegments.map((_, index) => `[${index}:a]`).join('');
+                filters.push(`${allSegments}concat=n=${processedSegments.length}:v=0:a=1[outa]`);
             }
             
             command

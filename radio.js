@@ -217,9 +217,28 @@
             url: window.LM_CONFIG.getLocalizedAudioUrl(`audio/${world}/other/${world}-intro-${userRole}.mp3?t=${worldIntroTimestamp}`, lang)
         });
         
-        // 3. Add questions and answers in order
+        // 3. Add middle jingle
+        const middleJingleTimestamp = Date.now() + 2;
+        audioSegments.push({
+            type: 'single',
+            url: window.LM_CONFIG.getLocalizedAudioUrl(`audio/jingles/middle-jingle.mp3?t=${middleJingleTimestamp}`, lang)
+        });
+        
+        // 4. Add 1 second silence before questions
+        audioSegments.push({
+            type: 'silence',
+            duration: 1
+        });
+        
+        // 5. Add questions and answers in order
         sortedQuestionIds.forEach(questionId => {
             const questionRecordings = recordingsByQuestion[questionId];
+            
+            // Add 1 second silence before each question
+            audioSegments.push({
+                type: 'silence',
+                duration: 1
+            });
             
             // Add question prompt from world-specific questions folder
             const cacheBustTimestamp = Date.now() + Math.random();
@@ -249,15 +268,15 @@
             });
         });
         
-        // 4. Add outro jingle
-        const outroJingleTimestamp = Date.now() + 2;
+        // 6. Add outro jingle
+        const outroJingleTimestamp = Date.now() + 3;
         audioSegments.push({
             type: 'single',
             url: window.LM_CONFIG.getLocalizedAudioUrl(`audio/jingles/outro-jingle.mp3?t=${outroJingleTimestamp}`, lang)
         });
         
-        // 5. Add world-specific outro (role-based) - LAST
-        const worldOutroTimestamp = Date.now() + 3;
+        // 7. Add world-specific outro (role-based) - LAST
+        const worldOutroTimestamp = Date.now() + 4;
         audioSegments.push({
             type: 'single',
             url: window.LM_CONFIG.getLocalizedAudioUrl(`audio/${world}/other/${world}-outro-${userRole}.mp3?t=${worldOutroTimestamp}`, lang)
