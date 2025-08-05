@@ -85,6 +85,63 @@
  * STATUS: Production Ready ✅
  */
 
+import ffmpeg from 'fluent-ffmpeg';
+import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
+import { promises as fs } from 'fs';
+import path from 'path';
+import os from 'os';
+
+// Set FFmpeg path
+ffmpeg.setFfmpegPath(ffmpegInstaller.path);
+
+/**
+ * Process audio buffer with volume boost and normalization
+ * @param {Buffer} audioBuffer - Raw audio buffer
+ * @param {string} format - Audio format (webm, mp3, wav, ogg)
+ * @returns {Promise<Buffer>} Processed audio buffer
+ */
+async function processAudioForUpload(audioBuffer, format) {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'audio-upload-'));
+    const inputPath = path.join(tempDir, `input.${format}`);
+    const outputPath = path.join(tempDir, `output.${format}`);
+    
+    try {
+        // Write input buffer to temp file
+        await fs.writeFile(inputPath, audioBuffer);
+        
+        // Process with FFmpeg: 40% volume boost + normalization
+        await new Promise((resolve, reject) => {
+            ffmpeg(inputPath)
+                .audioFilters([
+                    'volume=1.4', // 40% volume boost
+                    'dynaudnorm=f=75:g=25:p=0.95' // Dynamic normalization
+                ])
+                .output(outputPath)
+                .on('end', resolve)
+                .on('error', reject)
+                .run();
+        });
+        
+        // Read processed file back to buffer
+        const processedBuffer = await fs.readFile(outputPath);
+        
+        // Cleanup temp files
+        await fs.unlink(inputPath).catch(() => {});
+        await fs.unlink(outputPath).catch(() => {});
+        await fs.rmdir(tempDir).catch(() => {});
+        
+        return processedBuffer;
+        
+    } catch (error) {
+        // Cleanup on error
+        await fs.unlink(inputPath).catch(() => {});
+        await fs.unlink(outputPath).catch(() => {});
+        await fs.rmdir(tempDir).catch(() => {});
+        
+        throw new Error(`Audio processing failed: ${error.message}`);
+    }
+}
+
 export default async function handler(req, res) {
     // Secure CORS headers
     const { setCorsHeaders } = await import('../utils/api-utils.js');
@@ -251,11 +308,28 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: filenameValidation.error });
         }
 
+        // Process audio before upload (40% volume boost + normalization for user recordings)
+        let processedAudioBuffer = audioBuffer;
+        
+        // Only process user recordings (kids/parent), not system audio files
+        const isUserRecording = filename.includes('kids-world_') || filename.includes('parent_');
+        
+        if (isUserRecording) {
+            try {
+                console.log(`🎵 Processing user recording: ${filename}`);
+                processedAudioBuffer = await processAudioForUpload(audioBuffer, audioValidation.format);
+                console.log(`✨ Audio enhanced: ${audioBuffer.length} → ${processedAudioBuffer.length} bytes`);
+            } catch (processError) {
+                console.warn(`⚠️ Audio processing failed, uploading original: ${processError.message}`);
+                // Continue with original buffer if processing fails
+            }
+        }
+
         // Upload to Bunny.net with folder structure: lang/lmid/world/filename
         const filePath = `${lang}/${lmid}/${world}/${filename}`;
         const uploadUrl = `https://storage.bunnycdn.com/${process.env.BUNNY_STORAGE_ZONE}/${filePath}`;
         
-        console.log(`📤 Uploading ${filename} (${audioBuffer.length} bytes)`);
+        console.log(`📤 Uploading ${filename} (${processedAudioBuffer.length} bytes)`);
         
         // Determine Content-Type based on filename extension
         const contentType = filename.endsWith('.webm') ? 'audio/webm' : 'audio/mpeg';
@@ -266,7 +340,7 @@ export default async function handler(req, res) {
                 'AccessKey': process.env.BUNNY_API_KEY,
                 'Content-Type': contentType
             },
-            body: audioBuffer
+            body: processedAudioBuffer
         });
 
         if (response.ok) {

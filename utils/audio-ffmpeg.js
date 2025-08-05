@@ -281,25 +281,22 @@ export async function combineAnswersWithBackground(answerPaths, backgroundPath, 
         // Build complex filter for mixing
         let filterComplex = '';
         
-        // First, enhance and concatenate all answers with crossfades
+        // First, concatenate all answers with crossfades (no processing here - done at upload)
         if (answerPaths.length > 1) {
             const crossfadeDuration = config.crossfadeDuration || 1;
             let concatFilter = '';
             
             for (let i = 0; i < answerPaths.length; i++) {
                 if (i === 0) {
-                    // Apply volume boost (40%) and normalization to first answer
-                    concatFilter = `[${i}:a]volume=1.4,dynaudnorm=f=75:g=25:p=0.95`;
+                    concatFilter = `[${i}:a]`;
                 } else {
-                    // Apply volume boost (40%) and normalization to subsequent answers, then crossfade
-                    concatFilter += `[${i}:a]volume=1.4,dynaudnorm=f=75:g=25:p=0.95[enhanced${i}];${concatFilter}[enhanced${i}]acrossfade=d=${crossfadeDuration}`;
+                    concatFilter += `[${i}:a]acrossfade=d=${crossfadeDuration}`;
                 }
             }
             concatFilter += '[answers];';
             filterComplex += concatFilter;
         } else {
-            // Single answer: apply volume boost (40%) and normalization
-            filterComplex += `[0:a]volume=1.4,dynaudnorm=f=75:g=25:p=0.95[answers];`;
+            filterComplex += `[0:a]anull[answers];`;
         }
         
         // Mix enhanced answers with background music (background stays at original volume)

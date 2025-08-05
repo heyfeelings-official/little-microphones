@@ -444,12 +444,9 @@ async function combineAnswersWithBackground(answerPaths, backgroundPath, outputP
         
         const filters = [];
         
-        // Enhanced concatenation of answers with 40% volume boost and normalization
-        const enhancedAnswerStreams = answerPaths.map((_, index) => `[${index}:a]volume=1.4,dynaudnorm=f=75:g=25:p=0.95[enhanced${index}]`);
-        filters.push(...enhancedAnswerStreams);
-        
-        const enhancedStreams = answerPaths.map((_, index) => `[enhanced${index}]`).join('');
-        filters.push(`${enhancedStreams}concat=n=${answerPaths.length}:v=0:a=1[answers_combined]`);
+        // Simple concatenation of answers (processing done at upload stage)
+        const answerStreams = answerPaths.map((_, index) => `[${index}:a]`).join('');
+        filters.push(`${answerStreams}concat=n=${answerPaths.length}:v=0:a=1[answers_combined]`);
         
         // Background music loop (no processing to maintain original quality)
         const bgIndex = answerPaths.length;
@@ -465,7 +462,7 @@ async function combineAnswersWithBackground(answerPaths, backgroundPath, outputP
             .format('webm')
             .audioCodec('libvorbis')
             .on('start', (commandLine) => {
-                console.log(`🎵 Combining enhanced answers with background (40% boost + normalization): ${commandLine}`);
+                console.log(`🎵 Combining answers with background (processing done at upload): ${commandLine}`);
             })
             .on('progress', (progress) => {
                 console.log(`⏳ Combining progress: ${Math.round(progress.percent || 0)}%`);
@@ -533,11 +530,17 @@ async function assembleFinalProgram(processedSegments, outputPath, backgroundUrl
                 filters.push(`[middle_content][background_loop]amix=inputs=2:duration=shortest:dropout_transition=0[middle_with_bg]`);
                 
                 // Final concatenation: intro-jingle + middle-with-background + middle-jingle + outro-jingle + world-outro
-                filters.push(`[${introJingleIndex}:a][middle_with_bg][${middleJingleIndex}:a][${outroJingleIndex}:a][${lastSegmentIndex}:a]concat=n=5:v=0:a=1[outa]`);
+                filters.push(`[${introJingleIndex}:a][middle_with_bg][${middleJingleIndex}:a][${outroJingleIndex}:a][${lastSegmentIndex}:a]concat=n=5:v=0:a=1[final]`);
+                
+                // Light normalization of final program (preserves dynamics)
+                filters.push(`[final]dynaudnorm=f=75:g=15:p=0.8[outa]`);
             } else {
                 // Minimal segments - just concatenate all without background
                 const allSegments = processedSegments.map((_, index) => `[${index}:a]`).join('');
-                filters.push(`${allSegments}concat=n=${processedSegments.length}:v=0:a=1[outa]`);
+                filters.push(`${allSegments}concat=n=${processedSegments.length}:v=0:a=1[final]`);
+                
+                // Light normalization of final program (preserves dynamics)
+                filters.push(`[final]dynaudnorm=f=75:g=15:p=0.8[outa]`);
             }
             
             command
