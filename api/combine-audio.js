@@ -444,15 +444,18 @@ async function combineAnswersWithBackground(answerPaths, backgroundPath, outputP
         
         const filters = [];
         
-        // Simple concatenation of answers (no processing)
-        const answerStreams = answerPaths.map((_, index) => `[${index}:a]`).join('');
-        filters.push(`${answerStreams}concat=n=${answerPaths.length}:v=0:a=1[answers_combined]`);
+        // Enhanced concatenation of answers with 40% volume boost and normalization
+        const enhancedAnswerStreams = answerPaths.map((_, index) => `[${index}:a]volume=1.4,dynaudnorm=f=75:g=25:p=0.95[enhanced${index}]`);
+        filters.push(...enhancedAnswerStreams);
         
-        // Simple background music loop (no processing)
+        const enhancedStreams = answerPaths.map((_, index) => `[enhanced${index}]`).join('');
+        filters.push(`${enhancedStreams}concat=n=${answerPaths.length}:v=0:a=1[answers_combined]`);
+        
+        // Background music loop (no processing to maintain original quality)
         const bgIndex = answerPaths.length;
         filters.push(`[${bgIndex}:a]aloop=loop=-1:size=2e+09[background_loop]`);
         
-        // Mix answers with background at 50% volume
+        // Mix enhanced answers with background at 50% volume
         filters.push(`[background_loop]volume=0.5[background_50]`);
         filters.push(`[answers_combined][background_50]amix=inputs=2:duration=shortest:dropout_transition=0[mixed]`);
         
@@ -462,7 +465,7 @@ async function combineAnswersWithBackground(answerPaths, backgroundPath, outputP
             .format('webm')
             .audioCodec('libvorbis')
             .on('start', (commandLine) => {
-                console.log(`🎵 Combining answers with background (no processing): ${commandLine}`);
+                console.log(`🎵 Combining enhanced answers with background (40% boost + normalization): ${commandLine}`);
             })
             .on('progress', (progress) => {
                 console.log(`⏳ Combining progress: ${Math.round(progress.percent || 0)}%`);
@@ -485,15 +488,17 @@ async function assembleFinalProgram(processedSegments, outputPath, backgroundUrl
             const command = ffmpeg();
             
             // Identify jingle segments 
-            // Structure: intro-jingle, world-intro, middle-jingle, silence, questions+answers, outro-jingle, world-outro
+            // Structure: intro-jingle, world-intro, questions+answers, middle-jingle, outro-jingle, world-outro
             const introJingleIndex = 0; // First segment: intro jingle
+            const middleJingleIndex = processedSegments.length - 3; // Third to last: middle jingle
             const outroJingleIndex = processedSegments.length - 2; // Second to last: outro jingle  
             const lastSegmentIndex = processedSegments.length - 1; // Last segment: world outro
             
             console.log(`🎵 Assembling program: ${processedSegments.length} segments`);
             console.log(`🎵 Intro jingle: segment ${introJingleIndex + 1} (no background)`);
+            console.log(`🎵 Middle jingle: segment ${middleJingleIndex + 1} (no background)`);
             console.log(`🎵 Outro jingle: segment ${outroJingleIndex + 1} (no background)`);
-            console.log(`🎵 Background will be under segments ${introJingleIndex + 2} to ${outroJingleIndex}`);
+            console.log(`🎵 Background will be under segments ${introJingleIndex + 2} to ${middleJingleIndex}`);
             
             // Add all processed segments as inputs
             processedSegments.forEach(segment => command.input(segment.path));
@@ -509,11 +514,11 @@ async function assembleFinalProgram(processedSegments, outputPath, backgroundUrl
             
             const filters = [];
             
-            // Structure: intro-jingle + [middle content with background] + outro-jingle + world-outro
-            if (processedSegments.length > 3) {
-                // Concatenate middle segments (everything except intro-jingle, outro-jingle, and world-outro)
+            // Structure: intro-jingle + [middle content with background] + middle-jingle + outro-jingle + world-outro
+            if (processedSegments.length > 4) {
+                // Concatenate middle segments (everything except intro-jingle, middle-jingle, outro-jingle, and world-outro)
                 const middleSegments = [];
-                for (let i = 1; i < outroJingleIndex; i++) {
+                for (let i = 1; i < middleJingleIndex; i++) {
                     middleSegments.push(`[${i}:a]`);
                 }
                 
@@ -527,8 +532,8 @@ async function assembleFinalProgram(processedSegments, outputPath, backgroundUrl
                 filters.push(`[${backgroundInputIndex}:a]aloop=loop=-1:size=2e+09,volume=0.5[background_loop]`);
                 filters.push(`[middle_content][background_loop]amix=inputs=2:duration=shortest:dropout_transition=0[middle_with_bg]`);
                 
-                // Final concatenation: intro-jingle + middle-with-background + outro-jingle + world-outro
-                filters.push(`[${introJingleIndex}:a][middle_with_bg][${outroJingleIndex}:a][${lastSegmentIndex}:a]concat=n=4:v=0:a=1[outa]`);
+                // Final concatenation: intro-jingle + middle-with-background + middle-jingle + outro-jingle + world-outro
+                filters.push(`[${introJingleIndex}:a][middle_with_bg][${middleJingleIndex}:a][${outroJingleIndex}:a][${lastSegmentIndex}:a]concat=n=5:v=0:a=1[outa]`);
             } else {
                 // Minimal segments - just concatenate all without background
                 const allSegments = processedSegments.map((_, index) => `[${index}:a]`).join('');

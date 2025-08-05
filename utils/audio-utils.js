@@ -111,15 +111,22 @@ export function convertRecordingsToAudioSegments(recordings, world, userRole = '
         });
     });
     
-    // 6. Add outro jingle
-    const outroJingleTimestamp = Date.now() + 3;
+    // 6. Add middle jingle before outros
+    const middleJingleTimestamp = Date.now() + 3;
+    audioSegments.push({
+        type: 'single',
+        url: `https://little-microphones.b-cdn.net/audio/jingles/middle-jingle.mp3?t=${middleJingleTimestamp}`
+    });
+    
+    // 7. Add outro jingle
+    const outroJingleTimestamp = Date.now() + 4;
     audioSegments.push({
         type: 'single',
         url: `https://little-microphones.b-cdn.net/audio/jingles/outro-jingle.mp3?t=${outroJingleTimestamp}`
     });
     
-    // 7. Add world-specific outro (role-based) - LAST
-    const worldOutroTimestamp = Date.now() + 4;
+    // 8. Add world-specific outro (role-based) - LAST
+    const worldOutroTimestamp = Date.now() + 5;
     audioSegments.push({
         type: 'single',
         url: `https://little-microphones.b-cdn.net/audio/${world}/other/${world}-outro-${userRole}.mp3?t=${worldOutroTimestamp}`

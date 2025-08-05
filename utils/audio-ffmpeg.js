@@ -281,25 +281,28 @@ export async function combineAnswersWithBackground(answerPaths, backgroundPath, 
         // Build complex filter for mixing
         let filterComplex = '';
         
-        // First, concatenate all answers with crossfades
+        // First, enhance and concatenate all answers with crossfades
         if (answerPaths.length > 1) {
             const crossfadeDuration = config.crossfadeDuration || 1;
             let concatFilter = '';
             
             for (let i = 0; i < answerPaths.length; i++) {
                 if (i === 0) {
-                    concatFilter = `[${i}:a]`;
+                    // Apply volume boost (40%) and normalization to first answer
+                    concatFilter = `[${i}:a]volume=1.4,dynaudnorm=f=75:g=25:p=0.95`;
                 } else {
-                    concatFilter += `[${i}:a]acrossfade=d=${crossfadeDuration}`;
+                    // Apply volume boost (40%) and normalization to subsequent answers, then crossfade
+                    concatFilter += `[${i}:a]volume=1.4,dynaudnorm=f=75:g=25:p=0.95[enhanced${i}];${concatFilter}[enhanced${i}]acrossfade=d=${crossfadeDuration}`;
                 }
             }
             concatFilter += '[answers];';
             filterComplex += concatFilter;
         } else {
-            filterComplex += `[0:a]anull[answers];`;
+            // Single answer: apply volume boost (40%) and normalization
+            filterComplex += `[0:a]volume=1.4,dynaudnorm=f=75:g=25:p=0.95[answers];`;
         }
         
-        // Mix answers with background music
+        // Mix enhanced answers with background music (background stays at original volume)
         const backgroundIndex = answerPaths.length;
         const backgroundVolume = config.backgroundVolume || '0.1';
         
