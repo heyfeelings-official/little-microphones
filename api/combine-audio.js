@@ -363,7 +363,7 @@ async function combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams, p
             
             if (segment.type === 'single' || segment.type === 'recording') {
                 // Single audio file (intro, outro, questions, recordings)
-                const fileName = `segment-${String(i).padStart(3, '0')}-single.webm`;
+                const fileName = `segment-${String(i).padStart(3, '0')}-single.mp3`;
                 const filePath = path.join(tempDir, fileName);
                 
                 // The URL for static files is already localized by the frontend (radio.js)
@@ -383,7 +383,7 @@ async function combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams, p
                 
             } else if (segment.type === 'question_intro' || segment.type === 'pause' || segment.type === 'question_transition' || segment.type === 'silence') {
                 // Generate silent audio for intro/pause/transition/silence segments
-                const fileName = `segment-${String(i).padStart(3, '0')}-${segment.type}.webm`;
+                const fileName = `segment-${String(i).padStart(3, '0')}-${segment.type}.mp3`;
                 const filePath = path.join(tempDir, fileName);
                 
                 const duration = segment.duration || 2; // default 2 seconds
@@ -405,14 +405,14 @@ async function combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams, p
                 // Download all answer files
                 const answerPaths = [];
                 for (let j = 0; j < segment.answerUrls.length; j++) {
-                    const answerPath = path.join(tempDir, `answers-${String(i).padStart(3, '0')}-${j}.webm`);
+                    const answerPath = path.join(tempDir, `answers-${String(i).padStart(3, '0')}-${j}.mp3`);
                     console.log(`📥 Downloading answer ${j + 1}/${segment.answerUrls.length}: ${segment.answerUrls[j]}`);
                     await downloadFile(segment.answerUrls[j], answerPath);
                     answerPaths.push(answerPath);
                 }
                 
                 // Just concatenate answers without background
-                const combinedPath = path.join(tempDir, `segment-${String(i).padStart(3, '0')}-answers.webm`);
+                const combinedPath = path.join(tempDir, `segment-${String(i).padStart(3, '0')}-answers.mp3`);
                 await concatenateAnswers(answerPaths, combinedPath);
                 
                 processedSegments.push({
@@ -491,8 +491,8 @@ async function concatenateAnswers(answerPaths, outputPath) {
         command
             .complexFilter([filter])
             .outputOptions(['-map', '[outa]'])
-            .format('webm')
-            .audioCodec('libvorbis')
+            .format('mp3')
+            .audioCodec('libmp3lame')
             .on('start', (commandLine) => {
                 console.log(`🎵 Concatenating ${answerPaths.length} answers: ${commandLine}`);
             })
@@ -538,8 +538,8 @@ async function combineAnswersWithBackground(answerPaths, backgroundPath, outputP
         command
             .complexFilter(filters)
             .outputOptions(['-map', '[mixed]'])
-            .format('webm')
-            .audioCodec('libvorbis')
+            .format('mp3')
+            .audioCodec('libmp3lame')
             .on('start', (commandLine) => {
                 console.log(`🎵 Combining answers with background (processing done at upload): ${commandLine}`);
             })
@@ -988,7 +988,7 @@ async function normalizeVoiceFile(filePath, targetLevels) {
  */
 async function uploadToBunny(filePath, world, lmid, programType = 'kids', lang = 'en') {
     // Include program type in filename to distinguish kids vs parent programs
-    const fileName = `radio-program-${programType}-${world}-${lmid}.webm`;
+    const fileName = `radio-program-${programType}-${world}-${lmid}.mp3`;
     const uploadPath = `/${lang}/${lmid}/${world}/${fileName}`;
     
     console.log(`📤 Uploading to Bunny.net: ${uploadPath} (overwriting existing)`);
@@ -1003,7 +1003,7 @@ async function uploadToBunny(filePath, world, lmid, programType = 'kids', lang =
             method: 'PUT',
             headers: {
                 'AccessKey': process.env.BUNNY_API_KEY,
-                'Content-Type': 'audio/webm',
+                'Content-Type': 'audio/mpeg',
                 'Content-Length': fileBuffer.length,
                 // HEAVY cache-busting headers
                 'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
