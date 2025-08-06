@@ -441,18 +441,44 @@ async function combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams, p
             }
         }
         
-        // PROFESSIONAL APPROACH: Apply loudnorm to user recordings for consistent levels
-        console.log('🎯 Applying professional loudnorm to user recordings...');
+        // INTELLIGENT APPROACH: Analyze system files first, then match user recordings to their level
+        console.log('🔍 Step 1: Analyzing system voice files to determine target level...');
+        
+        // Collect system voice files for analysis
+        const systemVoiceFiles = [];
+        for (const segment of processedSegments) {
+            if (segment.type !== 'answers' && segment.path) {
+                // Include QIDs, intros, outros, but exclude jingles
+                const filename = path.basename(segment.path).toLowerCase();
+                if (filename.includes('qid') || filename.includes('intro') || filename.includes('outro') || filename.includes('question')) {
+                    systemVoiceFiles.push(segment.path);
+                }
+            }
+        }
+        
+        // Analyze system voice files to get target level
+        let targetLevel = -16.0; // Default fallback
+        if (systemVoiceFiles.length > 0) {
+            console.log(`🎯 Analyzing ${systemVoiceFiles.length} system voice files...`);
+            const systemAnalysis = await analyzeAllVoiceLevels(systemVoiceFiles);
+            targetLevel = systemAnalysis.avgLUFS; // Use average of system files
+            console.log(`🎯 System voice average: ${targetLevel.toFixed(1)} LUFS - using as target for user recordings`);
+        } else {
+            console.log('⚠️ No system voice files found, using default -16.0 LUFS target');
+        }
+        
+        // Apply intelligent normalization to user recordings to match system level
+        console.log('🎯 Step 2: Normalizing user recordings to match system voice level...');
         
         for (const segment of processedSegments) {
             // Only normalize user recordings (answers), not system files
             if (segment.type === 'answers' && segment.path) {
-                console.log(`🎯 Normalizing: ${path.basename(segment.path)}`);
-                await professionalNormalize(segment.path); // EBU R128 loudness normalization
+                console.log(`🎯 Normalizing to ${targetLevel.toFixed(1)} LUFS: ${path.basename(segment.path)}`);
+                await intelligentNormalize(segment.path, targetLevel); // Match system level
             }
         }
         
-        console.log('✨ Professional normalization applied to user recordings');
+        console.log('✨ Intelligent normalization complete - user recordings match system voice level');
         
         // Final assembly of all segments IN ORDER
         console.log('🎼 Step 3: Assembling final radio program with background...');
@@ -808,19 +834,20 @@ async function analyzeAllVoiceLevels(voiceFiles) {
 }
 
 /**
- * Professional loudness normalization (WebM → MP3 with EBU R128)
+ * Intelligent loudness normalization - matches user recordings to system voice level
  * @param {string} filePath - Path to WebM audio file
+ * @param {number} targetLUFS - Target LUFS level (from system voice analysis)
  * @returns {Promise<void>}
  */
-async function professionalNormalize(filePath) {
-    // Convert WebM to MP3 with professional loudnorm
+async function intelligentNormalize(filePath, targetLUFS) {
+    // Convert WebM to MP3 with intelligent loudnorm matching system level
     const tempOutputPath = `${filePath}.normalized.mp3`;
     
     return new Promise((resolve, reject) => {
         const command = ffmpeg(filePath)
             .audioFilters([
-                // EBU R128 loudness normalization - PROFESSIONAL BROADCAST STANDARD
-                'loudnorm=I=-16.0:LRA=7.0:TP=-1.0:print_format=json',
+                // EBU R128 loudness normalization - MATCH SYSTEM VOICE LEVEL
+                `loudnorm=I=${targetLUFS}:LRA=7.0:TP=-1.0:print_format=json`,
                 // Light enhancement for speech clarity
                 'highpass=f=80',           // Remove low-frequency noise
                 'lowpass=f=8000',          // Remove high-frequency noise  
@@ -834,7 +861,7 @@ async function professionalNormalize(filePath) {
         const timeoutId = setTimeout(() => {
             try {
                 command.kill('SIGKILL');
-                console.warn(`⏰ Professional normalization timeout for ${path.basename(filePath)} after 20s`);
+                console.warn(`⏰ Intelligent normalization timeout for ${path.basename(filePath)} after 20s`);
             } catch (error) {
                 console.warn('Error killing FFmpeg process:', error.message);
             }
@@ -844,14 +871,14 @@ async function professionalNormalize(filePath) {
         
         command
             .on('start', () => {
-                console.log(`🎯 Professional normalization: ${path.basename(filePath)} (WebM→MP3)`);
+                console.log(`🎯 Intelligent normalization: ${path.basename(filePath)} → ${targetLUFS.toFixed(1)} LUFS (WebM→MP3)`);
             })
             .on('end', async () => {
                 clearTimeout(timeoutId);
                 try {
                     // Replace original WebM with normalized MP3
                     await fs.rename(tempOutputPath, filePath);
-                    console.log(`✨ Professional normalization complete: ${path.basename(filePath)}`);
+                    console.log(`✨ Intelligent normalization complete: ${path.basename(filePath)} @ ${targetLUFS.toFixed(1)} LUFS`);
                     resolve();
                 } catch (error) {
                     console.warn(`⚠️ Failed to replace normalized file: ${error.message}`);
@@ -860,7 +887,7 @@ async function professionalNormalize(filePath) {
             })
             .on('error', (error) => {
                 clearTimeout(timeoutId);
-                console.warn(`⚠️ Professional normalization failed for ${path.basename(filePath)}:`, error.message);
+                console.warn(`⚠️ Intelligent normalization failed for ${path.basename(filePath)}:`, error.message);
                 resolve(); // Continue without normalization
             })
             .run();
