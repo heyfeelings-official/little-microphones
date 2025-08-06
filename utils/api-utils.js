@@ -33,21 +33,37 @@
 export function setCorsHeaders(res, methods = ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']) {
     const ALLOWED_ORIGINS = [
         'https://hey-feelings-v2.webflow.io',
-        'https://heyfeelings.com',
+        'https://heyfeelings.com', 
         'https://little-microphones.vercel.app',
         'https://webflow.com',
-        'https://preview.webflow.com'
+        'https://preview.webflow.com',
+        // Development & localhost origins
+        'http://localhost',
+        'http://127.0.0.1',
+        'https://localhost',
+        'https://127.0.0.1',
+        'little-microphones:1' // Webflow preview origin
     ];
     
     return function(req) {
         const origin = req.headers.origin || req.headers.referer;
         
         // Sprawdź czy origin jest dozwolony
-        if (origin && ALLOWED_ORIGINS.some(allowedOrigin => origin.includes(allowedOrigin))) {
+        const isAllowedOrigin = origin && (
+            ALLOWED_ORIGINS.some(allowedOrigin => origin.includes(allowedOrigin)) ||
+            // Development patterns
+            origin.includes('localhost') ||
+            origin.includes('127.0.0.1') ||
+            origin.includes('little-microphones') ||
+            // Webflow preview patterns
+            origin.match(/^[a-zA-Z0-9-]+:\d+$/) // Pattern like "little-microphones:1"
+        );
+        
+        if (isAllowedOrigin) {
             res.setHeader('Access-Control-Allow-Origin', origin);
         } else {
             // Fallback dla development i nieznanych origins
-            res.setHeader('Access-Control-Allow-Origin', 'https://hey-feelings-v2.webflow.io');
+            res.setHeader('Access-Control-Allow-Origin', '*');
         }
         
     res.setHeader('Access-Control-Allow-Methods', methods.join(', '));

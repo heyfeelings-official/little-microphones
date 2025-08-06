@@ -460,9 +460,18 @@ async function combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams, p
         let targetLevel = -16.0; // Default fallback
         if (systemVoiceFiles.length > 0) {
             console.log(`🎯 Analyzing ${systemVoiceFiles.length} system voice files...`);
-            const systemAnalysis = await analyzeAllVoiceLevels(systemVoiceFiles);
-            targetLevel = systemAnalysis.avgLUFS; // Use average of system files
-            console.log(`🎯 System voice average: ${targetLevel.toFixed(1)} LUFS - using as target for user recordings`);
+            try {
+                const systemAnalysis = await analyzeAllVoiceLevels(systemVoiceFiles);
+                if (systemAnalysis && systemAnalysis.avgLUFS && !isNaN(systemAnalysis.avgLUFS)) {
+                    targetLevel = systemAnalysis.avgLUFS; // Use average of system files
+                    console.log(`🎯 System voice average: ${targetLevel.toFixed(1)} LUFS - using as target for user recordings`);
+                } else {
+                    console.log('⚠️ System voice analysis failed, using default -16.0 LUFS target');
+                }
+            } catch (error) {
+                console.warn(`⚠️ Error analyzing system voice files: ${error.message}`);
+                console.log('⚠️ Using default -16.0 LUFS target due to analysis error');
+            }
         } else {
             console.log('⚠️ No system voice files found, using default -16.0 LUFS target');
         }
