@@ -858,26 +858,28 @@ function initializeAudioRecorder(recorderWrapper) {
         const cachedData = sessionStorage.getItem(cacheKey);
         
         if (cachedData) {
-            try {
-                const cachedRecordings = JSON.parse(cachedData);
-                console.log(`[${questionId}] Using cached recordings (${cachedRecordings.length})`);
-                
-                // Use cache immediately for faster UI
-                recordingCountCache.set(questionId, cachedRecordings.length);
-                recordingsListUI.innerHTML = '';
-                cachedRecordings.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-                
-                const allIds = cachedRecordings.map(r => r.id);
-                for (const rec of cachedRecordings) {
-                    const recElement = await createRecordingElement(rec, questionId, allIds);
-                    recordingsListUI.appendChild(recElement);
+            (async () => {
+                try {
+                    const cachedRecordings = JSON.parse(cachedData);
+                    console.log(`[${questionId}] Using cached recordings (${cachedRecordings.length})`);
+                    
+                    // Use cache immediately for faster UI
+                    recordingCountCache.set(questionId, cachedRecordings.length);
+                    recordingsListUI.innerHTML = '';
+                    cachedRecordings.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                    
+                    const allIds = cachedRecordings.map(r => r.id);
+                    for (const rec of cachedRecordings) {
+                        const recElement = await createRecordingElement(rec, questionId, allIds);
+                        recordingsListUI.appendChild(recElement);
+                    }
+                    
+                    // Enable button with cached data
+                    enableRecordButton();
+                } catch (error) {
+                    console.warn(`[${questionId}] Cache parse error:`, error);
                 }
-                
-                // Enable button with cached data
-                enableRecordButton();
-            } catch (error) {
-                console.warn(`[${questionId}] Cache parse error:`, error);
-            }
+            })();
         }
         
         // Load recordings from cloud for cross-device sync (always refresh in background)
