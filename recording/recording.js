@@ -699,6 +699,14 @@ async function deleteRecording(recordingId, questionId, elementToRemove) {
             console.log(`[${questionId}] Updated cached count after delete: ${currentCount - 1}/30`);
         }
         
+        // Invalidate session cache after deletion
+        const urlParams = new URLSearchParams(window.location.search);
+        const world = window.currentRecordingParams?.world || urlParams.get('world') || 'unknown-world';
+        const lmid = window.currentRecordingParams?.lmid || urlParams.get('lmid') || 'unknown-lmid';
+        const cacheKey = `recordings_${world}_${lmid}_${questionId}`;
+        sessionStorage.removeItem(cacheKey);
+        console.log(`[${questionId}] Cache invalidated after deletion`);
+        
     } catch (error) {
         console.error(`Error deleting recording ${recordingId}:`, error);
         // Still remove from UI even if deletion partially failed
@@ -710,6 +718,14 @@ async function deleteRecording(recordingId, questionId, elementToRemove) {
             recordingCountCache.set(questionId, currentCount - 1);
             console.log(`[${questionId}] Updated cached count after delete (with error): ${currentCount - 1}/30`);
         }
+        
+        // Invalidate session cache after deletion (even with error)
+        const urlParams = new URLSearchParams(window.location.search);
+        const world = window.currentRecordingParams?.world || urlParams.get('world') || 'unknown-world';
+        const lmid = window.currentRecordingParams?.lmid || urlParams.get('lmid') || 'unknown-lmid';
+        const cacheKey = `recordings_${world}_${lmid}_${questionId}`;
+        sessionStorage.removeItem(cacheKey);
+        console.log(`[${questionId}] Cache invalidated after deletion (with error)`);
     }
 }
 
@@ -807,6 +823,24 @@ function initializeAudioRecorder(recorderWrapper) {
         return;
     }
     
+    // --- Step 2: Disable button until recordings load ---
+    recordButton.style.opacity = '0.6';
+    recordButton.style.pointerEvents = 'none';
+    recordButton.dataset.loading = 'true';
+    
+    // Store original button text and add loading indicator
+    const originalButtonText = recordButton.textContent || 'Record';
+    recordButton.textContent = 'Loading...';
+    
+    // --- Helper function to enable button after loading ---
+    function enableRecordButton() {
+        recordButton.style.opacity = '1';
+        recordButton.style.pointerEvents = 'auto';
+        recordButton.dataset.loading = 'false';
+        recordButton.textContent = originalButtonText;
+        console.log(`[${questionId}] Record button enabled`);
+    }
+    
     // --- Instance variables (shared across functions in this scope) ---
     let placeholderEl, statusDisplay, timerDisplay, recordingsListUI;
     let mediaRecorder, audioChunks = [], timerInterval, seconds = 0, stream;
@@ -823,7 +857,34 @@ function initializeAudioRecorder(recorderWrapper) {
         const world = window.currentRecordingParams?.world || urlParams.get('world') || 'unknown-world';
         const lmid = window.currentRecordingParams?.lmid || urlParams.get('lmid') || 'unknown-lmid';
         
-        // Load recordings from cloud for cross-device sync
+        // Try session cache first for faster loading
+        const cacheKey = `recordings_${world}_${lmid}_${questionId}`;
+        const cachedData = sessionStorage.getItem(cacheKey);
+        
+        if (cachedData) {
+            try {
+                const cachedRecordings = JSON.parse(cachedData);
+                console.log(`[${questionId}] Using cached recordings (${cachedRecordings.length})`);
+                
+                // Use cache immediately for faster UI
+                recordingCountCache.set(questionId, cachedRecordings.length);
+                recordingsListUI.innerHTML = '';
+                cachedRecordings.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                
+                const allIds = cachedRecordings.map(r => r.id);
+                for (const rec of cachedRecordings) {
+                    const recElement = await createRecordingElement(rec, questionId, allIds);
+                    recordingsListUI.appendChild(recElement);
+                }
+                
+                // Enable button with cached data
+                enableRecordButton();
+            } catch (error) {
+                console.warn(`[${questionId}] Cache parse error:`, error);
+            }
+        }
+        
+        // Load recordings from cloud for cross-device sync (always refresh in background)
         loadRecordingsFromCloud(questionId, world, lmid).then(async recordings => {
             recordingCountCache.set(questionId, recordings.length); // Cache count for instant limit check
             recordingsListUI.innerHTML = ''; // Clear previous
@@ -835,16 +896,41 @@ function initializeAudioRecorder(recorderWrapper) {
                 const recElement = await createRecordingElement(rec, questionId, allIds);
                 recordingsListUI.appendChild(recElement);
             }
+            
+            // Cache fresh data for next time (session-only)
+            try {
+                sessionStorage.setItem(cacheKey, JSON.stringify(recordings));
+                console.log(`[${questionId}] Cached ${recordings.length} recordings`);
+            } catch (error) {
+                console.warn(`[${questionId}] Cache save error:`, error);
+            }
+            
+            // Enable record button after all recordings are loaded (if not already enabled by cache)
+            if (recordButton.dataset.loading === 'true') {
+                enableRecordButton();
+            }
         }).catch(error => {
             console.error(`[${questionId}] Error loading recordings:`, error);
             recordingsLoaded = false; // Reset flag on error
+            
+            // Enable button even on error (user should still be able to record)
+            enableRecordButton();
         });
+    } else {
+        // No recordings list found - enable button immediately
+        enableRecordButton();
     }
     
     recordButton.addEventListener('click', handleRecordButtonClick);
 
     function handleRecordButtonClick(event) {
         event.preventDefault();
+        
+        // Prevent clicks while loading
+        if (recordButton.dataset.loading === 'true') {
+            console.log(`[${questionId}] Record button still loading, ignoring click`);
+            return;
+        }
         
         if (mediaRecorder && mediaRecorder.state === "recording") {
             mediaRecorder.stop();
@@ -1026,6 +1112,14 @@ function initializeAudioRecorder(recorderWrapper) {
                     const currentCount = recordingCountCache.get(questionId) || 0;
                     recordingCountCache.set(questionId, currentCount + 1);
                     console.log(`[${questionId}] Updated cached count: ${currentCount + 1}/30`);
+                    
+                    // Invalidate session cache after new recording
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const world = window.currentRecordingParams?.world || urlParams.get('world') || 'unknown-world';
+                    const lmid = window.currentRecordingParams?.lmid || urlParams.get('lmid') || 'unknown-lmid';
+                    const cacheKey = `recordings_${world}_${lmid}_${questionId}`;
+                    sessionStorage.removeItem(cacheKey);
+                    console.log(`[${questionId}] Cache invalidated after new recording`);
                     
                     // Start background upload to Bunny.net
                     uploadToBunny(recordingData, world, lmid);
