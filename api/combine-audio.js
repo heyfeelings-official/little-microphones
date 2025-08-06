@@ -441,22 +441,22 @@ async function combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams, p
             }
         }
         
-        // SIMPLE APPROACH: Apply volume boost to user recordings only (avoid WebM filter issues)
-        console.log('🔊 Applying simple volume boost to user recordings...');
+        // PROFESSIONAL APPROACH: Apply loudnorm to user recordings for consistent levels
+        console.log('🎯 Applying professional loudnorm to user recordings...');
         
         for (const segment of processedSegments) {
-            // Only boost user recordings (answers), not system files
+            // Only normalize user recordings (answers), not system files
             if (segment.type === 'answers' && segment.path) {
-                console.log(`🔊 Boosting volume: ${path.basename(segment.path)}`);
-                await simpleVolumeBoost(segment.path, 1.4); // 40% volume increase
+                console.log(`🎯 Normalizing: ${path.basename(segment.path)}`);
+                await professionalNormalize(segment.path); // EBU R128 loudness normalization
             }
         }
         
-        console.log('✨ Volume boost applied to user recordings');
+        console.log('✨ Professional normalization applied to user recordings');
         
         // Final assembly of all segments IN ORDER
         console.log('🎼 Step 3: Assembling final radio program with background...');
-        const outputPath = path.join(tempDir, `radio-program-${programType}-${world}-${lmid}.webm`);
+        const outputPath = path.join(tempDir, `radio-program-${programType}-${world}-${lmid}.mp3`);
         await assembleFinalProgram(processedSegments, outputPath, backgroundUrl, tempDir);
         
         // Upload to Bunny.net
@@ -642,8 +642,8 @@ async function assembleFinalProgram(processedSegments, outputPath, backgroundUrl
                     '-b:a', '128k',
                     '-compression_level', '2'
                 ])
-                .format('webm')
-                .audioCodec('libvorbis')
+                .format('mp3')
+                .audioCodec('libmp3lame')
                 .on('start', (commandLine) => {
                     console.log('🎵 Final assembly with background:', commandLine);
                 })
@@ -808,53 +808,60 @@ async function analyzeAllVoiceLevels(voiceFiles) {
 }
 
 /**
- * Simple volume boost without complex filters (WebM compatible)
- * @param {string} filePath - Path to audio file
- * @param {number} volumeMultiplier - Volume multiplier (e.g., 1.4 = 40% increase)
+ * Professional loudness normalization (WebM → MP3 with EBU R128)
+ * @param {string} filePath - Path to WebM audio file
  * @returns {Promise<void>}
  */
-async function simpleVolumeBoost(filePath, volumeMultiplier) {
-    const fileExtension = path.extname(filePath);
-    const tempOutputPath = `${filePath}.boosted${fileExtension}`;
+async function professionalNormalize(filePath) {
+    // Convert WebM to MP3 with professional loudnorm
+    const tempOutputPath = `${filePath}.normalized.mp3`;
     
     return new Promise((resolve, reject) => {
         const command = ffmpeg(filePath)
-            // Simple volume filter - no complex loudnorm
-            .audioFilters([`volume=${volumeMultiplier}`])
+            .audioFilters([
+                // EBU R128 loudness normalization - PROFESSIONAL BROADCAST STANDARD
+                'loudnorm=I=-16.0:LRA=7.0:TP=-1.0:print_format=json',
+                // Light enhancement for speech clarity
+                'highpass=f=80',           // Remove low-frequency noise
+                'lowpass=f=8000',          // Remove high-frequency noise  
+                'compand=0.02,0.20:-60/-60,-30/-15,-20/-10,-5/-5,0/-3:6:0:-3' // Speech compressor
+            ])
+            .format('mp3')
+            .audioCodec('libmp3lame')
             .output(tempOutputPath);
         
-        // Timeout protection (15 seconds)
+        // Timeout protection (20 seconds)
         const timeoutId = setTimeout(() => {
             try {
                 command.kill('SIGKILL');
-                console.warn(`⏰ Volume boost timeout for ${path.basename(filePath)} after 15s`);
+                console.warn(`⏰ Professional normalization timeout for ${path.basename(filePath)} after 20s`);
             } catch (error) {
                 console.warn('Error killing FFmpeg process:', error.message);
             }
-            // Don't reject - continue without boost
+            // Don't reject - continue without normalization
             resolve();
-        }, 15000);
+        }, 20000);
         
         command
             .on('start', () => {
-                console.log(`🔊 Boosting volume: ${path.basename(filePath)} (${volumeMultiplier}x)`);
+                console.log(`🎯 Professional normalization: ${path.basename(filePath)} (WebM→MP3)`);
             })
             .on('end', async () => {
                 clearTimeout(timeoutId);
                 try {
-                    // Replace original with boosted version
+                    // Replace original WebM with normalized MP3
                     await fs.rename(tempOutputPath, filePath);
-                    console.log(`✨ Volume boosted: ${path.basename(filePath)}`);
+                    console.log(`✨ Professional normalization complete: ${path.basename(filePath)}`);
                     resolve();
                 } catch (error) {
-                    console.warn(`⚠️ Failed to replace boosted file: ${error.message}`);
-                    resolve(); // Continue without boost
+                    console.warn(`⚠️ Failed to replace normalized file: ${error.message}`);
+                    resolve(); // Continue without normalization
                 }
             })
             .on('error', (error) => {
                 clearTimeout(timeoutId);
-                console.warn(`⚠️ Volume boost failed for ${path.basename(filePath)}:`, error.message);
-                resolve(); // Continue without boost
+                console.warn(`⚠️ Professional normalization failed for ${path.basename(filePath)}:`, error.message);
+                resolve(); // Continue without normalization
             })
             .run();
     });
