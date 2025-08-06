@@ -700,9 +700,6 @@ async function deleteRecording(recordingId, questionId, elementToRemove) {
         }
         
         // Invalidate session cache after deletion
-        const urlParams = new URLSearchParams(window.location.search);
-        const world = window.currentRecordingParams?.world || urlParams.get('world') || 'unknown-world';
-        const lmid = window.currentRecordingParams?.lmid || urlParams.get('lmid') || 'unknown-lmid';
         const cacheKey = `recordings_${world}_${lmid}_${questionId}`;
         sessionStorage.removeItem(cacheKey);
         console.log(`[${questionId}] Cache invalidated after deletion`);
@@ -720,9 +717,6 @@ async function deleteRecording(recordingId, questionId, elementToRemove) {
         }
         
         // Invalidate session cache after deletion (even with error)
-        const urlParams = new URLSearchParams(window.location.search);
-        const world = window.currentRecordingParams?.world || urlParams.get('world') || 'unknown-world';
-        const lmid = window.currentRecordingParams?.lmid || urlParams.get('lmid') || 'unknown-lmid';
         const cacheKey = `recordings_${world}_${lmid}_${questionId}`;
         sessionStorage.removeItem(cacheKey);
         console.log(`[${questionId}] Cache invalidated after deletion (with error)`);
@@ -846,16 +840,18 @@ function initializeAudioRecorder(recorderWrapper) {
     let mediaRecorder, audioChunks = [], timerInterval, seconds = 0, stream;
     let recordingsLoaded = false; // Flag to prevent duplicate loading
     // Use global cache for recording count
+    
+    // --- Shared URL params (declared once to avoid redeclaration errors) ---
+    const urlParams = new URLSearchParams(window.location.search);
+    const world = window.currentRecordingParams?.world || urlParams.get('world') || 'unknown-world';
+    const lmid = window.currentRecordingParams?.lmid || urlParams.get('lmid') || 'unknown-lmid';
 
     // --- Initial DB load to show previous recordings ---
     recordingsListUI = recorderWrapper.querySelector('.recording-list.w-list-unstyled');
     if (recordingsListUI && !recordingsLoaded) {
         recordingsLoaded = true; // Set flag immediately
         
-        // Get world and lmid from URL params or global params
-        const urlParams = new URLSearchParams(window.location.search);
-        const world = window.currentRecordingParams?.world || urlParams.get('world') || 'unknown-world';
-        const lmid = window.currentRecordingParams?.lmid || urlParams.get('lmid') || 'unknown-lmid';
+        // Use shared world and lmid variables
         
         // Try session cache first for faster loading
         const cacheKey = `recordings_${world}_${lmid}_${questionId}`;
@@ -957,10 +953,6 @@ function initializeAudioRecorder(recorderWrapper) {
      */
     async function checkRecordingLimit() {
         try {
-            const urlParams = new URLSearchParams(window.location.search);
-            const world = window.currentRecordingParams?.world || urlParams.get('world') || 'unknown-world';
-            const lmid = window.currentRecordingParams?.lmid || urlParams.get('lmid') || 'unknown-lmid';
-            
             const recordings = await loadRecordingsFromCloud(questionId, world, lmid);
             const currentCount = recordings.length;
             
@@ -1072,10 +1064,7 @@ function initializeAudioRecorder(recorderWrapper) {
                     const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
                     audioChunks = [];
 
-                    // Get world and lmid from URL params or global params
-                    const urlParams = new URLSearchParams(window.location.search);
-                    const world = window.currentRecordingParams?.world || urlParams.get('world') || 'unknown-world';
-                    const lmid = window.currentRecordingParams?.lmid || urlParams.get('lmid') || 'unknown-lmid';
+                    // Use shared world and lmid variables
 
                     // --- Generate ID based on user role ---
                     const timestamp = Date.now();
@@ -1114,9 +1103,6 @@ function initializeAudioRecorder(recorderWrapper) {
                     console.log(`[${questionId}] Updated cached count: ${currentCount + 1}/30`);
                     
                     // Invalidate session cache after new recording
-                    const urlParams = new URLSearchParams(window.location.search);
-                    const world = window.currentRecordingParams?.world || urlParams.get('world') || 'unknown-world';
-                    const lmid = window.currentRecordingParams?.lmid || urlParams.get('lmid') || 'unknown-lmid';
                     const cacheKey = `recordings_${world}_${lmid}_${questionId}`;
                     sessionStorage.removeItem(cacheKey);
                     console.log(`[${questionId}] Cache invalidated after new recording`);
