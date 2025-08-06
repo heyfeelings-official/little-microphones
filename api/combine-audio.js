@@ -1262,4 +1262,3 @@ function getFFmpegSetupSuggestions() {
         }
     };
 } 
-} 
