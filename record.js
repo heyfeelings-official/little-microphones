@@ -317,7 +317,11 @@ async function generateShareIdAndSetupButton(button, world, lmid) {
     }
     
     // Generate the radio URL with ShareID (new public URL structure)
-    const radioUrl = `/little-microphones?ID=${result.shareId}`;
+    // Detect current language and build localized radio URL
+    const currentLang = window.LM_CONFIG?.getCurrentLanguage() || 'en';
+    const radioUrl = currentLang === 'en' 
+        ? `/little-microphones?ID=${result.shareId}`
+        : `/${currentLang}/little-microphones?ID=${result.shareId}`;
     
     console.log(`ShareID generated: ${result.shareId}, URL: ${radioUrl}`);
     

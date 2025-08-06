@@ -339,7 +339,11 @@
                         // 4. Setup recording links for specific elements within new-rec
                         const newRecElement = worldContainer.querySelector('.new-rec');
                         if (newRecElement) {
-                            const recordingUrl = `/members/record?world=${world}&lmid=${lmid}`;
+                            // Detect current language and build localized recording URL
+                            const currentLang = window.LM_CONFIG?.getCurrentLanguage() || 'en';
+                            const recordingUrl = currentLang === 'en' 
+                                ? `/members/record?world=${world}&lmid=${lmid}`
+                                : `/${currentLang}/members/record?world=${world}&lmid=${lmid}`;
                             
                             // Add click handler to .rec-text.action (element with both classes)
                             const actionElement = newRecElement.querySelector('.rec-text.action');

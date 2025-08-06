@@ -124,7 +124,14 @@ async function handleLoggedInParent(shareId) {
         
         // Optional: redirect to dashboard after short delay
         setTimeout(() => {
-            window.location.href = '/members/little-microphones';
+            // Detect current language and redirect to localized dashboard
+            const currentLang = window.LM_CONFIG?.getCurrentLanguage() || 'en';
+            const dashboardPath = currentLang === 'en' 
+                ? '/members/little-microphones' 
+                : `/${currentLang}/members/little-microphones`;
+            
+            console.log(`[Parent Redirect] Redirecting to localized dashboard: ${dashboardPath}`);
+            window.location.href = dashboardPath;
         }, 3000);
         
     } catch (error) {
