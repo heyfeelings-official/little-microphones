@@ -1052,7 +1052,7 @@
             // Parents see only kids program
             if (programs.kids && programs.kids.url) {
                 console.log('👨‍👩‍👧‍👦 Parent user - showing kids program:', programs.kids.url);
-                createSinglePlayer(playerContainer, programs.kids.url, radioData, 'Kids Program');
+                createSinglePlayer(playerContainer, programs.kids.url, radioData, null);
             } else {
                 console.log('👨‍👩‍👧‍👦 Parent user - no kids program available:', programs);
                 playerContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">No kids recordings available yet.</div>';
@@ -1066,7 +1066,7 @@
                 console.log('✅ DEBUG: Found kids program:', programs.kids.url);
                 availablePrograms.push({
                     url: programs.kids.url,
-                    title: 'Kids Program',
+                    title: 'Kids', // Identifier only, not displayed
                     description: 'Student recordings'
                 });
             } else {
