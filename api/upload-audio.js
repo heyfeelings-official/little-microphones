@@ -166,8 +166,8 @@ async function processAudioForUpload(audioBuffer, format) {
         await fs.unlink(outputPath).catch(() => {});
         await fs.rmdir(tempDir).catch(() => {});
         
-        console.warn(`⚠️ Pre-upload normalization failed, using original: ${error.message}`);
-        return audioBuffer; // Return original on failure
+        console.warn(`⚠️ Pre-upload normalization failed (WebM filter issue), using original: ${error.message}`);
+        return audioBuffer; // Return original on failure - this is expected with WebM format
     }
 }
 
@@ -337,9 +337,10 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: filenameValidation.error });
         }
 
-        // Process audio with normalization for consistent loudness levels
-        let processedAudioBuffer = await processAudioForUpload(audioBuffer, format);
-        console.log(`📤 Uploading pre-normalized audio: ${filename}`);
+        // DISABLED: Skip normalization due to WebM + loudnorm compatibility issues
+        // WebM format with loudnorm filter causes FFmpeg "Error reinitializing filters"
+        let processedAudioBuffer = audioBuffer;
+        console.log(`📤 Uploading original WebM (normalization disabled): ${filename}`);
 
         // Upload to Bunny.net with folder structure: lang/lmid/world/filename
         const filePath = `${lang}/${lmid}/${world}/${filename}`;

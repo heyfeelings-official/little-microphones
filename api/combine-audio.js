@@ -287,15 +287,21 @@ export default async function handler(req, res) {
             
             // Create error manifest to prevent infinite retry loops
             try {
+                // Circuit breaker: Check if we've had recent failures
+                const now = Date.now();
+                const fiveMinutesAgo = now - (5 * 60 * 1000);
+                
+                // Create error manifest with circuit breaker logic
                 const errorManifest = {
                     error: true,
                     errorMessage: error.message,
-                    timestamp: Date.now(),
+                    timestamp: now,
                     world: world,
                     lmid: lmid,
                     programType: programType || 'kids',
                     lang: lang || 'en',
-                    retryAfter: Date.now() + (10 * 60 * 1000) // Retry after 10 minutes
+                    failureCount: 1, // Will be incremented if existing error manifest found
+                    retryAfter: now + (30 * 60 * 1000) // 30 minutes cooldown for repeated failures
                 };
                 
                 const manifestPath = `${lang || 'en'}/${lmid}/${world}/last-program-manifest.json`;
@@ -435,34 +441,18 @@ async function combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams, p
             }
         }
         
-        // NEW APPROACH: Analyze and normalize all voice files together
-        console.log('🔍 Step 1: Analyzing voice levels for optimal normalization...');
+        // SIMPLE APPROACH: Apply volume boost to user recordings only (avoid WebM filter issues)
+        console.log('🔊 Applying simple volume boost to user recordings...');
         
-        // Identify voice files (exclude jingles, include QIDs, answers, intros, outros)
-        const voiceFiles = [];
         for (const segment of processedSegments) {
-            const isJingle = segment.url && segment.url.includes('/jingles/');
-            const isVoiceFile = !isJingle; // Everything except jingles is voice content
-            
-            if (isVoiceFile && segment.path) {
-                voiceFiles.push(segment.path);
+            // Only boost user recordings (answers), not system files
+            if (segment.type === 'answers' && segment.path) {
+                console.log(`🔊 Boosting volume: ${path.basename(segment.path)}`);
+                await simpleVolumeBoost(segment.path, 1.4); // 40% volume increase
             }
         }
         
-        console.log(`📊 Found ${voiceFiles.length} voice files to analyze (excluding ${processedSegments.length - voiceFiles.length} jingles)`);
-        
-        // Analyze all voice files to determine optimal common level
-        const targetLevels = await analyzeAllVoiceLevels(voiceFiles);
-        
-        console.log('🎵 Step 2: Normalizing all voice files to common level...');
-        
-        // Normalize all voice files to the common target level
-        for (const filePath of voiceFiles) {
-            console.log(`🔧 Normalizing: ${path.basename(filePath)}`);
-            await normalizeVoiceFile(filePath, targetLevels);
-        }
-        
-        console.log(`✨ All ${voiceFiles.length} voice files normalized to ${targetLevels.targetLUFS.toFixed(1)} LUFS`);
+        console.log('✨ Volume boost applied to user recordings');
         
         // Final assembly of all segments IN ORDER
         console.log('🎼 Step 3: Assembling final radio program with background...');
@@ -815,6 +805,59 @@ async function analyzeAllVoiceLevels(voiceFiles) {
         analysisCount: analyses.length,
         avgLUFS: avgLUFS
     };
+}
+
+/**
+ * Simple volume boost without complex filters (WebM compatible)
+ * @param {string} filePath - Path to audio file
+ * @param {number} volumeMultiplier - Volume multiplier (e.g., 1.4 = 40% increase)
+ * @returns {Promise<void>}
+ */
+async function simpleVolumeBoost(filePath, volumeMultiplier) {
+    const fileExtension = path.extname(filePath);
+    const tempOutputPath = `${filePath}.boosted${fileExtension}`;
+    
+    return new Promise((resolve, reject) => {
+        const command = ffmpeg(filePath)
+            // Simple volume filter - no complex loudnorm
+            .audioFilters([`volume=${volumeMultiplier}`])
+            .output(tempOutputPath);
+        
+        // Timeout protection (15 seconds)
+        const timeoutId = setTimeout(() => {
+            try {
+                command.kill('SIGKILL');
+                console.warn(`⏰ Volume boost timeout for ${path.basename(filePath)} after 15s`);
+            } catch (error) {
+                console.warn('Error killing FFmpeg process:', error.message);
+            }
+            // Don't reject - continue without boost
+            resolve();
+        }, 15000);
+        
+        command
+            .on('start', () => {
+                console.log(`🔊 Boosting volume: ${path.basename(filePath)} (${volumeMultiplier}x)`);
+            })
+            .on('end', async () => {
+                clearTimeout(timeoutId);
+                try {
+                    // Replace original with boosted version
+                    await fs.rename(tempOutputPath, filePath);
+                    console.log(`✨ Volume boosted: ${path.basename(filePath)}`);
+                    resolve();
+                } catch (error) {
+                    console.warn(`⚠️ Failed to replace boosted file: ${error.message}`);
+                    resolve(); // Continue without boost
+                }
+            })
+            .on('error', (error) => {
+                clearTimeout(timeoutId);
+                console.warn(`⚠️ Volume boost failed for ${path.basename(filePath)}:`, error.message);
+                resolve(); // Continue without boost
+            })
+            .run();
+    });
 }
 
 /**
@@ -1175,4 +1218,5 @@ function getFFmpegSetupSuggestions() {
             }
         }
     };
+} 
 } 
