@@ -328,8 +328,24 @@ async function combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams, p
                 const filePath = path.join(tempDir, fileName);
                 
                 // The URL for static files is already localized by the frontend (radio.js)
-                console.log(`📥 Downloading: ${segment.url}`);
-                await downloadFile(segment.url, filePath);
+                        // Fix Polish language URLs - system files are only in English
+        let downloadUrl = segment.url;
+        if (lang && lang !== 'en') {
+            // Remove language prefix from system audio files (they only exist in English)
+            const isSystemFile = segment.url.includes('/jingles/') || 
+                                segment.url.includes('/other/') || 
+                                segment.url.includes('/questions/') ||
+                                segment.url.includes('-QID');
+            
+            if (isSystemFile) {
+                // Replace /pl/audio/ with /audio/ for system files
+                downloadUrl = segment.url.replace(`/${lang}/audio/`, '/audio/');
+                console.log(`🌍 Fixed system file URL for ${lang}: ${downloadUrl}`);
+            }
+        }
+        
+        console.log(`📥 Downloading: ${downloadUrl}`);
+        await downloadFile(downloadUrl, filePath);
                 
                 // Skip normalization here - will be done collectively after analysis
                 
@@ -398,6 +414,12 @@ async function combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams, p
         for (const segment of audioSegments) {
             if (segment.type === 'combine_with_background' && segment.backgroundUrl) {
                 backgroundUrl = segment.backgroundUrl;
+                
+                // Fix Polish language URLs - background files are only in English
+                if (lang && lang !== 'en' && backgroundUrl.includes(`/${lang}/audio/`)) {
+                    backgroundUrl = backgroundUrl.replace(`/${lang}/audio/`, '/audio/');
+                    console.log(`🌍 Fixed background URL for ${lang}: ${backgroundUrl}`);
+                }
                 break;
             }
         }
@@ -814,7 +836,8 @@ async function analyzeSingleFileLoudness(filePath) {
  * @returns {Promise<void>}
  */
 async function normalizeVoiceFile(filePath, targetLevels) {
-    const tempOutputPath = `${filePath}.normalized`;
+    // Use .mp3 extension for normalized output to avoid format issues
+    const tempOutputPath = `${filePath}.normalized.mp3`;
     
     return new Promise((resolve, reject) => {
         ffmpeg(filePath)
@@ -824,16 +847,26 @@ async function normalizeVoiceFile(filePath, targetLevels) {
                 'lowpass=f=8000',
                 'compand=0.02,0.20:-60/-60,-30/-15,-20/-10,-5/-5,0/-3:6:0:-3'
             ])
+            .format('mp3')  // Force MP3 output format
+            .audioCodec('libmp3lame')  // Use MP3 codec
             .output(tempOutputPath)
+            .on('start', (commandLine) => {
+                console.log(`🔧 Normalizing: ${path.basename(filePath)} -> MP3`);
+            })
             .on('end', async () => {
                 try {
+                    // Replace original with normalized MP3 version
                     await fs.rename(tempOutputPath, filePath);
+                    console.log(`✨ Normalized: ${path.basename(filePath)}`);
                     resolve();
                 } catch (error) {
                     reject(error);
                 }
             })
-            .on('error', reject)
+            .on('error', (error) => {
+                console.error(`❌ Normalization failed for ${path.basename(filePath)}:`, error.message);
+                reject(error);
+            })
             .run();
     });
 }
