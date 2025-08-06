@@ -328,24 +328,8 @@ async function combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams, p
                 const filePath = path.join(tempDir, fileName);
                 
                 // The URL for static files is already localized by the frontend (radio.js)
-                        // Fix Polish language URLs - system files are only in English
-        let downloadUrl = segment.url;
-        if (lang && lang !== 'en') {
-            // Remove language prefix from system audio files (they only exist in English)
-            const isSystemFile = segment.url.includes('/jingles/') || 
-                                segment.url.includes('/other/') || 
-                                segment.url.includes('/questions/') ||
-                                segment.url.includes('-QID');
-            
-            if (isSystemFile) {
-                // Replace /pl/audio/ with /audio/ for system files
-                downloadUrl = segment.url.replace(`/${lang}/audio/`, '/audio/');
-                console.log(`🌍 Fixed system file URL for ${lang}: ${downloadUrl}`);
-            }
-        }
-        
-        console.log(`📥 Downloading: ${downloadUrl}`);
-        await downloadFile(downloadUrl, filePath);
+                        console.log(`📥 Downloading: ${segment.url}`);
+        await downloadFile(segment.url, filePath);
                 
                 // Skip normalization here - will be done collectively after analysis
                 
@@ -414,12 +398,6 @@ async function combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams, p
         for (const segment of audioSegments) {
             if (segment.type === 'combine_with_background' && segment.backgroundUrl) {
                 backgroundUrl = segment.backgroundUrl;
-                
-                // Fix Polish language URLs - background files are only in English
-                if (lang && lang !== 'en' && backgroundUrl.includes(`/${lang}/audio/`)) {
-                    backgroundUrl = backgroundUrl.replace(`/${lang}/audio/`, '/audio/');
-                    console.log(`🌍 Fixed background URL for ${lang}: ${backgroundUrl}`);
-                }
                 break;
             }
         }
