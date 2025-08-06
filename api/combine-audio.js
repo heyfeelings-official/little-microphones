@@ -599,6 +599,17 @@ async function assembleFinalProgram(processedSegments, outputPath, backgroundUrl
                 filters.push(`[final]acopy[outa]`);
             }
             
+            // Timeout protection for final assembly (60 seconds)
+            const timeoutId = setTimeout(() => {
+                try {
+                    command.kill('SIGKILL');
+                    console.warn(`⏰ FFmpeg final assembly timeout after 60s`);
+                } catch (error) {
+                    console.warn('Error killing FFmpeg process:', error.message);
+                }
+                reject(new Error('FFmpeg final assembly timed out after 60 seconds'));
+            }, 60000);
+            
             command
                 .complexFilter(filters)
                 .outputOptions([
@@ -617,10 +628,14 @@ async function assembleFinalProgram(processedSegments, outputPath, backgroundUrl
                     console.log(`⏳ Final assembly: ${Math.round(progress.percent || 0)}% done`);
                 })
                 .on('end', () => {
+                    clearTimeout(timeoutId);
                     console.log('✅ Radio program assembly with background complete');
                     resolve();
                 })
-                .on('error', reject)
+                .on('error', (error) => {
+                    clearTimeout(timeoutId);
+                    reject(error);
+                })
                 .save(outputPath);
                 
         } catch (error) {
@@ -778,14 +793,29 @@ async function analyzeSingleFileLoudness(filePath) {
     return new Promise((resolve, reject) => {
         let analysisOutput = '';
         
-        ffmpeg(filePath)
+        const command = ffmpeg(filePath)
             .audioFilters(['loudnorm=print_format=json'])
             .format('null')
-            .output('-')
+            .output('-');
+        
+        // Timeout protection for analysis (15 seconds)
+        const timeoutId = setTimeout(() => {
+            try {
+                command.kill('SIGKILL');
+                console.warn(`⏰ Analysis timeout for ${path.basename(filePath)} after 15s`);
+            } catch (error) {
+                console.warn('Error killing FFmpeg analysis process:', error.message);
+            }
+            // Don't reject - return default values for graceful degradation
+            resolve({ inputLUFS: null, inputLRA: null, inputTP: null });
+        }, 15000);
+        
+        command
             .on('stderr', (stderrLine) => {
                 analysisOutput += stderrLine + '\n';
             })
             .on('end', () => {
+                clearTimeout(timeoutId);
                 try {
                     const jsonMatch = analysisOutput.match(/\{[\s\S]*\}/);
                     if (jsonMatch) {
@@ -802,7 +832,12 @@ async function analyzeSingleFileLoudness(filePath) {
                     resolve({ inputLUFS: null, inputLRA: null, inputTP: null });
                 }
             })
-            .on('error', reject)
+            .on('error', (error) => {
+                clearTimeout(timeoutId);
+                // Don't reject analysis errors - return defaults for graceful degradation
+                console.warn(`⚠️ Analysis failed for ${path.basename(filePath)}:`, error.message);
+                resolve({ inputLUFS: null, inputLRA: null, inputTP: null });
+            })
             .run();
     });
 }
@@ -818,7 +853,7 @@ async function normalizeVoiceFile(filePath, targetLevels) {
     const tempOutputPath = `${filePath}.normalized.mp3`;
     
     return new Promise((resolve, reject) => {
-        ffmpeg(filePath)
+        const command = ffmpeg(filePath)
             .audioFilters([
                 `loudnorm=I=${targetLevels.targetLUFS}:LRA=${targetLevels.targetLRA}:TP=${targetLevels.targetTP}:print_format=json`,
                 'highpass=f=80',
@@ -827,11 +862,25 @@ async function normalizeVoiceFile(filePath, targetLevels) {
             ])
             .format('mp3')  // Force MP3 output format
             .audioCodec('libmp3lame')  // Use MP3 codec
-            .output(tempOutputPath)
+            .output(tempOutputPath);
+        
+        // Timeout protection for FFmpeg operations (30 seconds)
+        const timeoutId = setTimeout(() => {
+            try {
+                command.kill('SIGKILL');
+                console.warn(`⏰ FFmpeg timeout for ${path.basename(filePath)} after 30s`);
+            } catch (error) {
+                console.warn('Error killing FFmpeg process:', error.message);
+            }
+            reject(new Error(`FFmpeg normalization timed out after 30 seconds for ${path.basename(filePath)}`));
+        }, 30000);
+        
+        command
             .on('start', (commandLine) => {
                 console.log(`🔧 Normalizing: ${path.basename(filePath)} -> MP3`);
             })
             .on('end', async () => {
+                clearTimeout(timeoutId);
                 try {
                     // Replace original with normalized MP3 version
                     await fs.rename(tempOutputPath, filePath);
@@ -842,6 +891,7 @@ async function normalizeVoiceFile(filePath, targetLevels) {
                 }
             })
             .on('error', (error) => {
+                clearTimeout(timeoutId);
                 console.error(`❌ Normalization failed for ${path.basename(filePath)}:`, error.message);
                 reject(error);
             })
