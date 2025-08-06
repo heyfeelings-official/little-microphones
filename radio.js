@@ -1066,7 +1066,7 @@
                 console.log('✅ DEBUG: Found kids program:', programs.kids.url);
                 availablePrograms.push({
                     url: programs.kids.url,
-                    title: 'Kids', // Identifier only, not displayed
+                    type: 'kids', // For identification, not displayed
                     description: 'Student recordings'
                 });
             } else {
@@ -1077,7 +1077,7 @@
                 console.log('✅ DEBUG: Found parent program:', programs.parent.url);
                 availablePrograms.push({
                     url: programs.parent.url,
-                    title: 'Parent Program', 
+                    type: 'parent', // For identification, not displayed
                     description: 'Parent recordings'
                 });
             } else {
@@ -1130,12 +1130,12 @@
     function createDualPlayer(container, programs, radioData) {
         console.log('🎬 DEBUG: createDualPlayer called with programs:', programs);
         
-        // Find kids and parent programs
-        const kidsProgram = programs.find(p => p.title && p.title.includes('Kids'));
-        const parentProgram = programs.find(p => p.title && p.title.includes('Parent'));
+        // Find kids and parent programs by type
+        const kidsProgram = programs.find(p => p.type === 'kids');
+        const parentProgram = programs.find(p => p.type === 'parent');
         
-        console.log('👶 DEBUG: kidsProgram found:', kidsProgram ? kidsProgram.title : 'NO');
-        console.log('👨‍👩‍👧‍👦 DEBUG: parentProgram found:', parentProgram ? parentProgram.title : 'NO');
+        console.log('👶 DEBUG: kidsProgram found:', kidsProgram ? kidsProgram.type : 'NO');
+        console.log('👨‍👩‍👧‍👦 DEBUG: parentProgram found:', parentProgram ? parentProgram.type : 'NO');
         
         // Clean implementation - debug code removed since dual player works correctly
         
