@@ -71,6 +71,9 @@
 // --- Global initialization tracking ---
 const initializedWorlds = new Set();
 
+// --- Global recording count cache for instant limit checks ---
+const recordingCountCache = new Map(); // questionId -> count
+
 // --- User Role Detection ---
 let currentUserRole = null;
 
@@ -689,10 +692,24 @@ async function deleteRecording(recordingId, questionId, elementToRemove) {
         
         elementToRemove.remove();
         
+        // Update cached count for instant limit checks
+        const currentCount = recordingCountCache.get(questionId) || 0;
+        if (currentCount > 0) {
+            recordingCountCache.set(questionId, currentCount - 1);
+            console.log(`[${questionId}] Updated cached count after delete: ${currentCount - 1}/30`);
+        }
+        
     } catch (error) {
         console.error(`Error deleting recording ${recordingId}:`, error);
         // Still remove from UI even if deletion partially failed
         elementToRemove.remove();
+        
+        // Update cached count even on error (UI was removed)
+        const currentCount = recordingCountCache.get(questionId) || 0;
+        if (currentCount > 0) {
+            recordingCountCache.set(questionId, currentCount - 1);
+            console.log(`[${questionId}] Updated cached count after delete (with error): ${currentCount - 1}/30`);
+        }
     }
 }
 
@@ -794,6 +811,7 @@ function initializeAudioRecorder(recorderWrapper) {
     let placeholderEl, statusDisplay, timerDisplay, recordingsListUI;
     let mediaRecorder, audioChunks = [], timerInterval, seconds = 0, stream;
     let recordingsLoaded = false; // Flag to prevent duplicate loading
+    // Use global cache for recording count
 
     // --- Initial DB load to show previous recordings ---
     recordingsListUI = recorderWrapper.querySelector('.recording-list.w-list-unstyled');
@@ -807,6 +825,7 @@ function initializeAudioRecorder(recorderWrapper) {
         
         // Load recordings from cloud for cross-device sync
         loadRecordingsFromCloud(questionId, world, lmid).then(async recordings => {
+            recordingCountCache.set(questionId, recordings.length); // Cache count for instant limit check
             recordingsListUI.innerHTML = ''; // Clear previous
             recordings.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)); // NEWEST FIRST
             
@@ -836,15 +855,14 @@ function initializeAudioRecorder(recorderWrapper) {
                 return;
             }
             
-            // SECURITY: Check recording limit before starting
-            checkRecordingLimit().then(canRecord => {
-                if (canRecord) {
-                    startActualRecording();
-                } else {
-                    // Show limit message
-                    showRecordingLimitMessage();
-                }
-            });
+            // SECURITY: Check recording limit before starting (using cached count for instant response)
+            const currentCount = recordingCountCache.get(questionId) || 0;
+            if (currentCount < 30) {
+                startActualRecording();
+            } else {
+                // Show limit message
+                showRecordingLimitMessage();
+            }
         }
     }
 
@@ -1003,6 +1021,11 @@ function initializeAudioRecorder(recorderWrapper) {
                     };
 
                     await saveRecordingToDB(recordingData);
+                    
+                    // Update cached count for instant limit checks
+                    const currentCount = recordingCountCache.get(questionId) || 0;
+                    recordingCountCache.set(questionId, currentCount + 1);
+                    console.log(`[${questionId}] Updated cached count: ${currentCount + 1}/30`);
                     
                     // Start background upload to Bunny.net
                     uploadToBunny(recordingData, world, lmid);
