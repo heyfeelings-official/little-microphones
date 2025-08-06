@@ -817,23 +817,28 @@ function initializeAudioRecorder(recorderWrapper) {
         return;
     }
     
+    // Store original styles BEFORE any changes
+    const originalBackgroundColor = recordButton.style.backgroundColor || '';
+    const originalDisabled = recordButton.disabled || false;
+    
     // --- Step 2: Disable button until recordings load ---
     recordButton.style.backgroundColor = '#e0e0e0'; // Light gray background
     recordButton.style.pointerEvents = 'none';
     recordButton.disabled = true;
     recordButton.dataset.loading = 'true';
     
-    // Store original styles to restore later
-    const originalBackgroundColor = recordButton.style.backgroundColor || '';
-    const originalDisabled = recordButton.disabled;
-    
     // --- Helper function to enable button after loading ---
     function enableRecordButton() {
-        recordButton.style.backgroundColor = originalBackgroundColor; // Restore original background
+        // Restore to original design
+        if (originalBackgroundColor === '') {
+            recordButton.style.removeProperty('background-color'); // Remove if wasn't set originally
+        } else {
+            recordButton.style.backgroundColor = originalBackgroundColor;
+        }
         recordButton.style.pointerEvents = 'auto';
-        recordButton.disabled = false;
+        recordButton.disabled = originalDisabled;
         recordButton.dataset.loading = 'false';
-        console.log(`[${questionId}] Record button enabled`);
+        console.log(`[${questionId}] Record button enabled - restored to original design`);
     }
     
     // --- Instance variables (shared across functions in this scope) ---
