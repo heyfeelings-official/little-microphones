@@ -818,20 +818,21 @@ function initializeAudioRecorder(recorderWrapper) {
     }
     
     // --- Step 2: Disable button until recordings load ---
-    recordButton.style.opacity = '0.6';
+    recordButton.style.backgroundColor = '#e0e0e0'; // Light gray background
     recordButton.style.pointerEvents = 'none';
+    recordButton.disabled = true;
     recordButton.dataset.loading = 'true';
     
-    // Store original button text and add loading indicator
-    const originalButtonText = recordButton.textContent || 'Record';
-    recordButton.textContent = 'Loading...';
+    // Store original styles to restore later
+    const originalBackgroundColor = recordButton.style.backgroundColor || '';
+    const originalDisabled = recordButton.disabled;
     
     // --- Helper function to enable button after loading ---
     function enableRecordButton() {
-        recordButton.style.opacity = '1';
+        recordButton.style.backgroundColor = originalBackgroundColor; // Restore original background
         recordButton.style.pointerEvents = 'auto';
+        recordButton.disabled = false;
         recordButton.dataset.loading = 'false';
-        recordButton.textContent = originalButtonText;
         console.log(`[${questionId}] Record button enabled`);
     }
     
