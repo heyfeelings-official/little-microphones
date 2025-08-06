@@ -94,9 +94,82 @@ import os from 'os';
 // Set FFmpeg path
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 
-// REMOVED: processAudioForUpload() and analyzeLoudness() functions (110 lines)
-// These functions were redundant - normalization is now handled only in combine-audio.js
-// during the collective voice analysis phase for better consistency and performance.
+/**
+ * Process audio for upload with intelligent normalization
+ * RESTORED: Pre-upload normalization is crucial for consistent loudness levels
+ * @param {Buffer} audioBuffer - Raw audio buffer
+ * @param {string} format - Audio format (webm, mp3, wav, ogg)
+ * @returns {Promise<Buffer>} Processed audio buffer
+ */
+async function processAudioForUpload(audioBuffer, format) {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'audio-upload-'));
+    const inputPath = path.join(tempDir, `input.${format}`);
+    const outputPath = path.join(tempDir, `output.${format}`);
+    
+    try {
+        // Write input buffer to temp file
+        await fs.writeFile(inputPath, audioBuffer);
+        
+        // Apply intelligent normalization - keep same format to avoid filter issues
+        await new Promise((resolve, reject) => {
+            const command = ffmpeg(inputPath)
+                .audioFilters([
+                    // EBU R128 loudness normalization for broadcast standards
+                    'loudnorm=I=-16.0:LRA=7.0:TP=-1.0:print_format=json',
+                    // Light enhancement for speech clarity
+                    'highpass=f=80',           // Remove low-frequency noise
+                    'lowpass=f=8000',          // Remove high-frequency noise
+                    'compand=0.02,0.20:-60/-60,-30/-15,-20/-10,-5/-5,0/-3:6:0:-3' // Speech compressor
+                ])
+                .output(outputPath);
+            
+            // Timeout protection (20 seconds)
+            const timeoutId = setTimeout(() => {
+                try {
+                    command.kill('SIGKILL');
+                    console.warn(`⏰ Upload normalization timeout after 20s`);
+                } catch (error) {
+                    console.warn('Error killing FFmpeg process:', error.message);
+                }
+                reject(new Error('Upload normalization timed out after 20 seconds'));
+            }, 20000);
+            
+            command
+                .on('start', () => {
+                    console.log(`🎵 Pre-upload normalization (${format})`);
+                })
+                .on('end', () => {
+                    clearTimeout(timeoutId);
+                    resolve();
+                })
+                .on('error', (error) => {
+                    clearTimeout(timeoutId);
+                    reject(error);
+                })
+                .run();
+        });
+        
+        // Read processed file back to buffer
+        const processedBuffer = await fs.readFile(outputPath);
+        
+        // Cleanup temp files
+        await fs.unlink(inputPath).catch(() => {});
+        await fs.unlink(outputPath).catch(() => {});
+        await fs.rmdir(tempDir).catch(() => {});
+        
+        console.log(`✨ Pre-upload normalized: ${audioBuffer.length} → ${processedBuffer.length} bytes`);
+        return processedBuffer;
+        
+    } catch (error) {
+        // Cleanup on error
+        await fs.unlink(inputPath).catch(() => {});
+        await fs.unlink(outputPath).catch(() => {});
+        await fs.rmdir(tempDir).catch(() => {});
+        
+        console.warn(`⚠️ Pre-upload normalization failed, using original: ${error.message}`);
+        return audioBuffer; // Return original on failure
+    }
+}
 
 export default async function handler(req, res) {
     // Secure CORS headers
@@ -264,9 +337,9 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: filenameValidation.error });
         }
 
-        // Upload original audio without normalization - will be normalized during program generation
-        let processedAudioBuffer = audioBuffer;
-        console.log(`📤 Uploading original audio without pre-normalization: ${filename}`);
+        // Process audio with normalization for consistent loudness levels
+        let processedAudioBuffer = await processAudioForUpload(audioBuffer, format);
+        console.log(`📤 Uploading pre-normalized audio: ${filename}`);
 
         // Upload to Bunny.net with folder structure: lang/lmid/world/filename
         const filePath = `${lang}/${lmid}/${world}/${filename}`;

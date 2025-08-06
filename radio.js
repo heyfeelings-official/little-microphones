@@ -809,6 +809,17 @@
                 } else if (needsKids || needsParent) {
                     console.log('🔄 Program generation needed');
                     generateNewProgram(data, { needsKids, needsParent, hasKidsRecordings, hasParentRecordings });
+                } else if (data.lastManifest?.error) {
+                    // Check if error manifest allows retry
+                    const canRetry = !data.lastManifest.retryAfter || Date.now() > data.lastManifest.retryAfter;
+                    
+                    if (canRetry && (hasKidsRecordings || hasParentRecordings)) {
+                        console.log('🔄 Error manifest expired - retrying generation');
+                        generateNewProgram(data, { needsKids: hasKidsRecordings, needsParent: hasParentRecordings, hasKidsRecordings, hasParentRecordings });
+                    } else {
+                        console.log('❌ Recent generation error - showing error state');
+                        showErrorState(data.lastManifest.errorMessage, data.lastManifest.retryAfter);
+                    }
                 } else if (data.lastManifest?.kidsProgram || data.lastManifest?.parentProgram || data.lastManifest?.programUrl) {
                     console.log('✅ Using existing programs - no changes detected');
                     showExistingProgram(data);
@@ -1564,11 +1575,35 @@
         });
     }
 
+    /**
+     * Show error state when generation has failed
+     */
+    function showErrorState(errorMessage, retryAfter) {
+        const container = document.querySelector('.radio-program-container');
+        if (!container) return;
+        
+        const retryTime = retryAfter ? new Date(retryAfter).toLocaleTimeString() : 'soon';
+        
+        container.innerHTML = `
+            <div class="error-state">
+                <div class="error-icon">⚠️</div>
+                <h3>Audio Generation Failed</h3>
+                <p>There was a problem generating your radio program:</p>
+                <div class="error-details">${errorMessage}</div>
+                <p class="retry-info">You can try again after ${retryTime}</p>
+                <button onclick="location.reload()" class="retry-button">Refresh Page</button>
+            </div>
+        `;
+        
+        console.log(`❌ Showing error state: ${errorMessage}`);
+    }
+
     // Make functions available globally for testing
     window.RadioProgram = {
         showLoadingState,
         showPlayerState,
         showGeneratingState,
+        showErrorState,
         updateLoadingMessage,
         updateGeneratingMessage,
         loadRadioData,

@@ -278,9 +278,42 @@ export default async function handler(req, res) {
     } catch (error) {
         console.error('❌ Error in combine-audio API:', error);
         
-        // NEW: Release lock on any error
+        // NEW: Release lock and create error manifest to prevent infinite generation loops
         if (req.body?.world && req.body?.lmid && req.body?.programType) {
-            await releaseLock(req.body.world, req.body.lmid, req.body.programType || 'kids', req.body.lang || 'en');
+            const { world, lmid, programType, lang } = req.body;
+            
+            // Release processing lock
+            await releaseLock(world, lmid, programType || 'kids', lang || 'en');
+            
+            // Create error manifest to prevent infinite retry loops
+            try {
+                const errorManifest = {
+                    error: true,
+                    errorMessage: error.message,
+                    timestamp: Date.now(),
+                    world: world,
+                    lmid: lmid,
+                    programType: programType || 'kids',
+                    lang: lang || 'en',
+                    retryAfter: Date.now() + (10 * 60 * 1000) // Retry after 10 minutes
+                };
+                
+                const manifestPath = `${lang || 'en'}/${lmid}/${world}/last-program-manifest.json`;
+                const manifestUrl = `https://storage.bunnycdn.com/${process.env.BUNNY_STORAGE_ZONE}/${manifestPath}`;
+                
+                await fetch(manifestUrl, {
+                    method: 'PUT',
+                    headers: {
+                        'AccessKey': process.env.BUNNY_STORAGE_PASSWORD,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(errorManifest)
+                });
+                
+                console.log(`📋 Error manifest created to prevent retry loops: ${manifestPath}`);
+            } catch (manifestError) {
+                console.warn('⚠️ Failed to create error manifest:', manifestError.message);
+            }
         }
         
         return res.status(500).json({ 
@@ -849,8 +882,9 @@ async function analyzeSingleFileLoudness(filePath) {
  * @returns {Promise<void>}
  */
 async function normalizeVoiceFile(filePath, targetLevels) {
-    // Use .mp3 extension for normalized output to avoid format issues
-    const tempOutputPath = `${filePath}.normalized.mp3`;
+    // Keep same format to avoid filter reinitialization issues
+    const fileExtension = path.extname(filePath);
+    const tempOutputPath = `${filePath}.normalized${fileExtension}`;
     
     return new Promise((resolve, reject) => {
         const command = ffmpeg(filePath)
@@ -860,8 +894,7 @@ async function normalizeVoiceFile(filePath, targetLevels) {
                 'lowpass=f=8000',
                 'compand=0.02,0.20:-60/-60,-30/-15,-20/-10,-5/-5,0/-3:6:0:-3'
             ])
-            .format('mp3')  // Force MP3 output format
-            .audioCodec('libmp3lame')  // Use MP3 codec
+            // Keep original format to avoid FFmpeg filter reinitialization issues
             .output(tempOutputPath);
         
         // Timeout protection for FFmpeg operations (30 seconds)
@@ -877,12 +910,12 @@ async function normalizeVoiceFile(filePath, targetLevels) {
         
         command
             .on('start', (commandLine) => {
-                console.log(`🔧 Normalizing: ${path.basename(filePath)} -> MP3`);
+                console.log(`🔧 Normalizing: ${path.basename(filePath)} (${fileExtension})`);
             })
             .on('end', async () => {
                 clearTimeout(timeoutId);
                 try {
-                    // Replace original with normalized MP3 version
+                    // Replace original with normalized version
                     await fs.rename(tempOutputPath, filePath);
                     console.log(`✨ Normalized: ${path.basename(filePath)}`);
                     resolve();
