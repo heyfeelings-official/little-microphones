@@ -289,6 +289,7 @@ export async function createOrUpdateSchoolCompany(schoolData) {
         } else {
             // Create new Company
             console.log(`🆕 [${syncId}] Creating new Company for: ${schoolData.name}`);
+            console.log(`📋 [${syncId}] Company data being sent:`, JSON.stringify(companyData, null, 2));
             
             result = await makeBrevoRequest('/companies', 'POST', companyData);
             
