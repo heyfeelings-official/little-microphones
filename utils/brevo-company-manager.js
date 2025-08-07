@@ -181,57 +181,48 @@ export function extractSchoolDataFromMember(memberData) {
 // ===== COMPANY CRUD OPERATIONS =====
 
 /**
- * Find existing school Company by school data.
- * Priority Search Order:
- * 1. `school_id` (from Memberstack `place-id`) - This is the unique, stable identifier.
- * 2. Fallback to a composite key of `name` and `city` for legacy data.
+ * Find existing school Company by school data
+ * @param {Object} schoolData - School data to search for
+ * @returns {Promise<Object|null>} Company object or null if not found
  */
 export async function findSchoolCompanyByData(schoolData) {
     const syncId = Math.random().toString(36).substring(2, 15);
     
     try {
-        console.log(`🔍 [${syncId}] Searching for existing Company for: ${schoolData.name}`);
+        console.log(`🔍 [${syncId}] Searching for existing Company. Priority: school_id, Fallback: name+city.`);
         
-        // Brevo API doesn't support filtering by custom attributes directly in the GET /companies endpoint.
-        // We must fetch all companies and filter them manually.
-        const response = await makeBrevoRequest('/companies?limit=1000', 'GET'); // Increased limit for safety
+        const response = await makeBrevoRequest('/companies?limit=500', 'GET'); // Increased limit
         
         if (!response || !response.items || response.items.length === 0) {
-            console.log(`📋 [${syncId}] No existing companies found in Brevo.`);
+            console.log(`📋 [${syncId}] No companies found in Brevo.`);
             return null;
         }
 
-        const allCompanies = response.items;
-
-        // --- Primary Search: Match by `school_id` (placeId) ---
+        // Priority 1: Find by school_id (the most reliable key)
         if (schoolData.placeId) {
-            const companyById = allCompanies.find(company => 
-                company.attributes.school_id === schoolData.placeId
-            );
+            const companyById = response.items.find(c => c.attributes.school_id === schoolData.placeId);
             if (companyById) {
-                console.log(`✅ [${syncId}] Found existing Company by school_id (placeId): ${companyById.id}`);
+                console.log(`✅ [${syncId}] Found existing Company by school_id: ${companyById.id}`);
                 return companyById;
             }
         }
 
-        // --- Fallback Search: Match by name and city key ---
-        console.log(`⚠️ [${syncId}] Could not find company by school_id. Falling back to name/city search.`);
+        // Priority 2: Fallback to finding by name and city for legacy data
         const schoolKey = generateSchoolCompanyKey(schoolData);
-        const companyByKey = allCompanies.find(company => {
+        const companyByKey = response.items.find(c => {
             const companyKey = generateSchoolCompanyKey({
-                name: company.name,
-                city: company.attributes.school_city,
-                country: company.attributes.school_country,
+                name: c.name,
+                city: c.attributes.school_city || '',
             });
             return companyKey === schoolKey;
         });
 
         if (companyByKey) {
-            console.log(`✅ [${syncId}] Found existing Company by name/city key: ${companyByKey.id}`);
+            console.log(`✅ [${syncId}] Found existing Company by name+city key: ${companyByKey.id}`);
             return companyByKey;
         }
         
-        console.log(`📋 [${syncId}] No matching Company found for ${schoolData.name}. A new one will be created.`);
+        console.log(`📋 [${syncId}] No existing Company found for ${schoolData.name}.`);
         return null;
         
     } catch (error) {
