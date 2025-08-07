@@ -189,34 +189,34 @@ export async function createOrUpdateBrevoContact(memberData, planConfig) {
                      memberData.customFields?.['school_address'] || 
                      memberData.customFields?.['school-address-result'] || 
                      memberData.metaData?.schoolAddress || '',
-      SCHOOL_CITY: memberData.customFields?.['school-city'] || 
+      SCHOOL_CITY: memberData.customFields?.['city'] ||           // Webhook: without prefix
+                   memberData.customFields?.['school-city'] ||        // Memberstack UI: with prefix
                    memberData.customFields?.schoolCity ||
-                   memberData.customFields?.['city'] || 
                    memberData.metaData?.schoolCity || '',
-      SCHOOL_COUNTRY: memberData.customFields?.['school-country'] || 
+      SCHOOL_COUNTRY: memberData.customFields?.['country'] ||         // Webhook: without prefix
+                      memberData.customFields?.['school-country'] ||  // Memberstack UI: with prefix
                       memberData.customFields?.schoolCountry ||
-                      memberData.customFields?.['country'] || 
                       memberData.metaData?.schoolCountry || '',
       SCHOOL_FACILITY_TYPE: memberData.customFields?.['school-type'] || 
                            memberData.customFields?.schoolType ||
                            memberData.customFields?.['school_type'] || 
                            memberData.customFields?.['school-facility-type'] || 
                            memberData.metaData?.schoolFacilityType || '',
-      SCHOOL_LATITUDE: String(memberData.customFields?.['school-latitude'] || 
+      SCHOOL_LATITUDE: String(memberData.customFields?.['latitude'] ||       // Webhook: without prefix
+                              memberData.customFields?.['school-latitude'] ||  // Memberstack UI: with prefix
                               memberData.customFields?.schoolLatitude ||
-                              memberData.customFields?.['school_latitude'] || 
                               memberData.metaData?.schoolLatitude || ''),
-      SCHOOL_LONGITUDE: String(memberData.customFields?.['school-longitude'] || 
+      SCHOOL_LONGITUDE: String(memberData.customFields?.['longitude'] ||      // Webhook: without prefix
+                               memberData.customFields?.['school-longitude'] || // Memberstack UI: with prefix
                                memberData.customFields?.schoolLongitude ||
-                               memberData.customFields?.['school_longitude'] || 
                                memberData.metaData?.schoolLongitude || ''),
-      SCHOOL_PHONE: memberData.customFields?.['school-phone'] || 
+      SCHOOL_PHONE: memberData.customFields?.['phone'] ||          // Webhook: without prefix
+                    memberData.customFields?.['school-phone'] ||       // Memberstack UI: with prefix
                     memberData.customFields?.schoolPhone ||
-                    memberData.customFields?.['school_phone'] || 
                     memberData.metaData?.schoolPhone || '',
-      SCHOOL_PLACE_ID: memberData.customFields?.['school-place-id'] || 
+      SCHOOL_PLACE_ID: memberData.customFields?.['place-id'] ||      // Webhook: without prefix
+                       memberData.customFields?.['school-place-id'] || // Memberstack UI: with prefix
                        memberData.customFields?.schoolPlaceId ||
-                       memberData.customFields?.['school_place_id'] || 
                        memberData.metaData?.schoolPlaceId || '',
       SCHOOL_PLACE_NAME: memberData.customFields?.['school-place-name'] || 
                          memberData.customFields?.schoolPlaceName ||
@@ -432,57 +432,54 @@ export async function syncMemberToBrevo(memberData) {
                        memberData.customFields?.['school-address'] || 
                        memberData.customFields?.['school-address-result'] || 
                        memberData.metaData?.schoolAddress || '',
-        SCHOOL_CITY: memberData.customFields?.['city'] || 
-                     memberData.customFields?.city ||
-                     memberData.customFields?.['school-city'] || 
+        SCHOOL_CITY: memberData.customFields?.['city'] ||           // Webhook: without prefix
+                     memberData.customFields?.['school-city'] ||        // Memberstack UI: with prefix
+                     memberData.customFields?.schoolCity ||
                      memberData.metaData?.schoolCity || '',
-        SCHOOL_COUNTRY: memberData.customFields?.['country'] || 
-                        memberData.customFields?.country ||
-                        memberData.customFields?.['school-country'] || 
+        SCHOOL_COUNTRY: memberData.customFields?.['country'] ||         // Webhook: without prefix
+                        memberData.customFields?.['school-country'] ||  // Memberstack UI: with prefix
+                        memberData.customFields?.schoolCountry ||
                         memberData.metaData?.schoolCountry || '',
         SCHOOL_FACILITY_TYPE: memberData.customFields?.['facility-type'] || 
                              memberData.customFields?.facilityType ||
                              memberData.customFields?.['school-type'] || 
                              memberData.customFields?.['school-facility-type'] || 
                              memberData.metaData?.schoolFacilityType || '',
-        SCHOOL_LATITUDE: String(memberData.customFields?.['latitude'] || 
-                                memberData.customFields?.latitude ||
-                                memberData.customFields?.['school-latitude'] || 
+        SCHOOL_LATITUDE: String(memberData.customFields?.['latitude'] ||      // Webhook: without prefix
+                                memberData.customFields?.['school-latitude'] || // Memberstack UI: with prefix
+                                memberData.customFields?.schoolLatitude ||
                                 memberData.metaData?.schoolLatitude || ''),
-        SCHOOL_LONGITUDE: String(memberData.customFields?.['longitude'] || 
-                                 memberData.customFields?.longitude ||
-                                 memberData.customFields?.['school-longitude'] || 
+        SCHOOL_LONGITUDE: String(memberData.customFields?.['longitude'] ||     // Webhook: without prefix
+                                 memberData.customFields?.['school-longitude'] || // Memberstack UI: with prefix
+                                 memberData.customFields?.schoolLongitude ||
                                  memberData.metaData?.schoolLongitude || ''),
-        SCHOOL_PHONE: memberData.customFields?.['school-phone'] || 
+        SCHOOL_PHONE: memberData.customFields?.['phone'] ||          // Webhook: without prefix
+                      memberData.customFields?.['school-phone'] ||       // Memberstack UI: with prefix
                       memberData.customFields?.schoolPhone ||
                       memberData.metaData?.schoolPhone || '',
-        SCHOOL_PLACE_ID: memberData.customFields?.['place-id'] || 
+        SCHOOL_PLACE_ID: memberData.customFields?.['place-id'] ||      // Webhook: without prefix  
+                         memberData.customFields?.['school-place-id'] || // Memberstack UI: with prefix
                          memberData.customFields?.placeId ||
-                         memberData.customFields?.['school-place-id'] || 
                          memberData.metaData?.schoolPlaceId || '',
         SCHOOL_PLACE_NAME: memberData.customFields?.['place-name'] || 
                            memberData.customFields?.placeName ||
                            memberData.customFields?.['school-place-name'] || 
                            memberData.metaData?.schoolPlaceName || '',
-        SCHOOL_RATING: memberData.customFields?.['rating'] || 
-                       memberData.customFields?.rating ||
-                       memberData.customFields?.['school-rating'] || 
+        SCHOOL_RATING: memberData.customFields?.['rating'] ||        // Webhook: without prefix
+                       memberData.customFields?.['school-rating'] ||     // Memberstack UI: with prefix
                        memberData.metaData?.schoolRating || '',
-        SCHOOL_STATE: memberData.customFields?.['state'] || 
-                      memberData.customFields?.state ||
-                      memberData.customFields?.['school-state'] || 
+        SCHOOL_STATE: memberData.customFields?.['state'] ||          // Webhook: without prefix
+                      memberData.customFields?.['school-state'] ||      // Memberstack UI: with prefix
                       memberData.metaData?.schoolState || '',
-        SCHOOL_STREET_ADDRESS: memberData.customFields?.['street-address'] || 
+        SCHOOL_STREET_ADDRESS: memberData.customFields?.['street-address'] ||    // Webhook: without prefix
+                               memberData.customFields?.['school-street-address'] || // Memberstack UI: with prefix
                                memberData.customFields?.streetAddress ||
-                               memberData.customFields?.['school-street-address'] || 
                                memberData.metaData?.schoolStreetAddress || '',
-        SCHOOL_WEBSITE: memberData.customFields?.['website'] || 
-                        memberData.customFields?.website ||
-                        memberData.customFields?.['school-website'] || 
+        SCHOOL_WEBSITE: memberData.customFields?.['website'] ||           // Webhook: without prefix
+                        memberData.customFields?.['school-website'] ||       // Memberstack UI: with prefix
                         memberData.metaData?.schoolWebsite || '',
-        SCHOOL_ZIP: memberData.customFields?.['zip'] || 
-                    memberData.customFields?.zip ||
-                    memberData.customFields?.['school-zip'] || 
+        SCHOOL_ZIP: memberData.customFields?.['zip'] ||               // Webhook: without prefix
+                    memberData.customFields?.['school-zip'] ||           // Memberstack UI: with prefix
                     memberData.metaData?.schoolZip || '',
         
         // Professional information (map from generic field names)
