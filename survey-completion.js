@@ -421,7 +421,7 @@
     }
     
     /**
-     * Check if user previously hid the survey
+     * Check if user previously hid the survey and hide it immediately
      */
     function checkIfSurveyHiddenByUser() {
         try {
@@ -431,6 +431,16 @@
                 if (flagData.hidden === true) {
                     console.log('[Survey Completion] 🚫 User previously hid survey, keeping it hidden');
                     userRequestedHide = true;
+                    
+                    // Immediately hide the element if it exists
+                    const surveyFilledElement = document.getElementById(SURVEY_FILLED_ID);
+                    if (surveyFilledElement) {
+                        surveyFilledElement.style.display = 'none';
+                        surveyFilledElement.style.visibility = 'hidden';
+                        surveyFilledElement.style.opacity = '0';
+                        console.log('[Survey Completion] 👁️ Hidden survey-filled element based on user preference');
+                    }
+                    
                     return true;
                 }
             }
@@ -469,9 +479,13 @@
     function waitForDOMAndInitialize() {
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => {
+                // Check immediately if survey was hidden by user (before any other initialization)
+                checkIfSurveyHiddenByUser();
                 setTimeout(initSurveyCompletion, 100);
             });
         } else {
+            // Check immediately if survey was hidden by user (before any other initialization)
+            checkIfSurveyHiddenByUser();
             setTimeout(initSurveyCompletion, 100);
         }
     }
@@ -495,7 +509,13 @@
                 element.style.visibility = 'hidden';
                 element.style.opacity = '0';
             }
-        }
+        },
+        clearHideFlag: () => {
+            localStorage.removeItem(SURVEY_HIDDEN_FLAG);
+            userRequestedHide = false;
+            console.log('[Survey Completion] 🧹 Cleared hide flag - survey can show again');
+        },
+        checkHidden: checkIfSurveyHiddenByUser
     };
     
 })();
