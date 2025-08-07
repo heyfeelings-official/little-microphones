@@ -299,12 +299,9 @@ export async function createOrUpdateBrevoContact(memberData, planConfig) {
             return;
         }
 
-        // For other attributes, preserve existing value if new value is empty
-        if (newValue !== null && newValue !== undefined && newValue !== '') {
-            cleanedAttributes[key] = newValue;
-        } else if (existingContact?.attributes?.[key]) {
-            cleanedAttributes[key] = existingContact.attributes[key];
-        }
+        // For other attributes, if the new value is empty, send an empty string to clear it.
+        // If it has a value, send the value.
+        cleanedAttributes[key] = newValue ?? '';
     });
     
     // Log final cleaned attributes for debugging
@@ -403,226 +400,30 @@ export async function syncMemberToBrevo(memberData) {
     })));
     console.log(`📊 [${syncId}] Active plans after filter:`, activePlans.map(p => p.planId));
     
-    // If no plans in webhook but contact exists with plan data, preserve it
-    if (activePlans.length === 0 && existingContactData?.attributes?.PLAN_ID && existingContactData?.attributes?.PLAN_ID !== 'none') {
-      console.log(`⚠️ [${syncId}] No plans in webhook but existing contact has plan data - preserving existing plan`);
-      
-      // Update contact with new data but preserve plan attributes
-      const updateAttributes = {
-        // Basic contact information
-        FIRSTNAME: memberData.customFields?.['first-name'] || 
-                   memberData.customFields?.firstName || 
-                   memberData.metaData?.firstName || '',
-        LASTNAME: memberData.customFields?.['last-name'] || 
-                  memberData.customFields?.lastName || 
-                  memberData.metaData?.lastName || '',
-        PHONE: memberData.customFields?.['phone'] || 
-               memberData.customFields?.phone || 
-               memberData.metaData?.phone || '',
-        LANGUAGE_PREF: memberData.metaData?.language || 
-                       memberData.customFields?.language || 
-                       memberData.customFields?.['language-pref'] || 'en',
-        
-        // Memberstack integration
-        MEMBERSTACK_ID: memberData.id || '',
-        LAST_SYNC: new Date().toISOString(),
-        
-        // Teacher/School name (general)
-        TEACHER_NAME: memberData.customFields?.['teacher-name'] || 
-                     memberData.customFields?.teacherName ||
-                     memberData.metaData?.teacherName ||
-                     `${memberData.customFields?.['first-name'] || ''} ${memberData.customFields?.['last-name'] || ''}`.trim(),
-        SCHOOL_NAME: memberData.customFields?.['school-name'] || 
-                     memberData.customFields?.schoolName ||
-                     memberData.customFields?.['school'] || 
-                     memberData.customFields?.school ||
-                     memberData.customFields?.['place-name'] || 
-                     memberData.metaData?.schoolName || '',
-        
-        // School details (map from generic field names)
-        SCHOOL_SEARCH_INPUT: memberData.customFields?.['search-input'] || 
-                            memberData.customFields?.searchInput ||
-                            memberData.customFields?.['school-search-input'] || 
-                            memberData.metaData?.schoolSearchInput || '',
-        SCHOOL_ADDRESS: memberData.customFields?.['address-result'] || 
-                       memberData.customFields?.addressResult ||
-                       memberData.customFields?.['school-address'] || 
-                       memberData.customFields?.['school-address-result'] || 
-                       memberData.metaData?.schoolAddress || '',
-        SCHOOL_CITY: memberData.customFields?.['city'] ||           // Webhook: without prefix
-                     memberData.customFields?.['school-city'] ||        // Memberstack UI: with prefix
-                     memberData.customFields?.schoolCity ||
-                     memberData.metaData?.schoolCity || '',
-        SCHOOL_COUNTRY: memberData.customFields?.['country'] ||         // Webhook: without prefix
-                        memberData.customFields?.['school-country'] ||  // Memberstack UI: with prefix
-                        memberData.customFields?.schoolCountry ||
-                        memberData.metaData?.schoolCountry || '',
-        SCHOOL_FACILITY_TYPE: memberData.customFields?.['facility-type'] || 
-                             memberData.customFields?.facilityType ||
-                             memberData.customFields?.['school-type'] || 
-                             memberData.customFields?.['school-facility-type'] || 
-                             memberData.metaData?.schoolFacilityType || '',
-        SCHOOL_LATITUDE: String(memberData.customFields?.['latitude'] ||      // Webhook: without prefix
-                                memberData.customFields?.['school-latitude'] || // Memberstack UI: with prefix
-                                memberData.customFields?.schoolLatitude ||
-                                memberData.metaData?.schoolLatitude || ''),
-        SCHOOL_LONGITUDE: String(memberData.customFields?.['longitude'] ||     // Webhook: without prefix
-                                 memberData.customFields?.['school-longitude'] || // Memberstack UI: with prefix
-                                 memberData.customFields?.schoolLongitude ||
-                                 memberData.metaData?.schoolLongitude || ''),
-        SCHOOL_PHONE: memberData.customFields?.['phone'] ||          // Webhook: without prefix
-                      memberData.customFields?.['school-phone'] ||       // Memberstack UI: with prefix
-                      memberData.customFields?.schoolPhone ||
-                      memberData.metaData?.schoolPhone || '',
-        SCHOOL_PLACE_ID: memberData.customFields?.['place-id'] ||      // Webhook: without prefix  
-                         memberData.customFields?.['school-place-id'] || // Memberstack UI: with prefix
-                         memberData.customFields?.placeId ||
-                         memberData.metaData?.schoolPlaceId || '',
-        SCHOOL_PLACE_NAME: memberData.customFields?.['place-name'] || 
-                           memberData.customFields?.placeName ||
-                           memberData.customFields?.['school-place-name'] || 
-                           memberData.metaData?.schoolPlaceName || '',
-        SCHOOL_RATING: memberData.customFields?.['rating'] ||        // Webhook: without prefix
-                       memberData.customFields?.['school-rating'] ||     // Memberstack UI: with prefix
-                       memberData.metaData?.schoolRating || '',
-        SCHOOL_STATE: memberData.customFields?.['state'] ||          // Webhook: without prefix
-                      memberData.customFields?.['school-state'] ||      // Memberstack UI: with prefix
-                      memberData.metaData?.schoolState || '',
-        SCHOOL_STREET_ADDRESS: memberData.customFields?.['street-address'] ||    // Webhook: without prefix
-                               memberData.customFields?.['school-street-address'] || // Memberstack UI: with prefix
-                               memberData.customFields?.streetAddress ||
-                               memberData.metaData?.schoolStreetAddress || '',
-        SCHOOL_WEBSITE: memberData.customFields?.['website'] ||           // Webhook: without prefix
-                        memberData.customFields?.['school-website'] ||       // Memberstack UI: with prefix
-                        memberData.metaData?.schoolWebsite || '',
-        SCHOOL_ZIP: memberData.customFields?.['zip'] ||               // Webhook: without prefix
-                    memberData.customFields?.['school-zip'] ||           // Memberstack UI: with prefix
-                    memberData.metaData?.schoolZip || '',
-        
-        // Professional information (map from generic field names)
-        EDUCATOR_ROLE: memberData.customFields?.['role'] || 
-                       memberData.customFields?.role ||
-                       memberData.customFields?.['educator-role'] || 
-                       memberData.metaData?.educatorRole || '',
-        EDUCATOR_NO_CLASSES: memberData.customFields?.['no-classes'] || 
-                             memberData.customFields?.noClasses ||
-                             memberData.customFields?.['educator-no-classes'] || 
-                             memberData.metaData?.educatorNoClasses || '',
-        EDUCATOR_NO_KIDS: memberData.customFields?.['no-kids'] || 
-                          memberData.customFields?.noKids ||
-                          memberData.customFields?.['educator-no-kids'] || 
-                          memberData.metaData?.educatorNoKids || '',
-        
-        // Application-specific
-        LMIDS: memberData.metaData?.lmids || existingContactData.attributes?.LMIDS || '',
-        
-        // Preserve existing plan data
-        USER_CATEGORY: existingContactData.attributes.USER_CATEGORY,
-        PLAN_TYPE: existingContactData.attributes.PLAN_TYPE,
-        PLAN_NAME: existingContactData.attributes.PLAN_NAME,
-        PLAN_ID: existingContactData.attributes.PLAN_ID
-      };
-      
-      // Clean up null/undefined/empty values - only update fields with actual data
-      const cleanedAttributes = {};
-      Object.keys(updateAttributes).forEach(key => {
-        const value = updateAttributes[key];
-        if (value !== null && value !== undefined && value !== '') {
-          cleanedAttributes[key] = value;
-        }
-      });
-      
-      console.log(`📋 [${syncId}] Updating contact with preserved plan and mapped fields:`, {
-        ...cleanedAttributes,
-        fieldsCount: Object.keys(cleanedAttributes).length
-      });
-      
-      await makeBrevoRequest(`/contacts/${encodeURIComponent(email)}`, 'PUT', {
-        attributes: cleanedAttributes
-      });
-      
-      console.log(`✅ [${syncId}] Updated contact preserving existing plan data`);
-      
-      // OPTIONAL: Handle school Company sync (if applicable) for preserve plan scenario
-      let companyResult = null;
-      try {
-        const { handleMemberSchoolCompanySync } = await import('./brevo-company-manager.js');
-        companyResult = await handleMemberSchoolCompanySync(memberData, email);
-        
-        if (companyResult.success && companyResult.action !== 'skipped_no_school_data') {
-          console.log(`✅ [${syncId}] Company sync completed for preserve plan: ${companyResult.action}`);
-        }
-      } catch (companyError) {
-        console.warn(`⚠️ [${syncId}] Company sync error in preserve plan scenario: ${companyError.message}`);
-      }
-      
-      return { success: true, syncId, email, action: 'updated_preserve_plan', companyResult };
-    }
+    const activePlans = memberData.planConnections?.filter(conn => 
+      conn.status === 'ACTIVE' || conn.active === true
+    ) || [];
     
+    // If there are no active plans, sync with default 'none' plan attributes.
+    // This ensures that if a plan is removed in Memberstack, it's also reflected in Brevo.
     if (activePlans.length === 0) {
-      console.log(`📝 [${syncId}] No active plans for ${email} - syncing basic contact data`);
-      
-      // Create basic contact without plan-specific attributes
-      const basicAttributes = {
-        FIRSTNAME: memberData.customFields?.['first-name'] || memberData.customFields?.firstName || '',
-        LASTNAME: memberData.customFields?.['last-name'] || memberData.customFields?.lastName || '',
-        MEMBERSTACK_ID: memberData.id || '',
-        REGISTRATION_DATE: memberData.createdAt || new Date().toISOString(),
-        LAST_SYNC: new Date().toISOString(),
-        // Set default category as pending until plan is selected
-        USER_CATEGORY: 'pending',
-        PLAN_TYPE: 'none',
-        PLAN_NAME: 'No Plan Yet'
-      };
-      
-      try {
-        // Check if contact exists
-        const existingContact = await getBrevoContact(email);
+        console.log(`📝 [${syncId}] No active plans for ${email} - syncing with 'none' plan attributes.`);
+        const nonePlanConfig = getPlanConfig('none'); // Get default config for no plan
+        const result = await createOrUpdateBrevoContact(memberData, nonePlanConfig);
         
-        if (existingContact) {
-          // Update existing contact
-          await makeBrevoRequest(`/contacts/${encodeURIComponent(email)}`, 'PUT', {
-            attributes: basicAttributes
-          });
-          console.log(`✅ [${syncId}] Updated basic contact for ${email} (no plan)`);
-          
-          // OPTIONAL: Handle school Company sync for basic contact update
-          let companyResult = null;
-          try {
+        // Also handle company sync in this case
+        let companyResult = null;
+        try {
             const { handleMemberSchoolCompanySync } = await import('./brevo-company-manager.js');
             companyResult = await handleMemberSchoolCompanySync(memberData, email);
-          } catch (companyError) {
-            console.warn(`⚠️ [${syncId}] Company sync error for basic update: ${companyError.message}`);
-          }
-          
-          return { success: true, syncId, email, action: 'updated_basic', companyResult };
-        } else {
-          // Create new contact
-          await makeBrevoRequest('/contacts', 'POST', {
-            email: email,
-            listIds: [BREVO_MAIN_LIST.HEY_FEELINGS_LIST],
-            attributes: basicAttributes
-          });
-          console.log(`✅ [${syncId}] Created basic contact for ${email} (no plan)`);
-          
-          // OPTIONAL: Handle school Company sync for basic contact creation
-          let companyResult = null;
-          try {
-            const { handleMemberSchoolCompanySync } = await import('./brevo-company-manager.js');
-            companyResult = await handleMemberSchoolCompanySync(memberData, email);
-          } catch (companyError) {
-            console.warn(`⚠️ [${syncId}] Company sync error for basic creation: ${companyError.message}`);
-          }
-          
-          return { success: true, syncId, email, action: 'created_basic', companyResult };
+        } catch (companyError) {
+            console.warn(`⚠️ [${syncId}] Company sync error during 'none' plan sync: ${companyError.message}`);
         }
-      } catch (basicError) {
-        console.error(`❌ [${syncId}] Basic sync failed:`, basicError.message);
-        return { success: false, syncId, email, error: basicError.message };
-      }
+
+        return { ...result, companyResult };
     }
     
-    // Process first active plan (original logic)
+    // Process first active plan
     const plan = activePlans[0];
     const planConfig = getPlanConfig(plan.planId);
     
