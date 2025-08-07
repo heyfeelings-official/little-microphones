@@ -39,11 +39,13 @@
         if (surveyParam === 'filled') {
             console.log('[Survey Completion] ✅ Detected survey=filled parameter');
             
-            // Check if we already reloaded for this survey completion
-            const reloadFlag = 'survey_filled_reload_done';
-            if (!sessionStorage.getItem(reloadFlag)) {
-                console.log('[Survey Completion] 🔄 First visit with survey=filled, reloading to refresh Memberstack data');
-                sessionStorage.setItem(reloadFlag, 'true');
+            // Check reload stages
+            const firstReloadFlag = 'survey_filled_first_reload_done';
+            const secondReloadFlag = 'survey_filled_second_reload_done';
+            
+            if (!sessionStorage.getItem(firstReloadFlag)) {
+                console.log('[Survey Completion] 🔄 First reload - refreshing Memberstack data');
+                sessionStorage.setItem(firstReloadFlag, 'true');
                 
                 // Set localStorage flag to remember survey completion after reload
                 localStorage.setItem(SURVEY_COMPLETION_FLAG, JSON.stringify({
@@ -56,11 +58,20 @@
                 const newUrl = new URL(window.location);
                 newUrl.searchParams.delete('survey');
                 
-                // Use replace to avoid back button issues
+                // First immediate reload
                 window.location.replace(newUrl.toString());
                 return false; // Won't reach this due to redirect
+            } else if (!sessionStorage.getItem(secondReloadFlag)) {
+                console.log('[Survey Completion] 🔄 Second reload - ensuring data is fully loaded');
+                sessionStorage.setItem(secondReloadFlag, 'true');
+                
+                // Second reload after a delay to ensure data is ready
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000); // 2 second delay for Memberstack to process
+                return false; // Don't proceed with UI setup yet
             } else {
-                console.log('[Survey Completion] ✅ Page already reloaded for survey=filled, proceeding');
+                console.log('[Survey Completion] ✅ Both reloads completed, proceeding with survey completion');
                 return true;
             }
         }
