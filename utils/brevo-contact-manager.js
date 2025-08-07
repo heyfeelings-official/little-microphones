@@ -270,7 +270,7 @@ export async function createOrUpdateBrevoContact(memberData, planConfig) {
                         memberData.metaData?.educatorNoKids || '',
       
       // Application-specific
-      LMIDS: memberData.metaData?.lmids || '',
+      LMIDS: memberData.metaData?.lmids || memberData.metaData?.lmid || memberData.metaData?.LMIDS || memberData.metaData?.LMID || '',
       RESOURCES: memberData.customFields?.['resources'] ||
                    memberData.customFields?.['school-resources'] || '',
       PAYMENTS: memberData.customFields?.['payments'] ||
