@@ -227,31 +227,24 @@ export async function createOrUpdateSchoolCompany(schoolData) {
         // Check if Company already exists
         const existingCompany = await findSchoolCompanyByData(schoolData);
         
-        // Prepare Company data with Brevo's custom school attributes
-        // These are the actual attributes configured in Brevo for Companies
+        // Prepare Company data - start with minimal attributes
+        // Will add more attributes once we confirm which ones exist in Brevo
         const companyData = {
             name: schoolData.name,
-            attributes: {
-                // School-specific attributes configured in Brevo
-                SCHOOL_NAME: schoolData.name,
-                SCHOOL_ADDRESS: schoolData.address || '',
-                SCHOOL_STREET_ADDRESS: schoolData.address || '',
-                SCHOOL_CITY: schoolData.city || '',
-                SCHOOL_COUNTRY: schoolData.country || '',
-                SCHOOL_STATE_PROVINCE: schoolData.state || '',
-                SCHOOL_POSTAL_CODE: schoolData.zip || '',
-                SCHOOL_PHONE: schoolData.phone || '',
-                SCHOOL_WEBSITE: schoolData.website || '',
-                SCHOOL_PLACE_ID: schoolData.placeId || '',
-                SCHOOL_LATITUDE: schoolData.latitude || '',
-                SCHOOL_LONGITUDE: schoolData.longitude || '',
-                
-                // Educator counts (will be updated as teachers join)
-                TOTAL_EDUCATORS: 1, // Start with 1 for the creating educator
-                TOTAL_CLASSES: 0,
-                TOTAL_STUDENTS: 0
-            }
+            attributes: {}
         };
+        
+        // Try to add attributes one by one, log which ones fail
+        const attributesToTry = {
+            SCHOOL_NAME: schoolData.name,
+            SCHOOL_CITY: schoolData.city || '',
+            SCHOOL_COUNTRY: schoolData.country || '',
+            SCHOOL_PLACE_ID: schoolData.placeId || ''
+        };
+        
+        // For now, use only the most basic attributes
+        // We'll expand this once we know which attributes are configured in Brevo
+        companyData.attributes = attributesToTry;
         
         let result;
         
