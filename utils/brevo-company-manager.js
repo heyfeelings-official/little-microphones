@@ -255,21 +255,21 @@ export async function createOrUpdateSchoolCompany(schoolData) {
             attributes: {}
         };
         
-        // Company attributes are now configured in Brevo Dashboard!
-        // Map Memberstack fields to Brevo Company attributes
+        // Test with standard Brevo Company attributes first
+        // Maybe custom attributes need different approach
         const fieldMappings = {
-            SCHOOL_NAME: schoolData.name,
-            SCHOOL_ADDRESS: schoolData.addressResult || '',
-            SCHOOL_CITY: schoolData.city || '',
-            SCHOOL_COUNTRY: schoolData.country || '',
-            SCHOOL_LATITUDE: schoolData.latitude || '',
-            SCHOOL_LONGITUDE: schoolData.longitude || '',
-            SCHOOL_PHONE: schoolData.phone || '',
-            SCHOOL_PLACE_ID: schoolData.placeId || '',
-            SCHOOL_STATE_PROVINCE: schoolData.state || '',
-            SCHOOL_STREET_ADDRESS: schoolData.address || '',
-            SCHOOL_WEBSITE: schoolData.website || '',
-            SCHOOL_POSTAL_CODE: schoolData.zip || ''
+            // Try only basic attributes that definitely exist
+            domain: (() => {
+                try {
+                    return schoolData.website ? new URL(schoolData.website).hostname : '';
+                } catch (e) {
+                    return schoolData.website || '';
+                }
+            })(),
+            phone_number: schoolData.phone || '',
+            address: schoolData.address || '',
+            // Custom attributes might be case sensitive or need different format
+            // Will test these once basic attributes work
         };
         
         // Only add fields that have values
