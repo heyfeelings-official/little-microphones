@@ -189,7 +189,7 @@ export async function findSchoolCompanyByData(schoolData) {
     const syncId = Math.random().toString(36).substring(2, 15);
     
     try {
-        console.log(`🔍 [${syncId}] Searching for existing Company by SCHOOL_PLACE_ID: ${schoolData.placeId}`);
+        console.log(`🔍 [${syncId}] Searching for existing Company by name and city: ${schoolData.name} in ${schoolData.city}`);
         
         // Search for companies (Brevo API doesn't support complex filtering)
         const response = await makeBrevoRequest('/companies?limit=100', 'GET');
@@ -199,25 +199,13 @@ export async function findSchoolCompanyByData(schoolData) {
             return null;
         }
         
-        // First try to match by school_place_id (key field) - lowercase!
-        if (schoolData.placeId) {
-            for (const company of response.companies) {
-                const companyPlaceId = company.attributes?.school_place_id;
-                if (companyPlaceId && companyPlaceId === schoolData.placeId) {
-                    console.log(`✅ [${syncId}] Found existing Company by school_place_id: ${company.id} for ${schoolData.name}`);
-                    return company;
-                }
-            }
-        }
-        
-        // Fallback: match by name and city (legacy method)
+        // Match by name and city (only available attributes for now)
         const schoolKey = generateSchoolCompanyKey(schoolData);
         
         for (const company of response.companies) {
             const companyKey = generateSchoolCompanyKey({
-                name: company.attributes?.school_name || company.name,
-                city: company.attributes?.school_city || '',
-                country: company.attributes?.school_country || ''
+                name: company.name, // Company name is always available
+                city: company.attributes?.school_city || '' // Only available custom attribute
             });
             
             if (companyKey === schoolKey) {
@@ -258,20 +246,13 @@ export async function createOrUpdateSchoolCompany(schoolData) {
         // Company attributes MUST be lowercase with underscore!
         // Brevo API accepts: school_city ✅
         // Brevo API rejects: SCHOOL_CITY ❌, school-city ❌, SchoolCity ❌
+        // ONLY USE ATTRIBUTES THAT EXIST IN BREVO DASHBOARD!
         const fieldMappings = {
-            // Custom school attributes (lowercase with underscore)
-            school_name: schoolData.name || '',
-            school_address: schoolData.addressResult || '',
-            school_city: schoolData.city || '',
-            school_country: schoolData.country || '',
-            school_latitude: schoolData.latitude || '',
-            school_longitude: schoolData.longitude || '',
-            school_phone: schoolData.phone || '',
-            school_place_id: schoolData.placeId || '',  // KEY FIELD
-            school_state_province: schoolData.state || '',
-            school_street_address: schoolData.address || '',
-            school_website: schoolData.website || '',
-            school_postal_code: schoolData.zip || ''
+            // Only verified working attributes from test results
+            school_city: schoolData.city || ''
+            // TODO: Add more attributes after they are created in Brevo Dashboard
+            // school_name: schoolData.name || '',
+            // school_place_id: schoolData.placeId || '',  // KEY FIELD - DOES NOT EXIST YET
         };
         
         // Only add fields that have values
