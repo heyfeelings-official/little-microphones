@@ -287,25 +287,12 @@ export async function createOrUpdateBrevoContact(memberData, planConfig) {
     
     // Clean up null/undefined values - Brevo doesn't like them
     // Also preserve existing values if new value is empty
+    // If a field from Memberstack is empty (null/undefined), send an empty string
+    // to clear the corresponding value in Brevo.
     const cleanedAttributes = {};
-    const planAttributeKeys = ['USER_CATEGORY', 'PLAN_TYPE', 'PLAN_NAME', 'PLAN_ID'];
-
-    Object.keys(allAttributes).forEach(key => {
-        const newValue = allAttributes[key];
-        
-        // Always update plan attributes, even if the new value is empty (e.g., plan cancellation)
-        if (planAttributeKeys.includes(key)) {
-            cleanedAttributes[key] = newValue ?? ''; // Use newValue or empty string if null/undefined
-            return;
-        }
-
-        // For other attributes, preserve existing value if new value is empty
-        if (newValue !== null && newValue !== undefined && newValue !== '') {
-            cleanedAttributes[key] = newValue;
-        } else if (existingContact?.attributes?.[key]) {
-            cleanedAttributes[key] = existingContact.attributes[key];
-        }
-    });
+    for (const key in allAttributes) {
+        cleanedAttributes[key] = allAttributes[key] ?? '';
+    }
     
     // Log final cleaned attributes for debugging
     console.log(`📋 [${syncId}] Final cleaned attributes being sent to Brevo:`, {
