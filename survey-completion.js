@@ -10,6 +10,7 @@
  * - Handle grid-extra-card-wrapper visibility
  * - Manage survey completion state and user interaction
  * - Trigger confetti celebration animation on survey completion
+ * - Force page reload to ensure fresh Memberstack data loads
  * 
  * DEPENDENCIES: localStorage, DOM manipulation, canvas-confetti (loaded dynamically)
  * VERSION: 1.0.0
@@ -273,6 +274,32 @@
     }
     
     /**
+     * Force page reload to ensure fresh data loads after survey completion
+     * This is needed because Memberstack data might not be immediately updated
+     */
+    function forcePageReloadForFreshData() {
+        console.log('[Survey Completion] 🔄 Scheduling page reload to ensure fresh data');
+        
+        // Set a flag to prevent infinite reload loops
+        const reloadFlag = 'survey_completion_reload_done';
+        
+        // Check if we already reloaded for this survey completion
+        if (sessionStorage.getItem(reloadFlag)) {
+            console.log('[Survey Completion] ✅ Page already reloaded, skipping additional reload');
+            return;
+        }
+        
+        // Set the flag before reloading
+        sessionStorage.setItem(reloadFlag, 'true');
+        
+        // Reload after allowing time for confetti and initial UI setup
+        setTimeout(() => {
+            console.log('[Survey Completion] 🔄 Reloading page to fetch fresh Memberstack data');
+            window.location.reload();
+        }, 3000); // 3 seconds delay to allow confetti to play
+    }
+    
+    /**
      * Set up survey completion UI state
      */
     function setupSurveyCompletionUI() {
@@ -292,6 +319,9 @@
         
         // Set up interaction tracking
         setupInteractionTracking();
+        
+        // Force page reload to ensure fresh data (after confetti)
+        forcePageReloadForFreshData();
     }
     
     /**
@@ -362,7 +392,8 @@
         ensureVisible: ensureSurveyFilledVisible,
         handleWrapper: handleGridExtraCardWrapper,
         isCompleted: isComingFromSurveyCompletion,
-        triggerConfetti: triggerConfettiCelebration
+        triggerConfetti: triggerConfettiCelebration,
+        forceReload: forcePageReloadForFreshData
     };
     
 })();
