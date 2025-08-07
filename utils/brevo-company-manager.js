@@ -248,11 +248,11 @@ export async function createOrUpdateSchoolCompany(schoolData) {
         // Brevo API rejects: SCHOOL_CITY ❌, school-city ❌, SchoolCity ❌
         // ONLY USE ATTRIBUTES THAT EXIST IN BREVO DASHBOARD!
         const fieldMappings = {
-            // Only verified working attributes from test results
-            school_city: schoolData.city || ''
-            // TODO: Add more attributes after they are created in Brevo Dashboard
+            // Test only SCHOOL_PLACE_ID first (should be TEXT type in Brevo Dashboard)
+            school_place_id: schoolData.placeId || ''
+            // TODO: Add more attributes after SCHOOL_PLACE_ID works
+            // school_city: schoolData.city || '',
             // school_name: schoolData.name || '',
-            // school_place_id: schoolData.placeId || '',  // KEY FIELD - DOES NOT EXIST YET
         };
         
         // Only add fields that have values
