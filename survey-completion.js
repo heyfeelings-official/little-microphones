@@ -44,8 +44,21 @@
             if (!sessionStorage.getItem(reloadFlag)) {
                 console.log('[Survey Completion] 🔄 First visit with survey=filled, reloading to refresh Memberstack data');
                 sessionStorage.setItem(reloadFlag, 'true');
-                window.location.reload();
-                return false; // Won't reach this due to reload
+                
+                // Set localStorage flag to remember survey completion after reload
+                localStorage.setItem(SURVEY_COMPLETION_FLAG, JSON.stringify({
+                    timestamp: Date.now(),
+                    source: 'survey_filled_parameter',
+                    reloaded: true
+                }));
+                
+                // Remove survey=filled parameter from URL before reload to prevent loops
+                const newUrl = new URL(window.location);
+                newUrl.searchParams.delete('survey');
+                
+                // Use replace to avoid back button issues
+                window.location.replace(newUrl.toString());
+                return false; // Won't reach this due to redirect
             } else {
                 console.log('[Survey Completion] ✅ Page already reloaded for survey=filled, proceeding');
                 return true;
@@ -74,6 +87,7 @@
      * Track if hide-survey button was clicked by user
      */
     let userRequestedHide = false;
+    const SURVEY_HIDDEN_FLAG = 'survey_filled_hidden_by_user';
     
     /**
      * Set up hide-survey button functionality
@@ -100,6 +114,17 @@
                 surveyFilledElement.style.display = 'none';
                 surveyFilledElement.style.visibility = 'hidden';
                 surveyFilledElement.style.opacity = '0';
+                
+                // Save permanent flag that user hid the survey
+                try {
+                    localStorage.setItem(SURVEY_HIDDEN_FLAG, JSON.stringify({
+                        timestamp: Date.now(),
+                        hidden: true
+                    }));
+                    console.log('[Survey Completion] 💾 Saved permanent hide flag');
+                } catch (e) {
+                    console.warn('[Survey Completion] ⚠️ Could not save hide flag:', e);
+                }
                 
                 // Clean up localStorage flag since user dismissed the survey
                 try {
@@ -334,31 +359,7 @@
         }, 5000);
     }
     
-    /**
-     * Force page reload to ensure fresh data loads after survey completion
-     * This is needed because Memberstack data might not be immediately updated
-     */
-    function forcePageReloadForFreshData() {
-        console.log('[Survey Completion] 🔄 Scheduling page reload to ensure fresh data');
-        
-        // Set a flag to prevent infinite reload loops
-        const reloadFlag = 'survey_completion_reload_done';
-        
-        // Check if we already reloaded for this survey completion
-        if (sessionStorage.getItem(reloadFlag)) {
-            console.log('[Survey Completion] ✅ Page already reloaded, skipping additional reload');
-            return;
-        }
-        
-        // Set the flag before reloading
-        sessionStorage.setItem(reloadFlag, 'true');
-        
-        // Reload after allowing time for confetti and initial UI setup
-        setTimeout(() => {
-            console.log('[Survey Completion] 🔄 Reloading page to fetch fresh Memberstack data');
-            window.location.reload();
-        }, 3000); // 3 seconds delay to allow confetti to play
-    }
+
     
     /**
      * Set up survey completion UI state
@@ -420,18 +421,43 @@
     }
     
     /**
+     * Check if user previously hid the survey
+     */
+    function checkIfSurveyHiddenByUser() {
+        try {
+            const hiddenFlag = localStorage.getItem(SURVEY_HIDDEN_FLAG);
+            if (hiddenFlag) {
+                const flagData = JSON.parse(hiddenFlag);
+                if (flagData.hidden === true) {
+                    console.log('[Survey Completion] 🚫 User previously hid survey, keeping it hidden');
+                    userRequestedHide = true;
+                    return true;
+                }
+            }
+        } catch (e) {
+            console.warn('[Survey Completion] ⚠️ Could not parse hide flag:', e);
+        }
+        return false;
+    }
+    
+    /**
      * Initialize survey completion handler
      */
     function initSurveyCompletion() {
         console.log('[Survey Completion] 🚀 Initializing survey completion handler');
         
+        // Check if user previously hid the survey
+        const wasPreviouslyHidden = checkIfSurveyHiddenByUser();
+        
         // Always set up hide-survey button (regardless of completion state)
         setupHideSurveyButton();
         
-        // Check if we're coming from survey completion
-        if (isComingFromSurveyCompletion()) {
+        // Only show survey completion if user hasn't hidden it
+        if (!wasPreviouslyHidden && isComingFromSurveyCompletion()) {
             console.log('[Survey Completion] ✅ Survey completion detected, setting up UI');
             setupSurveyCompletionUI();
+        } else if (wasPreviouslyHidden) {
+            console.log('[Survey Completion] 🚫 Survey was hidden by user, not showing');
         } else {
             console.log('[Survey Completion] ℹ️ No survey completion detected, handler ready');
         }
@@ -460,7 +486,6 @@
         handleWrapper: handleGridExtraCardWrapper,
         isCompleted: isComingFromSurveyCompletion,
         triggerConfetti: triggerConfettiCelebration,
-        forceReload: forcePageReloadForFreshData,
         setupHideButton: setupHideSurveyButton,
         hideSurvey: () => {
             userRequestedHide = true;
