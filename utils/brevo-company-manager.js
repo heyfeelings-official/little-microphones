@@ -181,40 +181,57 @@ export function extractSchoolDataFromMember(memberData) {
 // ===== COMPANY CRUD OPERATIONS =====
 
 /**
- * Find existing school Company by school data
- * @param {Object} schoolData - School data to search for
- * @returns {Promise<Object|null>} Company object or null if not found
+ * Find existing school Company by school data.
+ * Priority Search Order:
+ * 1. `school_id` (from Memberstack `place-id`) - This is the unique, stable identifier.
+ * 2. Fallback to a composite key of `name` and `city` for legacy data.
  */
 export async function findSchoolCompanyByData(schoolData) {
     const syncId = Math.random().toString(36).substring(2, 15);
     
     try {
-        console.log(`🔍 [${syncId}] Searching for existing Company by name and city: ${schoolData.name} in ${schoolData.city}`);
+        console.log(`🔍 [${syncId}] Searching for existing Company for: ${schoolData.name}`);
         
-        // Search for companies (Brevo API doesn't support complex filtering)
-        const response = await makeBrevoRequest('/companies?limit=100', 'GET');
+        // Brevo API doesn't support filtering by custom attributes directly in the GET /companies endpoint.
+        // We must fetch all companies and filter them manually.
+        const response = await makeBrevoRequest('/companies?limit=1000', 'GET'); // Increased limit for safety
         
-        if (!response || !response.companies) {
-            console.log(`📋 [${syncId}] No existing companies found in Brevo`);
+        if (!response || !response.items || response.items.length === 0) {
+            console.log(`📋 [${syncId}] No existing companies found in Brevo.`);
             return null;
         }
-        
-        // Match by name and city (only available attributes for now)
-        const schoolKey = generateSchoolCompanyKey(schoolData);
-        
-        for (const company of response.companies) {
-            const companyKey = generateSchoolCompanyKey({
-                name: company.name, // Company name is always available
-                city: company.attributes?.school_city || '' // Only available custom attribute
-            });
-            
-            if (companyKey === schoolKey) {
-                console.log(`✅ [${syncId}] Found existing Company by name/city: ${company.id} for ${schoolData.name}`);
-                return company;
+
+        const allCompanies = response.items;
+
+        // --- Primary Search: Match by `school_id` (placeId) ---
+        if (schoolData.placeId) {
+            const companyById = allCompanies.find(company => 
+                company.attributes.school_id === schoolData.placeId
+            );
+            if (companyById) {
+                console.log(`✅ [${syncId}] Found existing Company by school_id (placeId): ${companyById.id}`);
+                return companyById;
             }
         }
+
+        // --- Fallback Search: Match by name and city key ---
+        console.log(`⚠️ [${syncId}] Could not find company by school_id. Falling back to name/city search.`);
+        const schoolKey = generateSchoolCompanyKey(schoolData);
+        const companyByKey = allCompanies.find(company => {
+            const companyKey = generateSchoolCompanyKey({
+                name: company.name,
+                city: company.attributes.school_city,
+                country: company.attributes.school_country,
+            });
+            return companyKey === schoolKey;
+        });
+
+        if (companyByKey) {
+            console.log(`✅ [${syncId}] Found existing Company by name/city key: ${companyByKey.id}`);
+            return companyByKey;
+        }
         
-        console.log(`📋 [${syncId}] No existing Company found for ${schoolData.name} (Place ID: ${schoolData.placeId || 'none'})`);
+        console.log(`📋 [${syncId}] No matching Company found for ${schoolData.name}. A new one will be created.`);
         return null;
         
     } catch (error) {
