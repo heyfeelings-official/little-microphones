@@ -271,6 +271,9 @@ export async function createOrUpdateBrevoContact(memberData, planConfig) {
       
       // Application-specific
       LMIDS: memberData.metaData?.lmids || '',
+      RESOURCES: memberData.customFields?.['school-resources'] || '',
+      PAYMENTS: memberData.customFields?.['school-payments'] || '',
+      DISCOVER: memberData.customFields?.['school-discover'] || '',
       
       // IMPORTANT: Plan attributes must be last to avoid being overridden
       // This includes USER_CATEGORY, PLAN_TYPE, PLAN_NAME, PLAN_ID
