@@ -56,21 +56,22 @@ export function generateSchoolCompanyKey(schoolData) {
 export function extractSchoolDataFromMember(memberData) {
     // Extract school data from various possible field locations
     // Check BOTH new onboarding field names AND legacy field names
-    const schoolName = memberData.customFields?.['place-name'] ||        // NEW: onboarding form field
+    // Note: Webhook sends fields WITHOUT 'school-' prefix, but Memberstack UI shows WITH prefix
+    const schoolName = memberData.customFields?.['place-name'] ||        // Webhook: without prefix
+                       memberData.customFields?.['school-place-name'] || // Memberstack UI: with prefix
                        memberData.customFields?.['school-name'] || 
                        memberData.customFields?.schoolName ||
                        memberData.customFields?.['school'] || 
                        memberData.customFields?.school ||
-                       memberData.customFields?.['school-place-name'] || 
                        memberData.metaData?.schoolName;
                        
-    const schoolCity = memberData.customFields?.['city'] ||              // NEW: onboarding form field (no prefix)
-                       memberData.customFields?.['school-city'] || 
+    const schoolCity = memberData.customFields?.['city'] ||              // Webhook: without prefix
+                       memberData.customFields?.['school-city'] ||      // Memberstack UI: with prefix
                        memberData.customFields?.schoolCity ||
                        memberData.metaData?.schoolCity;
                        
-    const schoolCountry = memberData.customFields?.['country'] ||        // NEW: onboarding form field (no prefix)
-                          memberData.customFields?.['school-country'] || 
+    const schoolCountry = memberData.customFields?.['country'] ||        // Webhook: without prefix
+                          memberData.customFields?.['school-country'] || // Memberstack UI: with prefix
                           memberData.customFields?.schoolCountry ||
                           memberData.metaData?.schoolCountry;
     
@@ -118,29 +119,31 @@ export function extractSchoolDataFromMember(memberData) {
         name: schoolName.trim(),
         city: schoolCity.trim(),
         country: schoolCountry?.trim() || '',
-        address: memberData.customFields?.['street-address'] ||         // NEW: onboarding form field  
-                 memberData.customFields?.['school-address'] || 
+        address: memberData.customFields?.['street-address'] ||         // Webhook: without prefix
+                 memberData.customFields?.['school-street-address'] ||  // Alternative naming
+                 memberData.customFields?.['school-address'] ||         // Memberstack UI: with prefix
                  memberData.customFields?.schoolAddress ||
                  memberData.customFields?.['school_address'] || 
                  memberData.metaData?.schoolAddress || '',
-        phone: memberData.customFields?.['phone'] ||                     // NEW: onboarding form field (no prefix)
-               memberData.customFields?.['school-phone'] || 
+        phone: memberData.customFields?.['phone'] ||                     // Webhook: without prefix
+               memberData.customFields?.['school-phone'] ||             // Memberstack UI: with prefix
                memberData.customFields?.schoolPhone ||
                memberData.metaData?.schoolPhone || '',
-        website: memberData.customFields?.['website'] ||                 // NEW: onboarding form field (no prefix)
-                 memberData.customFields?.['school-website'] || 
+        website: memberData.customFields?.['website'] ||                 // Webhook: without prefix
+                 memberData.customFields?.['school-website'] ||          // Memberstack UI: with prefix
                  memberData.customFields?.schoolWebsite ||
                  memberData.metaData?.schoolWebsite || '',
-        facilityType: memberData.customFields?.['facility-type'] ||      // NEW: onboarding form field
+        facilityType: memberData.customFields?.['facility-type'] ||      // Webhook: without prefix
+                      memberData.customFields?.['school-facility-type'] || // Memberstack UI: with prefix
                       memberData.customFields?.['school-type'] || 
                       memberData.customFields?.schoolType ||
-                      memberData.customFields?.['school-facility-type'] || 
                       memberData.metaData?.schoolFacilityType || '',
-        rating: memberData.customFields?.['school-rating'] || 
+        rating: memberData.customFields?.['rating'] ||                   // Webhook: without prefix (if exists)
+                memberData.customFields?.['school-rating'] ||            // Memberstack UI: with prefix
                 memberData.customFields?.schoolRating ||
                 memberData.metaData?.schoolRating || '',
-        placeId: memberData.customFields?.['place-id'] ||                // NEW: onboarding form field
-                 memberData.customFields?.['school-place-id'] || 
+        placeId: memberData.customFields?.['place-id'] ||                // Webhook: without prefix
+                 memberData.customFields?.['school-place-id'] ||         // Memberstack UI: with prefix
                  memberData.customFields?.schoolPlaceId ||
                  memberData.metaData?.schoolPlaceId || ''
     };
@@ -206,29 +209,27 @@ export async function createOrUpdateSchoolCompany(schoolData) {
         // Check if Company already exists
         const existingCompany = await findSchoolCompanyByData(schoolData);
         
-        // Prepare Company data
+        // Prepare Company data with only standard Brevo Company attributes
+        // Note: Brevo Companies have limited attribute support compared to Contacts
         const companyData = {
             name: schoolData.name,
             attributes: {
-                // School identification
-                school_name: schoolData.name,
-                city: schoolData.city,
-                country: schoolData.country,
+                // Standard Brevo Company attributes only
+                domain: (() => {
+                    try {
+                        return schoolData.website ? new URL(schoolData.website).hostname : '';
+                    } catch (e) {
+                        return schoolData.website || '';
+                    }
+                })(),
+                number_of_employees: 0, // Will be updated when we have teacher count
+                phone_number: schoolData.phone || '',
+                address: schoolData.address || '',
+                city: schoolData.city || '',
+                country: schoolData.country || '',
                 
-                // Contact information
-                address: schoolData.address,
-                phone: schoolData.phone,
-                website: schoolData.website,
-                
-                // Educational facility details
-                facility_type: schoolData.facilityType,
-                rating: schoolData.rating,
-                place_id: schoolData.placeId,
-                
-                // System fields
-                source: 'hey-feelings-educator-onboarding',
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
+                // Note: Custom attributes like facility_type, rating, place_id cause 400 errors
+                // These are stored in Contact attributes instead
             }
         };
         
@@ -238,9 +239,8 @@ export async function createOrUpdateSchoolCompany(schoolData) {
             // Update existing Company
             console.log(`🔄 [${syncId}] Updating existing Company: ${existingCompany.id}`);
             
-            // Only update updated_at for existing companies
-            companyData.attributes.updated_at = new Date().toISOString();
-            delete companyData.attributes.created_at;
+            // Note: Brevo Companies don't support custom timestamps
+            // Remove any system fields for update
             
             result = await makeBrevoRequest(`/companies/${existingCompany.id}`, 'PATCH', companyData);
             
