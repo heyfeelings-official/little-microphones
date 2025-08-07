@@ -65,11 +65,9 @@
                 console.log('[Survey Completion] 🔄 Second reload - ensuring data is fully loaded');
                 sessionStorage.setItem(secondReloadFlag, 'true');
                 
-                // Second reload after a delay to ensure data is ready
-                setTimeout(() => {
-                    window.location.reload();
-                }, 2000); // 2 second delay for Memberstack to process
-                return false; // Don't proceed with UI setup yet
+                // Second immediate reload
+                window.location.reload();
+                return false; // Won't reach this due to reload
             } else {
                 console.log('[Survey Completion] ✅ Both reloads completed, proceeding with survey completion');
                 return true;
