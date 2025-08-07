@@ -347,6 +347,12 @@ export async function linkContactToSchoolCompany(contactEmail, companyId, compan
             unlinkContactIds: []
         };
         
+        console.log(`🔗 [${syncId}] Linking Contact to Company:`, {
+            endpoint: `/companies/${companyId}/link`,
+            method: 'PATCH',
+            linkData: JSON.stringify(linkData, null, 2)
+        });
+        
         const result = await makeBrevoRequest(`/companies/${companyId}/link`, 'PATCH', linkData);
         
         console.log(`✅ [${syncId}] Successfully linked Contact ${contactEmail} to Company ${companyId}`);
