@@ -3,7 +3,7 @@
  * Tests the complete flow: create Company, create Contact, link them
  */
 
-import { makeBrevoRequest } from '../utils/api-utils.js';
+import { makeBrevoRequest } from '../utils/brevo-contact-manager.js';
 import { createOrUpdateSchoolCompany, linkContactToSchoolCompany } from '../utils/brevo-company-manager.js';
 
 export default async function handler(req, res) {
