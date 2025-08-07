@@ -125,6 +125,16 @@ export function extractSchoolDataFromMember(memberData) {
                  memberData.customFields?.schoolAddress ||
                  memberData.customFields?.['school_address'] || 
                  memberData.metaData?.schoolAddress || '',
+        state: memberData.customFields?.['state'] ||                     // Webhook: without prefix
+               memberData.customFields?.['school-state'] ||             // Memberstack UI: with prefix
+               memberData.customFields?.schoolState ||
+               memberData.metaData?.schoolState || '',
+        zip: memberData.customFields?.['zip'] ||                         // Webhook: without prefix
+             memberData.customFields?.['school-zip'] ||                  // Memberstack UI: with prefix
+             memberData.customFields?.schoolZip ||
+             memberData.customFields?.['postal-code'] ||
+             memberData.customFields?.['school-postal-code'] ||
+             memberData.metaData?.schoolZip || '',
         phone: memberData.customFields?.['phone'] ||                     // Webhook: without prefix
                memberData.customFields?.['school-phone'] ||             // Memberstack UI: with prefix
                memberData.customFields?.schoolPhone ||
@@ -133,6 +143,14 @@ export function extractSchoolDataFromMember(memberData) {
                  memberData.customFields?.['school-website'] ||          // Memberstack UI: with prefix
                  memberData.customFields?.schoolWebsite ||
                  memberData.metaData?.schoolWebsite || '',
+        latitude: memberData.customFields?.['latitude'] ||               // Webhook: without prefix
+                  memberData.customFields?.['school-latitude'] ||        // Memberstack UI: with prefix
+                  memberData.customFields?.schoolLatitude ||
+                  memberData.metaData?.schoolLatitude || '',
+        longitude: memberData.customFields?.['longitude'] ||             // Webhook: without prefix
+                   memberData.customFields?.['school-longitude'] ||      // Memberstack UI: with prefix
+                   memberData.customFields?.schoolLongitude ||
+                   memberData.metaData?.schoolLongitude || '',
         facilityType: memberData.customFields?.['facility-type'] ||      // Webhook: without prefix
                       memberData.customFields?.['school-facility-type'] || // Memberstack UI: with prefix
                       memberData.customFields?.['school-type'] || 
@@ -209,27 +227,29 @@ export async function createOrUpdateSchoolCompany(schoolData) {
         // Check if Company already exists
         const existingCompany = await findSchoolCompanyByData(schoolData);
         
-        // Prepare Company data with only standard Brevo Company attributes
-        // Note: Brevo Companies have limited attribute support compared to Contacts
+        // Prepare Company data with Brevo's custom school attributes
+        // These are the actual attributes configured in Brevo for Companies
         const companyData = {
             name: schoolData.name,
             attributes: {
-                // Standard Brevo Company attributes only
-                domain: (() => {
-                    try {
-                        return schoolData.website ? new URL(schoolData.website).hostname : '';
-                    } catch (e) {
-                        return schoolData.website || '';
-                    }
-                })(),
-                number_of_employees: 0, // Will be updated when we have teacher count
-                phone_number: schoolData.phone || '',
-                address: schoolData.address || '',
-                city: schoolData.city || '',
-                country: schoolData.country || '',
+                // School-specific attributes configured in Brevo
+                SCHOOL_NAME: schoolData.name,
+                SCHOOL_ADDRESS: schoolData.address || '',
+                SCHOOL_STREET_ADDRESS: schoolData.address || '',
+                SCHOOL_CITY: schoolData.city || '',
+                SCHOOL_COUNTRY: schoolData.country || '',
+                SCHOOL_STATE_PROVINCE: schoolData.state || '',
+                SCHOOL_POSTAL_CODE: schoolData.zip || '',
+                SCHOOL_PHONE: schoolData.phone || '',
+                SCHOOL_WEBSITE: schoolData.website || '',
+                SCHOOL_PLACE_ID: schoolData.placeId || '',
+                SCHOOL_LATITUDE: schoolData.latitude || '',
+                SCHOOL_LONGITUDE: schoolData.longitude || '',
                 
-                // Note: Custom attributes like facility_type, rating, place_id cause 400 errors
-                // These are stored in Contact attributes instead
+                // Educator counts (will be updated as teachers join)
+                TOTAL_EDUCATORS: 1, // Start with 1 for the creating educator
+                TOTAL_CLASSES: 0,
+                TOTAL_STUDENTS: 0
             }
         };
         
@@ -288,12 +308,25 @@ export async function createOrUpdateSchoolCompany(schoolData) {
  * @param {string} companyId - Brevo Company ID
  * @returns {Promise<Object>} Linking result
  */
-export async function linkContactToSchoolCompany(contactEmail, companyId) {
+export async function linkContactToSchoolCompany(contactEmail, companyId, companyName = '') {
     const syncId = Math.random().toString(36).substring(2, 15);
     
     console.log(`🔗 [${syncId}] Linking Contact ${contactEmail} to Company ${companyId}`);
     
     try {
+        // First, update Contact with COMPANY and COMPANY_ID attributes
+        try {
+            await makeBrevoRequest(`/contacts/${encodeURIComponent(contactEmail)}`, 'PUT', {
+                attributes: {
+                    COMPANY: companyName || companyId,
+                    COMPANY_ID: companyId
+                }
+            });
+            console.log(`📝 [${syncId}] Updated Contact with Company attributes`);
+        } catch (updateError) {
+            console.warn(`⚠️ [${syncId}] Could not update Contact attributes:`, updateError.message);
+        }
+        
         // Link Contact to Company using Brevo API
         const linkData = {
             linkContactIds: [contactEmail], // Brevo accepts email as contact identifier
@@ -309,6 +342,7 @@ export async function linkContactToSchoolCompany(contactEmail, companyId) {
             syncId,
             contactEmail,
             companyId,
+            companyName,
             action: 'linked'
         };
         
@@ -368,7 +402,7 @@ export async function handleMemberSchoolCompanySync(memberData, contactEmail) {
         }
         
         // Link Contact to Company
-        const linkResult = await linkContactToSchoolCompany(contactEmail, companyResult.companyId);
+        const linkResult = await linkContactToSchoolCompany(contactEmail, companyResult.companyId, companyResult.companyName);
         
         if (!linkResult.success) {
             console.error(`❌ [${syncId}] Contact linking failed for ${contactEmail}:`, linkResult.error);
