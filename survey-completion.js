@@ -9,8 +9,9 @@
  * - Prevent hiding of survey completion elements by other UI logic
  * - Handle grid-extra-card-wrapper visibility
  * - Manage survey completion state and user interaction
+ * - Trigger confetti celebration animation on survey completion
  * 
- * DEPENDENCIES: localStorage, DOM manipulation
+ * DEPENDENCIES: localStorage, DOM manipulation, canvas-confetti (loaded dynamically)
  * VERSION: 1.0.0
  * LAST UPDATED: January 2025
  */
@@ -132,10 +133,153 @@
     }
     
     /**
+     * Load canvas-confetti library if not already loaded
+     */
+    function loadConfettiLibrary() {
+        return new Promise((resolve, reject) => {
+            // Check if confetti is already loaded
+            if (typeof window.confetti !== 'undefined') {
+                resolve();
+                return;
+            }
+            
+            // Load canvas-confetti from CDN
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js';
+            script.onload = () => {
+                console.log('[Survey Completion] 📚 Canvas-confetti library loaded');
+                resolve();
+            };
+            script.onerror = () => {
+                console.warn('[Survey Completion] ⚠️ Failed to load canvas-confetti library');
+                reject(new Error('Failed to load confetti library'));
+            };
+            document.head.appendChild(script);
+        });
+    }
+    
+    /**
+     * Create and trigger confetti celebration using canvas-confetti library
+     */
+    async function triggerConfettiCelebration() {
+        console.log('[Survey Completion] 🎊 Triggering confetti celebration');
+        
+        try {
+            // Load confetti library if needed
+            await loadConfettiLibrary();
+            
+            // Check if confetti is available
+            if (typeof window.confetti === 'undefined') {
+                console.warn('[Survey Completion] ⚠️ Confetti library not available, using fallback');
+                triggerFallbackConfetti();
+                return;
+            }
+            
+            // Create multiple confetti bursts with different configurations
+            const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7', '#dda0dd', '#98d8c8'];
+            
+            // First burst - from center
+            window.confetti({
+                particleCount: 100,
+                spread: 70,
+                origin: { y: 0.6 },
+                colors: colors
+            });
+            
+            // Second burst - from left
+            setTimeout(() => {
+                window.confetti({
+                    particleCount: 50,
+                    angle: 60,
+                    spread: 55,
+                    origin: { x: 0, y: 0.8 },
+                    colors: colors
+                });
+            }, 200);
+            
+            // Third burst - from right
+            setTimeout(() => {
+                window.confetti({
+                    particleCount: 50,
+                    angle: 120,
+                    spread: 55,
+                    origin: { x: 1, y: 0.8 },
+                    colors: colors
+                });
+            }, 400);
+            
+        } catch (error) {
+            console.warn('[Survey Completion] ⚠️ Error with confetti library:', error);
+            triggerFallbackConfetti();
+        }
+    }
+    
+    /**
+     * Fallback confetti implementation (CSS-based)
+     */
+    function triggerFallbackConfetti() {
+        console.log('[Survey Completion] 🎊 Using fallback confetti animation');
+        
+        const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7', '#dda0dd', '#98d8c8'];
+        const confettiCount = 100;
+        const confettiElements = [];
+        
+        for (let i = 0; i < confettiCount; i++) {
+            const confetti = document.createElement('div');
+            confetti.style.cssText = `
+                position: fixed;
+                width: 10px;
+                height: 10px;
+                background-color: ${colors[Math.floor(Math.random() * colors.length)]};
+                top: -10px;
+                left: ${Math.random() * 100}vw;
+                z-index: 9999;
+                pointer-events: none;
+                border-radius: ${Math.random() > 0.5 ? '50%' : '0'};
+                animation: confetti-fall ${3 + Math.random() * 2}s linear forwards;
+            `;
+            
+            document.body.appendChild(confetti);
+            confettiElements.push(confetti);
+        }
+        
+        // Inject CSS animation if not already present
+        if (!document.getElementById('confetti-styles')) {
+            const style = document.createElement('style');
+            style.id = 'confetti-styles';
+            style.textContent = `
+                @keyframes confetti-fall {
+                    0% {
+                        transform: translateY(-10px) rotate(0deg);
+                        opacity: 1;
+                    }
+                    100% {
+                        transform: translateY(100vh) rotate(720deg);
+                        opacity: 0;
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        // Clean up confetti after animation
+        setTimeout(() => {
+            confettiElements.forEach(confetti => {
+                if (confetti.parentNode) {
+                    confetti.parentNode.removeChild(confetti);
+                }
+            });
+        }, 5000);
+    }
+    
+    /**
      * Set up survey completion UI state
      */
     function setupSurveyCompletionUI() {
         console.log('[Survey Completion] 🎉 Setting up survey completion UI');
+        
+        // Trigger confetti celebration first
+        setTimeout(triggerConfettiCelebration, 500);
         
         // Ensure survey-filled element is visible and protected
         ensureSurveyFilledVisible();
@@ -217,7 +361,8 @@
         init: initSurveyCompletion,
         ensureVisible: ensureSurveyFilledVisible,
         handleWrapper: handleGridExtraCardWrapper,
-        isCompleted: isComingFromSurveyCompletion
+        isCompleted: isComingFromSurveyCompletion,
+        triggerConfetti: triggerConfettiCelebration
     };
     
 })();
