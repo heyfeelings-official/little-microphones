@@ -341,26 +341,6 @@ export async function linkContactToSchoolCompany(contactEmail, companyId, compan
             console.warn(`⚠️ [${syncId}] Could not update Contact attributes:`, updateError.message);
         }
         
-        // First, we need to get the Contact ID from email
-        // Brevo requires numeric contact IDs, not emails
-        let contactId;
-        try {
-            const contactResponse = await makeBrevoRequest(`/contacts/${encodeURIComponent(contactEmail)}`, 'GET');
-            contactId = contactResponse.id;
-            console.log(`📝 [${syncId}] Found Contact ID: ${contactId} for email: ${contactEmail}`);
-        } catch (error) {
-            console.error(`❌ [${syncId}] Could not find Contact ID for ${contactEmail}:`, error.message);
-            throw new Error(`Contact not found: ${contactEmail}`);
-        }
-        
-        // Link Contact to Company using Brevo API
-        const linkData = {
-            linkContactIds: [contactId], // Brevo requires numeric IDs, not emails!
-            unlinkContactIds: []
-        };
-        
-        console.log(`🔗 [${syncId}] Linking Contact to Company...`);
-        
         // Brevo API requires the numeric ID of the contact for linking.
         // First, get the contact details to find its ID.
         let contactId;
@@ -388,6 +368,8 @@ export async function linkContactToSchoolCompany(contactEmail, companyId, compan
         return {
             success: true,
             syncId,
+            action: 'linked'
+        };
         
     } catch (error) {
         console.error(`❌ [${syncId}] Error linking Contact ${contactEmail} to Company ${companyId}:`, error.message);
