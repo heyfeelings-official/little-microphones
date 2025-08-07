@@ -518,7 +518,21 @@ export async function syncMemberToBrevo(memberData) {
       });
       
       console.log(`✅ [${syncId}] Updated contact preserving existing plan data`);
-      return { success: true, syncId, email, action: 'updated_preserve_plan' };
+      
+      // OPTIONAL: Handle school Company sync (if applicable) for preserve plan scenario
+      let companyResult = null;
+      try {
+        const { handleMemberSchoolCompanySync } = await import('./brevo-company-manager.js');
+        companyResult = await handleMemberSchoolCompanySync(memberData, email);
+        
+        if (companyResult.success && companyResult.action !== 'skipped_no_school_data') {
+          console.log(`✅ [${syncId}] Company sync completed for preserve plan: ${companyResult.action}`);
+        }
+      } catch (companyError) {
+        console.warn(`⚠️ [${syncId}] Company sync error in preserve plan scenario: ${companyError.message}`);
+      }
+      
+      return { success: true, syncId, email, action: 'updated_preserve_plan', companyResult };
     }
     
     if (activePlans.length === 0) {
@@ -547,7 +561,17 @@ export async function syncMemberToBrevo(memberData) {
             attributes: basicAttributes
           });
           console.log(`✅ [${syncId}] Updated basic contact for ${email} (no plan)`);
-          return { success: true, syncId, email, action: 'updated_basic' };
+          
+          // OPTIONAL: Handle school Company sync for basic contact update
+          let companyResult = null;
+          try {
+            const { handleMemberSchoolCompanySync } = await import('./brevo-company-manager.js');
+            companyResult = await handleMemberSchoolCompanySync(memberData, email);
+          } catch (companyError) {
+            console.warn(`⚠️ [${syncId}] Company sync error for basic update: ${companyError.message}`);
+          }
+          
+          return { success: true, syncId, email, action: 'updated_basic', companyResult };
         } else {
           // Create new contact
           await makeBrevoRequest('/contacts', 'POST', {
@@ -556,7 +580,17 @@ export async function syncMemberToBrevo(memberData) {
             attributes: basicAttributes
           });
           console.log(`✅ [${syncId}] Created basic contact for ${email} (no plan)`);
-          return { success: true, syncId, email, action: 'created_basic' };
+          
+          // OPTIONAL: Handle school Company sync for basic contact creation
+          let companyResult = null;
+          try {
+            const { handleMemberSchoolCompanySync } = await import('./brevo-company-manager.js');
+            companyResult = await handleMemberSchoolCompanySync(memberData, email);
+          } catch (companyError) {
+            console.warn(`⚠️ [${syncId}] Company sync error for basic creation: ${companyError.message}`);
+          }
+          
+          return { success: true, syncId, email, action: 'created_basic', companyResult };
         }
       } catch (basicError) {
         console.error(`❌ [${syncId}] Basic sync failed:`, basicError.message);
@@ -579,8 +613,34 @@ export async function syncMemberToBrevo(memberData) {
     const contactResult = await createOrUpdateBrevoContact(memberData, planConfig);
     
     if (contactResult.success) {
-      console.log(`✅ [${syncId}] Brevo sync completed successfully for ${email}`);
-      return { success: true, syncId, email, contactResult };
+      console.log(`✅ [${syncId}] Brevo Contact sync completed successfully for ${email}`);
+      
+      // OPTIONAL: Handle school Company sync (if applicable)
+      // This is a NON-BREAKING addition - Contact sync already succeeded
+      let companyResult = null;
+      try {
+        const { handleMemberSchoolCompanySync } = await import('./brevo-company-manager.js');
+        companyResult = await handleMemberSchoolCompanySync(memberData, email);
+        
+        if (companyResult.success && companyResult.action !== 'skipped_no_school_data') {
+          console.log(`✅ [${syncId}] Company sync also completed: ${companyResult.action} (Company: ${companyResult.companyId})`);
+        } else if (companyResult.action === 'skipped_no_school_data') {
+          console.log(`📋 [${syncId}] Company sync skipped - no school data for ${email}`);
+        } else {
+          console.warn(`⚠️ [${syncId}] Company sync failed but Contact sync succeeded: ${companyResult.error}`);
+        }
+      } catch (companyError) {
+        console.warn(`⚠️ [${syncId}] Company sync error but Contact sync succeeded: ${companyError.message}`);
+      }
+      
+      // Return successful Contact result (Company sync is optional and doesn't affect this)
+      return { 
+        success: true, 
+        syncId, 
+        email, 
+        contactResult,
+        companyResult // Optional: include Company result if available
+      };
     } else {
       console.error(`❌ [${syncId}] Brevo sync failed for ${email}: ${contactResult.error}`);
       return { success: false, syncId, email, error: contactResult.error };
