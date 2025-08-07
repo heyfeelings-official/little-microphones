@@ -14,19 +14,20 @@ export default async function handler(req, res) {
     try {
         console.log('🧪 Starting Company creation test...');
 
-        // Test school data
+        // Test school data with proper field mapping
         const testSchoolData = {
             name: 'Test School Warsaw ' + Date.now(),
-            city: 'Warsaw',
-            country: 'Poland',
-            address: 'ul. Testowa 123',
-            state: 'Mazowieckie',
-            zip: '00-001',
-            phone: '+48 22 123 4567',
-            website: 'https://testschool.edu.pl',
-            latitude: '52.2297',
-            longitude: '21.0122',
-            placeId: 'test_place_id_' + Date.now(),
+            city: 'Warsaw',                              // → SCHOOL_CITY
+            country: 'Poland',                           // → SCHOOL_COUNTRY
+            addressResult: 'Complete address result',    // → SCHOOL_ADDRESS
+            address: 'ul. Testowa 123',                  // → SCHOOL_STREET_ADDRESS
+            state: 'Mazowieckie',                        // → SCHOOL_STATE_PROVINCE
+            zip: '00-001',                               // → SCHOOL_POSTAL_CODE
+            phone: '+48 22 123 4567',                    // → SCHOOL_PHONE
+            website: 'https://testschool.edu.pl',        // → SCHOOL_WEBSITE
+            latitude: '52.2297',                         // → SCHOOL_LATITUDE
+            longitude: '21.0122',                        // → SCHOOL_LONGITUDE
+            placeId: 'test_place_id_' + Date.now(),      // → SCHOOL_PLACE_ID (KEY)
             facilityType: 'Elementary School',
             rating: '4.5'
         };

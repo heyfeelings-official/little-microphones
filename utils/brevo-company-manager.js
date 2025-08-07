@@ -116,54 +116,65 @@ export function extractSchoolDataFromMember(memberData) {
     }
     
     return {
+        // Core school identification (used for Company name and key matching)
         name: schoolName.trim(),
         city: schoolCity.trim(),
         country: schoolCountry?.trim() || '',
-        address: memberData.customFields?.['street-address'] ||         // Webhook: without prefix
-                 memberData.customFields?.['school-street-address'] ||  // Alternative naming
-                 memberData.customFields?.['school-address'] ||         // Memberstack UI: with prefix
+        
+        // Address fields mapped to Brevo Company attributes
+        addressResult: memberData.customFields?.['address-result'] ||      // SCHOOL_ADDRESS: school-address-result
+                      memberData.customFields?.['school-address-result'] ||
+                      memberData.metaData?.addressResult || '',
+        address: memberData.customFields?.['street-address'] ||           // SCHOOL_STREET_ADDRESS: street-address
+                 memberData.customFields?.['school-street-address'] ||
                  memberData.customFields?.schoolAddress ||
-                 memberData.customFields?.['school_address'] || 
                  memberData.metaData?.schoolAddress || '',
-        state: memberData.customFields?.['state'] ||                     // Webhook: without prefix
-               memberData.customFields?.['school-state'] ||             // Memberstack UI: with prefix
+        state: memberData.customFields?.['state'] ||                      // SCHOOL_STATE_PROVINCE: school-state
+               memberData.customFields?.['school-state'] ||
                memberData.customFields?.schoolState ||
                memberData.metaData?.schoolState || '',
-        zip: memberData.customFields?.['zip'] ||                         // Webhook: without prefix
-             memberData.customFields?.['school-zip'] ||                  // Memberstack UI: with prefix
+        zip: memberData.customFields?.['zip'] ||                          // SCHOOL_POSTAL_CODE: school-zip
+             memberData.customFields?.['school-zip'] ||
              memberData.customFields?.schoolZip ||
              memberData.customFields?.['postal-code'] ||
-             memberData.customFields?.['school-postal-code'] ||
              memberData.metaData?.schoolZip || '',
-        phone: memberData.customFields?.['phone'] ||                     // Webhook: without prefix
-               memberData.customFields?.['school-phone'] ||             // Memberstack UI: with prefix
+        
+        // Contact and web presence
+        phone: memberData.customFields?.['phone'] ||                      // SCHOOL_PHONE: school-phone
+               memberData.customFields?.['school-phone'] ||
                memberData.customFields?.schoolPhone ||
                memberData.metaData?.schoolPhone || '',
-        website: memberData.customFields?.['website'] ||                 // Webhook: without prefix
-                 memberData.customFields?.['school-website'] ||          // Memberstack UI: with prefix
+        website: memberData.customFields?.['website'] ||                  // SCHOOL_WEBSITE: school-website
+                 memberData.customFields?.['school-website'] ||
                  memberData.customFields?.schoolWebsite ||
                  memberData.metaData?.schoolWebsite || '',
-        latitude: memberData.customFields?.['latitude'] ||               // Webhook: without prefix
-                  memberData.customFields?.['school-latitude'] ||        // Memberstack UI: with prefix
+        
+        // Geographic coordinates
+        latitude: memberData.customFields?.['latitude'] ||                // SCHOOL_LATITUDE: school-latitude
+                  memberData.customFields?.['school-latitude'] ||
                   memberData.customFields?.schoolLatitude ||
                   memberData.metaData?.schoolLatitude || '',
-        longitude: memberData.customFields?.['longitude'] ||             // Webhook: without prefix
-                   memberData.customFields?.['school-longitude'] ||      // Memberstack UI: with prefix
+        longitude: memberData.customFields?.['longitude'] ||              // SCHOOL_LONGITUDE: school-longitude
+                   memberData.customFields?.['school-longitude'] ||
                    memberData.customFields?.schoolLongitude ||
                    memberData.metaData?.schoolLongitude || '',
-        facilityType: memberData.customFields?.['facility-type'] ||      // Webhook: without prefix
-                      memberData.customFields?.['school-facility-type'] || // Memberstack UI: with prefix
+        
+        // KEY FIELD for syncing between Companies and Contacts
+        placeId: memberData.customFields?.['place-id'] ||                 // SCHOOL_PLACE_ID: school-place-id (KEY)
+                 memberData.customFields?.['school-place-id'] ||
+                 memberData.customFields?.schoolPlaceId ||
+                 memberData.metaData?.schoolPlaceId || '',
+        
+        // Additional fields (not mapped to Company attributes but kept for compatibility)
+        facilityType: memberData.customFields?.['facility-type'] ||
+                      memberData.customFields?.['school-facility-type'] ||
                       memberData.customFields?.['school-type'] || 
                       memberData.customFields?.schoolType ||
                       memberData.metaData?.schoolFacilityType || '',
-        rating: memberData.customFields?.['rating'] ||                   // Webhook: without prefix (if exists)
-                memberData.customFields?.['school-rating'] ||            // Memberstack UI: with prefix
+        rating: memberData.customFields?.['rating'] ||
+                memberData.customFields?.['school-rating'] ||
                 memberData.customFields?.schoolRating ||
-                memberData.metaData?.schoolRating || '',
-        placeId: memberData.customFields?.['place-id'] ||                // Webhook: without prefix
-                 memberData.customFields?.['school-place-id'] ||         // Memberstack UI: with prefix
-                 memberData.customFields?.schoolPlaceId ||
-                 memberData.metaData?.schoolPlaceId || ''
+                memberData.metaData?.schoolRating || ''
     };
 }
 
@@ -178,9 +189,9 @@ export async function findSchoolCompanyByData(schoolData) {
     const syncId = Math.random().toString(36).substring(2, 15);
     
     try {
-        console.log(`🔍 [${syncId}] Searching for existing Company: ${schoolData.name} in ${schoolData.city}`);
+        console.log(`🔍 [${syncId}] Searching for existing Company by SCHOOL_PLACE_ID: ${schoolData.placeId}`);
         
-        // Search for companies by name (Brevo API doesn't support complex filtering)
+        // Search for companies (Brevo API doesn't support complex filtering)
         const response = await makeBrevoRequest('/companies?limit=100', 'GET');
         
         if (!response || !response.companies) {
@@ -188,23 +199,34 @@ export async function findSchoolCompanyByData(schoolData) {
             return null;
         }
         
-        // Find match by name and city (manual filtering)
+        // First try to match by SCHOOL_PLACE_ID (key field)
+        if (schoolData.placeId) {
+            for (const company of response.companies) {
+                const companyPlaceId = company.attributes?.SCHOOL_PLACE_ID;
+                if (companyPlaceId && companyPlaceId === schoolData.placeId) {
+                    console.log(`✅ [${syncId}] Found existing Company by SCHOOL_PLACE_ID: ${company.id} for ${schoolData.name}`);
+                    return company;
+                }
+            }
+        }
+        
+        // Fallback: match by name and city (legacy method)
         const schoolKey = generateSchoolCompanyKey(schoolData);
         
         for (const company of response.companies) {
             const companyKey = generateSchoolCompanyKey({
-                name: company.attributes?.name || company.name,
-                city: company.attributes?.city || '',
-                country: company.attributes?.country || ''
+                name: company.attributes?.SCHOOL_NAME || company.name,
+                city: company.attributes?.SCHOOL_CITY || '',
+                country: company.attributes?.SCHOOL_COUNTRY || ''
             });
             
             if (companyKey === schoolKey) {
-                console.log(`✅ [${syncId}] Found existing Company: ${company.id} for ${schoolData.name}`);
+                console.log(`✅ [${syncId}] Found existing Company by name/city: ${company.id} for ${schoolData.name}`);
                 return company;
             }
         }
         
-        console.log(`📋 [${syncId}] No existing Company found for ${schoolData.name} in ${schoolData.city}`);
+        console.log(`📋 [${syncId}] No existing Company found for ${schoolData.name} (Place ID: ${schoolData.placeId || 'none'})`);
         return null;
         
     } catch (error) {
@@ -227,16 +249,38 @@ export async function createOrUpdateSchoolCompany(schoolData) {
         // Check if Company already exists
         const existingCompany = await findSchoolCompanyByData(schoolData);
         
-        // Prepare Company data - NO custom attributes for now
-        // Brevo Companies may not have custom attributes configured yet
-        // We'll store school data in Contact attributes instead
+        // Prepare Company data with proper Brevo → Memberstack field mapping
         const companyData = {
-            name: schoolData.name
-            // No attributes field - will add once confirmed in Brevo dashboard
+            name: schoolData.name,
+            attributes: {}
         };
         
-        console.log(`📝 [${syncId}] Creating Company with name only (no custom attributes)`);
-        console.log(`📝 [${syncId}] School data will be stored in Contact attributes instead`);
+        // Map Memberstack fields to Brevo Company attributes
+        // Only add fields that have values (skip missing fields)
+        const fieldMappings = {
+            SCHOOL_NAME: schoolData.name,                    // from search-input or place-name
+            SCHOOL_ADDRESS: schoolData.addressResult || '', // from school-address-result  
+            SCHOOL_CITY: schoolData.city || '',             // from school-city
+            SCHOOL_COUNTRY: schoolData.country || '',       // from school-country
+            SCHOOL_LATITUDE: schoolData.latitude || '',     // from school-latitude
+            SCHOOL_LONGITUDE: schoolData.longitude || '',   // from school-longitude
+            SCHOOL_PHONE: schoolData.phone || '',           // from school-phone
+            SCHOOL_PLACE_ID: schoolData.placeId || '',      // from school-place-id (KEY FIELD)
+            SCHOOL_STATE_PROVINCE: schoolData.state || '',  // from school-state
+            SCHOOL_STREET_ADDRESS: schoolData.address || '',// from street-address
+            SCHOOL_WEBSITE: schoolData.website || '',       // from school-website
+            SCHOOL_POSTAL_CODE: schoolData.zip || ''        // from school-zip
+        };
+        
+        // Only add fields that have values
+        Object.entries(fieldMappings).forEach(([key, value]) => {
+            if (value && value.trim() !== '') {
+                companyData.attributes[key] = value;
+            }
+        });
+        
+        console.log(`📝 [${syncId}] Creating Company with ${Object.keys(companyData.attributes).length} attributes`);
+        console.log(`📝 [${syncId}] Key field SCHOOL_PLACE_ID: ${schoolData.placeId || 'MISSING'}`);
         
         let result;
         
