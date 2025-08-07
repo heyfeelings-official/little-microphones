@@ -54,43 +54,63 @@ export function generateSchoolCompanyKey(schoolData) {
  * @returns {Object|null} School data object or null if insufficient data
  */
 export function extractSchoolDataFromMember(memberData) {
-    // Check if this is an educator with school data
-    const userCategory = memberData.planConnections?.find(conn => 
-        conn.status === 'ACTIVE' || conn.active === true
-    )?.planId;
-    
-    // Only process educators, therapists, etc. (not parents)
-    const isEducatorOrTherapist = userCategory && (
-        userCategory.includes('educators') || 
-        userCategory.includes('therapists') ||
-        userCategory.includes('school') ||
-        userCategory.includes('classroom')
-    );
-    
-    if (!isEducatorOrTherapist) {
-        return null;
-    }
-    
     // Extract school data from various possible field locations
-    const schoolName = memberData.customFields?.['school-name'] || 
+    // Check BOTH new onboarding field names AND legacy field names
+    const schoolName = memberData.customFields?.['place-name'] ||        // NEW: onboarding form field
+                       memberData.customFields?.['school-name'] || 
                        memberData.customFields?.schoolName ||
                        memberData.customFields?.['school'] || 
                        memberData.customFields?.school ||
                        memberData.customFields?.['school-place-name'] || 
                        memberData.metaData?.schoolName;
                        
-    const schoolCity = memberData.customFields?.['school-city'] || 
+    const schoolCity = memberData.customFields?.['city'] ||              // NEW: onboarding form field (no prefix)
+                       memberData.customFields?.['school-city'] || 
                        memberData.customFields?.schoolCity ||
-                       memberData.customFields?.['city'] || 
                        memberData.metaData?.schoolCity;
                        
-    const schoolCountry = memberData.customFields?.['school-country'] || 
+    const schoolCountry = memberData.customFields?.['country'] ||        // NEW: onboarding form field (no prefix)
+                          memberData.customFields?.['school-country'] || 
                           memberData.customFields?.schoolCountry ||
-                          memberData.customFields?.['country'] || 
                           memberData.metaData?.schoolCountry;
     
-    // Must have at minimum: name and city
+    // Must have at minimum: name and city to be a valid school
     if (!schoolName || !schoolCity) {
+        return null;
+    }
+    
+    // Check if this is an educator/therapist based on:
+    // 1. Plan connections (if available)
+    // 2. Role field from onboarding
+    // 3. Presence of school data itself
+    const userCategory = memberData.planConnections?.find(conn => 
+        conn.status === 'ACTIVE' || conn.active === true
+    )?.planId;
+    
+    const hasEducatorPlan = userCategory && (
+        userCategory.includes('educators') || 
+        userCategory.includes('therapists') ||
+        userCategory.includes('school') ||
+        userCategory.includes('classroom')
+    );
+    
+    const hasEducatorRole = memberData.customFields?.['role'] && (
+        memberData.customFields['role'].toLowerCase().includes('teacher') ||
+        memberData.customFields['role'].toLowerCase().includes('educator') ||
+        memberData.customFields['role'].toLowerCase().includes('therapist') ||
+        memberData.customFields['role'].toLowerCase().includes('counselor')
+    );
+    
+    // Process if: has educator plan OR has educator role OR has valid school data
+    const shouldProcessCompany = hasEducatorPlan || hasEducatorRole || (schoolName && schoolCity);
+    
+    if (!shouldProcessCompany) {
+        console.log(`⚠️ Skipping Company creation - not an educator/therapist:`, {
+            hasEducatorPlan,
+            hasEducatorRole,
+            hasSchoolData: !!(schoolName && schoolCity),
+            role: memberData.customFields?.['role']
+        });
         return null;
     }
     
@@ -98,24 +118,29 @@ export function extractSchoolDataFromMember(memberData) {
         name: schoolName.trim(),
         city: schoolCity.trim(),
         country: schoolCountry?.trim() || '',
-        address: memberData.customFields?.['school-address'] || 
+        address: memberData.customFields?.['street-address'] ||         // NEW: onboarding form field  
+                 memberData.customFields?.['school-address'] || 
                  memberData.customFields?.schoolAddress ||
                  memberData.customFields?.['school_address'] || 
                  memberData.metaData?.schoolAddress || '',
-        phone: memberData.customFields?.['school-phone'] || 
+        phone: memberData.customFields?.['phone'] ||                     // NEW: onboarding form field (no prefix)
+               memberData.customFields?.['school-phone'] || 
                memberData.customFields?.schoolPhone ||
                memberData.metaData?.schoolPhone || '',
-        website: memberData.customFields?.['school-website'] || 
+        website: memberData.customFields?.['website'] ||                 // NEW: onboarding form field (no prefix)
+                 memberData.customFields?.['school-website'] || 
                  memberData.customFields?.schoolWebsite ||
                  memberData.metaData?.schoolWebsite || '',
-        facilityType: memberData.customFields?.['school-type'] || 
+        facilityType: memberData.customFields?.['facility-type'] ||      // NEW: onboarding form field
+                      memberData.customFields?.['school-type'] || 
                       memberData.customFields?.schoolType ||
                       memberData.customFields?.['school-facility-type'] || 
                       memberData.metaData?.schoolFacilityType || '',
         rating: memberData.customFields?.['school-rating'] || 
                 memberData.customFields?.schoolRating ||
                 memberData.metaData?.schoolRating || '',
-        placeId: memberData.customFields?.['school-place-id'] || 
+        placeId: memberData.customFields?.['place-id'] ||                // NEW: onboarding form field
+                 memberData.customFields?.['school-place-id'] || 
                  memberData.customFields?.schoolPlaceId ||
                  memberData.metaData?.schoolPlaceId || ''
     };
@@ -317,7 +342,13 @@ export async function handleMemberSchoolCompanySync(memberData, contactEmail) {
         const schoolData = extractSchoolDataFromMember(memberData);
         
         if (!schoolData) {
-            console.log(`📋 [${syncId}] No school data found for ${contactEmail} - skipping Company sync`);
+            console.log(`📋 [${syncId}] No school data found for ${contactEmail} - skipping Company sync`, {
+                hasCustomFields: !!memberData.customFields,
+                customFieldsKeys: Object.keys(memberData.customFields || {}),
+                placeName: memberData.customFields?.['place-name'],
+                city: memberData.customFields?.['city'],
+                role: memberData.customFields?.['role']
+            });
             return { success: true, action: 'skipped_no_school_data' };
         }
         
