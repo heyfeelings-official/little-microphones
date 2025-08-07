@@ -255,32 +255,37 @@ export async function createOrUpdateSchoolCompany(schoolData) {
             attributes: {}
         };
         
-        // Map Memberstack fields to Brevo Company attributes
-        // Only add fields that have values (skip missing fields)
+        // TEMPORARY: Create Company without attributes until they are configured in Brevo
+        // The attributes need to be created in Brevo Dashboard first
+        // We'll store school data in Contact attributes for now
+        
+        console.log(`📝 [${syncId}] Creating Company with name only (attributes not configured in Brevo yet)`);
+        console.log(`📝 [${syncId}] School data: ${schoolData.name}, Place ID: ${schoolData.placeId || 'MISSING'}`);
+        console.log(`📝 [${syncId}] Full school data will be stored in Contact attributes instead`);
+        
+        // TODO: Once Company attributes are configured in Brevo Dashboard, uncomment:
+        /*
         const fieldMappings = {
-            SCHOOL_NAME: schoolData.name,                    // from search-input or place-name
-            SCHOOL_ADDRESS: schoolData.addressResult || '', // from school-address-result  
-            SCHOOL_CITY: schoolData.city || '',             // from school-city
-            SCHOOL_COUNTRY: schoolData.country || '',       // from school-country
-            SCHOOL_LATITUDE: schoolData.latitude || '',     // from school-latitude
-            SCHOOL_LONGITUDE: schoolData.longitude || '',   // from school-longitude
-            SCHOOL_PHONE: schoolData.phone || '',           // from school-phone
-            SCHOOL_PLACE_ID: schoolData.placeId || '',      // from school-place-id (KEY FIELD)
-            SCHOOL_STATE_PROVINCE: schoolData.state || '',  // from school-state
-            SCHOOL_STREET_ADDRESS: schoolData.address || '',// from street-address
-            SCHOOL_WEBSITE: schoolData.website || '',       // from school-website
-            SCHOOL_POSTAL_CODE: schoolData.zip || ''        // from school-zip
+            SCHOOL_NAME: schoolData.name,
+            SCHOOL_ADDRESS: schoolData.addressResult || '',
+            SCHOOL_CITY: schoolData.city || '',
+            SCHOOL_COUNTRY: schoolData.country || '',
+            SCHOOL_LATITUDE: schoolData.latitude || '',
+            SCHOOL_LONGITUDE: schoolData.longitude || '',
+            SCHOOL_PHONE: schoolData.phone || '',
+            SCHOOL_PLACE_ID: schoolData.placeId || '',
+            SCHOOL_STATE_PROVINCE: schoolData.state || '',
+            SCHOOL_STREET_ADDRESS: schoolData.address || '',
+            SCHOOL_WEBSITE: schoolData.website || '',
+            SCHOOL_POSTAL_CODE: schoolData.zip || ''
         };
         
-        // Only add fields that have values
         Object.entries(fieldMappings).forEach(([key, value]) => {
             if (value && value.trim() !== '') {
                 companyData.attributes[key] = value;
             }
         });
-        
-        console.log(`📝 [${syncId}] Creating Company with ${Object.keys(companyData.attributes).length} attributes`);
-        console.log(`📝 [${syncId}] Key field SCHOOL_PLACE_ID: ${schoolData.placeId || 'MISSING'}`);
+        */
         
         let result;
         
