@@ -246,21 +246,28 @@ export async function createOrUpdateSchoolCompany(schoolData) {
         // Company attributes MUST be lowercase with underscore!
         // Brevo API accepts: school_city ✅
         // Brevo API rejects: SCHOOL_CITY ❌, school-city ❌, SchoolCity ❌
-        // ONLY USE ATTRIBUTES THAT EXIST IN BREVO DASHBOARD!
+        // Dynamically build field mappings based on all known custom school attributes
         const fieldMappings = {
-            // Test only SCHOOL_NAME first (should be TEXT type in Brevo Dashboard)
-            school_name: schoolData.name || ''
-            // TODO: Test other attributes one by one
-            // school_place_id: schoolData.placeId || '',
-            // school_city: schoolData.city || '',
+            school_address: schoolData.addressResult,
+            school_city: schoolData.city,
+            school_country: schoolData.country,
+            school_id: schoolData.placeId, // Correct internal name for SCHOOL_PLACE_ID
+            school_latitude: schoolData.latitude,
+            school_longitude: schoolData.longitude,
+            school_name: schoolData.name,
+            school_phone: schoolData.phone,
+            school_postal_code: schoolData.zip,
+            school_state_province: schoolData.state,
+            school_street_address__memberdata_customfiel: schoolData.address, // Correct (truncated) internal name
+            school_website: schoolData.website,
         };
-        
-        // Only add fields that have values
-        Object.entries(fieldMappings).forEach(([key, value]) => {
-            if (value && value.trim() !== '') {
+
+        // Only add fields that have non-empty values to the request
+        for (const [key, value] of Object.entries(fieldMappings)) {
+            if (value && String(value).trim() !== '') {
                 companyData.attributes[key] = value;
             }
-        });
+        }
         
         console.log(`📝 [${syncId}] Creating Company with ${Object.keys(companyData.attributes).length} attributes`);
         console.log(`📝 [${syncId}] Key field SCHOOL_PLACE_ID: ${schoolData.placeId || 'MISSING'}`);
