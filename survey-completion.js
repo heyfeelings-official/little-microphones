@@ -379,8 +379,16 @@
         // Set up hide-survey button first (before protection)
         setupHideSurveyButton();
         
-        // Trigger confetti celebration
-        setTimeout(triggerConfettiCelebration, 500);
+        // Trigger confetti celebration only if not shown in this session
+        const confettiShownThisSession = sessionStorage.getItem('survey_confetti_shown');
+        
+        if (!confettiShownThisSession) {
+            console.log('[Survey Completion] 🎊 Triggering confetti (first time this session)');
+            sessionStorage.setItem('survey_confetti_shown', 'true');
+            setTimeout(triggerConfettiCelebration, 500);
+        } else {
+            console.log('[Survey Completion] 🎊 Skipping confetti (already shown this session)');
+        }
         
         // Ensure survey-filled element is visible and protected
         ensureSurveyFilledVisible();
@@ -415,12 +423,13 @@
                     // User has interacted with the survey completion element
                     // This might trigger navigation or other actions
                     
-                    // Optional: Clean up localStorage flag after user interaction
+                    // Optional: Clean up flags after user interaction
                     try {
                         localStorage.removeItem(SURVEY_COMPLETION_FLAG);
-                        console.log('[Survey Completion] 🧹 Cleaned up survey completion flag');
+                        sessionStorage.removeItem('survey_confetti_shown');
+                        console.log('[Survey Completion] 🧹 Cleaned up survey completion and confetti flags');
                     } catch (e) {
-                        console.warn('[Survey Completion] ⚠️ Could not clean up flag:', e);
+                        console.warn('[Survey Completion] ⚠️ Could not clean up flags:', e);
                     }
                 });
             });
