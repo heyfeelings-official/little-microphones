@@ -227,24 +227,16 @@ export async function createOrUpdateSchoolCompany(schoolData) {
         // Check if Company already exists
         const existingCompany = await findSchoolCompanyByData(schoolData);
         
-        // Prepare Company data - start with minimal attributes
-        // Will add more attributes once we confirm which ones exist in Brevo
+        // Prepare Company data - NO custom attributes for now
+        // Brevo Companies may not have custom attributes configured yet
+        // We'll store school data in Contact attributes instead
         const companyData = {
-            name: schoolData.name,
-            attributes: {}
+            name: schoolData.name
+            // No attributes field - will add once confirmed in Brevo dashboard
         };
         
-        // Try to add attributes one by one, log which ones fail
-        const attributesToTry = {
-            SCHOOL_NAME: schoolData.name,
-            SCHOOL_CITY: schoolData.city || '',
-            SCHOOL_COUNTRY: schoolData.country || '',
-            SCHOOL_PLACE_ID: schoolData.placeId || ''
-        };
-        
-        // For now, use only the most basic attributes
-        // We'll expand this once we know which attributes are configured in Brevo
-        companyData.attributes = attributesToTry;
+        console.log(`📝 [${syncId}] Creating Company with name only (no custom attributes)`);
+        console.log(`📝 [${syncId}] School data will be stored in Contact attributes instead`);
         
         let result;
         
