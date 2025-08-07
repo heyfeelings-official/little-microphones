@@ -71,6 +71,14 @@ export async function makeBrevoRequest(endpoint, method = 'GET', data = null) {
       
       res.on('end', () => {
         try {
+          // Handle 204 No Content or empty responses
+          if (res.statusCode === 204 || !responseData || responseData.trim() === '') {
+            if (res.statusCode >= 200 && res.statusCode < 300) {
+              resolve({}); // Return empty object for successful empty responses
+              return;
+            }
+          }
+          
           const jsonResponse = responseData ? JSON.parse(responseData) : {};
           
           if (res.statusCode >= 200 && res.statusCode < 300) {
@@ -79,6 +87,8 @@ export async function makeBrevoRequest(endpoint, method = 'GET', data = null) {
             reject(new Error(`HTTP ${res.statusCode}: ${jsonResponse.message || 'Request failed'}`));
           }
         } catch (parseError) {
+          // Log the raw response for debugging
+          console.error(`Failed to parse JSON response. Status: ${res.statusCode}, Response: ${responseData?.substring(0, 200)}`);
           reject(new Error(`Failed to parse response: ${parseError.message}`));
         }
       });
