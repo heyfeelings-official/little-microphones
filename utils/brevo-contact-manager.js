@@ -377,8 +377,8 @@ export async function syncMemberToBrevo(memberData) {
                 planConfig = getPlanConfig('default'); // Fallback to default/no plan
             }
         } else {
-            console.log(`📝 [${syncId}] No active plans for ${email}. Syncing with default settings.`);
-            planConfig = getPlanConfig('default'); // Use default config for users with no active plan
+            console.log(`📝 [${syncId}] No active plans in webhook for ${email}. Will rely on createOrUpdate logic to preserve existing plan if available.`);
+            planConfig = getPlanConfig('default'); // Use default config, `createOrUpdate` will handle preserving data
         }
         
         console.log(`📋 [${syncId}] Syncing with plan config: ${planConfig.attributes.PLAN_NAME}`);
