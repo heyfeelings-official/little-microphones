@@ -199,12 +199,12 @@ export async function findSchoolCompanyByData(schoolData) {
             return null;
         }
         
-        // First try to match by SCHOOL_PLACE_ID (key field)
+        // First try to match by school_place_id (key field) - lowercase!
         if (schoolData.placeId) {
             for (const company of response.companies) {
-                const companyPlaceId = company.attributes?.SCHOOL_PLACE_ID;
+                const companyPlaceId = company.attributes?.school_place_id;
                 if (companyPlaceId && companyPlaceId === schoolData.placeId) {
-                    console.log(`✅ [${syncId}] Found existing Company by SCHOOL_PLACE_ID: ${company.id} for ${schoolData.name}`);
+                    console.log(`✅ [${syncId}] Found existing Company by school_place_id: ${company.id} for ${schoolData.name}`);
                     return company;
                 }
             }
@@ -215,9 +215,9 @@ export async function findSchoolCompanyByData(schoolData) {
         
         for (const company of response.companies) {
             const companyKey = generateSchoolCompanyKey({
-                name: company.attributes?.SCHOOL_NAME || company.name,
-                city: company.attributes?.SCHOOL_CITY || '',
-                country: company.attributes?.SCHOOL_COUNTRY || ''
+                name: company.attributes?.school_name || company.name,
+                city: company.attributes?.school_city || '',
+                country: company.attributes?.school_country || ''
             });
             
             if (companyKey === schoolKey) {
@@ -255,21 +255,23 @@ export async function createOrUpdateSchoolCompany(schoolData) {
             attributes: {}
         };
         
-        // Test with standard Brevo Company attributes first
-        // Maybe custom attributes need different approach
+        // Company attributes MUST be lowercase with underscore!
+        // Brevo API accepts: school_city ✅
+        // Brevo API rejects: SCHOOL_CITY ❌, school-city ❌, SchoolCity ❌
         const fieldMappings = {
-            // Try only basic attributes that definitely exist
-            domain: (() => {
-                try {
-                    return schoolData.website ? new URL(schoolData.website).hostname : '';
-                } catch (e) {
-                    return schoolData.website || '';
-                }
-            })(),
-            phone_number: schoolData.phone || '',
-            address: schoolData.address || '',
-            // Custom attributes might be case sensitive or need different format
-            // Will test these once basic attributes work
+            // Custom school attributes (lowercase with underscore)
+            school_name: schoolData.name || '',
+            school_address: schoolData.addressResult || '',
+            school_city: schoolData.city || '',
+            school_country: schoolData.country || '',
+            school_latitude: schoolData.latitude || '',
+            school_longitude: schoolData.longitude || '',
+            school_phone: schoolData.phone || '',
+            school_place_id: schoolData.placeId || '',  // KEY FIELD
+            school_state_province: schoolData.state || '',
+            school_street_address: schoolData.address || '',
+            school_website: schoolData.website || '',
+            school_postal_code: schoolData.zip || ''
         };
         
         // Only add fields that have values
