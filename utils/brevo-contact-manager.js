@@ -71,9 +71,17 @@ export async function makeBrevoRequest(endpoint, method = 'GET', data = null) {
       
       res.on('end', () => {
         try {
+          console.log(`📊 [makeBrevoRequest] Response details:`, {
+            statusCode: res.statusCode,
+            responseData: JSON.stringify(responseData),
+            responseLength: responseData ? responseData.length : 0,
+            trimmedEmpty: responseData ? responseData.trim() === '' : true
+          });
+          
           // Handle 204 No Content or empty responses
           if (res.statusCode === 204 || !responseData || responseData.trim() === '') {
             if (res.statusCode >= 200 && res.statusCode < 300) {
+              console.log(`✅ [makeBrevoRequest] Returning empty object for successful empty response`);
               resolve({}); // Return empty object for successful empty responses
               return;
             }
