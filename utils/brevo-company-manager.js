@@ -359,24 +359,35 @@ export async function linkContactToSchoolCompany(contactEmail, companyId, compan
             unlinkContactIds: []
         };
         
-        console.log(`🔗 [${syncId}] Linking Contact to Company:`, {
-            endpoint: `/companies/link-unlink/${companyId}`,
-            method: 'PATCH',
-            linkData: JSON.stringify(linkData, null, 2)
-        });
+        console.log(`🔗 [${syncId}] Linking Contact to Company...`);
         
-        const result = await makeBrevoRequest(`/companies/link-unlink/${companyId}`, 'PATCH', linkData);
+        // Brevo API requires the numeric ID of the contact for linking.
+        // First, get the contact details to find its ID.
+        let contactId;
+        try {
+            const contactDetails = await makeBrevoRequest(`/contacts/${encodeURIComponent(contactEmail)}`, 'GET');
+            if (!contactDetails || !contactDetails.id) {
+                throw new Error('Contact ID not found in response.');
+            }
+            contactId = contactDetails.id;
+            console.log(`📝 [${syncId}] Found Contact ID ${contactId} for email ${contactEmail}.`);
+        } catch (error) {
+            console.error(`❌ [${syncId}] Failed to retrieve contact ID for ${contactEmail}:`, error.message);
+            throw new Error(`Could not find contact ${contactEmail} in Brevo to link.`);
+        }
+
+        // Now, link the contact using the correct endpoint and numeric ID.
+        const linkData = {
+            linkContactIds: [contactId],
+        };
+
+        await makeBrevoRequest(`/companies/link-unlink/${companyId}`, 'PATCH', linkData);
         
-        console.log(`✅ [${syncId}] Successfully linked Contact ${contactEmail} to Company ${companyId}`);
+        console.log(`✅ [${syncId}] Successfully linked Contact ${contactEmail} (ID: ${contactId}) to Company ${companyId}`);
         
         return {
             success: true,
             syncId,
-            contactEmail,
-            companyId,
-            companyName,
-            action: 'linked'
-        };
         
     } catch (error) {
         console.error(`❌ [${syncId}] Error linking Contact ${contactEmail} to Company ${companyId}:`, error.message);
