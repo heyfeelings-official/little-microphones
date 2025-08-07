@@ -246,7 +246,7 @@ export async function createOrUpdateSchoolCompany(schoolData) {
         // Company attributes MUST be lowercase with underscore!
         // Brevo API accepts: school_city ✅
         // Brevo API rejects: SCHOOL_CITY ❌, school-city ❌, SchoolCity ❌
-        // Dynamically build field mappings based on all known custom school attributes
+        // Map Memberstack data to Brevo's internal attribute names
         const fieldMappings = {
             school_address: schoolData.addressResult,
             school_city: schoolData.city,
