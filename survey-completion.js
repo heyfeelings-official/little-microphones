@@ -54,19 +54,19 @@
                     reloaded: true
                 }));
                 
-                // Remove survey=filled parameter from URL before reload to prevent loops
-                const newUrl = new URL(window.location);
-                newUrl.searchParams.delete('survey');
-                
-                // First immediate reload
-                window.location.replace(newUrl.toString());
-                return false; // Won't reach this due to redirect
+                // First immediate reload (keep URL parameter for second reload)
+                window.location.reload();
+                return false; // Won't reach this due to reload
             } else if (!sessionStorage.getItem(secondReloadFlag)) {
                 console.log('[Survey Completion] 🔄 Second reload - ensuring data is fully loaded');
                 sessionStorage.setItem(secondReloadFlag, 'true');
                 
-                // Second immediate reload
-                window.location.reload();
+                // Remove survey=filled parameter from URL after second reload
+                const newUrl = new URL(window.location);
+                newUrl.searchParams.delete('survey');
+                
+                // Second immediate reload with clean URL
+                window.location.replace(newUrl.toString());
                 return false; // Won't reach this due to reload
             } else {
                 console.log('[Survey Completion] ✅ Both reloads completed, proceeding with survey completion');
