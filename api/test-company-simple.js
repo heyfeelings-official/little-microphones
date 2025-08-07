@@ -18,13 +18,13 @@ export default async function handler(req, res) {
         const testSchoolData = {
             name: 'Simple Test School ' + Date.now(),
             city: 'Warsaw',
-            country: 'Poland',
-            placeId: 'simple_test_place_id_' + Date.now()
+            country: 'Poland'
+            // placeId: 'simple_test_place_id_' + Date.now() // Removed - testing without placeId
         };
 
         console.log('📝 Test data prepared:', {
             school: testSchoolData.name,
-            placeId: testSchoolData.placeId
+            city: testSchoolData.city
         });
 
         // Step 1: Create Company only
