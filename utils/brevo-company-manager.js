@@ -255,16 +255,8 @@ export async function createOrUpdateSchoolCompany(schoolData) {
             attributes: {}
         };
         
-        // TEMPORARY: Create Company without attributes until they are configured in Brevo
-        // The attributes need to be created in Brevo Dashboard first
-        // We'll store school data in Contact attributes for now
-        
-        console.log(`📝 [${syncId}] Creating Company with name only (attributes not configured in Brevo yet)`);
-        console.log(`📝 [${syncId}] School data: ${schoolData.name}, Place ID: ${schoolData.placeId || 'MISSING'}`);
-        console.log(`📝 [${syncId}] Full school data will be stored in Contact attributes instead`);
-        
-        // TODO: Once Company attributes are configured in Brevo Dashboard, uncomment:
-        /*
+        // Company attributes are now configured in Brevo Dashboard!
+        // Map Memberstack fields to Brevo Company attributes
         const fieldMappings = {
             SCHOOL_NAME: schoolData.name,
             SCHOOL_ADDRESS: schoolData.addressResult || '',
@@ -280,12 +272,16 @@ export async function createOrUpdateSchoolCompany(schoolData) {
             SCHOOL_POSTAL_CODE: schoolData.zip || ''
         };
         
+        // Only add fields that have values
         Object.entries(fieldMappings).forEach(([key, value]) => {
             if (value && value.trim() !== '') {
                 companyData.attributes[key] = value;
             }
         });
-        */
+        
+        console.log(`📝 [${syncId}] Creating Company with ${Object.keys(companyData.attributes).length} attributes`);
+        console.log(`📝 [${syncId}] Key field SCHOOL_PLACE_ID: ${schoolData.placeId || 'MISSING'}`);
+        console.log(`📝 [${syncId}] School data: ${schoolData.name}`);
         
         let result;
         
