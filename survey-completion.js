@@ -11,6 +11,7 @@
  * - Manage survey completion state and user interaction
  * - Trigger confetti celebration animation on survey completion
  * - Force page reload to ensure fresh Memberstack data loads
+ * - Allow user to hide survey via hide-survey button
  * 
  * DEPENDENCIES: localStorage, DOM manipulation, canvas-confetti (loaded dynamically)
  * VERSION: 1.0.0
@@ -59,8 +60,52 @@
     }
     
     /**
+     * Track if hide-survey button was clicked by user
+     */
+    let userRequestedHide = false;
+    
+    /**
+     * Set up hide-survey button functionality
+     */
+    function setupHideSurveyButton() {
+        const hideSurveyButton = document.getElementById('hide-survey');
+        
+        if (!hideSurveyButton) {
+            console.log('[Survey Completion] ❌ Hide survey button not found');
+            return;
+        }
+        
+        console.log('[Survey Completion] 🔘 Setting up hide-survey button');
+        
+        hideSurveyButton.addEventListener('click', function() {
+            console.log('[Survey Completion] 🖱️ User clicked hide-survey button');
+            
+            const surveyFilledElement = document.getElementById(SURVEY_FILLED_ID);
+            if (surveyFilledElement) {
+                // Set flag that user requested hiding
+                userRequestedHide = true;
+                
+                // Hide the element
+                surveyFilledElement.style.display = 'none';
+                surveyFilledElement.style.visibility = 'hidden';
+                surveyFilledElement.style.opacity = '0';
+                
+                // Clean up localStorage flag since user dismissed the survey
+                try {
+                    localStorage.removeItem(SURVEY_COMPLETION_FLAG);
+                    console.log('[Survey Completion] 🧹 Cleaned up survey completion flag after hide');
+                } catch (e) {
+                    console.warn('[Survey Completion] ⚠️ Could not clean up flag:', e);
+                }
+                
+                console.log('[Survey Completion] 👁️ Survey-filled element hidden by user request');
+            }
+        });
+    }
+    
+    /**
      * Ensure survey-filled element remains visible
-     * This element must NEVER be hidden by green block hiding logic
+     * This element must NEVER be hidden by green block hiding logic (but can be hidden by user)
      */
     function ensureSurveyFilledVisible() {
         const surveyFilledElement = document.getElementById(SURVEY_FILLED_ID);
@@ -72,10 +117,12 @@
         
         console.log('[Survey Completion] 👁️ Ensuring survey-filled element remains visible');
         
-        // Force visibility styles
-        surveyFilledElement.style.display = 'block';
-        surveyFilledElement.style.visibility = 'visible';
-        surveyFilledElement.style.opacity = '1';
+        // Force visibility styles (only if user hasn't requested hiding)
+        if (!userRequestedHide) {
+            surveyFilledElement.style.display = 'block';
+            surveyFilledElement.style.visibility = 'visible';
+            surveyFilledElement.style.opacity = '1';
+        }
         
         // Add important class to prevent other scripts from hiding it
         surveyFilledElement.classList.add('survey-completion-protected');
@@ -86,15 +133,18 @@
                 if (mutation.type === 'attributes') {
                     const target = mutation.target;
                     if (target.id === SURVEY_FILLED_ID) {
-                        // Check if something tried to hide the element
-                        if (target.style.display === 'none' || 
-                            target.style.visibility === 'hidden' ||
-                            target.style.opacity === '0') {
-                            
-                            console.log('[Survey Completion] 🛡️ Protecting survey-filled from being hidden');
-                            target.style.display = 'block';
-                            target.style.visibility = 'visible';
-                            target.style.opacity = '1';
+                        // Only protect if user hasn't requested hiding
+                        if (!userRequestedHide) {
+                            // Check if something tried to hide the element
+                            if (target.style.display === 'none' || 
+                                target.style.visibility === 'hidden' ||
+                                target.style.opacity === '0') {
+                                
+                                console.log('[Survey Completion] 🛡️ Protecting survey-filled from being hidden by other scripts');
+                                target.style.display = 'block';
+                                target.style.visibility = 'visible';
+                                target.style.opacity = '1';
+                            }
                         }
                     }
                 }
@@ -305,7 +355,10 @@
     function setupSurveyCompletionUI() {
         console.log('[Survey Completion] 🎉 Setting up survey completion UI');
         
-        // Trigger confetti celebration first
+        // Set up hide-survey button first (before protection)
+        setupHideSurveyButton();
+        
+        // Trigger confetti celebration
         setTimeout(triggerConfettiCelebration, 500);
         
         // Ensure survey-filled element is visible and protected
@@ -361,6 +414,9 @@
     function initSurveyCompletion() {
         console.log('[Survey Completion] 🚀 Initializing survey completion handler');
         
+        // Always set up hide-survey button (regardless of completion state)
+        setupHideSurveyButton();
+        
         // Check if we're coming from survey completion
         if (isComingFromSurveyCompletion()) {
             console.log('[Survey Completion] ✅ Survey completion detected, setting up UI');
@@ -393,7 +449,17 @@
         handleWrapper: handleGridExtraCardWrapper,
         isCompleted: isComingFromSurveyCompletion,
         triggerConfetti: triggerConfettiCelebration,
-        forceReload: forcePageReloadForFreshData
+        forceReload: forcePageReloadForFreshData,
+        setupHideButton: setupHideSurveyButton,
+        hideSurvey: () => {
+            userRequestedHide = true;
+            const element = document.getElementById(SURVEY_FILLED_ID);
+            if (element) {
+                element.style.display = 'none';
+                element.style.visibility = 'hidden';
+                element.style.opacity = '0';
+            }
+        }
     };
     
 })();
