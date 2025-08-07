@@ -175,28 +175,24 @@ export default async function handler(req, res) {
                 console.log('Processing member event:', member.id || member.auth?.email);
                 console.log('Full member data:', JSON.stringify(member, null, 2));
 
-                // Get full member data if we only have minimal webhook data
-                if (!member.customFields || Object.keys(member.customFields || {}).length === 0) {
+                // For member.updated, ALWAYS fetch fresh data to ensure planConnections is up-to-date
+                if (eventType === 'member.updated' && member.id) {
+                    console.log('🔄 member.updated event: Fetching fresh full member data to ensure plan sync...');
+                    const freshData = await getMemberById(member.id);
+                    if (freshData) {
+                        console.log('✅ Successfully fetched fresh member data.');
+                        fullMemberData = freshData;
+                    } else {
+                        console.warn('⚠️ Could not fetch fresh member data, proceeding with webhook payload.');
+                    }
+                } else if (!member.customFields || Object.keys(member.customFields || {}).length === 0) {
+                    // Fallback for other events or if ID is missing
                     console.log('⚠️ Webhook has minimal data - attempting to fetch full member data');
-                    console.log('⚠️ Available data:', {
-                        hasId: !!member.id,
-                        hasEmail: !!member.auth?.email,
-                        hasCustomFields: !!member.customFields,
-                        hasMetaData: !!member.metaData,
-                        hasPlanConnections: !!(member.planConnections && member.planConnections.length > 0)
-                    });
-                    
-                    // Try to fetch full member data
                     if (member.id) {
                         const fullData = await getMemberById(member.id);
                         if (fullData) {
                             console.log('✅ Retrieved full member data with all custom fields');
                             fullMemberData = fullData;
-                            
-                            // Preserve any plan connections from webhook if not in fetched data
-                            if (!fullMemberData.planConnections && member.planConnections) {
-                                fullMemberData.planConnections = member.planConnections;
-                            }
                         } else {
                             console.log('⚠️ Could not fetch full member data - continuing with webhook data');
                         }
