@@ -1525,6 +1525,15 @@
             const currentMemberId = await getCurrentMemberId();
             if (!currentMemberId) {
                 console.warn('⚠️ No member ID available for radio play tracking');
+                // Fallback: store a global reset marker so dashboards can adopt it later
+                const now = new Date().toISOString();
+                try {
+                    const globalKey = `lm_global_radio_reset_${lmid}`;
+                    localStorage.setItem(globalKey, JSON.stringify({ lastRecordingCheck: now, updatedAt: now }));
+                    console.log(`📝 Fallback global reset stored for LMID ${lmid}`);
+                } catch (e) {
+                    console.warn('⚠️ Failed to write global reset marker:', e);
+                }
                 return;
             }
             
@@ -1544,6 +1553,15 @@
             localStorage.setItem(storageKey, JSON.stringify(userData));
             
             console.log(`📝 Updated radio play data for LMID ${lmid} (counter reset)`);
+
+            // Also write a global reset marker to cover cross-context cases
+            try {
+                const globalKey = `lm_global_radio_reset_${lmid}`;
+                localStorage.setItem(globalKey, JSON.stringify({ lastRecordingCheck: now, updatedAt: now }));
+                console.log(`📝 Global reset marker stored for LMID ${lmid}`);
+            } catch (e) {
+                console.warn('⚠️ Failed to write global reset marker:', e);
+            }
         } catch (error) {
             console.error('❌ Error marking LMID radio as played:', error);
         }

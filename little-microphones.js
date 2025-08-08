@@ -976,6 +976,8 @@
             
             if (!currentMemberId) {
                 console.warn(`⚠️ No member ID available for new recording count`);
+                // Fallback: if there's a global reset marker from radio page, adopt it once
+                const adopted = adoptGlobalRadioResetIfPresent(lmid);
                 return 0;
             }
             
@@ -988,6 +990,52 @@
         } catch (error) {
             console.warn(`⚠️ Error getting count for LMID ${lmid}, World ${world}:`, error);
             return 0;
+        }
+    }
+
+    /**
+     * If radio page wrote a global reset marker (without member context), adopt it
+     * into the user's local visit data once, then clear the marker.
+     */
+    function adoptGlobalRadioResetIfPresent(lmid) {
+        try {
+            const key = `lm_global_radio_reset_${lmid}`;
+            const raw = localStorage.getItem(key);
+            if (!raw) return false;
+
+            const parsed = JSON.parse(raw);
+            if (!parsed?.lastRecordingCheck) {
+                localStorage.removeItem(key);
+                return false;
+            }
+
+            // If we have member context later in the session, this will be properly written too
+            const now = parsed.lastRecordingCheck;
+            // Best effort: try to merge into any available member context if exists
+            try {
+                const memberstack = window.$memberstackDom;
+                if (memberstack) {
+                    memberstack.getCurrentMember().then(({ data }) => {
+                        const memberId = data?.id;
+                        if (!memberId) return;
+                        const storageKey = `lm_user_visits_${memberId}`;
+                        const userData = JSON.parse(localStorage.getItem(storageKey) || '{}');
+                        const lmidKey = `lmid_${lmid}`;
+                        if (!userData[lmidKey]) userData[lmidKey] = {};
+                        userData[lmidKey].lastRecordingCheck = now;
+                        userData[lmidKey].lastRadioPlay = now;
+                        userData[lmidKey].updatedAt = now;
+                        localStorage.setItem(storageKey, JSON.stringify(userData));
+                        console.log(`📝 Adopted global reset into member context for LMID ${lmid}`);
+                    }).catch(() => {});
+                }
+            } catch (_) {}
+
+            // Clear marker to avoid re-applying
+            localStorage.removeItem(key);
+            return true;
+        } catch (_) {
+            return false;
         }
     }
 
