@@ -60,7 +60,7 @@
         // Small delay to ensure verification is complete
         setTimeout(() => {
             window.location.href = redirectUrl;
-        }, 1000);
+        }, 2000);
     }
     
     /**
@@ -74,28 +74,42 @@
         if (isParentWithShareId) {
             console.log('[Parent Verify] Parent registration detected, ShareID:', savedData.shareId);
             
-            // Wait for Memberstack to complete verification
-            if (window.MemberStack) {
-                window.MemberStack.onReady.then(() => {
-                    // Listen for successful verification
+            const setupVerificationHandler = () => {
+                window.MemberStack.onReady.then(member => {
+                    // Check if member is already verified upon page load
+                    if (member && member.verified) {
+                        console.log('[Parent Verify] Member is already verified. Redirecting...');
+                        handleParentRedirect(savedData.shareId);
+                        return;
+                    }
+
+                    // If not verified, listen for the verification event
                     window.MemberStack.on('member:verified', () => {
-                        console.log('[Parent Verify] Member verified, redirecting to ShareID');
+                        console.log('[Parent Verify] Member successfully verified. Redirecting...');
                         handleParentRedirect(savedData.shareId);
                     });
+                }).catch(error => {
+                    console.error('[Parent Verify] MemberStack onReady error:', error);
                 });
+            };
+
+            // Wait for MemberStack to be initialized
+            if (window.MemberStack) {
+                setupVerificationHandler();
             } else {
-                // Fallback: wait for DOM and then redirect
-                if (document.readyState === 'loading') {
-                    document.addEventListener('DOMContentLoaded', () => {
-                        setTimeout(() => {
-                            handleParentRedirect(savedData.shareId);
-                        }, 2000);
-                    });
-                } else {
-                    setTimeout(() => {
-                        handleParentRedirect(savedData.shareId);
-                    }, 2000);
-                }
+                // Poll for Memberstack to become available if it's not ready yet
+                let attempts = 0;
+                const maxAttempts = 50; // Try for 5 seconds
+                const interval = setInterval(() => {
+                    attempts++;
+                    if (window.MemberStack) {
+                        clearInterval(interval);
+                        setupVerificationHandler();
+                    } else if (attempts >= maxAttempts) {
+                        clearInterval(interval);
+                        console.error('[Parent Verify] MemberStack did not load in time.');
+                    }
+                }, 100);
             }
         } else {
             console.log('[Parent Verify] No parent ShareID found - using native Memberstack redirects');

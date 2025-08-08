@@ -63,75 +63,7 @@
         }
     }
     
-    /**
-     * Handle redirect after email verification
-     */
-    async function handlePostVerificationRedirect() {
-        try {
-            console.log('[LM Redirect] 🔍 Starting post-verification redirect check');
-            
-            // Check if we're coming from email verification
-            const isFromEmailVerification = checkIfFromEmailVerification();
-            console.log('[LM Redirect] 📧 Is from email verification:', isFromEmailVerification);
-            
-            const savedData = getSavedRedirectData();
-            console.log('[LM Redirect] 💾 Saved redirect data:', savedData);
-            
-            if (!savedData) {
-                console.log('[LM Redirect] ❌ No saved redirect data found');
-                return;
-            }
-            
-            if (isFromEmailVerification) {
-                console.log('[LM Redirect] ✅ Post-verification redirect detected, ShareID:', savedData.shareId);
-            }
-            
-            // Wait for Memberstack to load
-            await waitForMemberstack();
-            
-            // Check if user is now logged in
-            const isLoggedIn = await checkMemberstackLogin();
-            console.log('[LM Redirect] 🔐 User logged in:', isLoggedIn);
-            
-            if (isLoggedIn) {
-                // Check if user is a parent
-                const isParent = await checkIfUserIsParent();
-                console.log('[LM Redirect] 👨‍👩‍👧‍👦 User is parent:', isParent);
-                
-                if (isParent) {
-                    
-                    // If coming from email verification, redirect to ShareID page
-                    if (isFromEmailVerification) {
-                        console.log('[LM Redirect] 🚀 Email verification detected, redirecting to ShareID page');
-                        
-                        // Clear saved data
-                        clearSavedRedirectData();
-                        
-                        // Redirect to ShareID page immediately
-                        const redirectUrl = `/little-microphones?ID=${savedData.shareId}`;
-                        console.log('[LM Redirect] 🔄 Redirecting to ShareID page:', redirectUrl);
-                        window.location.href = redirectUrl;
-                        return;
-                    } else {
-                        // Normal redirect without delay
-                        clearSavedRedirectData();
-                        const redirectUrl = `/little-microphones?ID=${savedData.shareId}`;
-                        console.log('[LM Redirect] 🔄 Normal redirect to ShareID page:', redirectUrl);
-                        window.location.href = redirectUrl;
-                        return;
-                    }
-                } else {
-                    console.log('[LM Redirect] ❌ User is not a parent, clearing saved data');
-                    clearSavedRedirectData();
-                }
-            } else {
-                console.log('[LM Redirect] ❌ User not logged in yet');
-            }
-            
-        } catch (error) {
-            console.error('[LM Redirect] ❌ Error in handlePostVerificationRedirect:', error);
-        }
-    }
+
     
     /**
      * Handle logged in parent visiting ShareID link
@@ -472,18 +404,16 @@
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => {
                 setTimeout(() => {
-                    // IMPORTANT: handleParentShareIDVisit must run FIRST to save data
-                    // Then handlePostVerificationRedirect can read the saved data
+                    // This script now ONLY handles saving the ShareID for non-logged-in users.
+                    // The post-verification redirect is handled entirely by verify-universal-redirect.js
                     handleParentShareIDVisit();
-                    handlePostVerificationRedirect();
                 }, 500); // Small delay to ensure Memberstack loads
             });
         } else {
             setTimeout(() => {
-                // IMPORTANT: handleParentShareIDVisit must run FIRST to save data
-                // Then handlePostVerificationRedirect can read the saved data
+                // This script now ONLY handles saving the ShareID for non-logged-in users.
+                // The post-verification redirect is handled entirely by verify-universal-redirect.js
                 handleParentShareIDVisit();
-                handlePostVerificationRedirect();
             }, 500);
         }
     }
