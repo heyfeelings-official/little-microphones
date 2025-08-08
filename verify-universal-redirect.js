@@ -54,7 +54,7 @@
         localStorage.removeItem('lm_parent_redirect');
         
         // Redirect to ShareID
-        const redirectUrl = `/members/share/${shareId}`;
+        const redirectUrl = `/little-microphones?ID=${shareId}`;
         console.log('[Parent Verify] Redirecting to:', redirectUrl);
         
         // Small delay to ensure verification is complete
