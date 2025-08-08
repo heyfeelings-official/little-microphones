@@ -470,8 +470,129 @@
             console.error('[LM Redirect] Error setting up record button:', error);
         }
     }
+
+    /**
+     * Setup native share button (ID: shareIt) for mobile sharing
+     * Only visible on mobile, triggers iOS/Android native share dialog
+     */
+    async function setupNativeShareButton() {
+        try {
+            const shareButton = document.getElementById('shareIt');
+            console.log('[LM Redirect] shareIt button found:', !!shareButton);
+            if (!shareButton) return; // Button not present on this page
+
+            // Hide button by default, show only on mobile
+            shareButton.style.display = 'none';
+            
+            // Check if we're on mobile and have native sharing support
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            const hasNativeShare = 'share' in navigator;
+            
+            if (!isMobile && !hasNativeShare) {
+                console.log('[LM Redirect] Not mobile or no native share support, keeping button hidden');
+                return; // Keep button hidden on desktop
+            }
+
+            // Show button on mobile
+            shareButton.style.display = 'block';
+            console.log('[LM Redirect] Mobile detected, showing share button');
+
+            // Get current ShareID and build share URL
+            const shareId = getShareIdFromUrl();
+            if (!shareId) {
+                console.log('[LM Redirect] No ShareID found, cannot setup share button');
+                return;
+            }
+
+            // Build the share URL (current page URL)
+            const currentUrl = window.location.href;
+            
+            // Get world info for better share content
+            let shareTitle = 'Little Microphones - Radio Program';
+            let shareText = 'Listen to our radio program!';
+            
+            try {
+                const worldInfo = await getWorldInfoForShareId(shareId);
+                if (worldInfo && worldInfo.world) {
+                    const worldName = worldInfo.world.charAt(0).toUpperCase() + worldInfo.world.slice(1);
+                    shareTitle = `Little Microphones - ${worldName} Radio Program`;
+                    shareText = `Check out this ${worldName} radio program!`;
+                }
+            } catch (error) {
+                console.log('[LM Redirect] Could not get world info for share content:', error.message);
+            }
+
+            // Add click handler for native sharing
+            shareButton.addEventListener('click', async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                
+                console.log('[LM Redirect] Share button clicked');
+
+                // Try native sharing first
+                if (navigator.share) {
+                    try {
+                        await navigator.share({
+                            title: shareTitle,
+                            text: shareText,
+                            url: currentUrl
+                        });
+                        console.log('[LM Redirect] Native share completed');
+                    } catch (shareError) {
+                        if (shareError.name === 'AbortError') {
+                            console.log('[LM Redirect] Share cancelled by user');
+                        } else {
+                            console.error('[LM Redirect] Native share failed:', shareError);
+                            fallbackShare(currentUrl, shareTitle);
+                        }
+                    }
+                } else {
+                    // Fallback for devices without native share
+                    fallbackShare(currentUrl, shareTitle);
+                }
+            });
+
+            console.log('[LM Redirect] Share button setup completed');
+
+        } catch (error) {
+            console.error('[LM Redirect] Error setting up share button:', error);
+        }
+    }
+
+    /**
+     * Fallback sharing method when native sharing is not available
+     * @param {string} url - URL to share
+     * @param {string} title - Title for sharing
+     */
+    function fallbackShare(url, title) {
+        // Try clipboard API first
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(() => {
+                alert('Link copied to clipboard!');
+                console.log('[LM Redirect] Link copied to clipboard');
+            }).catch((error) => {
+                console.error('[LM Redirect] Clipboard copy failed:', error);
+                promptShare(url, title);
+            });
+        } else {
+            // Final fallback - prompt dialog
+            promptShare(url, title);
+        }
+    }
+
+    /**
+     * Final fallback - show prompt dialog with URL
+     * @param {string} url - URL to share  
+     * @param {string} title - Title for sharing
+     */
+    function promptShare(url, title) {
+        const message = `Share this ${title}:`;
+        prompt(message, url);
+        console.log('[LM Redirect] Fallback prompt share shown');
+    }
     
     // Initialize when script loads
     initParentRedirectSystem();
+    setupNativeShareButton();
     
 })(); 
