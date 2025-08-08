@@ -1521,10 +1521,8 @@
      * @param {string} lmid - LMID number
      */
     async function markLmidRadioPlayed(lmid) {
-        console.log(`🎵 [RADIO DEBUG] markLmidRadioPlayed called for LMID: ${lmid}`);
         try {
             const currentMemberId = await getCurrentMemberId();
-            console.log(`🎵 [RADIO DEBUG] Current member ID: ${currentMemberId}`);
             
             if (!currentMemberId) {
                 console.warn('⚠️ No member ID available for radio play tracking');
@@ -1534,7 +1532,7 @@
                     const globalKey = `lm_global_radio_reset_${lmid}`;
                     const globalData = { lastRecordingCheck: now, updatedAt: now };
                     localStorage.setItem(globalKey, JSON.stringify(globalData));
-                    console.log(`📝 [RADIO DEBUG] Fallback global reset stored:`, globalKey, globalData);
+                    console.log(`📝 Fallback global reset stored for LMID ${lmid}`);
                 } catch (e) {
                     console.warn('⚠️ Failed to write global reset marker:', e);
                 }
@@ -1556,19 +1554,14 @@
             
             localStorage.setItem(storageKey, JSON.stringify(userData));
             
-            console.log(`📝 [RADIO DEBUG] Updated user data for LMID ${lmid}:`, {
-                storageKey,
-                lmidKey,
-                lastRecordingCheck: userData[lmidKey].lastRecordingCheck,
-                fullData: userData[lmidKey]
-            });
+            console.log(`📝 Radio play tracked for LMID ${lmid} - new recording counter reset`);
 
             // Also write a global reset marker to cover cross-context cases
             try {
                 const globalKey = `lm_global_radio_reset_${lmid}`;
                 const globalData = { lastRecordingCheck: now, updatedAt: now };
                 localStorage.setItem(globalKey, JSON.stringify(globalData));
-                console.log(`📝 [RADIO DEBUG] Global reset marker also stored:`, globalKey, globalData);
+
             } catch (e) {
                 console.warn('⚠️ Failed to write global reset marker:', e);
             }

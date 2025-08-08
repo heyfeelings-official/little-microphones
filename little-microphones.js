@@ -313,7 +313,6 @@
                             
                             // Calculate actual NEW count based on lastRecordingCheck
                             const newCount = await getNewRecordingCountForWorld(lmid, world);
-                            console.log(`📊 [BATCH DEBUG] LMID ${lmid}, World ${world}: ${newCount} new out of ${recordings.length} total`);
                             
                             // Update new recordings count (New)
                             if (newRecNumber) {
@@ -378,7 +377,7 @@
                             // Add click handler to .rec-text.answers (element with both classes)
                             const answersElement = newRecElement.querySelector('.rec-text.answers');
                             if (answersElement) {
-                                console.log(`🔗 Added click handler to answers element for ${lmid}/${world}`);
+
                                 answersElement.style.cursor = 'pointer';
                                 answersElement.onclick = (e) => {
                                     e.preventDefault();
@@ -898,7 +897,7 @@
                 // Add click handler to .rec-text.answers (element with both classes)
                 const answersElement = newRecContainer.querySelector('.rec-text.answers');
                 if (answersElement) {
-                    console.log(`🔗 (setupWorld) Added click handler to answers element for ${lmid}/${world}`);
+
                     addTrackedEventListener(answersElement, 'click', (e) => {
                         e.preventDefault();
                         e.stopPropagation();
@@ -986,14 +985,11 @@
      * @returns {Promise<number>} Count of new recordings for this world since user's last visit
      */
     async function getNewRecordingCountForWorld(lmid, world) {
-        console.log(`📊 [DASHBOARD DEBUG] getNewRecordingCountForWorld called for LMID: ${lmid}, World: ${world}`);
         try {
             // Always try to adopt a global reset marker first (if radio page set it)
             const adoptedTimestamp = adoptGlobalRadioResetIfPresent(lmid);
-            console.log(`📊 [DASHBOARD DEBUG] Adopted timestamp from global marker:`, adoptedTimestamp);
 
             const currentMemberId = await getCurrentMemberId();
-            console.log(`📊 [DASHBOARD DEBUG] Current member ID:`, currentMemberId);
             
             if (!currentMemberId) {
                 console.warn(`⚠️ No member ID available for new recording count`);
@@ -1002,15 +998,11 @@
             
             // Get user's last visit data from localStorage
             const lastVisitData = getUserLastVisitData(currentMemberId, lmid);
-            console.log(`📊 [DASHBOARD DEBUG] Last visit data:`, lastVisitData);
             
             const baselineTimestamp = adoptedTimestamp || lastVisitData.timestamp;
-            console.log(`📊 [DASHBOARD DEBUG] Final baseline timestamp:`, baselineTimestamp);
             
             // Count new recordings for this specific world using the baseline timestamp
-            const count = await getNewRecordingCountForSpecificWorld(lmid, world, currentMemberId, { ...lastVisitData, timestamp: baselineTimestamp });
-            console.log(`📊 [DASHBOARD DEBUG] New recordings count for ${world}: ${count}`);
-            return count;
+            return await getNewRecordingCountForSpecificWorld(lmid, world, currentMemberId, { ...lastVisitData, timestamp: baselineTimestamp });
             
         } catch (error) {
             console.warn(`⚠️ Error getting count for LMID ${lmid}, World ${world}:`, error);
@@ -1026,7 +1018,6 @@
         try {
             const key = `lm_global_radio_reset_${lmid}`;
             const raw = localStorage.getItem(key);
-            console.log(`📊 [DASHBOARD DEBUG] Checking for global reset marker:`, key, raw);
             if (!raw) return null;
 
             const parsed = JSON.parse(raw);
@@ -1059,7 +1050,6 @@
 
             // Clear marker to avoid re-applying
             localStorage.removeItem(key);
-            console.log(`📊 [DASHBOARD DEBUG] Global reset marker adopted and removed, returning timestamp:`, now);
             return now;
         } catch (_) {
             return null;
@@ -1272,17 +1262,12 @@
      * @returns {Promise<number>} Count of new recordings for this world
      */
     async function getNewRecordingCountForSpecificWorld(lmid, world, userId, lastVisitData) {
-        console.log(`📊 [DASHBOARD DEBUG] getNewRecordingCountForSpecificWorld called:`, {
-            lmid, world, userId, 
-            lastVisitTimestamp: lastVisitData.timestamp
-        });
         try {
             const lang = window.LM_CONFIG.getCurrentLanguage();
             
             // Get ShareID for this world/LMID combination
             const shareId = await getShareIdForWorldLmid(world, lmid);
             if (!shareId) {
-                console.log(`📊 [DASHBOARD DEBUG] No ShareID found for ${world}/${lmid}`);
                 return 0; // No ShareID means no recordings possible
             }
             
@@ -1293,28 +1278,14 @@
                 const data = await response.json();
                 if (data.success) {
                     const currentRecordings = data.recordings || [];
-                    console.log(`📊 [DASHBOARD DEBUG] Found ${currentRecordings.length} total recordings`);
                     
                     // Filter recordings added since last visit
                     const lastVisitTimestamp = new Date(lastVisitData.timestamp).getTime();
-                    console.log(`📊 [DASHBOARD DEBUG] Filtering with baseline:`, {
-                        baselineISO: lastVisitData.timestamp,
-                        baselineMs: lastVisitTimestamp
-                    });
                     
                     const newRecordings = currentRecordings.filter(recording => {
                         const recordingTime = recording.lastModified || 0;
-                        const isNew = recordingTime > lastVisitTimestamp;
-                        console.log(`📊 [DASHBOARD DEBUG] Recording check:`, {
-                            filename: recording.filename,
-                            recordingTime,
-                            baseline: lastVisitTimestamp,
-                            isNew
-                        });
-                        return isNew;
+                        return recordingTime > lastVisitTimestamp;
                     });
-                    
-                    console.log(`📊 [DASHBOARD DEBUG] Found ${newRecordings.length} NEW recordings`);
                     return newRecordings.length;
                 }
             }
