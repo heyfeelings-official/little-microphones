@@ -407,6 +407,9 @@
                     // This script now ONLY handles saving the ShareID for non-logged-in users.
                     // The post-verification redirect is handled entirely by verify-universal-redirect.js
                     handleParentShareIDVisit();
+                    // Additionally, if Memberstack redirected directly to this page with verification params,
+                    // perform a lightweight redirect to the proper ShareID URL using saved data.
+                    handleVerifyParamRedirect();
                 }, 500); // Small delay to ensure Memberstack loads
             });
         } else {
@@ -414,7 +417,33 @@
                 // This script now ONLY handles saving the ShareID for non-logged-in users.
                 // The post-verification redirect is handled entirely by verify-universal-redirect.js
                 handleParentShareIDVisit();
+                // Additionally, if Memberstack redirected directly to this page with verification params,
+                // perform a lightweight redirect to the proper ShareID URL using saved data.
+                handleVerifyParamRedirect();
             }, 500);
+        }
+    }
+
+    /**
+     * Lightweight handler: if arriving with Memberstack verification params on this page,
+     * and we have a saved ShareID from the pre-registration visit, redirect to ?ID=...
+     * This avoids relying on the /verify page in cases where Memberstack skips it.
+     */
+    function handleVerifyParamRedirect() {
+        try {
+            const isFromEmailVerification = checkIfFromEmailVerification();
+            if (!isFromEmailVerification) return;
+
+            const savedData = getSavedRedirectData();
+            if (!savedData || !savedData.shareId) return;
+
+            const redirectUrl = `/little-microphones?ID=${savedData.shareId}`;
+            clearSavedRedirectData();
+            console.log('[LM Redirect] Redirecting after verification to:', redirectUrl);
+            // Use replace so the intermediate URL doesn't stay in history
+            window.location.replace(redirectUrl);
+        } catch (error) {
+            console.error('[LM Redirect] Error in handleVerifyParamRedirect:', error);
         }
     }
     
