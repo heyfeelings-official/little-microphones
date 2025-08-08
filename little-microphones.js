@@ -973,7 +973,7 @@
     async function getNewRecordingCountForWorld(lmid, world) {
         try {
             // Always try to adopt a global reset marker first (if radio page set it)
-            adoptGlobalRadioResetIfPresent(lmid);
+            const adoptedTimestamp = adoptGlobalRadioResetIfPresent(lmid);
 
             const currentMemberId = await getCurrentMemberId();
             
@@ -984,6 +984,7 @@
             
             // Get user's last visit data from localStorage
             const lastVisitData = getUserLastVisitData(currentMemberId, lmid);
+            const baselineTimestamp = adoptedTimestamp || lastVisitData.timestamp;
             
             // Count new recordings for this specific world
             return await getNewRecordingCountForSpecificWorld(lmid, world, currentMemberId, lastVisitData);
@@ -1002,12 +1003,12 @@
         try {
             const key = `lm_global_radio_reset_${lmid}`;
             const raw = localStorage.getItem(key);
-            if (!raw) return false;
+            if (!raw) return null;
 
             const parsed = JSON.parse(raw);
             if (!parsed?.lastRecordingCheck) {
                 localStorage.removeItem(key);
-                return false;
+                return null;
             }
 
             // If we have member context later in the session, this will be properly written too
@@ -1034,9 +1035,9 @@
 
             // Clear marker to avoid re-applying
             localStorage.removeItem(key);
-            return true;
+            return now;
         } catch (_) {
-            return false;
+            return null;
         }
     }
 
@@ -1214,11 +1215,12 @@
                             const currentRecordings = data.recordings || [];
                             
                             // Filter recordings added since last visit
-                            const lastVisitTimestamp = new Date(lastVisitData.timestamp).getTime();
-                            const newRecordings = currentRecordings.filter(recording => {
-                                const recordingTime = recording.lastModified || 0;
-                                return recordingTime > lastVisitTimestamp;
-                            });
+            const lastVisitTimestamp = new Date(baselineTimestamp).getTime();
+            const newRecordings = currentRecordings.filter(recording => {
+                const recordingTime = recording.lastModified || 0;
+                const baseline = new Date(baselineTimestamp).getTime();
+                return recordingTime > baseline;
+            });
                             
                             totalNewRecordings += newRecordings.length;
                         }
