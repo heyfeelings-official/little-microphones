@@ -986,8 +986,8 @@
             const lastVisitData = getUserLastVisitData(currentMemberId, lmid);
             const baselineTimestamp = adoptedTimestamp || lastVisitData.timestamp;
             
-            // Count new recordings for this specific world
-            return await getNewRecordingCountForSpecificWorld(lmid, world, currentMemberId, lastVisitData);
+            // Count new recordings for this specific world using the baseline timestamp
+            return await getNewRecordingCountForSpecificWorld(lmid, world, currentMemberId, { ...lastVisitData, timestamp: baselineTimestamp });
             
         } catch (error) {
             console.warn(`⚠️ Error getting count for LMID ${lmid}, World ${world}:`, error);
