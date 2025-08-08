@@ -102,14 +102,14 @@
                 const metaRole = memberData.metaData?.role;
                 if (metaRole === 'parent' || metaRole === 'teacher' || metaRole === 'therapist') {
                     currentUserRole = metaRole;
-                    console.log(`User role detected from metadata override: ${currentUserRole}`);
+
                 } else {
                     console.warn(`No recognizable plan found in: [${activePlanIds.join(', ')}], defaulting to teacher role`);
                     currentUserRole = 'teacher';
                 }
             }
             
-            console.log(`User role detected: ${currentUserRole} (active plans: [${activePlanIds.join(', ')}])`);
+
             return currentUserRole;
         } catch (error) {
             console.error('Error detecting user role:', error);
@@ -639,11 +639,11 @@
         }
 
         // Preserve existing content (like Webflow text labels) and only clear audio players
-        console.log('🧹 DEBUG: Container content before cleanup:', playerContainer.innerHTML);
+
         const existingAudioPlayers = playerContainer.querySelectorAll('li[data-recording-id], audio, div[style*="background: #ffffff"]');
-        console.log('🗑️ DEBUG: Removing', existingAudioPlayers.length, 'existing audio players');
+
         existingAudioPlayers.forEach(player => player.remove());
-        console.log('✨ DEBUG: Container content after cleanup:', playerContainer.innerHTML);
+
 
         // Create fake recording data for the radio program
         const recordingData = { 
@@ -672,7 +672,7 @@
             }
         ).then(playerElement => {
             if (playerElement) {
-                console.log('🎵 DEBUG: Player element created successfully');
+
                 
                 // Debug progress bar existence - try multiple selectors
                 const progressBar = playerElement.querySelector('div[style*="flex: 1"][style*="cursor: pointer"]');
@@ -682,7 +682,7 @@
                 const audioElement = playerElement.querySelector('audio');
                 
                 // Progress bar debugging simplified
-                console.log('🔍 DEBUG: Progress bar found:', !!progressBar, '| Audio found:', !!audioElement, '| Parent:', isParentProgram);
+
                 
                 // NOTE: Don't apply yellow background here - it's handled later via setTimeout
                 // to avoid overriding progress bar colors
@@ -700,7 +700,7 @@
                     progressContainer.style.background = 'rgba(0, 0, 0, 0.15)';
                     progressContainer.style.borderRadius = '4px';
                     
-                    console.log('🔵 DEBUG: Fixed progress bar colors - inner: blue, container: gray');
+
                 }
                 
                 // Add text label as first element inside the player
@@ -715,11 +715,11 @@
                     
                     // Insert as first child
                     mainPlayerDiv.insertBefore(textLabel, mainPlayerDiv.firstChild);
-                    console.log(`📝 DEBUG: Added "${textLabel.textContent}" text to player with margin-right: ${marginRight}`);
+
                 }
                 
                 playerContainer.appendChild(playerElement);
-                console.log('✅ DEBUG: Player element appended to container');
+
                 
                 // Store reference to audio element
                 audioPlayer = playerElement.querySelector('audio');
@@ -729,7 +729,7 @@
                     setupRadioPlayTracking(audioPlayer);
                 }
                 
-                console.log('✅ Radio player created using RecordingUI');
+
             } else {
                 console.error('Failed to create player element');
             }
@@ -794,9 +794,9 @@
                 const kidsGenerating = data.generationStatus?.kids?.isGenerating || false;
                 const parentGenerating = data.generationStatus?.parent?.isGenerating || false;
                 
-                console.log(`📊 Generation status: Kids(${needsKids ? 'GENERATE' : 'EXISTS'}), Parent(${needsParent ? 'GENERATE' : 'EXISTS'})`);
-                console.log(`📊 Recordings available: Kids(${hasKidsRecordings}), Parent(${hasParentRecordings})`);
-                console.log(`📊 Lock status: Kids(${kidsGenerating ? 'GENERATING' : 'FREE'}), Parent(${parentGenerating ? 'GENERATING' : 'FREE'})`);
+
+
+
                 
                 // NEW: Handle generation in progress
                 if (kidsGenerating || parentGenerating) {
@@ -965,33 +965,25 @@
         // Check for kids program - try multiple sources
         if (data.kidsManifest?.programUrl) {
             programs.kids = { url: data.kidsManifest.programUrl };
-            console.log('📻 Found kids program in kids manifest:', data.kidsManifest.programUrl);
         } else if (data.lastManifest?.kidsProgram) {
             programs.kids = { url: data.lastManifest.kidsProgram };
-            console.log('📻 Found kids program in combined manifest:', data.lastManifest.kidsProgram);
         } else if (data.lastManifest?.programUrl && data.hasKidsRecordings) {
             // Legacy fallback for kids program
             programs.kids = { url: data.lastManifest.programUrl };
-            console.log('📻 Using legacy kids program:', data.lastManifest.programUrl);
         }
         
         // Check for parent program - try multiple sources
         if (data.parentManifest?.programUrl) {
             programs.parent = { url: data.parentManifest.programUrl };
-            console.log('📻 Found parent program in parent manifest:', data.parentManifest.programUrl);
         } else if (data.lastManifest?.parentProgram) {
             programs.parent = { url: data.lastManifest.parentProgram };
-            console.log('📻 Found parent program in combined manifest:', data.lastManifest.parentProgram);
         }
         
-        console.log('🔍 DEBUG: Final programs object built:', programs);
-        console.log('🔍 DEBUG: programs.kids exists:', !!programs.kids);
-        console.log('🔍 DEBUG: programs.parent exists:', !!programs.parent);
+
         
         // Check if we have any programs to show
         if (Object.keys(programs).length > 0) {
             console.log('📻 Showing programs:', programs);
-            console.log('🎯 DEBUG: About to call showDualPlayerState with userRole:', userRole);
             showDualPlayerState(programs, data, userRole);
         } else {
             console.log('📻 No programs found, checking for available recordings...');
@@ -1025,8 +1017,6 @@
      * @param {string} userRole - Current user role
      */
     function showDualPlayerState(programs, data, userRole) {
-        console.log('🚀 DEBUG: showDualPlayerState called with userRole:', userRole);
-        console.log('🚀 DEBUG: programs object:', programs);
         
         hideAllStates();
         showState('player-state');
@@ -1046,7 +1036,6 @@
             recordingCount: data.currentRecordings?.length || 0
         };
         
-        console.log('🔍 DEBUG: Checking userRole - is parent?', userRole === 'parent');
         
         if (userRole === 'parent') {
             // Parents see only kids program
@@ -1059,42 +1048,34 @@
             }
         } else {
             // Teachers and therapists see both programs if available
-            console.log('🔍 DEBUG: Available programs object:', programs);
             const availablePrograms = [];
             
             if (programs.kids) {
-                console.log('✅ DEBUG: Found kids program:', programs.kids.url);
                 availablePrograms.push({
                     url: programs.kids.url,
                     type: 'kids', // For identification, not displayed
                     description: 'Student recordings'
                 });
             } else {
-                console.log('❌ DEBUG: No kids program found');
             }
             
             if (programs.parent) {
-                console.log('✅ DEBUG: Found parent program:', programs.parent.url);
                 availablePrograms.push({
                     url: programs.parent.url,
                     type: 'parent', // For identification, not displayed
                     description: 'Parent recordings'
                 });
             } else {
-                console.log('❌ DEBUG: No parent program found');
             }
             
-            console.log(`🎯 DEBUG: Total available programs: ${availablePrograms.length}`, availablePrograms);
             
             if (availablePrograms.length === 0) {
                 playerContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">No recordings available yet.</div>';
             } else if (availablePrograms.length === 1) {
                 // Single program available
-                console.log('📻 DEBUG: Using single player for:', availablePrograms[0].title);
                 createSinglePlayer(playerContainer, availablePrograms[0].url, radioData, availablePrograms[0].title);
             } else {
                 // Multiple programs available - create dual player
-                console.log('📻 DEBUG: Using dual player for both programs');
                 createDualPlayer(playerContainer, availablePrograms, radioData);
             }
         }
@@ -1128,14 +1109,11 @@
      * @param {Object} radioData - Radio data
      */
     function createDualPlayer(container, programs, radioData) {
-        console.log('🎬 DEBUG: createDualPlayer called with programs:', programs);
         
         // Find kids and parent programs by type
         const kidsProgram = programs.find(p => p.type === 'kids');
         const parentProgram = programs.find(p => p.type === 'parent');
         
-        console.log('👶 DEBUG: kidsProgram found:', kidsProgram ? kidsProgram.type : 'NO');
-        console.log('👨‍👩‍👧‍👦 DEBUG: parentProgram found:', parentProgram ? parentProgram.type : 'NO');
         
         // Clean implementation - debug code removed since dual player works correctly
         
@@ -1158,21 +1136,17 @@
             );
         }
         
-        console.log('🔍 DEBUG: Webflow containers - Kids:', !!existingKidsContainer, '| Parents:', !!existingParentsContainer);
         
         // Use kids container (existing Webflow or create new)
         if (kidsProgram) {
-            console.log('✅ DEBUG: Setting up kids player');
             let kidsContainer;
             if (existingKidsContainer) {
-                console.log('✅ DEBUG: Using existing Webflow kids container with text:', existingKidsContainer.textContent.trim());
                 kidsContainer = existingKidsContainer;
                 // If it's a text element, use its parent or create wrapper
                 if (existingKidsContainer.tagName === 'TEXT' || existingKidsContainer.tagName === 'SPAN') {
                     kidsContainer = existingKidsContainer.parentElement || existingKidsContainer;
                 }
             } else {
-                console.log('📝 DEBUG: Creating new kids container (no Webflow container found)');
                 kidsContainer = document.createElement('div');
                 kidsContainer.className = 'kids';
                 container.appendChild(kidsContainer);
@@ -1183,31 +1157,25 @@
                 kidsContainer.style.minHeight = '48px';
                 kidsContainer.style.marginBottom = '1rem';
                 kidsContainer.style.display = 'block';
-                console.log('📐 DEBUG: Applied height and styling to kids container');
             }
             
             // Text will be integrated into the audio player itself, not as separate label
             
             // Setup audio player for kids (no special background)
-            console.log('🎵 DEBUG: Setting up kids player with URL:', kidsProgram.url);
             setupAudioPlayer(kidsProgram.url, radioData, kidsContainer, false);
         } else {
-            console.log('❌ DEBUG: No kids program to create container for');
         }
         
         // Use parents container (existing Webflow or create new)
         if (parentProgram) {
-            console.log('✅ DEBUG: Setting up parents player');
             let parentsContainer;
             if (existingParentsContainer) {
-                console.log('✅ DEBUG: Using existing Webflow parents container with text:', existingParentsContainer.textContent.trim());
                 parentsContainer = existingParentsContainer;
                 // If it's a text element, use its parent or create wrapper
                 if (existingParentsContainer.tagName === 'TEXT' || existingParentsContainer.tagName === 'SPAN') {
                     parentsContainer = existingParentsContainer.parentElement || existingParentsContainer;
                 }
             } else {
-                console.log('📝 DEBUG: Creating new parents container (no Webflow container found)');
                 parentsContainer = document.createElement('div');
                 parentsContainer.className = 'parents';
                 container.appendChild(parentsContainer);
@@ -1218,13 +1186,11 @@
                 parentsContainer.style.minHeight = '48px';
                 parentsContainer.style.marginTop = '1rem';
                 parentsContainer.style.display = 'block';
-                console.log('📐 DEBUG: Applied height and styling to parents container');
             }
             
             // Text will be integrated into the audio player itself, not as separate label
             
             // Setup audio player for parents DIRECTLY in parentsContainer (same as kids)
-            console.log('🎵 DEBUG: Setting up parent player with URL:', parentProgram.url);
             setupAudioPlayer(parentProgram.url, radioData, parentsContainer, true);
             
             // Apply yellow background ONLY to the main player container - no fallbacks
@@ -1234,20 +1200,15 @@
                 
                 if (mainPlayerContainer) {
                     mainPlayerContainer.style.background = '#FFD700';
-                    console.log('🟡 DEBUG: Applied yellow background to main parent player container');
                 } else {
-                    console.log('❌ DEBUG: Could not find main player container - keeping white background');
                     // NO FALLBACK - better to keep white than accidentally color progress bars
                 }
             }, 100);
         } else {
-            console.log('❌ DEBUG: No parent program to create container for');
         }
         
-        console.log('🏁 DEBUG: createDualPlayer finished. Container children count:', container.children.length);
         
         // Debug DOM structure
-        console.log('🔍 DOM DEBUG: Checking created containers...');
         const kidsDiv = container.querySelector('.kids');
         const parentsDiv = container.querySelector('.parents');
         

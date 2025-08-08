@@ -96,13 +96,13 @@ function initializeRecordingForWorld(world) {
   // NEW: Robust, event-driven initialization
   // Check if the recording script is already ready
   if (window.isRecordingScriptReady) {
-    console.log(`Recording script is ready. Initializing for world: ${world}`);
+
     initializeRecordersForWorld(world);
   } else {
     // If not, wait for the custom event
-    console.log('Recording script not ready yet. Waiting for event...');
+
     document.addEventListener('recording-script-ready', () => {
-      console.log(`'recording-script-ready' event received. Initializing for world: ${world}`);
+
       initializeRecordersForWorld(world);
     }, { once: true }); // Use 'once' to ensure the listener is auto-removed
   }
@@ -133,7 +133,7 @@ function showWorldCollection(world) {
   
   if (targetCollection) {
     targetCollection.style.display = 'block';
-    console.log(`Showing collection for world: ${world}`);
+
     
     // Initialize recording functionality for this world only
     const uiDelay = window.LM_CONFIG?.TIMEOUTS?.UI_UPDATE_DELAY || 100;
@@ -280,7 +280,7 @@ function setupExistingRadioProgramButton(world, lmid) {
     return;
   }
   
-  console.log(`Setting up share link button for ${world}/${lmid}`);
+
   
   // Remove any existing event listeners by cloning the button
   const newButton = existingButton.cloneNode(true);
@@ -290,7 +290,7 @@ function setupExistingRadioProgramButton(world, lmid) {
   // This avoids mobile popup blockers and API call delays
   generateShareIdAndSetupButton(newButton, world, lmid);
   
-  console.log(`Share link button setup complete for ${world}`);
+
 }
 
 /**
@@ -301,7 +301,7 @@ function setupExistingRadioProgramButton(world, lmid) {
  */
 async function generateShareIdAndSetupButton(button, world, lmid) {
   try {
-    console.log(`Pre-generating ShareID for ${world}/${lmid}...`);
+
     
     // Call the get-share-link API to get/create ShareID
     const response = await fetch(`${API_BASE_URL}/api/get-share-link?lmid=${lmid}&world=${world}`);
@@ -323,7 +323,7 @@ async function generateShareIdAndSetupButton(button, world, lmid) {
         ? `/little-microphones?ID=${result.shareId}`
         : `/${currentLang}/little-microphones?ID=${result.shareId}`;
     
-    console.log(`ShareID generated: ${result.shareId}, URL: ${radioUrl}`);
+
     
     // Set the href attribute for direct navigation (works better on mobile)
     button.setAttribute('href', radioUrl);
@@ -333,7 +333,7 @@ async function generateShareIdAndSetupButton(button, world, lmid) {
     // Add click handler as backup
     button.addEventListener('click', (event) => {
       // Let the browser handle the link naturally
-      console.log(`Opening radio program: ${radioUrl}`);
+
     });
     
     // Update button text to indicate it's ready
@@ -394,7 +394,7 @@ async function checkIfUserHasRecordings(world, lmid) {
       return true; // Assume they have recordings if we can't check
     }
     
-    console.log(`Checking for recordings in ${world}/${lmid}...`);
+
     
     // First, try to discover question IDs from DOM elements
     const targetCollectionId = `collection-${world}`;
@@ -413,7 +413,7 @@ async function checkIfUserHasRecordings(world, lmid) {
         try {
           const recordings = await loadRecordingsFromCloud(questionId, world, lmid);
           if (recordings && recordings.length > 0) {
-            console.log(`Found ${recordings.length} recordings for Question ${questionId}`);
+
             return true;
           }
         } catch (error) {
@@ -428,7 +428,7 @@ async function checkIfUserHasRecordings(world, lmid) {
       try {
         const allRecordings = await getAllRecordingsForWorldLmid(world, lmid);
         if (allRecordings && allRecordings.length > 0) {
-          console.log(`Found ${allRecordings.length} total recordings via database scan`);
+
           return true;
         }
       } catch (error) {
@@ -436,7 +436,7 @@ async function checkIfUserHasRecordings(world, lmid) {
       }
     }
     
-    console.log('No recordings found');
+
     return false;
   } catch (error) {
     console.error('Error checking for recordings:', error);

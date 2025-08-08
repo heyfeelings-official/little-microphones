@@ -362,7 +362,7 @@
                             // Add click handler to .rec-text.action (element with both classes)
                             const actionElement = newRecElement.querySelector('.rec-text.action');
                             if (actionElement) {
-                                console.log(`🔗 Added click handler to action element for ${lmid}/${world}`);
+
                                 actionElement.style.cursor = 'pointer';
                                 actionElement.onclick = (e) => {
                                     e.preventDefault();
@@ -371,7 +371,7 @@
                                     window.location.href = recordingUrl;
                                 };
                             } else {
-                                console.warn(`⚠️ No .rec-text.action found for ${lmid}/${world}`);
+            
                             }
                             
                             // Add click handler to .rec-text.answers (element with both classes)
@@ -386,7 +386,7 @@
                                     window.location.href = recordingUrl;
                                 };
                             } else {
-                                console.warn(`⚠️ No .rec-text.answers found for ${lmid}/${world}`);
+            
                             }
                         }
                     } else {
@@ -690,7 +690,7 @@
             return;
         }
 
-        console.log(`🔄 Creating UI elements for ${lmids.length} LMID(s)`);
+
 
         // Create UI elements for each LMID (without slow new recording check)
         for (const lmid of lmids) {
@@ -744,8 +744,6 @@
         if (numberElement) {
             numberElement.textContent = lmid;
             numberElement.removeAttribute("id");
-        } else {
-            console.warn(`⚠️ Could not find '#lmid-number' in template clone for LMID ${lmid}`);
         }
         
         // Setup new recording count indicator (conditionally)
@@ -787,7 +785,7 @@
         const worldContainers = clone.querySelectorAll('.program-container[data-world]');
         
         if (worldContainers.length === 0) {
-            console.warn(`⚠️ LMID ${lmid}: No world containers found`);
+
             return;
         }
         
@@ -862,7 +860,7 @@
             if (badgeRec) {
                 const currentDisplay = badgeRec.style.display;
                 const currentComputedDisplay = getComputedStyle(badgeRec).display;
-                console.log(`🔧 ${lmid}/${world}: API found ${totalRecordingCount} recordings, badge-rec display=${currentDisplay}, computed=${currentComputedDisplay}`);
+
             }
             
             // Setup .badge-rec click to radio page with ShareID
@@ -883,7 +881,7 @@
                 // Add click handler to .rec-text.action (element with both classes)
                 const actionElement = newRecContainer.querySelector('.rec-text.action');
                 if (actionElement) {
-                    console.log(`🔗 (setupWorld) Added click handler to action element for ${lmid}/${world}`);
+
                     addTrackedEventListener(actionElement, 'click', (e) => {
                         e.preventDefault();
                         e.stopPropagation();
@@ -891,7 +889,7 @@
                         window.location.href = recordingUrl;
                     });
                 } else {
-                    console.warn(`⚠️ (setupWorld) No .rec-text.action found for ${lmid}/${world}`);
+
                 }
                 
                 // Add click handler to .rec-text.answers (element with both classes)
@@ -905,7 +903,7 @@
                         window.location.href = recordingUrl;
                     });
                 } else {
-                    console.warn(`⚠️ (setupWorld) No .rec-text.answers found for ${lmid}/${world}`);
+
                 }
             }
             
@@ -932,7 +930,7 @@
         const newRecContainer = lmidElement.querySelector(".new-rec");
         const newRecNumber = lmidElement.querySelector(".new-rec-number");
         
-        console.log(`🔍 LMID ${lmid} badge update: container found=${!!newRecContainer}, number found=${!!newRecNumber}`);
+
         
         if (count > 0) {
             // Show badge - only change display, preserve Webflow positioning
@@ -942,13 +940,13 @@
             if (newRecNumber) {
                 newRecNumber.textContent = count.toString();
             }
-            console.log(`✅ LMID ${lmid}: Showing badge with ${count} new recordings`);
+
         } else {
             // Hide badge - only change display, preserve Webflow positioning
             if (newRecContainer) {
                 newRecContainer.style.display = 'none';
             }
-            console.log(`🙈 LMID ${lmid}: Hiding badge (no new recordings)`);
+
         }
     }
 

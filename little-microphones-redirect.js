@@ -19,7 +19,6 @@
 (function() {
     'use strict';
     
-    console.log('[LM Redirect] Script loaded');
     
     // Configuration
     const API_BASE_URL = 'https://little-microphones.vercel.app/api';
@@ -35,7 +34,6 @@
                 return;
             }
             
-            console.log('[LM Redirect] Processing ShareID:', shareId);
             
             // Wait for Memberstack to load
             await waitForMemberstack();
@@ -48,13 +46,11 @@
                 const isParent = await checkIfUserIsParent();
                 
                 if (isParent) {
-                    console.log('[LM Redirect] Parent user detected, processing LMID assignment');
                     await handleLoggedInParent(shareId);
                 } else {
                     // For teachers/other users, just show the program without LMID assignment
                 }
             } else {
-                console.log('[LM Redirect] User not logged in, saving ShareID for later');
                 saveShareIdForRedirect(shareId);
             }
             
@@ -80,19 +76,15 @@
             
             // Check if parent already has this LMID
             const currentUser = await getCurrentMemberstackUser();
-            console.log('[LM Redirect] Current user data:', currentUser);
             
             const currentLmids = currentUser.metaData?.lmids || '';
             const parentEmail = currentUser.auth?.email || currentUser.email;
             
-            console.log('[LM Redirect] Parent email extracted:', parentEmail);
-            console.log('[LM Redirect] Current LMIDs:', currentLmids);
             
             // Always ensure parent email is tracked in database, even if they already have the LMID
             const hasLmid = currentLmids.includes(worldInfo.original_lmid.toString());
             const newLmids = hasLmid ? currentLmids : (currentLmids ? `${currentLmids},${worldInfo.original_lmid}` : worldInfo.original_lmid.toString());
             
-            console.log('[LM Redirect] Calling API with:', {
                 memberId: currentUser.id,
                 newLmids: newLmids,
                 parentEmail: parentEmail,
@@ -103,9 +95,7 @@
             
             if (updateResult.success) {
                 if (hasLmid) {
-                    console.log('[LM Redirect] Parent email ensured in database (already had LMID)');
                 } else {
-                    console.log('[LM Redirect] LMID added successfully and parent email tracked');
                 }
                 console.log('👨‍👩‍👧‍👦 Parent data updated successfully');
                 
@@ -312,8 +302,6 @@
         };
         
         localStorage.setItem('lm_parent_redirect', JSON.stringify(redirectData));
-        console.log('[LM Redirect] 💾 Saved redirect data for ShareID:', shareId);
-        console.log('[LM Redirect] 💾 Redirect data stored:', redirectData);
     }
     
     /**
@@ -321,36 +309,25 @@
      */
     function getSavedRedirectData() {
         try {
-            console.log('[LM Redirect] 🔍 Getting saved redirect data...');
             const saved = localStorage.getItem('lm_parent_redirect');
-            console.log('[LM Redirect] 🔍 Raw localStorage data:', saved);
             
             if (!saved) {
-                console.log('[LM Redirect] 🔍 No data in localStorage');
                 return null;
             }
             
             const data = JSON.parse(saved);
-            console.log('[LM Redirect] 🔍 Parsed data:', data);
             
             // Check if data is not too old (24 hours max)
             const maxAge = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
             const currentTime = Date.now();
             const age = currentTime - data.timestamp;
             
-            console.log('[LM Redirect] 🔍 Current time:', currentTime);
-            console.log('[LM Redirect] 🔍 Data timestamp:', data.timestamp);
-            console.log('[LM Redirect] 🔍 Data age (ms):', age);
-            console.log('[LM Redirect] 🔍 Max age (ms):', maxAge);
-            console.log('[LM Redirect] 🔍 Is data too old?', age > maxAge);
             
             if (age > maxAge) {
-                console.log('[LM Redirect] 🔍 Data too old, clearing...');
                 clearSavedRedirectData();
                 return null;
             }
             
-            console.log('[LM Redirect] 🔍 Returning valid data:', data);
             return data;
             
         } catch (error) {
@@ -365,7 +342,6 @@
      */
     function clearSavedRedirectData() {
         localStorage.removeItem('lm_parent_redirect');
-        console.log('[LM Redirect] 🗑️ Cleared saved redirect data');
     }
     
     /**
@@ -373,22 +349,15 @@
      */
     function debugLocalStorage() {
         const saved = localStorage.getItem('lm_parent_redirect');
-        console.log('[LM Redirect] 🔍 DEBUG - localStorage content:', saved);
         if (saved) {
             try {
                 const parsed = JSON.parse(saved);
-                console.log('[LM Redirect] 🔍 DEBUG - parsed data:', parsed);
             } catch (e) {
-                console.log('[LM Redirect] 🔍 DEBUG - failed to parse:', e);
             }
         }
         
         // Also check URL parameters
         const urlParams = new URLSearchParams(window.location.search);
-        console.log('[LM Redirect] 🔍 DEBUG - URL params:');
-        console.log('[LM Redirect] 🔍 DEBUG - member:', urlParams.get('member'));
-        console.log('[LM Redirect] 🔍 DEBUG - forceRefetch:', urlParams.get('forceRefetch'));
-        console.log('[LM Redirect] 🔍 DEBUG - ID:', urlParams.get('ID'));
     }
     
     // Make debug function globally accessible for testing
@@ -443,7 +412,6 @@
 
             const redirectUrl = `/little-microphones?ID=${savedData.shareId}`;
             clearSavedRedirectData();
-            console.log('[LM Redirect] Redirecting after verification to:', redirectUrl);
             // Use replace so the intermediate URL doesn't stay in history
             window.location.replace(redirectUrl);
         } catch (error) {
@@ -491,7 +459,6 @@
                 }, { once: true });
             }
 
-            console.log('[LM Redirect] recordShareID linked to:', recordUrl);
         } catch (error) {
             // Silent fail to avoid UI noise
         }
