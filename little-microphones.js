@@ -972,12 +972,13 @@
      */
     async function getNewRecordingCountForWorld(lmid, world) {
         try {
+            // Always try to adopt a global reset marker first (if radio page set it)
+            adoptGlobalRadioResetIfPresent(lmid);
+
             const currentMemberId = await getCurrentMemberId();
             
             if (!currentMemberId) {
                 console.warn(`⚠️ No member ID available for new recording count`);
-                // Fallback: if there's a global reset marker from radio page, adopt it once
-                const adopted = adoptGlobalRadioResetIfPresent(lmid);
                 return 0;
             }
             
