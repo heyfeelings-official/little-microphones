@@ -297,26 +297,41 @@
                         }
                         }
                         
-                        // 2. Apply new-rec and total counts (simplified for dashboard)
+                        // 2. Apply new-rec and total counts - properly calculate NEW count
                         const newRecContainer = worldContainer.querySelector('.new-rec');
                         if (newRecContainer) {
+                            // Find specific number elements in the correct structure (same as setupWorldNewRecordingIndicator)
+                            // First .rec-text contains total answers count
+                            const totalRecNumber = worldContainer.querySelector(".new-rec .rec-text:not(.new) .new-rec-number");
+                            // Second .rec-text.new contains new answers count  
+                            const newRecNumber = worldContainer.querySelector(".new-rec .rec-text.new .new-rec-number");
+                            
                             // Update total count
-                            const totalCountElement = newRecContainer.querySelector('.new-rec-number:not(.total)');
-                            if (totalCountElement) {
-                                totalCountElement.textContent = recordings.length;
+                            if (totalRecNumber) {
+                                totalRecNumber.textContent = recordings.length;
                             }
                             
-                            // For simplicity on dashboard, show all as "new" (detailed new count calculation is expensive)
-                            const newCountElement = newRecContainer.querySelector('.new-rec-number.total');
-                            const newCountContainer = newRecContainer.querySelector('.rec-text.new');
-                            if (newCountElement && newCountContainer) {
-                                if (recordings.length > 0) {
-                                    newCountElement.textContent = recordings.length;
+                            // Calculate actual NEW count based on lastRecordingCheck
+                            const newCount = await getNewRecordingCountForWorld(lmid, world);
+                            console.log(`📊 [BATCH DEBUG] LMID ${lmid}, World ${world}: ${newCount} new out of ${recordings.length} total`);
+                            
+                            // Update new recordings count (New)
+                            if (newRecNumber) {
+                                newRecNumber.textContent = newCount;
+                            }
+                            
+                            // Hide/show the "new" counter based on whether there are new recordings
+                            const newCountContainer = worldContainer.querySelector(".new-rec .rec-text.new");
+                            if (newCountContainer) {
+                                if (newCount > 0) {
                                     newCountContainer.style.display = 'flex';
                                 } else {
                                     newCountContainer.style.display = 'none';
                                 }
                             }
+                            
+                            // Always show the new-rec container with counts (even if 0)
+                            newRecContainer.style.display = 'flex';
                         }
                         
                         // 3. Setup ShareID and radio links for badge-rec elements
