@@ -131,24 +131,6 @@ export async function findNextAvailableLmid() {
 export async function assignLmidToMember(lmid, memberId, memberEmail, shareIds) {
     const supabase = getSupabaseClient();
     
-    // Get teacher data from Memberstack
-    let teacherData = {
-        firstName: null,
-        lastName: null,
-        schoolName: null
-    };
-    
-    try {
-        const teacherInfo = await getTeacherDataFromMemberstack(memberId);
-        if (teacherInfo) {
-            teacherData = teacherInfo;
-            console.log('👨‍🏫 Retrieved teacher data from Memberstack:', teacherData);
-        }
-    } catch (error) {
-        console.warn('⚠️ Could not retrieve teacher data from Memberstack:', error.message);
-        console.warn('⚠️ Proceeding with LMID assignment without teacher data');
-    }
-    
     const updateData = {
         status: 'used',
         assigned_to_member_id: memberId,
@@ -159,11 +141,8 @@ export async function assignLmidToMember(lmid, memberId, memberEmail, shareIds) 
         share_id_shopping_spree: shareIds['shopping-spree'],
         share_id_amusement_park: shareIds['amusement-park'],
         share_id_big_city: shareIds['big-city'],
-        share_id_neighborhood: shareIds.neighborhood,
-        // Add teacher data to Supabase
-        teacher_first_name: teacherData.firstName,
-        teacher_last_name: teacherData.lastName,
-        teacher_school_name: teacherData.schoolName
+        share_id_neighborhood: shareIds.neighborhood
+        // Teacher data is now fetched directly from Memberstack via API, not stored in database
     };
 
     const { error } = await supabase
@@ -176,7 +155,7 @@ export async function assignLmidToMember(lmid, memberId, memberEmail, shareIds) 
         return false;
     }
 
-    console.log(`✅ LMID ${lmid} assigned with teacher data: ${teacherData.firstName} ${teacherData.lastName} from ${teacherData.schoolName}`);
+    console.log(`✅ LMID ${lmid} assigned to member ${memberId} (${memberEmail})`);
     return true;
 }
 

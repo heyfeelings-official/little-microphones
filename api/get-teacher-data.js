@@ -80,31 +80,21 @@ async function getTeacherDataHandler(req, res, params) {
 
     console.log('👨‍🏫 Raw teacher data from Supabase:', lmidRecord);
 
-    // Format teacher data with fallbacks
+    // Get teacher data directly from Memberstack (more reliable than database sync)
     let teacherName = 'Teacher';
     let schoolName = 'School';
 
-    // Try to get name from database first
-    if (lmidRecord.teacher_first_name || lmidRecord.teacher_last_name) {
-        const firstName = lmidRecord.teacher_first_name || '';
-        const lastName = lmidRecord.teacher_last_name || '';
-        const fullName = `${firstName} ${lastName}`.trim();
+    if (lmidRecord.assigned_to_member_id) {
+        console.log(`👨‍🏫 Fetching teacher data from Memberstack for: ${lmidRecord.assigned_to_member_id}`);
         
-        if (fullName) {
-            teacherName = fullName;
-        }
-    } else if (lmidRecord.assigned_to_member_id) {
-        // If database fields are empty, fetch from Memberstack
-        console.log(`👨‍🏫 Fetching teacher name from Memberstack for: ${lmidRecord.assigned_to_member_id}`);
-        teacherName = await getTeacherNameByMemberId(lmidRecord.assigned_to_member_id);
-    }
-
-    if (lmidRecord.teacher_school_name) {
-        schoolName = lmidRecord.teacher_school_name;
-    } else if (lmidRecord.assigned_to_member_id) {
-        // If database field is empty, fetch from Memberstack
-        console.log(`🏫 Fetching school name from Memberstack for: ${lmidRecord.assigned_to_member_id}`);
-        schoolName = await getSchoolNameByMemberId(lmidRecord.assigned_to_member_id);
+        // Get both name and school from Memberstack in parallel
+        const [memberName, memberSchool] = await Promise.all([
+            getTeacherNameByMemberId(lmidRecord.assigned_to_member_id),
+            getSchoolNameByMemberId(lmidRecord.assigned_to_member_id)
+        ]);
+        
+        teacherName = memberName;
+        schoolName = memberSchool;
     }
 
     console.log(`👨‍🏫 Formatted teacher data: "${teacherName}" "${schoolName}"`);
