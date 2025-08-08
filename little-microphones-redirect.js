@@ -85,12 +85,6 @@
             const hasLmid = currentLmids.includes(worldInfo.original_lmid.toString());
             const newLmids = hasLmid ? currentLmids : (currentLmids ? `${currentLmids},${worldInfo.original_lmid}` : worldInfo.original_lmid.toString());
             
-                memberId: currentUser.id,
-                newLmids: newLmids,
-                parentEmail: parentEmail,
-                hasLmid: hasLmid
-            });
-            
             const updateResult = await updateParentMetadata(currentUser.id, newLmids, parentEmail);
             
             if (updateResult.success) {
@@ -432,13 +426,16 @@
     async function setupRecordButtonFromShareId() {
         try {
             const button = document.getElementById('recordShareID');
+            console.log('[LM Redirect] recordShareID button found:', !!button);
             if (!button) return; // Nothing to do if button not present
 
             const shareId = getShareIdFromUrl();
+            console.log('[LM Redirect] ShareID from URL:', shareId);
             if (!shareId) return;
 
             // Fetch mapping
             const worldInfo = await getWorldInfoForShareId(shareId);
+            console.log('[LM Redirect] World info fetched:', worldInfo);
             if (!worldInfo || !worldInfo.world || !worldInfo.lmid) return;
 
             // Build recording URL (respect language if available)
@@ -451,22 +448,26 @@
             } catch (_) {}
 
             const recordUrl = `${basePath}?world=${encodeURIComponent(worldInfo.world)}&lmid=${encodeURIComponent(worldInfo.lmid)}`;
+            console.log('[LM Redirect] Record URL built:', recordUrl);
 
             // Apply to anchor or bind click for other elements
             const tag = (button.tagName || '').toLowerCase();
             if (tag === 'a') {
                 button.setAttribute('href', recordUrl);
+                console.log('[LM Redirect] Set href on anchor element');
             } else {
                 button.style.cursor = 'pointer';
                 button.addEventListener('click', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
+                    console.log('[LM Redirect] Button clicked, redirecting to:', recordUrl);
                     window.location.href = recordUrl;
                 }, { once: true });
+                console.log('[LM Redirect] Added click handler to button');
             }
 
         } catch (error) {
-            // Silent fail to avoid UI noise
+            console.error('[LM Redirect] Error setting up record button:', error);
         }
     }
     
