@@ -410,6 +410,8 @@
                     // Additionally, if Memberstack redirected directly to this page with verification params,
                     // perform a lightweight redirect to the proper ShareID URL using saved data.
                     handleVerifyParamRedirect();
+                    // Setup the record button link based on ShareID → world & lmid
+                    setupRecordButtonFromShareId();
                 }, 500); // Small delay to ensure Memberstack loads
             });
         } else {
@@ -420,6 +422,8 @@
                 // Additionally, if Memberstack redirected directly to this page with verification params,
                 // perform a lightweight redirect to the proper ShareID URL using saved data.
                 handleVerifyParamRedirect();
+                // Setup the record button link based on ShareID → world & lmid
+                setupRecordButtonFromShareId();
             }, 500);
         }
     }
@@ -444,6 +448,52 @@
             window.location.replace(redirectUrl);
         } catch (error) {
             console.error('[LM Redirect] Error in handleVerifyParamRedirect:', error);
+        }
+    }
+
+    /**
+     * Setup record button (ID: recordShareID) to point to members/record URL
+     * based on ShareID → { world, lmid } mapping from /api/get-world-info
+     */
+    async function setupRecordButtonFromShareId() {
+        try {
+            const button = document.getElementById('recordShareID');
+            if (!button) return; // Nothing to do if button not present
+
+            const shareId = getShareIdFromUrl();
+            if (!shareId) return;
+
+            // Fetch mapping
+            const worldInfo = await getWorldInfoForShareId(shareId);
+            if (!worldInfo || !worldInfo.world || !worldInfo.lmid) return;
+
+            // Build recording URL (respect language if available)
+            let basePath = '/members/record';
+            try {
+                const lang = window.LM_CONFIG?.getCurrentLanguage?.();
+                if (lang && typeof lang === 'string' && lang !== 'en') {
+                    basePath = `/${lang}${basePath}`;
+                }
+            } catch (_) {}
+
+            const recordUrl = `${basePath}?world=${encodeURIComponent(worldInfo.world)}&lmid=${encodeURIComponent(worldInfo.lmid)}`;
+
+            // Apply to anchor or bind click for other elements
+            const tag = (button.tagName || '').toLowerCase();
+            if (tag === 'a') {
+                button.setAttribute('href', recordUrl);
+            } else {
+                button.style.cursor = 'pointer';
+                button.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    window.location.href = recordUrl;
+                }, { once: true });
+            }
+
+            console.log('[LM Redirect] recordShareID linked to:', recordUrl);
+        } catch (error) {
+            // Silent fail to avoid UI noise
         }
     }
     
