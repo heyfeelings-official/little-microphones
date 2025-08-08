@@ -1521,16 +1521,20 @@
      * @param {string} lmid - LMID number
      */
     async function markLmidRadioPlayed(lmid) {
+        console.log(`🎵 [RADIO DEBUG] markLmidRadioPlayed called for LMID: ${lmid}`);
         try {
             const currentMemberId = await getCurrentMemberId();
+            console.log(`🎵 [RADIO DEBUG] Current member ID: ${currentMemberId}`);
+            
             if (!currentMemberId) {
                 console.warn('⚠️ No member ID available for radio play tracking');
                 // Fallback: store a global reset marker so dashboards can adopt it later
                 const now = new Date().toISOString();
                 try {
                     const globalKey = `lm_global_radio_reset_${lmid}`;
-                    localStorage.setItem(globalKey, JSON.stringify({ lastRecordingCheck: now, updatedAt: now }));
-                    console.log(`📝 Fallback global reset stored for LMID ${lmid}`);
+                    const globalData = { lastRecordingCheck: now, updatedAt: now };
+                    localStorage.setItem(globalKey, JSON.stringify(globalData));
+                    console.log(`📝 [RADIO DEBUG] Fallback global reset stored:`, globalKey, globalData);
                 } catch (e) {
                     console.warn('⚠️ Failed to write global reset marker:', e);
                 }
@@ -1552,13 +1556,19 @@
             
             localStorage.setItem(storageKey, JSON.stringify(userData));
             
-            console.log(`📝 Updated radio play data for LMID ${lmid} (counter reset)`);
+            console.log(`📝 [RADIO DEBUG] Updated user data for LMID ${lmid}:`, {
+                storageKey,
+                lmidKey,
+                lastRecordingCheck: userData[lmidKey].lastRecordingCheck,
+                fullData: userData[lmidKey]
+            });
 
             // Also write a global reset marker to cover cross-context cases
             try {
                 const globalKey = `lm_global_radio_reset_${lmid}`;
-                localStorage.setItem(globalKey, JSON.stringify({ lastRecordingCheck: now, updatedAt: now }));
-                console.log(`📝 Global reset marker stored for LMID ${lmid}`);
+                const globalData = { lastRecordingCheck: now, updatedAt: now };
+                localStorage.setItem(globalKey, JSON.stringify(globalData));
+                console.log(`📝 [RADIO DEBUG] Global reset marker also stored:`, globalKey, globalData);
             } catch (e) {
                 console.warn('⚠️ Failed to write global reset marker:', e);
             }
