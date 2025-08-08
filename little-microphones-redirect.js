@@ -405,12 +405,18 @@
     function handleVerifyParamRedirect() {
         try {
             const isFromEmailVerification = checkIfFromEmailVerification();
+            console.log('[LM Redirect] Checking verify params - is from email verification:', isFromEmailVerification);
             if (!isFromEmailVerification) return;
 
             const savedData = getSavedRedirectData();
-            if (!savedData || !savedData.shareId) return;
+            console.log('[LM Redirect] Saved redirect data:', savedData);
+            if (!savedData || !savedData.shareId) {
+                console.log('[LM Redirect] No saved data or shareId, skipping redirect');
+                return;
+            }
 
             const redirectUrl = `/little-microphones?ID=${savedData.shareId}`;
+            console.log('[LM Redirect] Redirecting to:', redirectUrl);
             clearSavedRedirectData();
             // Use replace so the intermediate URL doesn't stay in history
             window.location.replace(redirectUrl);
