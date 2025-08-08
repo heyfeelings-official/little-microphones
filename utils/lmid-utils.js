@@ -378,8 +378,10 @@ async function getTeacherDataFromMemberstack(memberId) {
                         memberData.metaData?.lastName || 
                         memberData.metaData?.last_name || null;
                         
-        const schoolName = memberData.customFields?.['school-place-name'] || 
-                          memberData.customFields?.school || 
+        const schoolName = memberData.customFields?.['place-name'] ||        // Primary field you mentioned
+                          memberData.customFields?.['school-place-name'] || // Alternative field
+                          memberData.customFields?.['school-name'] ||       // Another alternative
+                          memberData.customFields?.school ||                // Simple field
                           memberData.metaData?.school || 
                           memberData.metaData?.schoolName || null;
         
