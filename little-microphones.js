@@ -763,13 +763,21 @@
         
         // Setup new recording count indicator (conditionally)
         if (loadNewRecordings) {
+            // Hide new-rec UI until real data is loaded to avoid template dummy values flicker
+            const newRecContainersPre = clone.querySelectorAll('#new-rec, .new-rec');
+            newRecContainersPre.forEach(el => {
+                el.removeAttribute('id');
+                el.classList.add('new-rec');
+                el.style.display = 'none';
+            });
+            
             await setupNewRecordingIndicator(clone, lmid);
         } else {
             // Hide badge initially for faster loading - preserve Webflow positioning
-            const newRecContainer = clone.querySelector("#new-rec, .new-rec");
+            const newRecContainer = clone.querySelector('#new-rec, .new-rec');
             if (newRecContainer) {
-                newRecContainer.removeAttribute("id");
-                newRecContainer.classList.add("new-rec"); // Ensure class exists
+                newRecContainer.removeAttribute('id');
+                newRecContainer.classList.add('new-rec'); // Ensure class exists
                 newRecContainer.style.display = 'none';
             }
         }
@@ -845,6 +853,10 @@
                 getShareIdForWorldLmid(world, lmid)
             ]);
             
+            // Keep container hidden while updating values to avoid flicker
+            const previousDisplay = newRecContainer.style.display;
+            newRecContainer.style.display = 'none';
+            
             // Update total recordings count (Answers)
             if (totalRecNumber) {
                 totalRecNumber.textContent = totalRecordingCount.toString();
@@ -865,7 +877,7 @@
                 }
             }
             
-            // Always show the new-rec container with counts (even if 0)
+            // Now show the container with real values applied (even if 0 totals)
             newRecContainer.style.display = 'flex';
             
             // Badge-rec visibility is managed by quickPreCalculateVisibility - don't override it here
