@@ -1923,7 +1923,7 @@
                        style="width: 100%; margin-bottom: 20px; box-sizing: border-box; border: 1px solid #e5f2fe;">
                 <div style="display: flex; gap: 15px; justify-content: center;">
                     <button id="cancelBtn" class="button is-light-blue" type="button">Cancel</button>
-                    <button id="confirmBtn" class="button is-light-blue" type="button" disabled>Delete Forever</button>
+                    <button id="confirmBtn" class="button is-red is-disabled" type="button" style="cursor: not-allowed; pointer-events: none;" disabled>Delete Forever</button>
                 </div>
             `;
             
@@ -1945,9 +1945,13 @@
                 if (value === 'delete') {
                     confirmBtn.disabled = false;
                     confirmBtn.className = 'button is-red';
+                    confirmBtn.style.cursor = 'pointer';
+                    confirmBtn.style.pointerEvents = 'auto';
                 } else {
                     confirmBtn.disabled = true;
-                    confirmBtn.className = 'button is-light-blue';
+                    confirmBtn.className = 'button is-red is-disabled';
+                    confirmBtn.style.cursor = 'not-allowed';
+                    confirmBtn.style.pointerEvents = 'none';
                 }
             });
             
