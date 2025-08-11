@@ -1880,53 +1880,22 @@
             
             // Create modal overlay
             const overlay = document.createElement('div');
-            overlay.style.cssText = `
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0, 0, 0, 0.7);
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                z-index: 10000;
-                font-family: Arial, sans-serif;
-            `;
+            overlay.className = 'lm-modal-overlay';
             
             // Create modal content
             const modal = document.createElement('div');
-            modal.style.cssText = `
-                background: white;
-                padding: 30px;
-                border-radius: 12px;
-                max-width: 500px;
-                width: 90%;
-                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-                text-align: center;
-            `;
+            modal.className = 'lm-modal';
             
             modal.innerHTML = `
-                <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
-                <h2 style="color: #d32f2f; margin: 0 0 20px 0; font-size: 24px;">WARNING</h2>
-                <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.5;">
-                    This will permanently delete the <strong>Radio Program ${lmidToDelete}</strong> and <strong>ALL associated recordings</strong>!
-                </p>
-                <p style="margin: 0 0 30px 0; font-size: 16px; color: #666;">
-                    This action cannot be undone.
-                </p>
-                <p style="margin: 0 0 15px 0; font-size: 16px; color: #666;">
-                    To confirm, please type "delete" below:
-                </p>
-                <input type="text" id="deleteConfirmInput" placeholder="Type 'delete' to confirm" 
-                       style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 6px; font-size: 16px; margin-bottom: 20px; box-sizing: border-box;">
-                <div style="display: flex; gap: 15px; justify-content: center;">
-                    <button id="cancelBtn" style="padding: 12px 24px; border: 2px solid #666; background: white; color: #666; border-radius: 6px; cursor: pointer; font-size: 16px;">
-                        Cancel
-                    </button>
-                    <button id="confirmBtn" style="padding: 12px 24px; border: none; background: #ccc; color: white; border-radius: 6px; cursor: not-allowed; font-size: 16px;" disabled>
-                        Delete Forever
-                    </button>
+                <div class="lm-modal__icon">⚠️</div>
+                <h2 class="lm-modal__title">WARNING</h2>
+                <p class="lm-modal__text">This will permanently delete the <strong>Radio Program ${lmidToDelete}</strong> and <strong>ALL associated recordings</strong>!</p>
+                <p class="lm-modal__subtext">This action cannot be undone.</p>
+                <p class="lm-modal__instruction">To confirm, please type "delete" below:</p>
+                <input type="text" id="deleteConfirmInput" class="form_input w-input" placeholder="Type 'delete' to confirm" />
+                <div class="lm-modal__buttons">
+                    <button id="cancelBtn" class="button is-light-blue" type="button">Cancel</button>
+                    <button id="confirmBtn" class="button is-light-blue" type="button" disabled>Delete Forever</button>
                 </div>
             `;
             
@@ -1947,12 +1916,10 @@
                 const value = input.value.toLowerCase();
                 if (value === 'delete') {
                     confirmBtn.disabled = false;
-                    confirmBtn.style.cssText = 'padding: 12px 24px; border: none; background: #d32f2f; color: white; border-radius: 6px; cursor: pointer; font-size: 16px;';
-                    input.style.borderColor = '#4caf50';
+                    confirmBtn.className = 'button is-red';
                 } else {
                     confirmBtn.disabled = true;
-                    confirmBtn.style.cssText = 'padding: 12px 24px; border: none; background: #ccc; color: white; border-radius: 6px; cursor: not-allowed; font-size: 16px;';
-                    input.style.borderColor = value.length > 0 ? '#f44336' : '#ddd';
+                    confirmBtn.className = 'button is-light-blue';
                 }
             });
             
