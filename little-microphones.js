@@ -210,6 +210,9 @@
                 await hideDeleteButtonsForParents();
             }, 500);
             
+            // Initialize demo toggle functionality after UI setup
+            initializeDemoToggleWithPersistence();
+            
         } catch (error) {
             console.error("💥 Dashboard initialization error:", error);
             showErrorMessage("Failed to initialize dashboard. Please refresh the page.");
@@ -2155,6 +2158,140 @@
                 window.scrollTo(0, currentScrollY);
             }
         });
+    }
+
+    /**
+     * Initialize Demo Toggle Functionality with localStorage persistence
+     * Handles show/hide demo card without Webflow interactions
+     * Remembers user's preference between sessions
+     */
+    function initializeDemoToggleWithPersistence() {
+        const DEMO_STATE_KEY = 'lm_demo_visible';
+        
+        // Find elements by their unique identifiers and alternative selectors
+        const demoContainer = document.getElementById('w-node-cae970ed-2349-a58a-7692-7e14a386e91a-0386c4d7') || 
+                             document.querySelector('.grid-extra-card-wrapper.green');
+        const hideButton = document.querySelector('[data-w-id="cae970ed-2349-a58a-7692-7e14a386e925"]');
+        const showButton = document.querySelector('[data-w-id="2b622940-0be3-27c7-61fc-09272749a647"]');
+        
+        if (!demoContainer) {
+            console.log('📦 Demo container not found - skipping demo toggle setup');
+            return;
+        }
+        
+        console.log('🎭 Setting up demo toggle functionality with persistence');
+        
+        // Read saved state (default to visible if not set)
+        const isDemoVisible = localStorage.getItem(DEMO_STATE_KEY) !== 'false';
+        
+        // Set initial state based on saved preference
+        if (isDemoVisible) {
+            showDemoInstant(demoContainer, showButton);
+        } else {
+            hideDemoInstant(demoContainer, showButton);
+        }
+        
+        // Event listeners with state persistence
+        if (hideButton) {
+            hideButton.addEventListener('click', function(e) {
+                e.preventDefault();
+                hideDemo(demoContainer, showButton);
+                localStorage.setItem(DEMO_STATE_KEY, 'false');
+                console.log('🙈 Demo hidden and preference saved');
+            });
+        }
+        
+        if (showButton) {
+            showButton.addEventListener('click', function(e) {
+                e.preventDefault();
+                showDemo(demoContainer, showButton);
+                localStorage.setItem(DEMO_STATE_KEY, 'true');
+                console.log('👁️ Demo shown and preference saved');
+            });
+        }
+    }
+
+    /**
+     * Hide the demo container with smooth animation
+     */
+    function hideDemo(demoContainer, showButton) {
+        console.log('🙈 Hiding demo container with animation');
+        
+        // Add transition for smooth animation
+        demoContainer.style.transition = 'opacity 0.3s ease-out, transform 0.3s ease-out';
+        demoContainer.style.opacity = '0';
+        demoContainer.style.transform = 'translateY(-10px)';
+        
+        // After animation completes, fully hide the element
+        setTimeout(() => {
+            demoContainer.style.display = 'none';
+            
+            // Show the "Show Demo" button
+            if (showButton) {
+                showButton.style.display = 'inline-block';
+                showButton.style.opacity = '0';
+                showButton.style.transition = 'opacity 0.2s ease-in';
+                
+                // Fade in the show button
+                setTimeout(() => {
+                    showButton.style.opacity = '1';
+                }, 50);
+            }
+        }, 300);
+    }
+
+    /**
+     * Show the demo container with smooth animation
+     */
+    function showDemo(demoContainer, showButton) {
+        console.log('👁️ Showing demo container with animation');
+        
+        // Hide the "Show Demo" button first
+        if (showButton) {
+            showButton.style.transition = 'opacity 0.2s ease-out';
+            showButton.style.opacity = '0';
+            
+            setTimeout(() => {
+                showButton.style.display = 'none';
+            }, 200);
+        }
+        
+        // Show and animate in the demo container
+        setTimeout(() => {
+            demoContainer.style.display = 'block';
+            demoContainer.style.opacity = '0';
+            demoContainer.style.transform = 'translateY(10px)';
+            demoContainer.style.transition = 'opacity 0.4s ease-in, transform 0.4s ease-in';
+            
+            // Trigger animation
+            setTimeout(() => {
+                demoContainer.style.opacity = '1';
+                demoContainer.style.transform = 'translateY(0px)';
+            }, 50);
+        }, 200);
+    }
+
+    /**
+     * Hide demo instantly (for initial state setting)
+     */
+    function hideDemoInstant(demoContainer, showButton) {
+        demoContainer.style.display = 'none';
+        if (showButton) {
+            showButton.style.display = 'inline-block';
+            showButton.style.opacity = '1';
+        }
+    }
+
+    /**
+     * Show demo instantly (for initial state setting)
+     */
+    function showDemoInstant(demoContainer, showButton) {
+        demoContainer.style.display = 'block';
+        demoContainer.style.opacity = '1';
+        demoContainer.style.transform = 'translateY(0px)';
+        if (showButton) {
+            showButton.style.display = 'none';
+        }
     }
 
     /**
