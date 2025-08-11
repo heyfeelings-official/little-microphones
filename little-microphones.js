@@ -2204,9 +2204,19 @@
         if (hideButton) {
             hideButton.addEventListener('click', function(e) {
                 e.preventDefault();
-                hideDemo(demoContainer, showButton);
-                localStorage.setItem(DEMO_STATE_KEY, 'false');
-                console.log('🙈 Demo hidden and preference saved');
+                console.log('🖱️ HIDE DEMO button clicked!', {
+                    buttonText: hideButton.textContent?.trim(),
+                    demoContainer: !!demoContainer,
+                    demoContainerStyles: demoContainer.style.cssText
+                });
+                
+                try {
+                    hideDemo(demoContainer, showButton);
+                    localStorage.setItem(DEMO_STATE_KEY, 'false');
+                    console.log('✅ Demo hidden and preference saved');
+                } catch (error) {
+                    console.error('❌ Error hiding demo:', error);
+                }
             });
             console.log('✅ Hide demo button listener added');
         } else {
@@ -2216,9 +2226,19 @@
         if (showButton) {
             showButton.addEventListener('click', function(e) {
                 e.preventDefault();
-                showDemo(demoContainer, showButton);
-                localStorage.setItem(DEMO_STATE_KEY, 'true');
-                console.log('👁️ Demo shown and preference saved');
+                console.log('🖱️ SHOW DEMO button clicked!', {
+                    buttonText: showButton.textContent?.trim(),
+                    demoContainer: !!demoContainer,
+                    demoContainerStyles: demoContainer.style.cssText
+                });
+                
+                try {
+                    showDemo(demoContainer, showButton);
+                    localStorage.setItem(DEMO_STATE_KEY, 'true');
+                    console.log('✅ Demo shown and preference saved');
+                } catch (error) {
+                    console.error('❌ Error showing demo:', error);
+                }
             });
             console.log('✅ Show demo button listener added');
         } else {
@@ -2230,16 +2250,29 @@
      * Hide the demo container with smooth animation
      */
     function hideDemo(demoContainer, showButton) {
-        console.log('🙈 Hiding demo container with animation');
+        console.log('🙈 hideDemo() called', {
+            demoContainer: !!demoContainer,
+            showButton: !!showButton,
+            display: demoContainer?.style.display || 'default',
+            opacity: demoContainer?.style.opacity || 'default'
+        });
+        
+        if (!demoContainer) {
+            console.error('❌ demoContainer is null - aborting hide');
+            return;
+        }
         
         // Add transition for smooth animation
         demoContainer.style.transition = 'opacity 0.3s ease-out, transform 0.3s ease-out';
         demoContainer.style.opacity = '0';
         demoContainer.style.transform = 'translateY(-10px)';
         
+        console.log('⏳ Hide animation started...');
+        
         // After animation completes, fully hide the element
         setTimeout(() => {
             demoContainer.style.display = 'none';
+            console.log('✅ Demo hidden (display: none set)');
             
             // Show the "Show Demo" button
             if (showButton) {
@@ -2250,7 +2283,10 @@
                 // Fade in the show button
                 setTimeout(() => {
                     showButton.style.opacity = '1';
+                    console.log('✅ Show button revealed');
                 }, 50);
+            } else {
+                console.warn('⚠️ No show button to reveal');
             }
         }, 300);
     }
@@ -2259,20 +2295,35 @@
      * Show the demo container with smooth animation
      */
     function showDemo(demoContainer, showButton) {
-        console.log('👁️ Showing demo container with animation');
+        console.log('👁️ showDemo() called', {
+            demoContainer: !!demoContainer,
+            showButton: !!showButton,
+            display: demoContainer?.style.display || 'default',
+            opacity: demoContainer?.style.opacity || 'default'
+        });
+        
+        if (!demoContainer) {
+            console.error('❌ demoContainer is null - aborting show');
+            return;
+        }
         
         // Hide the "Show Demo" button first
         if (showButton) {
+            console.log('🔄 Hiding show button...');
             showButton.style.transition = 'opacity 0.2s ease-out';
             showButton.style.opacity = '0';
             
             setTimeout(() => {
                 showButton.style.display = 'none';
+                console.log('✅ Show button hidden');
             }, 200);
+        } else {
+            console.warn('⚠️ No show button to hide');
         }
         
         // Show and animate in the demo container
         setTimeout(() => {
+            console.log('⏳ Starting show animation...');
             demoContainer.style.display = 'block';
             demoContainer.style.opacity = '0';
             demoContainer.style.transform = 'translateY(10px)';
@@ -2282,6 +2333,7 @@
             setTimeout(() => {
                 demoContainer.style.opacity = '1';
                 demoContainer.style.transform = 'translateY(0px)';
+                console.log('✅ Demo shown and animated in');
             }, 50);
         }, 200);
     }
