@@ -196,11 +196,13 @@
             // Initialize UI with LMID data (includes background setup)
             await initializeDashboardUI(authResult.lmids);
             
-            // Setup demo card show/hide functionality
-            setupDemoCardControls();
-            
             // Setup event listeners
             setupEventListeners(authSystem);
+            
+            // Setup demo card show/hide functionality (after DOM is fully ready)
+            setTimeout(() => {
+                setupDemoCardControls();
+            }, 100);
             
             // Fix for Webflow's locale switcher stripping URL params
             setupLocaleSwitcherFix();
@@ -546,21 +548,41 @@
      * Setup show/hide controls for the demo card
      */
     function setupDemoCardControls() {
+        console.log('🎮 Setting up demo card controls...');
+        console.log('🔍 Searching for elements in DOM...');
+        
+        // Debug: Check all elements with these IDs
         const demoCard = document.getElementById('lm-demo');
         const hideButton = document.getElementById('hide-lm-demo');
         const showButton = document.getElementById('show-lm-demo');
+        
+        console.log('🔍 Found elements:', {
+            demoCard: demoCard ? 'FOUND' : 'NOT FOUND',
+            hideButton: hideButton ? 'FOUND' : 'NOT FOUND',
+            showButton: showButton ? 'FOUND' : 'NOT FOUND'
+        });
+        
+        // Also check if there are duplicate IDs
+        const allDemoCards = document.querySelectorAll('[id="lm-demo"]');
+        const allHideButtons = document.querySelectorAll('[id="hide-lm-demo"]');
+        const allShowButtons = document.querySelectorAll('[id="show-lm-demo"]');
+        
+        console.log('🔍 Multiple elements check:', {
+            demoCards: allDemoCards.length,
+            hideButtons: allHideButtons.length,
+            showButtons: allShowButtons.length
+        });
         
         if (!demoCard) {
             console.warn('⚠️ Demo card element with ID "lm-demo" not found');
             return;
         }
         
-        console.log('🎮 Setting up demo card controls');
-        
         // Hide button functionality
         if (hideButton) {
             hideButton.addEventListener('click', (e) => {
                 e.preventDefault();
+                console.log('🫥 Hide button clicked');
                 demoCard.style.display = 'none';
                 console.log('🫥 Demo card hidden');
             });
@@ -573,6 +595,7 @@
         if (showButton) {
             showButton.addEventListener('click', (e) => {
                 e.preventDefault();
+                console.log('👁️ Show button clicked');
                 demoCard.style.display = '';
                 console.log('👁️ Demo card shown');
             });
@@ -580,6 +603,8 @@
         } else {
             console.warn('⚠️ Show button with ID "show-lm-demo" not found');
         }
+        
+        console.log('🎮 Demo card controls setup completed');
     }
 
     // --- User Role Detection Functions ---
