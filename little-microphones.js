@@ -766,19 +766,31 @@
 
 
 
-        // Create UI elements for each LMID (without slow new recording check)
-        for (const lmid of lmids) {
-            const clone = await createLMIDElement(template, lmid, false); // Skip slow check initially
-            if (clone) {
-                container.appendChild(clone);
-            }
+        // For single LMID - update template in place instead of cloning
+        const lmid = lmids[0];
+        console.log(`📋 Setting up single LMID: ${lmid}`);
+        
+        // Update template with LMID data
+        const numberElement = template.querySelector("#lmid-number");
+        if (numberElement) {
+            numberElement.textContent = lmid;
+            numberElement.setAttribute("data-lmid-number", "true");
         }
+        
+        // Set LMID attribute and show template
+        template.setAttribute("data-lmid", lmid);
+        template.style.display = "";
+        template.style.visibility = "visible";
+        template.removeAttribute("aria-hidden");
+        
+        // Load recording data
+        await setupNewRecordingIndicator(template, lmid);
 
         // Reinitialize Webflow interactions
         reinitializeWebflow();
         
-        // Setup world backgrounds for all containers
-        setupWorldBackgrounds();
+        // Setup world backgrounds for the template container
+        setupWorldBackgroundsForContainer(template);
         
         // Initialize dashboard tracking
         setTimeout(() => {
@@ -815,19 +827,7 @@
         clone.removeAttribute("id");
         clone.setAttribute("data-lmid", lmid);
         
-        // Remove demo-related IDs from cloned elements to prevent duplicates
-        const demoElements = [
-            clone.querySelector('#lm-demo'),
-            clone.querySelector('#hide-lm-demo'), 
-            clone.querySelector('#show-lm-demo')
-        ];
-        
-        demoElements.forEach(element => {
-            if (element) {
-                element.removeAttribute('id');
-                console.log('🔧 Removed demo ID from cloned element');
-            }
-        });
+        // Keep demo elements intact - no need to remove IDs for single LMID setup
 
         // Populate LMID number
         const numberElement = clone.querySelector("#lmid-number");
@@ -2409,7 +2409,7 @@
         const lmids = Array.from(lmidElements).map(el => el.getAttribute('data-lmid')).filter(Boolean);
         
         if (lmids.length > 0) {
-            await batchLoadAllRecordingData(lmids);
+            await batchLoadAllRecordingData([lmid]);
         }
     }
 
