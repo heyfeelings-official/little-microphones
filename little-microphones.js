@@ -196,6 +196,9 @@
             // Initialize UI with LMID data (includes background setup)
             await initializeDashboardUI(authResult.lmids);
             
+            // Setup demo card show/hide functionality
+            setupDemoCardControls();
+            
             // Setup event listeners
             setupEventListeners(authSystem);
             
@@ -537,6 +540,46 @@
         `;
         
         document.head.appendChild(style);
+    }
+
+    /**
+     * Setup show/hide controls for the demo card
+     */
+    function setupDemoCardControls() {
+        const demoCard = document.getElementById('lm-demo');
+        const hideButton = document.getElementById('hide-lm-demo');
+        const showButton = document.getElementById('show-lm-demo');
+        
+        if (!demoCard) {
+            console.warn('⚠️ Demo card element with ID "lm-demo" not found');
+            return;
+        }
+        
+        console.log('🎮 Setting up demo card controls');
+        
+        // Hide button functionality
+        if (hideButton) {
+            hideButton.addEventListener('click', (e) => {
+                e.preventDefault();
+                demoCard.style.display = 'none';
+                console.log('🫥 Demo card hidden');
+            });
+            console.log('✅ Hide button listener added');
+        } else {
+            console.warn('⚠️ Hide button with ID "hide-lm-demo" not found');
+        }
+        
+        // Show button functionality  
+        if (showButton) {
+            showButton.addEventListener('click', (e) => {
+                e.preventDefault();
+                demoCard.style.display = '';
+                console.log('👁️ Demo card shown');
+            });
+            console.log('✅ Show button listener added');
+        } else {
+            console.warn('⚠️ Show button with ID "show-lm-demo" not found');
+        }
     }
 
     // --- User Role Detection Functions ---
@@ -1706,7 +1749,7 @@
     function setDeletionInProgress(itemElement, buttonElement) {
         // Highlight item being deleted
         itemElement.style.border = '3px solid #ff4444';
-        itemElement.style.borderRadius = '18px';
+        itemElement.style.borderRadius = '20px';
         itemElement.style.transition = 'all 0.3s ease';
         itemElement.style.boxShadow = '0 0 10px rgba(255, 68, 68, 0.3)';
         itemElement.style.backgroundColor = 'rgba(255, 68, 68, 0.05)';
