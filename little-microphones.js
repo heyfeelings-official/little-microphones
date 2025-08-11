@@ -2281,28 +2281,13 @@
         
         console.log('✅ Event delegation for demo buttons set up');
         
-        // Set initial state based on saved preference
-        const isDemoVisible = localStorage.getItem(DEMO_STATE_KEY) !== 'false';
-        let demoContainer = null;
-        if (isDemoVisible) {
-            demoContainer = pickVisible(getDemoContainers()) || pickLast(getDemoContainers());
-        } else {
-            demoContainer = findContainerForShow();
-        }
-        
-        if (demoContainer) {
-            console.log('📦 Setting initial demo state:', {
-                visible: isDemoVisible,
-                containerClasses: Array.from(demoContainer.classList || [])
-            });
-            if (isDemoVisible) {
-                showDemoInstant(demoContainer);
-            } else {
-                hideDemoInstant(demoContainer);
-            }
-        } else {
-            console.log('⚠️ Demo container not found on init - may be loaded later');
-        }
+        // Force initial visibility: make all demo containers visible on load
+        // This prevents a stale inline display:none from blocking future toggles
+        const allDemoContainersOnInit = getDemoContainers();
+        allDemoContainersOnInit.forEach(el => {
+            if (el) el.style.display = 'block';
+        });
+        console.log(`📦 Forced visible on init for ${allDemoContainersOnInit.length} demo container(s)`);
     }
 
     /**
