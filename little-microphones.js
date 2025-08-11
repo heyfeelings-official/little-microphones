@@ -742,6 +742,8 @@
         
         // Configure clone - simple approach, no animation support
         clone.style.display = "";
+        clone.style.visibility = "";
+        clone.removeAttribute('aria-hidden');
         clone.removeAttribute("id");
         clone.setAttribute("data-lmid", lmid);
 
