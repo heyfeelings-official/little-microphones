@@ -2166,13 +2166,36 @@
      * Remembers user's preference between sessions
      */
     function initializeDemoToggleWithPersistence() {
+        console.log('🎬 Demo toggle function called!');
         const DEMO_STATE_KEY = 'lm_demo_visible';
         
         // Find elements by their unique identifiers and alternative selectors
         const demoContainer = document.getElementById('w-node-cae970ed-2349-a58a-7692-7e14a386e91a-0386c4d7') || 
                              document.querySelector('.grid-extra-card-wrapper.green');
-        const hideButton = document.querySelector('[data-w-id="cae970ed-2349-a58a-7692-7e14a386e925"]');
-        const showButton = document.querySelector('[data-w-id="2b622940-0be3-27c7-61fc-09272749a647"]');
+        
+        // Try multiple selectors for buttons
+        let hideButton = document.querySelector('[data-w-id="cae970ed-2349-a58a-7692-7e14a386e925"]');
+        if (!hideButton) {
+            // Look for button containing "HIDE THE DEMO" text
+            const buttons = Array.from(document.querySelectorAll('button, .button, a'));
+            hideButton = buttons.find(btn => btn.textContent && btn.textContent.includes('HIDE THE DEMO'));
+        }
+        
+        let showButton = document.querySelector('[data-w-id="2b622940-0be3-27c7-61fc-09272749a647"]');
+        if (!showButton) {
+            // Look for button containing "SHOW DEMO" text  
+            const buttons = Array.from(document.querySelectorAll('button, .button, a'));
+            showButton = buttons.find(btn => btn.textContent && btn.textContent.includes('SHOW DEMO'));
+        }
+        
+        console.log('🔍 Demo elements debug:', {
+            demoContainer: !!demoContainer,
+            demoContainerId: demoContainer ? demoContainer.id : 'none',
+            hideButton: !!hideButton,
+            hideButtonText: hideButton ? hideButton.textContent.trim() : 'none',
+            showButton: !!showButton, 
+            showButtonText: showButton ? showButton.textContent.trim() : 'none'
+        });
         
         if (!demoContainer) {
             console.log('📦 Demo container not found - skipping demo toggle setup');
