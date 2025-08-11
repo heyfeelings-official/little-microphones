@@ -1706,7 +1706,7 @@
     function setDeletionInProgress(itemElement, buttonElement) {
         // Highlight item being deleted
         itemElement.style.border = '3px solid #ff4444';
-        itemElement.style.borderRadius = '8px';
+        itemElement.style.borderRadius = '16px';
         itemElement.style.transition = 'all 0.3s ease';
         itemElement.style.boxShadow = '0 0 10px rgba(255, 68, 68, 0.3)';
         itemElement.style.backgroundColor = 'rgba(255, 68, 68, 0.05)';
@@ -1816,10 +1816,20 @@
             itemElement.style.filter = '';
             itemElement.style.pointerEvents = '';
             
-            // Reset delete button state
+            // Update LMID number in delete button and reset button state
             const deleteButton = itemElement.querySelector('#lm-delete, .lm-delete');
             if (deleteButton) {
-                const originalText = deleteButton.getAttribute('data-original-text') || 'DELETE';
+                let originalText = deleteButton.getAttribute('data-original-text') || 'DELETE';
+                
+                // Update LMID number in button text
+                // Look for LMID number element inside delete button first
+                const deleteButtonNumberElement = deleteButton.querySelector('[data-lmid-number], .lmid-number');
+                if (deleteButtonNumberElement) {
+                    deleteButtonNumberElement.textContent = newLmid;
+                } else {
+                    // Fallback: update number in button text using regex
+                    originalText = originalText.replace(/\b\d+\b/, newLmid);
+                }
                 
                 if (deleteButton.tagName.toLowerCase() === 'button') {
                     deleteButton.disabled = false;
