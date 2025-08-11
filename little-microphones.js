@@ -2163,98 +2163,92 @@
     /**
      * Initialize Demo Toggle Functionality with localStorage persistence
      * Handles show/hide demo card without Webflow interactions
-     * Remembers user's preference between sessions
+     * Uses event delegation to handle cloned elements
      */
     function initializeDemoToggleWithPersistence() {
-        console.log('🎬 Demo toggle function called!');
+        console.log('🎬 Demo toggle initialization started');
         const DEMO_STATE_KEY = 'lm_demo_visible';
         
-        // Find elements by their unique identifiers and alternative selectors
-        const demoContainer = document.getElementById('w-node-cae970ed-2349-a58a-7692-7e14a386e91a-0386c4d7') || 
-                             document.querySelector('.grid-extra-card-wrapper.green');
-        
-        // Find buttons using CSS classes (much cleaner approach)
-        const hideButton = document.querySelector('.hide-demo');
-        const showButton = document.querySelector('.show-demo');
-        
-        console.log('🔍 Demo elements found:', {
-            demoContainer: !!demoContainer,
-            hideButton: !!hideButton,
-            showButton: !!showButton
+        // Use event delegation on document level to catch all clicks (including cloned elements)
+        document.addEventListener('click', function(e) {
+            const target = e.target;
+            
+            // Check if clicked element or its parent has the demo button class
+            const hideButton = target.closest('.hide-demo');
+            const showButton = target.closest('.show-demo');
+            
+            if (hideButton) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                console.log('🖱️ HIDE DEMO clicked!', {
+                    button: hideButton,
+                    text: hideButton.textContent?.trim()
+                });
+                
+                // Find the demo container - use the correct class
+                const demoContainer = document.querySelector('.lm-demo-info') || 
+                                    document.querySelector('.grid-extra-card-wrapper.green');
+                
+                if (demoContainer) {
+                    console.log('🎯 Found demo container to hide:', demoContainer.className);
+                    hideDemo(demoContainer);
+                    localStorage.setItem(DEMO_STATE_KEY, 'false');
+                } else {
+                    console.error('❌ Demo container (.lm-demo-info) not found!');
+                }
+            }
+            
+            if (showButton) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                console.log('🖱️ SHOW DEMO clicked!', {
+                    button: showButton,
+                    text: showButton.textContent?.trim()
+                });
+                
+                // Find the demo container
+                const demoContainer = document.querySelector('.lm-demo-info') || 
+                                    document.querySelector('.grid-extra-card-wrapper.green');
+                
+                if (demoContainer) {
+                    console.log('🎯 Found demo container to show:', demoContainer.className);
+                    showDemo(demoContainer);
+                    localStorage.setItem(DEMO_STATE_KEY, 'true');
+                } else {
+                    console.error('❌ Demo container (.lm-demo-info) not found!');
+                }
+            }
         });
         
-        if (!demoContainer) {
-            console.log('📦 Demo container not found - skipping demo toggle setup');
-            return;
-        }
-        
-        console.log('🎭 Setting up demo toggle functionality with persistence');
-        
-        // Read saved state (default to visible if not set)
-        const isDemoVisible = localStorage.getItem(DEMO_STATE_KEY) !== 'false';
+        console.log('✅ Event delegation for demo buttons set up');
         
         // Set initial state based on saved preference
-        if (isDemoVisible) {
-            showDemoInstant(demoContainer, showButton);
-        } else {
-            hideDemoInstant(demoContainer, showButton);
-        }
+        const isDemoVisible = localStorage.getItem(DEMO_STATE_KEY) !== 'false';
+        const demoContainer = document.querySelector('.lm-demo-info') || 
+                            document.querySelector('.grid-extra-card-wrapper.green');
         
-        // Event listeners with state persistence
-        if (hideButton) {
-            hideButton.addEventListener('click', function(e) {
-                e.preventDefault();
-                console.log('🖱️ HIDE DEMO button clicked!', {
-                    buttonText: hideButton.textContent?.trim(),
-                    demoContainer: !!demoContainer,
-                    demoContainerStyles: demoContainer.style.cssText
-                });
-                
-                try {
-                    hideDemo(demoContainer, showButton);
-                    localStorage.setItem(DEMO_STATE_KEY, 'false');
-                    console.log('✅ Demo hidden and preference saved');
-                } catch (error) {
-                    console.error('❌ Error hiding demo:', error);
-                }
-            });
-            console.log('✅ Hide demo button listener added');
+        if (demoContainer) {
+            console.log('📦 Setting initial demo state:', isDemoVisible ? 'visible' : 'hidden');
+            if (isDemoVisible) {
+                showDemoInstant(demoContainer);
+            } else {
+                hideDemoInstant(demoContainer);
+            }
         } else {
-            console.warn('❌ Hide demo button (.hide-demo) not found');
-        }
-        
-        if (showButton) {
-            showButton.addEventListener('click', function(e) {
-                e.preventDefault();
-                console.log('🖱️ SHOW DEMO button clicked!', {
-                    buttonText: showButton.textContent?.trim(),
-                    demoContainer: !!demoContainer,
-                    demoContainerStyles: demoContainer.style.cssText
-                });
-                
-                try {
-                    showDemo(demoContainer, showButton);
-                    localStorage.setItem(DEMO_STATE_KEY, 'true');
-                    console.log('✅ Demo shown and preference saved');
-                } catch (error) {
-                    console.error('❌ Error showing demo:', error);
-                }
-            });
-            console.log('✅ Show demo button listener added');
-        } else {
-            console.warn('❌ Show demo button (.show-demo) not found');
+            console.log('⚠️ Demo container not found on init - may be loaded later');
         }
     }
 
     /**
      * Hide the demo container with smooth animation
      */
-    function hideDemo(demoContainer, showButton) {
+    function hideDemo(demoContainer) {
         console.log('🙈 hideDemo() called', {
             demoContainer: !!demoContainer,
-            showButton: !!showButton,
-            display: demoContainer?.style.display || 'default',
-            opacity: demoContainer?.style.opacity || 'default'
+            currentDisplay: demoContainer?.style.display || 'default',
+            currentOpacity: demoContainer?.style.opacity || 'default'
         });
         
         if (!demoContainer) {
@@ -2274,19 +2268,23 @@
             demoContainer.style.display = 'none';
             console.log('✅ Demo hidden (display: none set)');
             
-            // Show the "Show Demo" button
-            if (showButton) {
-                showButton.style.display = 'inline-block';
-                showButton.style.opacity = '0';
-                showButton.style.transition = 'opacity 0.2s ease-in';
+            // Show all "Show Demo" buttons (they might be cloned)
+            const showButtons = document.querySelectorAll('.show-demo');
+            showButtons.forEach(btn => {
+                btn.style.display = 'inline-block';
+                btn.style.opacity = '0';
+                btn.style.transition = 'opacity 0.2s ease-in';
                 
                 // Fade in the show button
                 setTimeout(() => {
-                    showButton.style.opacity = '1';
-                    console.log('✅ Show button revealed');
+                    btn.style.opacity = '1';
                 }, 50);
+            });
+            
+            if (showButtons.length > 0) {
+                console.log(`✅ ${showButtons.length} Show button(s) revealed`);
             } else {
-                console.warn('⚠️ No show button to reveal');
+                console.log('⚠️ No show buttons found to reveal');
             }
         }, 300);
     }
@@ -2294,12 +2292,11 @@
     /**
      * Show the demo container with smooth animation
      */
-    function showDemo(demoContainer, showButton) {
+    function showDemo(demoContainer) {
         console.log('👁️ showDemo() called', {
             demoContainer: !!demoContainer,
-            showButton: !!showButton,
-            display: demoContainer?.style.display || 'default',
-            opacity: demoContainer?.style.opacity || 'default'
+            currentDisplay: demoContainer?.style.display || 'default',
+            currentOpacity: demoContainer?.style.opacity || 'default'
         });
         
         if (!demoContainer) {
@@ -2307,18 +2304,21 @@
             return;
         }
         
-        // Hide the "Show Demo" button first
-        if (showButton) {
-            console.log('🔄 Hiding show button...');
-            showButton.style.transition = 'opacity 0.2s ease-out';
-            showButton.style.opacity = '0';
+        // Hide all "Show Demo" buttons first (they might be cloned)
+        const showButtons = document.querySelectorAll('.show-demo');
+        showButtons.forEach(btn => {
+            btn.style.transition = 'opacity 0.2s ease-out';
+            btn.style.opacity = '0';
             
             setTimeout(() => {
-                showButton.style.display = 'none';
-                console.log('✅ Show button hidden');
+                btn.style.display = 'none';
             }, 200);
+        });
+        
+        if (showButtons.length > 0) {
+            console.log(`🔄 Hiding ${showButtons.length} show button(s)...`);
         } else {
-            console.warn('⚠️ No show button to hide');
+            console.log('⚠️ No show buttons found to hide');
         }
         
         // Show and animate in the demo container
@@ -2341,24 +2341,36 @@
     /**
      * Hide demo instantly (for initial state setting)
      */
-    function hideDemoInstant(demoContainer, showButton) {
+    function hideDemoInstant(demoContainer) {
+        if (!demoContainer) return;
+        
         demoContainer.style.display = 'none';
-        if (showButton) {
-            showButton.style.display = 'inline-block';
-            showButton.style.opacity = '1';
-        }
+        demoContainer.style.opacity = '0';
+        demoContainer.style.transform = 'translateY(-10px)';
+        
+        // Show all "Show Demo" buttons instantly
+        const showButtons = document.querySelectorAll('.show-demo');
+        showButtons.forEach(btn => {
+            btn.style.display = 'inline-block';
+            btn.style.opacity = '1';
+        });
     }
 
     /**
      * Show demo instantly (for initial state setting)
      */
-    function showDemoInstant(demoContainer, showButton) {
+    function showDemoInstant(demoContainer) {
+        if (!demoContainer) return;
+        
         demoContainer.style.display = 'block';
         demoContainer.style.opacity = '1';
         demoContainer.style.transform = 'translateY(0px)';
-        if (showButton) {
-            showButton.style.display = 'none';
-        }
+        
+        // Hide all "Show Demo" buttons instantly
+        const showButtons = document.querySelectorAll('.show-demo');
+        showButtons.forEach(btn => {
+            btn.style.display = 'none';
+        });
     }
 
     /**
