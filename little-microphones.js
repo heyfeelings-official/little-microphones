@@ -1713,6 +1713,7 @@
         
         // Set button state
         if (buttonElement.tagName.toLowerCase() === 'button') {
+            buttonElement.setAttribute('data-original-text', buttonElement.textContent);
             buttonElement.disabled = true;
             buttonElement.textContent = "Deleting...";
         } else {
@@ -1818,13 +1819,15 @@
             // Reset delete button state
             const deleteButton = itemElement.querySelector('#lm-delete, .lm-delete');
             if (deleteButton) {
+                const originalText = deleteButton.getAttribute('data-original-text') || 'DELETE';
+                
                 if (deleteButton.tagName.toLowerCase() === 'button') {
                     deleteButton.disabled = false;
-                    deleteButton.textContent = "Delete";
+                    deleteButton.textContent = originalText;
+                    deleteButton.removeAttribute('data-original-text');
                 } else {
                     deleteButton.style.pointerEvents = '';
                     deleteButton.style.opacity = '';
-                    const originalText = deleteButton.getAttribute('data-original-text') || 'Delete';
                     deleteButton.textContent = originalText;
                     deleteButton.removeAttribute('data-original-text');
                 }
@@ -1870,13 +1873,15 @@
         itemElement.style.pointerEvents = '';
         
         // Reset button state
+        const originalText = buttonElement.getAttribute('data-original-text') || 'DELETE';
+        
         if (buttonElement.tagName.toLowerCase() === 'button') {
             buttonElement.disabled = false;
-            buttonElement.textContent = "Delete";
+            buttonElement.textContent = originalText;
+            buttonElement.removeAttribute('data-original-text');
         } else {
             buttonElement.style.pointerEvents = '';
             buttonElement.style.opacity = '';
-            const originalText = buttonElement.getAttribute('data-original-text') || 'Delete';
             buttonElement.textContent = originalText;
             buttonElement.removeAttribute('data-original-text');
         }
