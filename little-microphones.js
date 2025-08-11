@@ -2242,100 +2242,41 @@
     }
 
     /**
-     * Hide the demo container with smooth animation
+     * Hide the demo container - simple display none
      */
     function hideDemo(demoContainer) {
         console.log('🙈 hideDemo() called', {
             demoContainer: !!demoContainer,
-            currentDisplay: demoContainer?.style.display || 'default',
-            currentOpacity: demoContainer?.style.opacity || 'default'
+            currentDisplay: demoContainer?.style.display || 'default'
         });
         
         if (!demoContainer) {
-            console.error('❌ demoContainer is null - aborting hide');
+            console.error('❌ demoContainer (.lm-demo-info) is null - aborting hide');
             return;
         }
         
-        // Add transition for smooth animation
-        demoContainer.style.transition = 'opacity 0.3s ease-out, transform 0.3s ease-out';
-        demoContainer.style.opacity = '0';
-        demoContainer.style.transform = 'translateY(-10px)';
-        
-        console.log('⏳ Hide animation started...');
-        
-        // After animation completes, fully hide the element
-        setTimeout(() => {
-            demoContainer.style.display = 'none';
-            console.log('✅ Demo hidden (display: none set)');
-            
-            // Show all "Show Demo" buttons (they might be cloned)
-            const showButtons = document.querySelectorAll('.show-demo');
-            showButtons.forEach(btn => {
-                btn.style.display = 'inline-block';
-                btn.style.opacity = '0';
-                btn.style.transition = 'opacity 0.2s ease-in';
-                
-                // Fade in the show button
-                setTimeout(() => {
-                    btn.style.opacity = '1';
-                }, 50);
-            });
-            
-            if (showButtons.length > 0) {
-                console.log(`✅ ${showButtons.length} Show button(s) revealed`);
-            } else {
-                console.log('⚠️ No show buttons found to reveal');
-            }
-        }, 300);
+        // Simply hide the container
+        demoContainer.style.display = 'none';
+        console.log('✅ Demo container hidden (display: none)');
     }
 
     /**
-     * Show the demo container with smooth animation
+     * Show the demo container - simple display block
      */
     function showDemo(demoContainer) {
         console.log('👁️ showDemo() called', {
             demoContainer: !!demoContainer,
-            currentDisplay: demoContainer?.style.display || 'default',
-            currentOpacity: demoContainer?.style.opacity || 'default'
+            currentDisplay: demoContainer?.style.display || 'default'
         });
         
         if (!demoContainer) {
-            console.error('❌ demoContainer is null - aborting show');
+            console.error('❌ demoContainer (.lm-demo-info) is null - aborting show');
             return;
         }
         
-        // Hide all "Show Demo" buttons first (they might be cloned)
-        const showButtons = document.querySelectorAll('.show-demo');
-        showButtons.forEach(btn => {
-            btn.style.transition = 'opacity 0.2s ease-out';
-            btn.style.opacity = '0';
-            
-            setTimeout(() => {
-                btn.style.display = 'none';
-            }, 200);
-        });
-        
-        if (showButtons.length > 0) {
-            console.log(`🔄 Hiding ${showButtons.length} show button(s)...`);
-        } else {
-            console.log('⚠️ No show buttons found to hide');
-        }
-        
-        // Show and animate in the demo container
-        setTimeout(() => {
-            console.log('⏳ Starting show animation...');
-            demoContainer.style.display = 'block';
-            demoContainer.style.opacity = '0';
-            demoContainer.style.transform = 'translateY(10px)';
-            demoContainer.style.transition = 'opacity 0.4s ease-in, transform 0.4s ease-in';
-            
-            // Trigger animation
-            setTimeout(() => {
-                demoContainer.style.opacity = '1';
-                demoContainer.style.transform = 'translateY(0px)';
-                console.log('✅ Demo shown and animated in');
-            }, 50);
-        }, 200);
+        // Simply show the container
+        demoContainer.style.display = 'block';
+        console.log('✅ Demo container shown (display: block)');
     }
 
     /**
@@ -2343,17 +2284,7 @@
      */
     function hideDemoInstant(demoContainer) {
         if (!demoContainer) return;
-        
         demoContainer.style.display = 'none';
-        demoContainer.style.opacity = '0';
-        demoContainer.style.transform = 'translateY(-10px)';
-        
-        // Show all "Show Demo" buttons instantly
-        const showButtons = document.querySelectorAll('.show-demo');
-        showButtons.forEach(btn => {
-            btn.style.display = 'inline-block';
-            btn.style.opacity = '1';
-        });
     }
 
     /**
@@ -2361,16 +2292,7 @@
      */
     function showDemoInstant(demoContainer) {
         if (!demoContainer) return;
-        
         demoContainer.style.display = 'block';
-        demoContainer.style.opacity = '1';
-        demoContainer.style.transform = 'translateY(0px)';
-        
-        // Hide all "Show Demo" buttons instantly
-        const showButtons = document.querySelectorAll('.show-demo');
-        showButtons.forEach(btn => {
-            btn.style.display = 'none';
-        });
     }
 
     /**
