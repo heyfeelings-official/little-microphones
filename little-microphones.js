@@ -2178,6 +2178,38 @@
             showButtons: document.querySelectorAll('.show-demo').length
         });
         
+        // Helper selectors (prefer the last visible container; avoid hidden template instances)
+        const getDemoContainers = () => Array.from(document.querySelectorAll('.grid-extra-card-wrapper.green.lm-demo-info, .lm-demo-info'));
+        const isVisible = (el) => {
+            if (!el) return false;
+            const cs = getComputedStyle(el);
+            return cs.display !== 'none' && cs.visibility !== 'hidden' && el.clientHeight > 0;
+        };
+        const pickLast = (arr) => (arr.length ? arr[arr.length - 1] : null);
+        const pickVisible = (arr) => arr.find(isVisible) || null;
+        const pickHiddenButReal = (arr) => {
+            // Prefer the last element that is hidden via inline style or computed, to skip the early template
+            for (let i = arr.length - 1; i >= 0; i -= 1) {
+                const el = arr[i];
+                const cs = getComputedStyle(el);
+                if (cs.display === 'none') return el;
+            }
+            return null;
+        };
+        const findContainerForHideFrom = (clickedEl) => {
+            // 1) Prefer container closest to the clicked button
+            const closest = clickedEl?.closest('.grid-extra-card-wrapper.green.lm-demo-info, .lm-demo-info');
+            if (closest) return closest;
+            // 2) Prefer any currently visible container
+            const all = getDemoContainers();
+            return pickVisible(all) || pickLast(all);
+        };
+        const findContainerForShow = () => {
+            const all = getDemoContainers();
+            // Prefer a hidden one that is latest in DOM
+            return pickHiddenButReal(all) || pickLast(all) || null;
+        };
+        
         // Use event delegation on document level to catch all clicks (including cloned elements)
         document.addEventListener('click', function(e) {
             const target = e.target;
@@ -2195,10 +2227,7 @@
                     text: hideButton.textContent?.trim()
                 });
                 
-                // Find the demo container - try multiple selectors
-                const demoContainer = document.querySelector('.lm-demo-info') || 
-                                    document.querySelector('.grid-extra-card-wrapper.green.lm-demo-info') ||
-                                    document.querySelector('.grid-extra-card-wrapper.green');
+                const demoContainer = findContainerForHideFrom(hideButton);
                 
                 if (demoContainer) {
                     console.log('🎯 Found demo container to hide:', {
@@ -2208,7 +2237,7 @@
                     hideDemo(demoContainer);
                     localStorage.setItem(DEMO_STATE_KEY, 'false');
                 } else {
-                    console.error('❌ Demo container not found! Tried: .lm-demo-info, .grid-extra-card-wrapper.green.lm-demo-info, .grid-extra-card-wrapper.green');
+                    console.error('❌ Demo container not found for hide (tried closest/visible/last)');
                 }
             }
             
@@ -2221,10 +2250,7 @@
                     text: showButton.textContent?.trim()
                 });
                 
-                // Find the demo container - try multiple selectors
-                const demoContainer = document.querySelector('.lm-demo-info') || 
-                                    document.querySelector('.grid-extra-card-wrapper.green.lm-demo-info') ||
-                                    document.querySelector('.grid-extra-card-wrapper.green');
+                const demoContainer = findContainerForShow();
                 
                 if (demoContainer) {
                     console.log('🎯 Found demo container to show:', {
@@ -2234,7 +2260,7 @@
                     showDemo(demoContainer);
                     localStorage.setItem(DEMO_STATE_KEY, 'true');
                 } else {
-                    console.error('❌ Demo container not found! Tried: .lm-demo-info, .grid-extra-card-wrapper.green.lm-demo-info, .grid-extra-card-wrapper.green');
+                    console.error('❌ Demo container not found for show (tried hidden/last)');
                 }
             }
         });
@@ -2243,9 +2269,12 @@
         
         // Set initial state based on saved preference
         const isDemoVisible = localStorage.getItem(DEMO_STATE_KEY) !== 'false';
-        const demoContainer = document.querySelector('.lm-demo-info') || 
-                            document.querySelector('.grid-extra-card-wrapper.green.lm-demo-info') ||
-                            document.querySelector('.grid-extra-card-wrapper.green');
+        let demoContainer = null;
+        if (isDemoVisible) {
+            demoContainer = pickVisible(getDemoContainers()) || pickLast(getDemoContainers());
+        } else {
+            demoContainer = findContainerForShow();
+        }
         
         if (demoContainer) {
             console.log('📦 Setting initial demo state:', {
