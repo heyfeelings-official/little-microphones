@@ -1727,56 +1727,8 @@
      * Mark LMID as deleting with visual feedback (don't remove from UI yet)
      */
     function markLMIDAsDeleting(itemElement, lmid) {
-        // Add deleting visual state
-        itemElement.style.opacity = '0.7';
-        itemElement.style.transition = 'all 0.3s ease';
-        itemElement.style.filter = 'grayscale(50%)';
-        itemElement.style.pointerEvents = 'none';
-        
-        // Add overlay with "Creating new program..." message
-        const overlay = document.createElement('div');
-        overlay.className = 'lm-deleting-overlay';
-        overlay.style.cssText = `
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(255, 255, 255, 0.9);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 10;
-            border-radius: 8px;
-        `;
-        
-        const message = document.createElement('div');
-        message.style.cssText = `
-            background: #f0f8ff;
-            padding: 15px 20px;
-            border-radius: 8px;
-            border: 2px solid #4a90e2;
-            color: #2c5aa0;
-            font-weight: 600;
-            text-align: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        `;
-        message.innerHTML = `
-            <div style="font-size: 20px; margin-bottom: 8px;">🔄</div>
-            <div>Creating new program...</div>
-        `;
-        
-        overlay.appendChild(message);
-        
-        // Ensure parent container has position relative
-        const parentStyle = getComputedStyle(itemElement);
-        if (parentStyle.position === 'static') {
-            itemElement.style.position = 'relative';
-        }
-        
-        itemElement.appendChild(overlay);
-        
-        console.log(`🎯 Marked LMID ${lmid} as deleting with overlay`);
+        // Keep only the red border from setDeletionInProgress - no overlay
+        console.log(`🎯 LMID ${lmid} marked as deleting (red border only)`);
     }
 
     /**
@@ -1853,16 +1805,36 @@
                 numberElement.textContent = newLmid;
             }
             
-            // Remove deleting overlay
+            // Reset deletion visual state (remove red border)
+            itemElement.style.border = '';
+            itemElement.style.borderRadius = '';
+            itemElement.style.transition = '';
+            itemElement.style.boxShadow = '';
+            itemElement.style.backgroundColor = '';
+            itemElement.style.opacity = '';
+            itemElement.style.filter = '';
+            itemElement.style.pointerEvents = '';
+            
+            // Reset delete button state
+            const deleteButton = itemElement.querySelector('#lm-delete, .lm-delete');
+            if (deleteButton) {
+                if (deleteButton.tagName.toLowerCase() === 'button') {
+                    deleteButton.disabled = false;
+                    deleteButton.textContent = "Delete";
+                } else {
+                    deleteButton.style.pointerEvents = '';
+                    deleteButton.style.opacity = '';
+                    const originalText = deleteButton.getAttribute('data-original-text') || 'Delete';
+                    deleteButton.textContent = originalText;
+                    deleteButton.removeAttribute('data-original-text');
+                }
+            }
+            
+            // Remove any remaining overlay
             const overlay = itemElement.querySelector('.lm-deleting-overlay');
             if (overlay) {
                 overlay.remove();
             }
-            
-            // Reset visual state
-            itemElement.style.opacity = '';
-            itemElement.style.filter = '';
-            itemElement.style.pointerEvents = '';
             
             // Setup backgrounds and data for new LMID
             setupWorldBackgroundsForContainer(itemElement);
@@ -1893,14 +1865,6 @@
         itemElement.style.transition = '';
         itemElement.style.boxShadow = '';
         itemElement.style.backgroundColor = '';
-        
-        // Remove deleting overlay if it exists
-        const overlay = itemElement.querySelector('.lm-deleting-overlay');
-        if (overlay) {
-            overlay.remove();
-        }
-        
-        // Reset visual deleting state
         itemElement.style.opacity = '';
         itemElement.style.filter = '';
         itemElement.style.pointerEvents = '';
