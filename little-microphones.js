@@ -479,10 +479,16 @@
         const style = document.createElement('style');
         style.id = 'lm-dashboard-styles';
         style.textContent = `
-            /* Hide template completely */
+            /* Hide template initially (can be overridden by JS) */
             #lm-slot {
-                display: none !important;
-                visibility: hidden !important;
+                display: none;
+                visibility: hidden;
+            }
+            
+            /* Show template when it has data-lmid */
+            #lm-slot[data-lmid] {
+                display: block !important;
+                visibility: visible !important;
             }
             
             /* Minimal essential styles - let Webflow handle most positioning */
@@ -779,9 +785,17 @@
         
         // Set LMID attribute and show template
         template.setAttribute("data-lmid", lmid);
+        
+        // Force show template (CSS will handle styling with data-lmid selector)
         template.style.display = "";
-        template.style.visibility = "visible";
+        template.style.visibility = "";
         template.removeAttribute("aria-hidden");
+        
+        // Clear any inline styles that might be hiding it
+        template.style.opacity = "";
+        template.style.transform = "";
+        
+        console.log(`👁️ Template should now be visible for LMID ${lmid}`);
         
         // Load recording data
         await setupNewRecordingIndicator(template, lmid);
