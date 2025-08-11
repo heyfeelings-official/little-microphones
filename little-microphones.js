@@ -1486,20 +1486,29 @@
             console.log(`✅ Successfully deleted LMID ${lmidToDelete}`);
             
             // Log parent cleanup results
+            let successMessage = '';
             if (result.parentCleanup) {
                 if (result.parentCleanup.success && result.parentCleanup.cleanedParents > 0) {
                     console.log(`👨‍👩‍👧‍👦 Parent cleanup: ${result.parentCleanup.cleanedParents} parent accounts updated`);
-                    showSuccessMessage(`Program deleted successfully. ${result.parentCleanup.cleanedParents} parent account(s) were also updated.`);
+                    successMessage = `Program deleted successfully. ${result.parentCleanup.cleanedParents} parent account(s) were also updated. New program will be created automatically. Refreshing page...`;
                 } else if (result.parentCleanup.cleanedParents === 0) {
                     console.log(`👨‍👩‍👧‍👦 Parent cleanup: No parent accounts needed updating`);
-                    showSuccessMessage(`Program deleted successfully.`);
+                    successMessage = `Program deleted successfully. New program will be created automatically. Refreshing page...`;
                 } else {
                     console.warn(`⚠️ Parent cleanup failed: ${result.parentCleanup.message}`);
-                    showSuccessMessage(`Program deleted successfully, but parent cleanup may have failed.`);
+                    successMessage = `Program deleted successfully, but parent cleanup may have failed. New program will be created automatically. Refreshing page...`;
                 }
             } else {
-                showSuccessMessage(`Program deleted successfully.`);
+                successMessage = `Program deleted successfully. New program will be created automatically. Refreshing page...`;
             }
+            
+            showSuccessMessage(successMessage);
+            
+            // Auto-refresh page after deletion to load new LMID (wait for backend processing + 1s)
+            console.log(`🔄 Auto-refreshing page in 3 seconds to load new program...`);
+            setTimeout(() => {
+                window.location.reload();
+            }, 3000); // 3 seconds total: 2s for backend processing + 1s buffer
 
         } catch (error) {
             console.error(`💥 Failed to delete LMID ${lmidToDelete}:`, error);
@@ -1913,8 +1922,11 @@
                 <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.5;">
                     This will permanently delete the <strong>Radio Program ${lmidToDelete}</strong> and <strong>ALL associated recordings</strong>!
                 </p>
+                <p style="margin: 0 0 15px 0; font-size: 16px; color: #666;">
+                    This action cannot be undone!
+                </p>
                 <p style="margin: 0 0 30px 0; font-size: 16px; color: #666;">
-                    This action cannot be undone.
+                    New, empty program will be created automatically.
                 </p>
                 <p style="margin: 0 0 15px 0; font-size: 16px; color: #666;">
                     To confirm, please type "delete" below:
