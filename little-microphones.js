@@ -2173,19 +2173,33 @@
         const demoContainer = document.getElementById('w-node-cae970ed-2349-a58a-7692-7e14a386e91a-0386c4d7') || 
                              document.querySelector('.grid-extra-card-wrapper.green');
         
+        // Debug all buttons on page first
+        const allButtons = Array.from(document.querySelectorAll('button, .button, a, div[role="button"]'));
+        console.log('🔍 All buttons found:', allButtons.map(btn => ({
+            tag: btn.tagName,
+            text: btn.textContent?.trim() || 'empty',
+            id: btn.id || 'no-id',
+            dataWId: btn.getAttribute('data-w-id') || 'no-data-w-id',
+            classes: btn.className || 'no-classes'
+        })));
+        
         // Try multiple selectors for buttons
         let hideButton = document.querySelector('[data-w-id="cae970ed-2349-a58a-7692-7e14a386e925"]');
         if (!hideButton) {
-            // Look for button containing "HIDE THE DEMO" text
-            const buttons = Array.from(document.querySelectorAll('button, .button, a'));
-            hideButton = buttons.find(btn => btn.textContent && btn.textContent.includes('HIDE THE DEMO'));
+            // Look for buttons with demo-related text (case insensitive)
+            hideButton = allButtons.find(btn => {
+                const text = btn.textContent?.toLowerCase() || '';
+                return text.includes('hide') && text.includes('demo');
+            });
         }
         
         let showButton = document.querySelector('[data-w-id="2b622940-0be3-27c7-61fc-09272749a647"]');
         if (!showButton) {
-            // Look for button containing "SHOW DEMO" text  
-            const buttons = Array.from(document.querySelectorAll('button, .button, a'));
-            showButton = buttons.find(btn => btn.textContent && btn.textContent.includes('SHOW DEMO'));
+            // Look for buttons with demo-related text (case insensitive)
+            showButton = allButtons.find(btn => {
+                const text = btn.textContent?.toLowerCase() || '';
+                return text.includes('show') && text.includes('demo');
+            });
         }
         
         console.log('🔍 Demo elements debug:', {
@@ -2214,23 +2228,39 @@
             hideDemoInstant(demoContainer, showButton);
         }
         
+        // Check if demo functions exist
+        console.log('🔍 Demo functions available:', {
+            hideDemo: typeof hideDemo,
+            showDemo: typeof showDemo,
+            hideDemoInstant: typeof hideDemoInstant,
+            showDemoInstant: typeof showDemoInstant
+        });
+
         // Event listeners with state persistence
         if (hideButton) {
+            console.log('✅ Adding click listener to hide button:', hideButton.textContent?.trim());
             hideButton.addEventListener('click', function(e) {
                 e.preventDefault();
+                console.log('🙈 Hide button clicked!');
                 hideDemo(demoContainer, showButton);
                 localStorage.setItem(DEMO_STATE_KEY, 'false');
                 console.log('🙈 Demo hidden and preference saved');
             });
+        } else {
+            console.warn('❌ Hide button not found - cannot add click listener');
         }
         
         if (showButton) {
+            console.log('✅ Adding click listener to show button:', showButton.textContent?.trim());
             showButton.addEventListener('click', function(e) {
                 e.preventDefault();
+                console.log('👁️ Show button clicked!');
                 showDemo(demoContainer, showButton);
                 localStorage.setItem(DEMO_STATE_KEY, 'true');
                 console.log('👁️ Demo shown and preference saved');
             });
+        } else {
+            console.warn('❌ Show button not found - cannot add click listener');
         }
     }
 
