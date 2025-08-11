@@ -2409,7 +2409,7 @@
         const lmids = Array.from(lmidElements).map(el => el.getAttribute('data-lmid')).filter(Boolean);
         
         if (lmids.length > 0) {
-            await batchLoadAllRecordingData([lmid]);
+            await batchLoadAllRecordingData(lmids);
         }
     }
 
