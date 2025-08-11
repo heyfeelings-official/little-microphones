@@ -1241,29 +1241,22 @@
             for (const world of worlds) {
                 try {
                     // Get ShareID for this world/LMID combination
-                    const shareId = await getShareIdForWorldLmid(world, lmid);
+                    const shareId = await swrFetchShareId(lmid, world);
                     if (!shareId) {
                         continue; // Skip if no ShareID found
                     }
                     
                     // Get current recordings for this world
-                    const response = await fetch(`${window.LM_CONFIG.API_BASE_URL}/api/list-recordings?world=${world}&lmid=${lmid}&lang=${lang}`);
-                    
-                    if (response.ok) {
-                        const data = await response.json();
-                        if (data.success) {
-                            const currentRecordings = data.recordings || [];
-                            
-                            // Filter recordings added since last visit
-            const lastVisitTimestamp = new Date(baselineTimestamp).getTime();
-            const newRecordings = currentRecordings.filter(recording => {
-                const recordingTime = recording.lastModified || 0;
-                const baseline = new Date(baselineTimestamp).getTime();
-                return recordingTime > baseline;
-            });
-                            
-                            totalNewRecordings += newRecordings.length;
-                        }
+                    const currentRecordings = await swrFetchRecordings(lmid, world, lang);
+                    if (Array.isArray(currentRecordings)) {
+                        // Filter recordings added since last visit
+                        const lastVisitTimestamp = new Date(lastVisitData.timestamp).getTime();
+                        
+                        const newRecordings = currentRecordings.filter(recording => {
+                            const recordingTime = recording.lastModified || 0;
+                            return recordingTime > lastVisitTimestamp;
+                        });
+                        totalNewRecordings += newRecordings.length;
                     }
                 } catch (worldError) {
                     console.warn(`⚠️ Error checking world ${world} for LMID ${lmid}:`, worldError);
@@ -1291,28 +1284,22 @@
             const lang = window.LM_CONFIG.getCurrentLanguage();
             
             // Get ShareID for this world/LMID combination
-            const shareId = await getShareIdForWorldLmid(world, lmid);
+            const shareId = await swrFetchShareId(lmid, world);
             if (!shareId) {
                 return 0; // No ShareID means no recordings possible
             }
             
             // Get current recordings for this world
-            const response = await fetch(`${window.LM_CONFIG.API_BASE_URL}/api/list-recordings?world=${world}&lmid=${lmid}&lang=${lang}`);
-            
-            if (response.ok) {
-                const data = await response.json();
-                if (data.success) {
-                    const currentRecordings = data.recordings || [];
-                    
-                    // Filter recordings added since last visit
-                    const lastVisitTimestamp = new Date(lastVisitData.timestamp).getTime();
-                    
-                    const newRecordings = currentRecordings.filter(recording => {
-                        const recordingTime = recording.lastModified || 0;
-                        return recordingTime > lastVisitTimestamp;
-                    });
-                    return newRecordings.length;
-                }
+            const currentRecordings = await swrFetchRecordings(lmid, world, lang);
+            if (Array.isArray(currentRecordings)) {
+                // Filter recordings added since last visit
+                const lastVisitTimestamp = new Date(lastVisitData.timestamp).getTime();
+                
+                const newRecordings = currentRecordings.filter(recording => {
+                    const recordingTime = recording.lastModified || 0;
+                    return recordingTime > lastVisitTimestamp;
+                });
+                return newRecordings.length;
             }
             
             return 0;
@@ -1333,20 +1320,15 @@
             const lang = window.LM_CONFIG.getCurrentLanguage();
             
             // Get ShareID for this world/LMID combination
-            const shareId = await getShareIdForWorldLmid(world, lmid);
+            const shareId = await swrFetchShareId(lmid, world);
             if (!shareId) {
                 return 0; // No ShareID means no recordings possible
             }
             
             // Get all recordings for this world
-            const response = await fetch(`${window.LM_CONFIG.API_BASE_URL}/api/list-recordings?world=${world}&lmid=${lmid}&lang=${lang}`);
-            
-            if (response.ok) {
-                const data = await response.json();
-                if (data.success) {
-                    const allRecordings = data.recordings || [];
-                    return allRecordings.length;
-                }
+            const allRecordings = await swrFetchRecordings(lmid, world, lang);
+            if (Array.isArray(allRecordings)) {
+                return allRecordings.length;
             }
             
             return 0;
@@ -1383,15 +1365,7 @@
      */
     async function getShareIdForWorldLmid(world, lmid) {
         try {
-            const response = await fetch(`${window.LM_CONFIG.API_BASE_URL}/api/get-share-link?lmid=${lmid}&world=${world}`);
-            
-            if (response.ok) {
-                const data = await response.json();
-                if (data.success) {
-                    return data.shareId;
-                }
-            }
-            return null;
+            return await swrFetchShareId(lmid, world);
         } catch (error) {
             return null;
         }
@@ -2592,5 +2566,158 @@
         } catch (err) {
             console.warn('⚠️ Failed to ensure lm-slot-buttons position:', err);
         }
+    }
+
+    /**
+     * Lightweight SWR cache (in-memory + localStorage) for recordings and shareId
+     * - Short TTLs to keep data fresh
+     * - Returns cached data immediately when available, refreshes in background
+     * - Deduplicates inflight fetches per key
+     */
+    const SWR_CACHE = {
+        memory: new Map(), // key -> { data, expiry, etag, inflight }
+    };
+
+    function swrNow() {
+        return Date.now();
+    }
+
+    function swrReadLocal(key) {
+        try {
+            const raw = localStorage.getItem(key);
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            return parsed || null;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    function swrWriteLocal(key, value) {
+        try {
+            localStorage.setItem(key, JSON.stringify(value));
+        } catch (_) {}
+    }
+
+    function swrGetFromCaches(key) {
+        const mem = SWR_CACHE.memory.get(key);
+        if (mem) return mem;
+        const loc = swrReadLocal(key);
+        if (!loc) return null;
+        SWR_CACHE.memory.set(key, loc);
+        return loc;
+    }
+
+    function swrStore(key, entry) {
+        SWR_CACHE.memory.set(key, entry);
+        swrWriteLocal(key, entry);
+    }
+
+    function swrShouldRefresh(entry) {
+        if (!entry) return true;
+        return entry.expiry <= swrNow();
+    }
+
+    function createSWRKey(parts) {
+        return parts.filter(Boolean).join('|');
+    }
+
+    async function swrFetchAndStore(key, ttlMs, fetcher, etag) {
+        // Deduplicate inflight
+        const existing = SWR_CACHE.memory.get(key);
+        if (existing?.inflight) return existing.inflight;
+        const controller = new AbortController();
+        const inflight = (async () => {
+            try {
+                const response = await fetcher(etag, controller.signal);
+                if (response && response.notModified) {
+                    // 304 shortcut — just extend TTL
+                    const cached = swrGetFromCaches(key);
+                    if (cached) {
+                        const updated = { ...cached, expiry: swrNow() + ttlMs, inflight: null };
+                        swrStore(key, updated);
+                        return { data: cached.data, etag: cached.etag };
+                    }
+                }
+                if (response && response.ok) {
+                    const store = {
+                        data: response.data,
+                        etag: response.etag || null,
+                        expiry: swrNow() + ttlMs,
+                        inflight: null,
+                    };
+                    swrStore(key, store);
+                    return { data: response.data, etag: response.etag || null };
+                }
+                // On error, keep cache as-is
+                const cached = swrGetFromCaches(key);
+                return { data: cached?.data ?? null, etag: cached?.etag ?? null };
+            } finally {
+                const cur = SWR_CACHE.memory.get(key);
+                if (cur) {
+                    SWR_CACHE.memory.set(key, { ...cur, inflight: null });
+                }
+            }
+        })();
+        const entry = existing ? { ...existing, inflight } : { data: null, etag: etag || null, expiry: 0, inflight };
+        SWR_CACHE.memory.set(key, entry);
+        return inflight;
+    }
+
+    async function swrGet(key, ttlMs, fetcher) {
+        const cached = swrGetFromCaches(key);
+        const etag = cached?.etag || null;
+
+        // Always kick background refresh if expired or absent
+        if (!cached || swrShouldRefresh(cached)) {
+            // Fire and forget; consumer may still use cached data below
+            swrFetchAndStore(key, ttlMs, fetcher, etag).catch(() => {});
+        }
+
+        if (cached && cached.data != null) {
+            return cached.data;
+        }
+
+        // No cached data — await first fetch
+        const res = await swrFetchAndStore(key, ttlMs, fetcher, etag);
+        return res.data;
+    }
+
+    // Domain-specific SWR helpers
+    const SWR_TTL = {
+        recordingsMs: 30_000, // 30s
+        shareIdMs: 10_000,    // 10s
+    };
+
+    async function swrFetchRecordings(lmid, world, lang) {
+        const key = createSWRKey(['lm:rec', lmid, world, lang]);
+        const fetcher = async (etag, signal) => {
+            const url = `${window.LM_CONFIG.API_BASE_URL}/api/list-recordings?world=${world}&lmid=${lmid}&lang=${lang}`;
+            const headers = {};
+            if (etag) headers['If-None-Match'] = etag;
+            const resp = await fetch(url, { headers, signal });
+            if (resp.status === 304) return { notModified: true };
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok || !data?.success) return { ok: false };
+            const newEtag = resp.headers.get('ETag');
+            return { ok: true, data: data.recordings || [], etag: newEtag };
+        };
+        return swrGet(key, SWR_TTL.recordingsMs, fetcher);
+    }
+
+    async function swrFetchShareId(lmid, world) {
+        const key = createSWRKey(['lm:share', lmid, world]);
+        const fetcher = async (etag, signal) => {
+            const url = `${window.LM_CONFIG.API_BASE_URL}/api/get-share-link?lmid=${lmid}&world=${world}`;
+            const headers = {};
+            if (etag) headers['If-None-Match'] = etag;
+            const resp = await fetch(url, { headers, signal });
+            if (resp.status === 304) return { notModified: true };
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok || !data?.success) return { ok: false };
+            const newEtag = resp.headers.get('ETag');
+            return { ok: true, data: data.shareId || null, etag: newEtag };
+        };
+        return swrGet(key, SWR_TTL.shareIdMs, fetcher);
     }
 })();
