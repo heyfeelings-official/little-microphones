@@ -12,7 +12,7 @@
  * 
  * SECURITY FEATURES:
  * - Comprehensive error handling for authentication failures
- * - LMID limit enforcement (5 programs per user)
+ * - LMID limit enforcement (1 program per user)
  * - Metadata validation and sanitization
  * - Type-safe LMID parsing with multiple format support
  * 
@@ -43,7 +43,7 @@
     class LMAuth {
         constructor() {
             this.memberstack = window.$memberstackDom;
-            this.MAX_LMIDS = 5; // Maximum programs per user
+            this.MAX_LMIDS = 1; // Maximum programs per user
             
             if (!this.memberstack) {
                 throw new Error("Memberstack DOM package not found. Please ensure it's loaded before initializing LMAuth.");
