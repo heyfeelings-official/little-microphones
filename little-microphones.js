@@ -1485,30 +1485,58 @@
             itemToDelete.remove();
             console.log(`✅ Successfully deleted LMID ${lmidToDelete}`);
             
-            // Log parent cleanup results
+            // Log parent cleanup results  
             let successMessage = '';
             if (result.parentCleanup) {
                 if (result.parentCleanup.success && result.parentCleanup.cleanedParents > 0) {
                     console.log(`👨‍👩‍👧‍👦 Parent cleanup: ${result.parentCleanup.cleanedParents} parent accounts updated`);
-                    successMessage = `Program deleted successfully. ${result.parentCleanup.cleanedParents} parent account(s) were also updated. New program will be created automatically. Refreshing page...`;
+                    successMessage = `Program deleted successfully. ${result.parentCleanup.cleanedParents} parent account(s) were also updated.`;
                 } else if (result.parentCleanup.cleanedParents === 0) {
                     console.log(`👨‍👩‍👧‍👦 Parent cleanup: No parent accounts needed updating`);
-                    successMessage = `Program deleted successfully. New program will be created automatically. Refreshing page...`;
+                    successMessage = `Program deleted successfully.`;
                 } else {
                     console.warn(`⚠️ Parent cleanup failed: ${result.parentCleanup.message}`);
-                    successMessage = `Program deleted successfully, but parent cleanup may have failed. New program will be created automatically. Refreshing page...`;
+                    successMessage = `Program deleted successfully, but parent cleanup may have failed.`;
                 }
             } else {
-                successMessage = `Program deleted successfully. New program will be created automatically. Refreshing page...`;
+                successMessage = `Program deleted successfully.`;
             }
             
-            showSuccessMessage(successMessage);
+            showSuccessMessage(successMessage + ` Creating new program...`);
             
-            // Auto-refresh page after deletion to load new LMID (wait for backend processing + 1s)
-            console.log(`🔄 Auto-refreshing page in 3 seconds to load new program...`);
-            setTimeout(() => {
-                window.location.reload();
-            }, 3000); // 3 seconds total: 2s for backend processing + 1s buffer
+            // Automatically create a new LMID after deletion
+            try {
+                console.log(`➕ Creating new LMID to replace deleted one...`);
+                
+                const createResponse = await fetch(`${window.LM_CONFIG.API_BASE_URL}/api/lmid-operations`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        action: 'create',
+                        memberId: memberData.memberId,
+                        memberEmail: memberData.memberEmail,
+                    }),
+                });
+
+                const createResult = await createResponse.json();
+
+                if (createResponse.ok && createResult.success) {
+                    console.log(`✅ New LMID ${createResult.lmid} created successfully`);
+                    showSuccessMessage(`${successMessage} New program ${createResult.lmid} created successfully! Refreshing page...`);
+                    
+                    // Auto-refresh page after successful creation (wait for Memberstack sync)
+                    console.log(`🔄 Auto-refreshing page in 3 seconds to load new program...`);
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 3000);
+                } else {
+                    throw new Error(createResult.error || "Failed to create new LMID");
+                }
+                
+            } catch (createError) {
+                console.error(`❌ Failed to create new LMID after deletion:`, createError);
+                showErrorMessage(`Program deleted successfully, but failed to create new program: ${createError.message}. Please refresh the page and create a new program manually.`);
+            }
 
         } catch (error) {
             console.error(`💥 Failed to delete LMID ${lmidToDelete}:`, error);
