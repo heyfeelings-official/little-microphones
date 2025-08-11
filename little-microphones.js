@@ -1706,7 +1706,7 @@
     function setDeletionInProgress(itemElement, buttonElement) {
         // Highlight item being deleted
         itemElement.style.border = '3px solid #ff4444';
-        itemElement.style.borderRadius = '16px';
+        itemElement.style.borderRadius = '18px';
         itemElement.style.transition = 'all 0.3s ease';
         itemElement.style.boxShadow = '0 0 10px rgba(255, 68, 68, 0.3)';
         itemElement.style.backgroundColor = 'rgba(255, 68, 68, 0.05)';
@@ -1820,15 +1820,28 @@
             const deleteButton = itemElement.querySelector('#lm-delete, .lm-delete');
             if (deleteButton) {
                 let originalText = deleteButton.getAttribute('data-original-text') || 'DELETE';
+                console.log(`🔍 Debug delete button update:`, {
+                    oldLmid: oldLmid,
+                    newLmid: newLmid,
+                    originalText: originalText,
+                    currentText: deleteButton.textContent
+                });
                 
                 // Update LMID number in button text
                 // Look for LMID number element inside delete button first
                 const deleteButtonNumberElement = deleteButton.querySelector('[data-lmid-number], .lmid-number');
                 if (deleteButtonNumberElement) {
+                    console.log(`🎯 Found nested number element, updating to:`, newLmid);
                     deleteButtonNumberElement.textContent = newLmid;
                 } else {
                     // Fallback: update number in button text using regex
+                    const beforeReplace = originalText;
                     originalText = originalText.replace(/\b\d+\b/, newLmid);
+                    console.log(`🔄 Regex replace:`, {
+                        before: beforeReplace,
+                        after: originalText,
+                        matched: beforeReplace !== originalText
+                    });
                 }
                 
                 if (deleteButton.tagName.toLowerCase() === 'button') {
@@ -1841,6 +1854,8 @@
                     deleteButton.textContent = originalText;
                     deleteButton.removeAttribute('data-original-text');
                 }
+                
+                console.log(`✅ Final delete button text:`, deleteButton.textContent);
             }
             
             // Remove any remaining overlay
