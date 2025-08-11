@@ -1823,8 +1823,10 @@
                 console.log(`🔍 Debug delete button update:`, {
                     oldLmid: oldLmid,
                     newLmid: newLmid,
-                    originalText: originalText,
-                    currentText: deleteButton.textContent
+                    originalText: `"${originalText}"`,
+                    currentText: `"${deleteButton.textContent}"`,
+                    hasDataAttr: deleteButton.hasAttribute('data-original-text'),
+                    dataAttrValue: `"${deleteButton.getAttribute('data-original-text') || 'null'}"`
                 });
                 
                 // Update LMID number in button text
@@ -1834,14 +1836,45 @@
                     console.log(`🎯 Found nested number element, updating to:`, newLmid);
                     deleteButtonNumberElement.textContent = newLmid;
                 } else {
-                    // Fallback: update number in button text using regex
+                    // Try multiple regex patterns to handle different formats
                     const beforeReplace = originalText;
-                    originalText = originalText.replace(/\b\d+\b/, newLmid);
-                    console.log(`🔄 Regex replace:`, {
-                        before: beforeReplace,
-                        after: originalText,
-                        matched: beforeReplace !== originalText
+                    
+                    // Pattern 1: Word boundary digits (standard)
+                    let afterReplace1 = originalText.replace(/\b\d+\b/, newLmid);
+                    
+                    // Pattern 2: Any sequence of digits
+                    let afterReplace2 = originalText.replace(/\d+/, newLmid);
+                    
+                    // Pattern 3: Specific pattern for "DELETEID37" format
+                    let afterReplace3 = originalText.replace(/(DELETE\s*ID\s*)(\d+)/i, `$1${newLmid}`);
+                    
+                    // Pattern 4: Replace old LMID specifically
+                    let afterReplace4 = originalText.replace(new RegExp(oldLmid, 'g'), newLmid);
+                    
+                    console.log(`🔄 Regex attempts:`, {
+                        original: `"${beforeReplace}"`,
+                        pattern1_wordBoundary: `"${afterReplace1}"`,
+                        pattern2_anyDigits: `"${afterReplace2}"`,  
+                        pattern3_deleteID: `"${afterReplace3}"`,
+                        pattern4_oldLmid: `"${afterReplace4}"`
                     });
+                    
+                    // Use the first successful replacement
+                    if (afterReplace3 !== beforeReplace) {
+                        originalText = afterReplace3;
+                        console.log(`✅ Used DELETE ID pattern`);
+                    } else if (afterReplace4 !== beforeReplace) {
+                        originalText = afterReplace4;
+                        console.log(`✅ Used old LMID replacement`);
+                    } else if (afterReplace2 !== beforeReplace) {
+                        originalText = afterReplace2;
+                        console.log(`✅ Used any digits pattern`);
+                    } else if (afterReplace1 !== beforeReplace) {
+                        originalText = afterReplace1;
+                        console.log(`✅ Used word boundary pattern`);
+                    } else {
+                        console.warn(`⚠️ No regex pattern worked!`);
+                    }
                 }
                 
                 if (deleteButton.tagName.toLowerCase() === 'button') {
