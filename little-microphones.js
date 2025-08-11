@@ -1880,18 +1880,39 @@
             
             // Create modal overlay
             const overlay = document.createElement('div');
-            overlay.className = 'lm-modal-overlay';
+            // Restore modal overlay positioning (as before) to open as popup
+            overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.7);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 10000;
+            `;
             
             // Create modal content
             const modal = document.createElement('div');
-            modal.className = 'lm-modal';
+            // Restore modal box layout (as before) to keep centered popup
+            modal.style.cssText = `
+                background: white;
+                padding: 30px;
+                border-radius: 12px;
+                max-width: 500px;
+                width: 90%;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+                text-align: center;
+            `;
             
             modal.innerHTML = `
-                <div class="lm-modal__icon">⚠️</div>
-                <h2 class="lm-modal__title">WARNING</h2>
-                <p class="lm-modal__text">This will permanently delete the <strong>Radio Program ${lmidToDelete}</strong> and <strong>ALL associated recordings</strong>!</p>
-                <p class="lm-modal__subtext">This action cannot be undone.</p>
-                <p class="lm-modal__instruction">To confirm, please type "delete" below:</p>
+                <div>⚠️</div>
+                <h2>WARNING</h2>
+                <p>This will permanently delete the <strong>Radio Program ${lmidToDelete}</strong> and <strong>ALL associated recordings</strong>!</p>
+                <p>This action cannot be undone.</p>
+                <p>To confirm, please type "delete" below:</p>
                 <input type="text" id="deleteConfirmInput" class="form_input w-input" placeholder="Type 'delete' to confirm" />
                 <div class="lm-modal__buttons">
                     <button id="cancelBtn" class="button is-light-blue" type="button">Cancel</button>
