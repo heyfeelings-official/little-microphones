@@ -1908,13 +1908,20 @@
             `;
             
             modal.innerHTML = `
-                <div>⚠️</div>
-                <h2>WARNING</h2>
-                <p>This will permanently delete the <strong>Radio Program ${lmidToDelete}</strong> and <strong>ALL associated recordings</strong>!</p>
-                <p>This action cannot be undone.</p>
-                <p>To confirm, please type "delete" below:</p>
-                <input type="text" id="deleteConfirmInput" class="form_input w-input" placeholder="Type 'delete' to confirm" />
-                <div class="lm-modal__buttons">
+                <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
+                <h2 style="color: #d32f2f; margin: 0 0 20px 0; font-size: 24px;">WARNING</h2>
+                <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.5;">
+                    This will permanently delete the <strong>Radio Program ${lmidToDelete}</strong> and <strong>ALL associated recordings</strong>!
+                </p>
+                <p style="margin: 0 0 30px 0; font-size: 16px; color: #666;">
+                    This action cannot be undone.
+                </p>
+                <p style="margin: 0 0 15px 0; font-size: 16px; color: #666;">
+                    To confirm, please type "delete" below:
+                </p>
+                <input type="text" id="deleteConfirmInput" class="form_input w-input" placeholder="Type 'delete' to confirm" 
+                       style="width: 100%; margin-bottom: 20px; box-sizing: border-box; border: 1px solid #e5f2fe;">
+                <div style="display: flex; gap: 15px; justify-content: center;">
                     <button id="cancelBtn" class="button is-light-blue" type="button">Cancel</button>
                     <button id="confirmBtn" class="button is-light-blue" type="button" disabled>Delete Forever</button>
                 </div>
