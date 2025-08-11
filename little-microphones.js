@@ -2169,6 +2169,15 @@
         console.log('🎬 Demo toggle initialization started');
         const DEMO_STATE_KEY = 'lm_demo_visible';
         
+        // Debug: Check what elements with these classes exist
+        console.log('🔍 Debug - Elements found:', {
+            withLmDemoInfo: document.querySelectorAll('.lm-demo-info').length,
+            withGreenWrapper: document.querySelectorAll('.grid-extra-card-wrapper.green').length,
+            withAllThreeClasses: document.querySelectorAll('.grid-extra-card-wrapper.green.lm-demo-info').length,
+            hideButtons: document.querySelectorAll('.hide-demo').length,
+            showButtons: document.querySelectorAll('.show-demo').length
+        });
+        
         // Use event delegation on document level to catch all clicks (including cloned elements)
         document.addEventListener('click', function(e) {
             const target = e.target;
@@ -2186,16 +2195,20 @@
                     text: hideButton.textContent?.trim()
                 });
                 
-                // Find the demo container - use the correct class
+                // Find the demo container - try multiple selectors
                 const demoContainer = document.querySelector('.lm-demo-info') || 
+                                    document.querySelector('.grid-extra-card-wrapper.green.lm-demo-info') ||
                                     document.querySelector('.grid-extra-card-wrapper.green');
                 
                 if (demoContainer) {
-                    console.log('🎯 Found demo container to hide:', demoContainer.className);
+                    console.log('🎯 Found demo container to hide:', {
+                        className: demoContainer.className,
+                        classList: Array.from(demoContainer.classList || [])
+                    });
                     hideDemo(demoContainer);
                     localStorage.setItem(DEMO_STATE_KEY, 'false');
                 } else {
-                    console.error('❌ Demo container (.lm-demo-info) not found!');
+                    console.error('❌ Demo container not found! Tried: .lm-demo-info, .grid-extra-card-wrapper.green.lm-demo-info, .grid-extra-card-wrapper.green');
                 }
             }
             
@@ -2208,16 +2221,20 @@
                     text: showButton.textContent?.trim()
                 });
                 
-                // Find the demo container
+                // Find the demo container - try multiple selectors
                 const demoContainer = document.querySelector('.lm-demo-info') || 
+                                    document.querySelector('.grid-extra-card-wrapper.green.lm-demo-info') ||
                                     document.querySelector('.grid-extra-card-wrapper.green');
                 
                 if (demoContainer) {
-                    console.log('🎯 Found demo container to show:', demoContainer.className);
+                    console.log('🎯 Found demo container to show:', {
+                        className: demoContainer.className,
+                        classList: Array.from(demoContainer.classList || [])
+                    });
                     showDemo(demoContainer);
                     localStorage.setItem(DEMO_STATE_KEY, 'true');
                 } else {
-                    console.error('❌ Demo container (.lm-demo-info) not found!');
+                    console.error('❌ Demo container not found! Tried: .lm-demo-info, .grid-extra-card-wrapper.green.lm-demo-info, .grid-extra-card-wrapper.green');
                 }
             }
         });
@@ -2227,10 +2244,14 @@
         // Set initial state based on saved preference
         const isDemoVisible = localStorage.getItem(DEMO_STATE_KEY) !== 'false';
         const demoContainer = document.querySelector('.lm-demo-info') || 
+                            document.querySelector('.grid-extra-card-wrapper.green.lm-demo-info') ||
                             document.querySelector('.grid-extra-card-wrapper.green');
         
         if (demoContainer) {
-            console.log('📦 Setting initial demo state:', isDemoVisible ? 'visible' : 'hidden');
+            console.log('📦 Setting initial demo state:', {
+                visible: isDemoVisible,
+                containerClasses: Array.from(demoContainer.classList || [])
+            });
             if (isDemoVisible) {
                 showDemoInstant(demoContainer);
             } else {
@@ -2251,7 +2272,7 @@
         });
         
         if (!demoContainer) {
-            console.error('❌ demoContainer (.lm-demo-info) is null - aborting hide');
+            console.error('❌ demoContainer is null - aborting hide');
             return;
         }
         
@@ -2270,7 +2291,7 @@
         });
         
         if (!demoContainer) {
-            console.error('❌ demoContainer (.lm-demo-info) is null - aborting show');
+            console.error('❌ demoContainer is null - aborting show');
             return;
         }
         
