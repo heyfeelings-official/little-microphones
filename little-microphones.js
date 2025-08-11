@@ -752,6 +752,7 @@
         if (numberElement) {
             numberElement.textContent = lmid;
             numberElement.removeAttribute("id");
+            numberElement.setAttribute("data-lmid-number", "true"); // Add identifier for later
         }
         
         // Setup new recording count indicator (conditionally)
@@ -1481,9 +1482,9 @@
                 throw new Error(result.error || "Server error during deletion");
             }
 
-            // Success - remove UI element
-            itemToDelete.remove();
-            console.log(`✅ Successfully deleted LMID ${lmidToDelete}`);
+            // Success - mark LMID as deleting instead of removing immediately
+            markLMIDAsDeleting(itemToDelete, lmidToDelete);
+            console.log(`✅ Successfully deleted LMID ${lmidToDelete} from backend`);
             
             // Log parent cleanup results  
             let successMessage = '';
@@ -1502,14 +1503,11 @@
                 successMessage = `Program deleted successfully.`;
             }
             
-            showSuccessMessage(successMessage + ` New program will be created automatically. Refreshing page...`);
+            showSuccessMessage(successMessage + ` Creating new program...`);
             
-            // Auto-refresh page after deletion (Memberstack webhook automatically creates new LMID)
-            // No need to manually create LMID - webhook detects empty metadata and auto-creates one
-            console.log(`🔄 Memberstack webhook will automatically create new LMID. Refreshing page in 4 seconds...`);
-            setTimeout(() => {
-                window.location.reload();
-            }, 4000); // 4 seconds: webhook processing + Memberstack sync + buffer
+            // Wait for webhook to create new LMID, then refresh or replace in UI
+            console.log(`🔄 Waiting for webhook to create new LMID...`);
+            await waitForNewLMIDAndReplace(itemToDelete, lmidToDelete, memberData);
 
         } catch (error) {
             console.error(`💥 Failed to delete LMID ${lmidToDelete}:`, error);
@@ -1726,6 +1724,166 @@
     }
 
     /**
+     * Mark LMID as deleting with visual feedback (don't remove from UI yet)
+     */
+    function markLMIDAsDeleting(itemElement, lmid) {
+        // Add deleting visual state
+        itemElement.style.opacity = '0.7';
+        itemElement.style.transition = 'all 0.3s ease';
+        itemElement.style.filter = 'grayscale(50%)';
+        itemElement.style.pointerEvents = 'none';
+        
+        // Add overlay with "Creating new program..." message
+        const overlay = document.createElement('div');
+        overlay.className = 'lm-deleting-overlay';
+        overlay.style.cssText = `
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            border-radius: 8px;
+        `;
+        
+        const message = document.createElement('div');
+        message.style.cssText = `
+            background: #f0f8ff;
+            padding: 15px 20px;
+            border-radius: 8px;
+            border: 2px solid #4a90e2;
+            color: #2c5aa0;
+            font-weight: 600;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        `;
+        message.innerHTML = `
+            <div style="font-size: 20px; margin-bottom: 8px;">🔄</div>
+            <div>Creating new program...</div>
+        `;
+        
+        overlay.appendChild(message);
+        
+        // Ensure parent container has position relative
+        const parentStyle = getComputedStyle(itemElement);
+        if (parentStyle.position === 'static') {
+            itemElement.style.position = 'relative';
+        }
+        
+        itemElement.appendChild(overlay);
+        
+        console.log(`🎯 Marked LMID ${lmid} as deleting with overlay`);
+    }
+
+    /**
+     * Wait for webhook to create new LMID and replace in UI
+     */
+    async function waitForNewLMIDAndReplace(itemElement, deletedLmid, memberData) {
+        const maxAttempts = 15; // 15 seconds max wait
+        let attempts = 0;
+        
+        const pollForNewLMID = async () => {
+            attempts++;
+            console.log(`🔍 Polling attempt ${attempts}/${maxAttempts} for new LMID...`);
+            
+            try {
+                // Get fresh auth data
+                const authSystem = window.LM_AUTH_SYSTEM;
+                const authResult = await authSystem.initialize();
+                
+                if (authResult.success && authResult.authenticated && authResult.lmids.length > 0) {
+                    // Check if we have a different LMID than the deleted one
+                    const newLmids = authResult.lmids.filter(lmid => lmid !== deletedLmid);
+                    
+                    if (newLmids.length > 0) {
+                        const newLmid = newLmids[0];
+                        console.log(`✅ New LMID found: ${newLmid} (replacing ${deletedLmid})`);
+                        
+                        // Replace the LMID in UI instead of full refresh
+                        await replaceLMIDInUI(itemElement, deletedLmid, newLmid);
+                        
+                        showSuccessMessage(`New program ${newLmid} created successfully!`);
+                        return; // Success, stop polling
+                    }
+                }
+                
+                // Continue polling if no new LMID found yet
+                if (attempts < maxAttempts) {
+                    setTimeout(pollForNewLMID, 1000); // Check again in 1 second
+                } else {
+                    console.warn(`⏰ Timeout waiting for new LMID. Refreshing page...`);
+                    showSuccessMessage(`Program deleted. Refreshing page to load new program...`);
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                }
+                
+            } catch (error) {
+                console.error(`❌ Error polling for new LMID:`, error);
+                if (attempts >= maxAttempts) {
+                    console.warn(`⏰ Max attempts reached. Refreshing page...`);
+                    window.location.reload();
+                } else {
+                    setTimeout(pollForNewLMID, 1000);
+                }
+            }
+        };
+        
+        // Start polling
+        setTimeout(pollForNewLMID, 2000); // Wait 2s before first check
+    }
+
+    /**
+     * Replace LMID in UI without full page refresh
+     */
+    async function replaceLMIDInUI(itemElement, oldLmid, newLmid) {
+        try {
+            console.log(`🔄 Replacing LMID ${oldLmid} with ${newLmid} in UI...`);
+            
+            // Update data-lmid attribute
+            itemElement.setAttribute('data-lmid', newLmid);
+            
+            // Update LMID number in display
+            const numberElement = itemElement.querySelector('#lmid-number, [data-lmid-number]');
+            if (numberElement) {
+                numberElement.textContent = newLmid;
+            }
+            
+            // Remove deleting overlay
+            const overlay = itemElement.querySelector('.lm-deleting-overlay');
+            if (overlay) {
+                overlay.remove();
+            }
+            
+            // Reset visual state
+            itemElement.style.opacity = '';
+            itemElement.style.filter = '';
+            itemElement.style.pointerEvents = '';
+            
+            // Setup backgrounds and data for new LMID
+            setupWorldBackgroundsForContainer(itemElement);
+            
+            // Load recording data for new LMID
+            setTimeout(() => {
+                batchLoadAllRecordingData([newLmid]);
+            }, 500);
+            
+            console.log(`✅ Successfully replaced LMID ${oldLmid} with ${newLmid} in UI`);
+            
+        } catch (error) {
+            console.error(`❌ Error replacing LMID in UI:`, error);
+            // Fallback to page refresh
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        }
+    }
+
+    /**
      * Reset deletion state on error
      */
     function resetDeletionState(itemElement, buttonElement) {
@@ -1735,6 +1893,17 @@
         itemElement.style.transition = '';
         itemElement.style.boxShadow = '';
         itemElement.style.backgroundColor = '';
+        
+        // Remove deleting overlay if it exists
+        const overlay = itemElement.querySelector('.lm-deleting-overlay');
+        if (overlay) {
+            overlay.remove();
+        }
+        
+        // Reset visual deleting state
+        itemElement.style.opacity = '';
+        itemElement.style.filter = '';
+        itemElement.style.pointerEvents = '';
         
         // Reset button state
         if (buttonElement.tagName.toLowerCase() === 'button') {
