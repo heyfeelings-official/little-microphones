@@ -1502,41 +1502,14 @@
                 successMessage = `Program deleted successfully.`;
             }
             
-            showSuccessMessage(successMessage + ` Creating new program...`);
+            showSuccessMessage(successMessage + ` New program will be created automatically. Refreshing page...`);
             
-            // Automatically create a new LMID after deletion
-            try {
-                console.log(`➕ Creating new LMID to replace deleted one...`);
-                
-                const createResponse = await fetch(`${window.LM_CONFIG.API_BASE_URL}/api/lmid-operations`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        action: 'create',
-                        memberId: memberData.memberId,
-                        memberEmail: memberData.memberEmail,
-                    }),
-                });
-
-                const createResult = await createResponse.json();
-
-                if (createResponse.ok && createResult.success) {
-                    console.log(`✅ New LMID ${createResult.lmid} created successfully`);
-                    showSuccessMessage(`${successMessage} New program ${createResult.lmid} created successfully! Refreshing page...`);
-                    
-                    // Auto-refresh page after successful creation (wait for Memberstack sync)
-                    console.log(`🔄 Auto-refreshing page in 3 seconds to load new program...`);
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 3000);
-                } else {
-                    throw new Error(createResult.error || "Failed to create new LMID");
-                }
-                
-            } catch (createError) {
-                console.error(`❌ Failed to create new LMID after deletion:`, createError);
-                showErrorMessage(`Program deleted successfully, but failed to create new program: ${createError.message}. Please refresh the page and create a new program manually.`);
-            }
+            // Auto-refresh page after deletion (Memberstack webhook automatically creates new LMID)
+            // No need to manually create LMID - webhook detects empty metadata and auto-creates one
+            console.log(`🔄 Memberstack webhook will automatically create new LMID. Refreshing page in 4 seconds...`);
+            setTimeout(() => {
+                window.location.reload();
+            }, 4000); // 4 seconds: webhook processing + Memberstack sync + buffer
 
         } catch (error) {
             console.error(`💥 Failed to delete LMID ${lmidToDelete}:`, error);
