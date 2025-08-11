@@ -677,7 +677,13 @@
             return;
         }
 
-        // Template is hidden via CSS (#lm-slot)
+        // Ensure template is hidden even if CSS injection is missing
+        try {
+            template.style.display = 'none';
+            template.style.visibility = 'hidden';
+            template.setAttribute('aria-hidden', 'true');
+            template.removeAttribute('data-lmid');
+        } catch (_) {}
 
         if (lmids.length === 0) {
             console.log("📝 No LMIDs to display");
