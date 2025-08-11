@@ -2188,7 +2188,6 @@
         const pickLast = (arr) => (arr.length ? arr[arr.length - 1] : null);
         const pickVisible = (arr) => arr.find(isVisible) || null;
         const pickHiddenButReal = (arr) => {
-            // Prefer the last element that is hidden via inline style or computed, to skip the early template
             for (let i = arr.length - 1; i >= 0; i -= 1) {
                 const el = arr[i];
                 const cs = getComputedStyle(el);
@@ -2196,17 +2195,32 @@
             }
             return null;
         };
+        const findGridScope = (el) => el?.closest('[data-lmid], .w-layout-grid.grid.full-height') || document;
+        const getScopedContainers = (scopeEl) => Array.from((scopeEl || document).querySelectorAll('.grid-extra-card-wrapper.green.lm-demo-info, .lm-demo-info'));
         const findContainerForHideFrom = (clickedEl) => {
+            const scope = findGridScope(clickedEl);
             // 1) Prefer container closest to the clicked button
             const closest = clickedEl?.closest('.grid-extra-card-wrapper.green.lm-demo-info, .lm-demo-info');
             if (closest) return closest;
-            // 2) Prefer any currently visible container
+            // 2) Prefer any currently visible container within scope
+            const scoped = getScopedContainers(scope);
+            if (scoped.length) {
+                const inScope = pickVisible(scoped) || pickLast(scoped);
+                if (inScope) return inScope;
+            }
+            // 3) Fallback to global
             const all = getDemoContainers();
             return pickVisible(all) || pickLast(all);
         };
-        const findContainerForShow = () => {
+        const findContainerForShow = (clickedEl) => {
+            const scope = findGridScope(clickedEl);
+            const scoped = getScopedContainers(scope);
+            if (scoped.length) {
+                // Prefer a hidden one latest in DOM within scope
+                return pickHiddenButReal(scoped) || pickLast(scoped) || null;
+            }
+            // Fallback to global
             const all = getDemoContainers();
-            // Prefer a hidden one that is latest in DOM
             return pickHiddenButReal(all) || pickLast(all) || null;
         };
         
@@ -2250,7 +2264,7 @@
                     text: showButton.textContent?.trim()
                 });
                 
-                const demoContainer = findContainerForShow();
+                const demoContainer = findContainerForShow(showButton);
                 
                 if (demoContainer) {
                     console.log('🎯 Found demo container to show:', {
