@@ -814,6 +814,20 @@
         clone.removeAttribute('aria-hidden');
         clone.removeAttribute("id");
         clone.setAttribute("data-lmid", lmid);
+        
+        // Remove demo-related IDs from cloned elements to prevent duplicates
+        const demoElements = [
+            clone.querySelector('#lm-demo'),
+            clone.querySelector('#hide-lm-demo'), 
+            clone.querySelector('#show-lm-demo')
+        ];
+        
+        demoElements.forEach(element => {
+            if (element) {
+                element.removeAttribute('id');
+                console.log('🔧 Removed demo ID from cloned element');
+            }
+        });
 
         // Populate LMID number
         const numberElement = clone.querySelector("#lmid-number");
