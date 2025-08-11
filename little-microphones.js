@@ -1816,79 +1816,32 @@
             itemElement.style.filter = '';
             itemElement.style.pointerEvents = '';
             
-            // Update LMID number in delete button and reset button state
+            // Update LMID number in delete button and recreate proper structure
             const deleteButton = itemElement.querySelector('#lm-delete, .lm-delete');
             if (deleteButton) {
-                let originalText = deleteButton.getAttribute('data-original-text') || 'DELETE';
-                console.log(`🔍 Debug delete button update:`, {
-                    oldLmid: oldLmid,
-                    newLmid: newLmid,
-                    originalText: `"${originalText}"`,
-                    currentText: `"${deleteButton.textContent}"`,
-                    hasDataAttr: deleteButton.hasAttribute('data-original-text'),
-                    dataAttrValue: `"${deleteButton.getAttribute('data-original-text') || 'null'}"`
-                });
+                console.log(`🔍 Recreating delete button structure for LMID:`, newLmid);
                 
-                // Update LMID number in button text
-                // Look for LMID number element inside delete button first
-                const deleteButtonNumberElement = deleteButton.querySelector('[data-lmid-number], .lmid-number');
-                if (deleteButtonNumberElement) {
-                    console.log(`🎯 Found nested number element, updating to:`, newLmid);
-                    deleteButtonNumberElement.textContent = newLmid;
-                } else {
-                    // Try multiple regex patterns to handle different formats
-                    const beforeReplace = originalText;
-                    
-                    // Pattern 1: Word boundary digits (standard)
-                    let afterReplace1 = originalText.replace(/\b\d+\b/, newLmid);
-                    
-                    // Pattern 2: Any sequence of digits
-                    let afterReplace2 = originalText.replace(/\d+/, newLmid);
-                    
-                    // Pattern 3: Specific pattern for "DELETEID37" format
-                    let afterReplace3 = originalText.replace(/(DELETE\s*ID\s*)(\d+)/i, `$1${newLmid}`);
-                    
-                    // Pattern 4: Replace old LMID specifically
-                    let afterReplace4 = originalText.replace(new RegExp(oldLmid, 'g'), newLmid);
-                    
-                    console.log(`🔄 Regex attempts:`, {
-                        original: `"${beforeReplace}"`,
-                        pattern1_wordBoundary: `"${afterReplace1}"`,
-                        pattern2_anyDigits: `"${afterReplace2}"`,  
-                        pattern3_deleteID: `"${afterReplace3}"`,
-                        pattern4_oldLmid: `"${afterReplace4}"`
-                    });
-                    
-                    // Use the first successful replacement
-                    if (afterReplace3 !== beforeReplace) {
-                        originalText = afterReplace3;
-                        console.log(`✅ Used DELETE ID pattern`);
-                    } else if (afterReplace4 !== beforeReplace) {
-                        originalText = afterReplace4;
-                        console.log(`✅ Used old LMID replacement`);
-                    } else if (afterReplace2 !== beforeReplace) {
-                        originalText = afterReplace2;
-                        console.log(`✅ Used any digits pattern`);
-                    } else if (afterReplace1 !== beforeReplace) {
-                        originalText = afterReplace1;
-                        console.log(`✅ Used word boundary pattern`);
-                    } else {
-                        console.warn(`⚠️ No regex pattern worked!`);
-                    }
-                }
+                // Recreate the proper HTML structure as it should be
+                deleteButton.innerHTML = `
+                    <div>delete</div>
+                    <div class="w-layout-vflex flex-block-19">
+                        <div>ID</div>
+                        <div id="lmid-number" class="w-node-_32c0fba4-26de-f032-bad8-da5ab567b7b5-0386c4d7">${newLmid}</div>
+                    </div>
+                `;
                 
+                // Reset button state
                 if (deleteButton.tagName.toLowerCase() === 'button') {
                     deleteButton.disabled = false;
-                    deleteButton.textContent = originalText;
-                    deleteButton.removeAttribute('data-original-text');
                 } else {
                     deleteButton.style.pointerEvents = '';
                     deleteButton.style.opacity = '';
-                    deleteButton.textContent = originalText;
-                    deleteButton.removeAttribute('data-original-text');
                 }
                 
-                console.log(`✅ Final delete button text:`, deleteButton.textContent);
+                // Remove any data attributes from the deletion process
+                deleteButton.removeAttribute('data-original-text');
+                
+                console.log(`✅ Delete button structure recreated with LMID:`, newLmid);
             }
             
             // Remove any remaining overlay
