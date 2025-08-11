@@ -199,11 +199,6 @@
             // Setup event listeners
             setupEventListeners(authSystem);
             
-            // Setup demo card show/hide functionality (after DOM is fully ready)
-            setTimeout(() => {
-                setupDemoCardControls();
-            }, 100);
-            
             // Fix for Webflow's locale switcher stripping URL params
             setupLocaleSwitcherFix();
             
@@ -479,16 +474,10 @@
         const style = document.createElement('style');
         style.id = 'lm-dashboard-styles';
         style.textContent = `
-            /* Hide template initially (can be overridden by JS) */
+            /* Hide template completely */
             #lm-slot {
-                display: none;
-                visibility: hidden;
-            }
-            
-            /* Show template when it has data-lmid */
-            #lm-slot[data-lmid] {
-                display: block !important;
-                visibility: visible !important;
+                display: none !important;
+                visibility: hidden !important;
             }
             
             /* Minimal essential styles - let Webflow handle most positioning */
@@ -548,69 +537,6 @@
         `;
         
         document.head.appendChild(style);
-    }
-
-    /**
-     * Setup show/hide controls for the demo card
-     */
-    function setupDemoCardControls() {
-        console.log('🎮 Setting up demo card controls...');
-        console.log('🔍 Searching for elements in DOM...');
-        
-        // Debug: Check all elements with these IDs
-        const demoCard = document.getElementById('lm-demo');
-        const hideButton = document.getElementById('hide-lm-demo');
-        const showButton = document.getElementById('show-lm-demo');
-        
-        console.log('🔍 Found elements:', {
-            demoCard: demoCard ? 'FOUND' : 'NOT FOUND',
-            hideButton: hideButton ? 'FOUND' : 'NOT FOUND',
-            showButton: showButton ? 'FOUND' : 'NOT FOUND'
-        });
-        
-        // Also check if there are duplicate IDs
-        const allDemoCards = document.querySelectorAll('[id="lm-demo"]');
-        const allHideButtons = document.querySelectorAll('[id="hide-lm-demo"]');
-        const allShowButtons = document.querySelectorAll('[id="show-lm-demo"]');
-        
-        console.log('🔍 Multiple elements check:', {
-            demoCards: allDemoCards.length,
-            hideButtons: allHideButtons.length,
-            showButtons: allShowButtons.length
-        });
-        
-        if (!demoCard) {
-            console.warn('⚠️ Demo card element with ID "lm-demo" not found');
-            return;
-        }
-        
-        // Hide button functionality
-        if (hideButton) {
-            hideButton.addEventListener('click', (e) => {
-                e.preventDefault();
-                console.log('🫥 Hide button clicked');
-                demoCard.style.display = 'none';
-                console.log('🫥 Demo card hidden');
-            });
-            console.log('✅ Hide button listener added');
-        } else {
-            console.warn('⚠️ Hide button with ID "hide-lm-demo" not found');
-        }
-        
-        // Show button functionality  
-        if (showButton) {
-            showButton.addEventListener('click', (e) => {
-                e.preventDefault();
-                console.log('👁️ Show button clicked');
-                demoCard.style.display = '';
-                console.log('👁️ Demo card shown');
-            });
-            console.log('✅ Show button listener added');
-        } else {
-            console.warn('⚠️ Show button with ID "show-lm-demo" not found');
-        }
-        
-        console.log('🎮 Demo card controls setup completed');
     }
 
     // --- User Role Detection Functions ---
@@ -772,39 +698,19 @@
 
 
 
-        // For single LMID - update template in place instead of cloning
-        const lmid = lmids[0];
-        console.log(`📋 Setting up single LMID: ${lmid}`);
-        
-        // Update template with LMID data
-        const numberElement = template.querySelector("#lmid-number");
-        if (numberElement) {
-            numberElement.textContent = lmid;
-            numberElement.setAttribute("data-lmid-number", "true");
+        // Create UI elements for each LMID (without slow new recording check)
+        for (const lmid of lmids) {
+            const clone = await createLMIDElement(template, lmid, false); // Skip slow check initially
+            if (clone) {
+                container.appendChild(clone);
+            }
         }
-        
-        // Set LMID attribute and show template
-        template.setAttribute("data-lmid", lmid);
-        
-        // Force show template (CSS will handle styling with data-lmid selector)
-        template.style.display = "";
-        template.style.visibility = "";
-        template.removeAttribute("aria-hidden");
-        
-        // Clear any inline styles that might be hiding it
-        template.style.opacity = "";
-        template.style.transform = "";
-        
-        console.log(`👁️ Template should now be visible for LMID ${lmid}`);
-        
-        // Load recording data
-        await setupNewRecordingIndicator(template, lmid);
 
         // Reinitialize Webflow interactions
         reinitializeWebflow();
         
-        // Setup world backgrounds for the template container
-        setupWorldBackgroundsForContainer(template);
+        // Setup world backgrounds for all containers
+        setupWorldBackgrounds();
         
         // Initialize dashboard tracking
         setTimeout(() => {
@@ -840,8 +746,6 @@
         clone.removeAttribute('aria-hidden');
         clone.removeAttribute("id");
         clone.setAttribute("data-lmid", lmid);
-        
-        // Keep demo elements intact - no need to remove IDs for single LMID setup
 
         // Populate LMID number
         const numberElement = clone.querySelector("#lmid-number");
