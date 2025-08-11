@@ -709,6 +709,9 @@
             }
         }
 
+        // Ensure slot buttons are placed at the very end
+        ensureLmSlotButtonsAfterGrids(container);
+
         // Reinitialize Webflow interactions
         reinitializeWebflow();
         
@@ -1930,6 +1933,9 @@
         if (clone) {
             container.appendChild(clone);
             
+            // Keep slot buttons below the grids
+            ensureLmSlotButtonsAfterGrids(container);
+            
             // Setup backgrounds for the new LMID
             setupWorldBackgroundsForContainer(clone);
             
@@ -2556,4 +2562,23 @@
             console.error('Test failed:', error);
         }
     };
+
+    /**
+     * Keep `.lm-slot-buttons` blocks always below the cloned grids
+     * Works within the same parent container as `#lm-slot`
+     */
+    function ensureLmSlotButtonsAfterGrids(container) {
+        if (!container) return;
+        try {
+            const buttonBlocks = container.querySelectorAll('.lm-slot-buttons');
+            buttonBlocks.forEach(block => {
+                if (block && block.parentNode === container) {
+                    // Move block to the end of container children
+                    container.appendChild(block);
+                }
+            });
+        } catch (err) {
+            console.warn('⚠️ Failed to ensure lm-slot-buttons position:', err);
+        }
+    }
 })();
