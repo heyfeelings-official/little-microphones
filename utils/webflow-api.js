@@ -58,9 +58,8 @@ function getWebflowHeaders() {
  * @returns {Promise<Object>} Object with locale mappings
  */
 async function getLocaleIds() {
-    if (localeCache) {
-        return localeCache;
-    }
+    // DISABLE CACHE - Always fetch fresh locale data
+    console.log('🔄 Locale cache disabled - fetching fresh site data');
     
     try {
         const url = `${WEBFLOW_API_BASE}/sites/${SITE_ID}`;
@@ -125,7 +124,7 @@ async function getLocaleIds() {
             console.log('❌ No locales found in Webflow configuration');
         }
         
-        localeCache = locales;
+        // Don't cache - return fresh data
         return locales;
         
     } catch (error) {
@@ -145,24 +144,25 @@ export async function getWebflowItem(itemSlug, language = 'en') {
     try {
         console.log('🔍 Fetching Webflow item:', itemSlug, 'Language:', language);
         
-        // Check cache first (include language in cache key)
-        const cacheKey = `webflow_item_${itemSlug}_${language}`;
-        const cached = itemCache.get(cacheKey);
-        if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
-            console.log('📋 Using cached Webflow item:', itemSlug, 'Language:', language);
-            return cached.data;
-        }
+        // DISABLE CACHE - Always fetch fresh data from Webflow API
+        console.log('🔄 Cache disabled - fetching fresh data from Webflow API');
         
-        // Clear any old cache entries for different languages to avoid confusion
+        // Clear any existing cache entries to ensure fresh data
+        const cacheKey = `webflow_item_${itemSlug}_${language}`;
         const oldEnKey = `webflow_item_${itemSlug}_en`;
         const oldPlKey = `webflow_item_${itemSlug}_pl`;
-        if (language === 'pl' && itemCache.has(oldEnKey)) {
-            itemCache.delete(oldEnKey);
-            console.log('🗑️ Cleared English cache for Polish request');
+        
+        if (itemCache.has(cacheKey)) {
+            itemCache.delete(cacheKey);
+            console.log('🗑️ Cleared existing cache for:', cacheKey);
         }
-        if (language === 'en' && itemCache.has(oldPlKey)) {
+        if (itemCache.has(oldEnKey)) {
+            itemCache.delete(oldEnKey);
+            console.log('🗑️ Cleared English cache');
+        }
+        if (itemCache.has(oldPlKey)) {
             itemCache.delete(oldPlKey);
-            console.log('🗑️ Cleared Polish cache for English request');
+            console.log('🗑️ Cleared Polish cache');
         }
         
         // Get locale IDs from site configuration
@@ -215,12 +215,8 @@ export async function getWebflowItem(itemSlug, language = 'en') {
         const mappedItem = mapWebflowFields(item, language);
         
         // Cache the result
-        itemCache.set(cacheKey, {
-            data: mappedItem,
-            timestamp: Date.now()
-        });
-        
-        console.log('✅ Webflow item fetched and cached:', itemSlug);
+        // Don't cache - always use fresh data
+        console.log('✅ Webflow item fetched (no cache):', itemSlug, 'Language:', language);
         return mappedItem;
         
     } catch (error) {
