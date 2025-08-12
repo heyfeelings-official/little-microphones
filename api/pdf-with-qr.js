@@ -22,7 +22,7 @@
 import { PDFDocument, rgb } from 'pdf-lib';
 import QRCode from 'qrcode';
 import { getSupabaseClient, WORLDS, getWorldColumn } from '../utils/lmid-utils.js';
-import { getMemberDetails } from '../utils/memberstack-utils.js';
+import { getMemberFromSession } from '../utils/memberstack-utils.js';
 import { findLmidsByMemberId } from '../utils/database-utils.js';
 import { getWebflowItem, checkDynamicQR, getBasePdfUrl, getFinalPdfLink, getQrPosition } from '../utils/webflow-api.js';
 
@@ -73,23 +73,12 @@ export default async function handler(req, res) {
             });
         }
 
-        // Get educator from query parameter (for testing) or implement proper session handling
-        const { memberId } = req.query;
-        
-        // For testing - in production this would come from session/cookies
-        if (!memberId) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Missing required parameter: memberId (for testing). In production this would come from session.' 
-            });
-        }
-
-        // Get member details from Memberstack
-        const member = await getMemberDetails(memberId);
+        // Get educator from session (with URL fallback for now)
+        const member = await getMemberFromSession(req);
         if (!member) {
-            return res.status(404).json({ 
+            return res.status(401).json({ 
                 success: false, 
-                error: 'Member not found or invalid memberId.' 
+                error: 'Authentication required. Please log in as an educator.' 
             });
         }
 
@@ -112,15 +101,23 @@ export default async function handler(req, res) {
 
         // Check if Dynamic QR is enabled
         if (!checkDynamicQR(webflowItem)) {
-            console.log('🔄 Dynamic QR disabled, redirecting to final PDF link');
-            const finalPdfLink = getFinalPdfLink(webflowItem);
-            if (finalPdfLink) {
-                return res.redirect(302, finalPdfLink);
+            console.log('🔄 Dynamic QR disabled, redirecting to base PDF file');
+            const basePdfUrl = getBasePdfUrl(webflowItem);
+            if (basePdfUrl) {
+                console.log('📄 Redirecting to base PDF:', basePdfUrl);
+                return res.redirect(302, basePdfUrl);
             } else {
-                return res.status(404).json({ 
-                    success: false, 
-                    error: 'No PDF link available for this item' 
-                });
+                // Fallback to Final PDF Link if base PDF not available
+                const finalPdfLink = getFinalPdfLink(webflowItem);
+                if (finalPdfLink) {
+                    console.log('📄 Redirecting to final PDF link:', finalPdfLink);
+                    return res.redirect(302, finalPdfLink);
+                } else {
+                    return res.status(404).json({ 
+                        success: false, 
+                        error: 'No PDF link available for this item' 
+                    });
+                }
             }
         }
 

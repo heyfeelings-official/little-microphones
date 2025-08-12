@@ -531,4 +531,71 @@ export async function handleMembershipChanges(memberData, planChanges) {
         const sanitized = sanitizeError(error);
         return createErrorResponse(sanitized.message, null, sanitized.code);
     }
+}
+
+/**
+ * Get member from HTTP session (cookies/headers)
+ * @param {Object} req - HTTP request object
+ * @returns {Promise<Object|null>} Member data or null if not authenticated
+ */
+export async function getMemberFromSession(req) {
+    try {
+        // For now, fallback to URL parameter until proper session handling is implemented
+        // TODO: Implement proper Memberstack session cookie parsing
+        const { memberId } = req.query;
+        
+        if (memberId) {
+            console.log('🔑 Using member ID from URL (temporary):', memberId);
+            return await getMemberDetails(memberId);
+        }
+        
+        // Extract member session from cookies or headers
+        const cookies = req.headers.cookie;
+        if (!cookies) {
+            console.log('🔐 No cookies found in request');
+            return null;
+        }
+        
+        // Parse cookies to find Memberstack session
+        const cookieObj = {};
+        cookies.split(';').forEach(cookie => {
+            const [key, value] = cookie.trim().split('=');
+            cookieObj[key] = value;
+        });
+        
+        console.log('🍪 Available cookies:', Object.keys(cookieObj));
+        
+        // Look for common Memberstack session cookies
+        const sessionCookies = [
+            '_ms_session',
+            'ms_session', 
+            '_memberstack_session',
+            'memberstack_session',
+            '_ms_token',
+            'ms_token'
+        ];
+        
+        let sessionToken = null;
+        for (const cookieName of sessionCookies) {
+            if (cookieObj[cookieName]) {
+                sessionToken = cookieObj[cookieName];
+                console.log(`🔑 Found session cookie: ${cookieName}`);
+                break;
+            }
+        }
+        
+        if (!sessionToken) {
+            console.log('🔐 No Memberstack session cookie found');
+            return null;
+        }
+        
+        // For now, log token info and return null
+        // TODO: Implement proper token decoding/validation
+        console.log('🔍 Session token found but decoding not implemented yet');
+        return null;
+        
+    } catch (error) {
+        console.error('❌ Error getting member from session:', error);
+        return null;
+    }
 } 
