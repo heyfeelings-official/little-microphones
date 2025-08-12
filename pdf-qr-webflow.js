@@ -26,6 +26,26 @@
     console.log(`📋 PDF QR Webflow Script v${VERSION} loaded`);
 
     /**
+     * Get member ID from Memberstack session
+     * @returns {Promise<Object|null>} Member data or null
+     */
+    async function getMemberIdFromMemberstack() {
+        try {
+            const memberstack = window.$memberstackDom;
+            if (!memberstack) {
+                console.log('⚠️ Memberstack not available');
+                return null;
+            }
+            
+            const { data: memberData } = await memberstack.getCurrentMember();
+            return memberData || null;
+        } catch (error) {
+            console.error('Error getting member from Memberstack:', error);
+            return null;
+        }
+    }
+
+    /**
      * Initialize PDF QR links when DOM is ready
      */
     async function initializePdfQrLinks() {
@@ -71,16 +91,34 @@
                         // URL encode world parameter (handles spaces like "Shopping Spree")
                         const encodedWorld = encodeURIComponent(world);
                         
-                        // Build dynamic URL (add memberId for testing until session works)
-                        const dynamicUrl = `${API_BASE_URL}/api/pdf-with-qr?item=${encodeURIComponent(itemSlug)}&world=${encodedWorld}&memberId=mem_sb_cme1g02ox010r0wnk4fa652lr`;
-                        
-                        // Set href attribute
-                        button.href = dynamicUrl;
+                        // Get member ID from Memberstack session
+                        try {
+                            const memberData = await getMemberIdFromMemberstack();
+                            let dynamicUrl;
+                            
+                            if (memberData?.id) {
+                                // Build URL with member ID from session
+                                dynamicUrl = `${API_BASE_URL}/api/pdf-with-qr?item=${encodeURIComponent(itemSlug)}&world=${encodedWorld}&memberId=${memberData.id}`;
+                                console.log(`🔑 Using member ID from Memberstack: ${memberData.id}`);
+                            } else {
+                                // Fallback to URL without memberId (server should handle session)
+                                dynamicUrl = `${API_BASE_URL}/api/pdf-with-qr?item=${encodeURIComponent(itemSlug)}&world=${encodedWorld}`;
+                                console.log('⚠️ No member ID found, using session-based auth');
+                            }
+                            
+                            // Set href attribute
+                            button.href = dynamicUrl;
+                        } catch (error) {
+                            console.error('Error getting member ID:', error);
+                            // Fallback URL without memberId
+                            const dynamicUrl = `${API_BASE_URL}/api/pdf-with-qr?item=${encodeURIComponent(itemSlug)}&world=${encodedWorld}`;
+                            button.href = dynamicUrl;
+                        }
                         
                         console.log(`✅ Button ${index + 1} configured for dynamic QR:`, {
                             slug: itemSlug,
                             world: world,
-                            url: dynamicUrl
+                            url: button.href
                         });
 
                         // Add click tracking (optional)
