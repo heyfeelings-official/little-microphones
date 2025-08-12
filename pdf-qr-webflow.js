@@ -94,16 +94,12 @@
                                 timestamp: new Date().toISOString()
                             });
                             
-                            // Optional: Add loading state
+                            // Add loading state class without changing text
                             button.classList.add('pdf-qr-loading');
-                            button.textContent = button.textContent.includes('...') ? button.textContent : button.textContent + '...';
                             
                             // Reset loading state after delay
                             setTimeout(() => {
                                 button.classList.remove('pdf-qr-loading');
-                                if (button.textContent.includes('...')) {
-                                    button.textContent = button.textContent.replace('...', '');
-                                }
                             }, 3000);
                         });
                         

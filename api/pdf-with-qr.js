@@ -206,6 +206,8 @@ export default async function handler(req, res) {
         // Look for QR placeholder in PDF and replace it with QR code
         const qrPositionConfig = getQrPosition(webflowItem);
         const placeholderName = qrPositionConfig?.placeholder || 'QR_PLACEHOLDER_1';
+        console.log('🔍 Looking for QR placeholder:', placeholderName);
+        
         const qrPlaceholderFound = await findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName);
         
         if (!qrPlaceholderFound) {
@@ -230,9 +232,9 @@ export default async function handler(req, res) {
         // Generate modified PDF
         const modifiedPdfBytes = await pdfDoc.save();
 
-        // Set response headers for PDF download
+        // Set response headers for PDF display in browser (not download)
         res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename="${item}-with-qr.pdf"`);
+        res.setHeader('Content-Disposition', `inline; filename="${item}-with-qr.pdf"`);
         res.setHeader('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=3600'); // 24h cache
         res.setHeader('Content-Length', modifiedPdfBytes.length);
 
@@ -270,6 +272,8 @@ async function findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName)
         const qrImage = await pdfDoc.embedPng(qrPngBuffer);
         const pages = pdfDoc.getPages();
         
+        console.log(`📋 Searching ${pages.length} pages for placeholder: ${placeholderName}`);
+        
         // Search through all pages
         for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
             const page = pages[pageIndex];
@@ -280,6 +284,12 @@ async function findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName)
             // Try to find form fields with the placeholder name
             const form = pdfDoc.getForm();
             const fields = form.getFields();
+            
+            console.log(`📄 Page ${pageIndex + 1}: Found ${fields.length} form fields`);
+            
+            // List all field names for debugging
+            const fieldNames = fields.map(f => f.getName());
+            console.log('🏷️ Available field names:', fieldNames);
             
             for (const field of fields) {
                 if (field.getName() === placeholderName) {
