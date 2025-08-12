@@ -64,8 +64,20 @@ export async function getWebflowItem(itemSlug, language = 'en') {
         const cacheKey = `webflow_item_${itemSlug}_${language}`;
         const cached = itemCache.get(cacheKey);
         if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
-            console.log('📋 Using cached Webflow item:', itemSlug);
+            console.log('📋 Using cached Webflow item:', itemSlug, 'Language:', language);
             return cached.data;
+        }
+        
+        // Clear any old cache entries for different languages to avoid confusion
+        const oldEnKey = `webflow_item_${itemSlug}_en`;
+        const oldPlKey = `webflow_item_${itemSlug}_pl`;
+        if (language === 'pl' && itemCache.has(oldEnKey)) {
+            itemCache.delete(oldEnKey);
+            console.log('🗑️ Cleared English cache for Polish request');
+        }
+        if (language === 'en' && itemCache.has(oldPlKey)) {
+            itemCache.delete(oldPlKey);
+            console.log('🗑️ Cleared Polish cache for English request');
         }
         
         // Fetch all items from collection (Webflow API doesn't support direct slug lookup)
@@ -84,7 +96,14 @@ export async function getWebflowItem(itemSlug, language = 'en') {
         }
         
         const result = await response.json();
-        console.log(`📋 Fetched ${result.items?.length || 0} items from Webflow collection`);
+        console.log(`📋 Fetched ${result.items?.length || 0} items from Webflow collection (locale: ${locale})`);
+        
+        // Debug: Log first item's Template PDF field to see what Webflow returns
+        if (result.items && result.items.length > 0) {
+            const firstItem = result.items[0];
+            const firstItemPdf = firstItem.fieldData?.['template-pdf'] || firstItem.fieldData?.['Template PDF'] || firstItem.fieldData?.file;
+            console.log('🔍 Sample item Template PDF URL:', firstItemPdf?.url);
+        }
         
         // Find item by slug
         const item = result.items?.find(item => 
@@ -126,6 +145,11 @@ function mapWebflowFields(webflowItem, language = 'en') {
     
     // Debug: log field data (remove after testing)
     console.log('🔍 Mapping Webflow fields for:', fieldData.slug, '- World ID:', fieldData.world, '→', WORLD_ID_MAP[fieldData.world] || 'unmapped');
+    console.log('🔍 Raw Template PDF field data:', JSON.stringify({
+        'template-pdf': fieldData['template-pdf'],
+        'Template PDF': fieldData['Template PDF'],
+        'file': fieldData.file
+    }, null, 2));
     
     return {
         id: webflowItem.id,
