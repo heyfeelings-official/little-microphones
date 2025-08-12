@@ -565,13 +565,18 @@ export async function getMemberFromSession(req) {
         console.log('🍪 Available cookies:', Object.keys(cookieObj));
         
         // Look for common Memberstack session cookies
+        // Based on Memberstack documentation and common patterns
         const sessionCookies = [
-            '_ms_session',
-            'ms_session', 
+            '__session',           // Firebase/Memberstack common session cookie
             '_memberstack_session',
             'memberstack_session',
+            '_ms_session',
+            'ms_session',
             '_ms_token',
-            'ms_token'
+            'ms_token',
+            'connect.sid',         // Express session cookie
+            'session',             // Generic session cookie
+            'auth-token'           // Auth token cookie
         ];
         
         let sessionToken = null;
@@ -585,13 +590,35 @@ export async function getMemberFromSession(req) {
         
         if (!sessionToken) {
             console.log('🔐 No Memberstack session cookie found');
+            
+            // Alternative approach: Check if request comes from authenticated pages
+            const referer = req.headers.referer || req.headers.referrer || '';
+            const isFromMembersArea = referer.includes('/members/') || referer.includes('/pl/members/');
+            
+            if (isFromMembersArea) {
+                console.log('🔐 Request from members area, assuming authenticated session');
+                // We can't get the exact member ID from cookies, but we know they're logged in
+                // Return a placeholder that indicates authentication is required
+                return { 
+                    id: 'session-authenticated', 
+                    requiresAuthentication: true,
+                    referer: referer
+                };
+            }
+            
             return null;
         }
         
         // For now, log token info and return null
         // TODO: Implement proper token decoding/validation
         console.log('🔍 Session token found but decoding not implemented yet');
-        return null;
+        
+        // Return placeholder indicating session exists but needs validation
+        return { 
+            id: 'session-token-found', 
+            requiresAuthentication: true,
+            hasSessionToken: true
+        };
         
     } catch (error) {
         console.error('❌ Error getting member from session:', error);

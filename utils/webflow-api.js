@@ -92,6 +92,18 @@ async function getLocaleIds() {
         }
         
         console.log('🌍 Found locale IDs:', locales);
+        
+        // Additional debug: Show which locales are available
+        if (locales.en && locales.pl) {
+            console.log('✅ Both EN and PL locales configured correctly');
+        } else if (locales.en && !locales.pl) {
+            console.log('⚠️ Only EN locale found, PL locale missing');
+        } else if (!locales.en && locales.pl) {
+            console.log('⚠️ Only PL locale found, EN locale missing');
+        } else {
+            console.log('❌ No locales found in Webflow configuration');
+        }
+        
         localeCache = locales;
         return locales;
         
@@ -321,6 +333,15 @@ function getLanguageSpecificPdfUrl(fieldData, language) {
     
     if (templatePdf) {
         console.log(`📄 Using localized Template PDF (${language}):`, templatePdf);
+        
+        // Additional debug: Check if this is the expected file for the language
+        if (language === 'pl' && templatePdf) {
+            const isPolishFile = templatePdf.includes('pl') || templatePdf.includes('polish') || templatePdf.includes('PL');
+            console.log(`🔍 Polish file check: ${isPolishFile ? 'CORRECT' : 'WRONG'} - File: ${templatePdf}`);
+        } else if (language === 'en' && templatePdf) {
+            const isEnglishFile = !templatePdf.includes('pl') && !templatePdf.includes('polish');
+            console.log(`🔍 English file check: ${isEnglishFile ? 'CORRECT' : 'WRONG'} - File: ${templatePdf}`);
+        }
         return templatePdf;
     }
     

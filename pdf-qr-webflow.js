@@ -91,29 +91,23 @@
                         // URL encode world parameter (handles spaces like "Shopping Spree")
                         const encodedWorld = encodeURIComponent(world);
                         
-                        // Get member ID from Memberstack session
+                        // Build clean URL without member ID (use session-based auth)
+                        const dynamicUrl = `${API_BASE_URL}/api/pdf-with-qr?item=${encodeURIComponent(itemSlug)}&world=${encodedWorld}`;
+                        
+                        // Verify user is logged in (for better UX)
                         try {
                             const memberData = await getMemberIdFromMemberstack();
-                            let dynamicUrl;
-                            
                             if (memberData?.id) {
-                                // Build URL with member ID from session
-                                dynamicUrl = `${API_BASE_URL}/api/pdf-with-qr?item=${encodeURIComponent(itemSlug)}&world=${encodedWorld}&memberId=${memberData.id}`;
-                                console.log(`🔑 Using member ID from Memberstack: ${memberData.id}`);
+                                console.log(`🔑 Member authenticated: ${memberData.id}`);
                             } else {
-                                // Fallback to URL without memberId (server should handle session)
-                                dynamicUrl = `${API_BASE_URL}/api/pdf-with-qr?item=${encodeURIComponent(itemSlug)}&world=${encodedWorld}`;
-                                console.log('⚠️ No member ID found, using session-based auth');
+                                console.log('⚠️ No member session found - user may need to log in');
                             }
-                            
-                            // Set href attribute
-                            button.href = dynamicUrl;
                         } catch (error) {
-                            console.error('Error getting member ID:', error);
-                            // Fallback URL without memberId
-                            const dynamicUrl = `${API_BASE_URL}/api/pdf-with-qr?item=${encodeURIComponent(itemSlug)}&world=${encodedWorld}`;
-                            button.href = dynamicUrl;
+                            console.log('⚠️ Could not verify member session:', error.message);
                         }
+                        
+                        // Set href attribute (no member ID in URL)
+                        button.href = dynamicUrl;
                         
                         console.log(`✅ Button ${index + 1} configured for dynamic QR:`, {
                             slug: itemSlug,
