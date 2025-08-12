@@ -177,6 +177,7 @@ export default async function handler(req, res) {
         });
 
         console.log('✅ QR code embedded at position:', { x: qrX, y: qrY, size: qrSize });
+        console.log('📋 PDF generation completed successfully');
 
         // Generate modified PDF
         const modifiedPdfBytes = await pdfDoc.save();
