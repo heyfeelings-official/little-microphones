@@ -540,9 +540,15 @@ export async function handleMembershipChanges(memberData, planChanges) {
  */
 export async function getMemberFromSession(req) {
     try {
-        // First try URL parameter for backward compatibility
-        const { memberId } = req.query;
+        // First try HTTP header (preferred method)
+        const memberIdFromHeader = req.headers['x-member-id'];
+        if (memberIdFromHeader) {
+            console.log('🔑 Using member ID from HTTP header:', memberIdFromHeader);
+            return await getMemberDetails(memberIdFromHeader);
+        }
         
+        // Fallback to URL parameter for backward compatibility
+        const { memberId } = req.query;
         if (memberId) {
             console.log('🔑 Using member ID from URL parameter:', memberId);
             return await getMemberDetails(memberId);

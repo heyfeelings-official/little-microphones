@@ -117,12 +117,7 @@ export default async function handler(req, res) {
             });
         }
 
-        // Handle different authentication types
-        if (member.authenticated && (member.source === 'members-area-referer' || member.source === 'session-cookie')) {
-            console.log('👨‍🏫 Session-based authentication detected:', member.id, 'Source:', member.source);
-        } else {
-            console.log('👨‍🏫 Educator authenticated with member ID:', member.id);
-        }
+        console.log('👨‍🏫 Educator authenticated with member ID:', member.id);
 
         // Check if Dynamic QR is enabled
         if (!checkDynamicQR(webflowItem)) {
@@ -155,52 +150,28 @@ export default async function handler(req, res) {
             });
         }
 
-        let shareId = null;
-        let primaryLmid = null;
-
-        // Handle LMID lookup based on authentication type
-        if (member.authenticated && (member.source === 'members-area-referer' || member.source === 'session-cookie')) {
-            // For session-authenticated users, use a demo/default ShareID
-            // This is a temporary solution until proper session decoding is implemented
-            console.log('⚠️ Using demo ShareID for session-authenticated user');
-            
-            // Use a known ShareID for testing (you should replace this with a proper demo LMID)
-            const demoShareIds = {
-                'spookyland': 'yh90qrqi',
-                'waterpark': 'demo-water',  
-                'shopping-spree': 'demo-shop',
-                'amusement-park': 'demo-amuse',
-                'big-city': 'demo-city',
-                'neighborhood': 'demo-neighbor'
-            };
-            
-            shareId = demoShareIds[worldToUse] || 'yh90qrqi'; // fallback to spookyland
-            console.log('🎯 Using demo ShareID:', shareId, 'for world:', worldToUse);
-            
-        } else {
-            // For users with proper member IDs, do normal LMID lookup
-            const educatorLmids = await findLmidsByMemberId(member.id);
-            if (!educatorLmids || educatorLmids.length === 0) {
-                return res.status(404).json({ 
-                    success: false, 
-                    error: 'No LMIDs found for this educator' 
-                });
-            }
-
-            // Get ShareID for the first LMID and specified world
-            primaryLmid = educatorLmids[0];
-            const worldColumn = getWorldColumn(worldToUse);
-            shareId = primaryLmid[worldColumn];
-
-            if (!shareId) {
-                return res.status(404).json({ 
-                    success: false, 
-                    error: `No ShareID found for world: ${worldToUse}` 
-                });
-            }
-
-            console.log('🎯 Found ShareID:', shareId, 'for LMID:', primaryLmid.lmid, 'world:', worldToUse);
+        // Find educator's LMIDs using the member ID
+        const educatorLmids = await findLmidsByMemberId(member.id);
+        if (!educatorLmids || educatorLmids.length === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'No LMIDs found for this educator' 
+            });
         }
+
+        // Get ShareID for the first LMID and specified world
+        const primaryLmid = educatorLmids[0];
+        const worldColumn = getWorldColumn(worldToUse);
+        const shareId = primaryLmid[worldColumn];
+
+        if (!shareId) {
+            return res.status(404).json({ 
+                success: false, 
+                error: `No ShareID found for world: ${worldToUse}` 
+            });
+        }
+
+        console.log('🎯 Found ShareID:', shareId, 'for LMID:', primaryLmid.lmid, 'world:', worldToUse);
 
         // Get base PDF URL from Webflow CMS
         const basePdfUrl = getBasePdfUrl(webflowItem);

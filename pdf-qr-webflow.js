@@ -91,23 +91,62 @@
                         // URL encode world parameter (handles spaces like "Shopping Spree")
                         const encodedWorld = encodeURIComponent(world);
                         
-                        // Build clean URL without member ID (use session-based auth)
-                        const dynamicUrl = `${API_BASE_URL}/api/pdf-with-qr?item=${encodeURIComponent(itemSlug)}&world=${encodedWorld}`;
+                        // Get member ID from Memberstack session
+                        const memberData = await getMemberIdFromMemberstack();
                         
-                        // Verify user is logged in (for better UX)
-                        try {
-                            const memberData = await getMemberIdFromMemberstack();
-                            if (memberData?.id) {
-                                console.log(`🔑 Member authenticated: ${memberData.id}`);
-                            } else {
-                                console.log('⚠️ No member session found - user may need to log in');
-                            }
-                        } catch (error) {
-                            console.log('⚠️ Could not verify member session:', error.message);
+                        if (!memberData?.id) {
+                            console.error('❌ No member ID found - user must be logged in');
+                            button.href = '#'; // Disable button
+                            button.style.opacity = '0.5';
+                            button.title = 'Please log in to download PDF';
+                            return;
                         }
                         
-                        // Set href attribute (no member ID in URL)
-                        button.href = dynamicUrl;
+                        console.log(`🔑 Member authenticated: ${memberData.id}`);
+                        
+                        // Create a custom click handler that sends member ID in request header
+                        const originalHref = `${API_BASE_URL}/api/pdf-with-qr?item=${encodeURIComponent(itemSlug)}&world=${encodedWorld}`;
+                        
+                        // Remove any existing click handlers
+                        button.onclick = null;
+                        
+                        // Add custom click handler with member ID in header
+                        button.addEventListener('click', async function(e) {
+                            e.preventDefault();
+                            
+                            console.log(`🖱️ PDF download initiated with member ID: ${memberData.id}`);
+                            
+                            try {
+                                // Make request with member ID in header
+                                const response = await fetch(originalHref, {
+                                    method: 'GET',
+                                    headers: {
+                                        'X-Member-ID': memberData.id,
+                                        'X-Requested-With': 'XMLHttpRequest'
+                                    }
+                                });
+                                
+                                if (response.ok) {
+                                    // Get the PDF blob and create download
+                                    const blob = await response.blob();
+                                    const url = window.URL.createObjectURL(blob);
+                                    const a = document.createElement('a');
+                                    a.href = url;
+                                    a.download = `${itemSlug}-${world}-qr.pdf`;
+                                    document.body.appendChild(a);
+                                    a.click();
+                                    window.URL.revokeObjectURL(url);
+                                    document.body.removeChild(a);
+                                } else {
+                                    const errorData = await response.json();
+                                    console.error('PDF download failed:', errorData);
+                                    alert('Failed to generate PDF. Please try again.');
+                                }
+                            } catch (error) {
+                                console.error('PDF download error:', error);
+                                alert('Network error. Please check your connection and try again.');
+                            }
+                        });
                         
                         console.log(`✅ Button ${index + 1} configured for dynamic QR:`, {
                             slug: itemSlug,
