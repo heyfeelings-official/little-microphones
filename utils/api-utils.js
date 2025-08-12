@@ -67,7 +67,7 @@ export function setCorsHeaders(res, methods = ['GET', 'POST', 'PUT', 'DELETE', '
         }
         
     res.setHeader('Access-Control-Allow-Methods', methods.join(', '));
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Memberstack-Signature');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Memberstack-Signature, X-Member-ID, X-Requested-With');
     res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
         
         // Bezpieczne headers
