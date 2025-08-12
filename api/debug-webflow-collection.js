@@ -3,18 +3,18 @@
  */
 
 import { getWebflowHeaders } from '../utils/webflow-api.js';
-import { handleCors } from '../utils/api-utils.js';
+import { setCorsHeaders } from '../utils/api-utils.js';
 
 const WEBFLOW_API_BASE = 'https://api.webflow.com/v2';
 const COLLECTION_ID = '689a16dd10cb6df7ff0094a0'; // From config
 
 export default async function handler(req, res) {
     // Handle CORS
-    if (req.method === 'OPTIONS') {
-        return handleCors(req, res);
-    }
+    setCorsHeaders(res, ['GET', 'OPTIONS']);
     
-    handleCors(req, res);
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
     
     try {
         console.log('🔍 Fetching Webflow collection schema...');
