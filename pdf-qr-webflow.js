@@ -79,10 +79,14 @@
                 }
 
                 try {
-                    // Check if this item needs dynamic QR by calling our API
-                    const checkUrl = `${API_BASE_URL}/api/pdf-with-qr?item=${encodeURIComponent(itemSlug)}&world=${encodeURIComponent(world)}&check=true`;
+                    // Detect current language from URL
+                    const currentLang = window.location.pathname.startsWith('/pl/') ? 'pl' : 'en';
+                    console.log(`🌍 Detected language: ${currentLang}`);
                     
-                    console.log(`🔍 Checking Dynamic QR status for: ${itemSlug}`);
+                    // Check if this item needs dynamic QR by calling our API
+                    const checkUrl = `${API_BASE_URL}/api/pdf-with-qr?item=${encodeURIComponent(itemSlug)}&world=${encodeURIComponent(world)}&check=true&lang=${currentLang}`;
+                    
+                    console.log(`🔍 Checking Dynamic QR status for: ${itemSlug} (${currentLang})`);
                     
                     const response = await fetch(checkUrl);
                     const result = await response.json();
@@ -105,7 +109,7 @@
                         console.log(`🔑 Member authenticated: ${memberData.id}`);
                         
                         // Create a custom click handler that sends member ID in request header
-                        const originalHref = `${API_BASE_URL}/api/pdf-with-qr?item=${encodeURIComponent(itemSlug)}&world=${encodedWorld}`;
+                        const originalHref = `${API_BASE_URL}/api/pdf-with-qr?item=${encodeURIComponent(itemSlug)}&world=${encodedWorld}&lang=${currentLang}`;
                         
                         // Remove any existing click handlers
                         button.onclick = null;
@@ -127,16 +131,19 @@
                                 });
                                 
                                 if (response.ok) {
-                                    // Get the PDF blob and create download
+                                    // Open PDF in new tab instead of downloading
                                     const blob = await response.blob();
                                     const url = window.URL.createObjectURL(blob);
-                                    const a = document.createElement('a');
-                                    a.href = url;
-                                    a.download = `${itemSlug}-${world}-qr.pdf`;
-                                    document.body.appendChild(a);
-                                    a.click();
-                                    window.URL.revokeObjectURL(url);
-                                    document.body.removeChild(a);
+                                    const newTab = window.open(url, '_blank');
+                                    
+                                    // Clean up the blob URL after a delay
+                                    setTimeout(() => {
+                                        window.URL.revokeObjectURL(url);
+                                    }, 1000);
+                                    
+                                    if (!newTab) {
+                                        alert('Please allow popups to view the PDF');
+                                    }
                                 } else {
                                     const errorData = await response.json();
                                     console.error('PDF download failed:', errorData);
@@ -154,16 +161,7 @@
                             url: button.href
                         });
 
-                        // Add click tracking (optional)
-                        button.addEventListener('click', function(e) {
-                            console.log(`🖱️ PDF QR download initiated:`, {
-                                slug: itemSlug,
-                                world: world,
-                                timestamp: new Date().toISOString()
-                            });
-                            
-                            // Track click without visual changes
-                        });
+
                         
                     } else {
                         console.log(`ℹ️ Button ${index + 1} keeps original Webflow URL (Dynamic QR = false):`, itemSlug);
