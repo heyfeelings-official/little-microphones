@@ -127,11 +127,18 @@ export default async function handler(req, res) {
         }
 
         console.log('👨‍🏫 Educator authenticated with member ID:', member.id);
+        console.log('👤 Member data structure:', JSON.stringify(member, null, 2));
         
         // Extract teacher name from member data
         const teacherFirstName = member.firstName || member.customFields?.firstName || 'Teacher';
         const teacherLastName = member.lastName || member.customFields?.lastName || '';
         const teacherName = `${teacherFirstName} ${teacherLastName}`.trim();
+        
+        console.log('📝 Teacher name extracted:', {
+            firstName: teacherFirstName,
+            lastName: teacherLastName,
+            fullName: teacherName
+        });
 
         // Check if Dynamic QR is enabled
         if (!checkDynamicQR(webflowItem)) {
@@ -393,6 +400,8 @@ async function findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName,
         
         // Helper function to draw teacher info at specific coordinates
         const drawTeacherInfo = (page, x, y, fontSize = 10) => {
+            console.log(`🎯 Drawing teacher info: "${teacherName}" at position (${x}, ${y})`);
+            
             // Draw teacher name
             page.drawText(teacherName, {
                 x: x,
@@ -411,7 +420,7 @@ async function findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName,
                 color: rgb(0.3, 0.3, 0.3), // Gray color
             });
             
-            console.log(`👨‍🏫 Teacher info placed at (${x}, ${y}): "${teacherName}"`);
+            console.log(`✅ Teacher info placed successfully: "${teacherName}" at (${x}, ${y})`);
         };
         
         // Searching PDF pages for placeholder
