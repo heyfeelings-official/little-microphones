@@ -134,9 +134,13 @@
                         
                         console.log(`🔑 Member authenticated: ${memberData.id}`);
                         
+                        // Detect language from current URL
+                        const isPolish = window.location.pathname.startsWith('/pl/');
+                        const language = isPolish ? 'pl' : 'en';
+                        console.log(`🌍 Detected language: ${language} (from URL: ${window.location.pathname})`);
+                        
                         // Create a custom click handler that sends member ID in request header
-                        // Backend will auto-detect language from referer header
-                        const originalHref = `${API_BASE_URL}/api/pdf-with-qr?item=${encodeURIComponent(itemSlug)}&world=${encodedWorld}`;
+                        const originalHref = `${API_BASE_URL}/api/pdf-with-qr?item=${encodeURIComponent(itemSlug)}&world=${encodedWorld}&lang=${language}`;
                         
                         // Remove any existing click handlers and href
                         targetEl.onclick = null;
