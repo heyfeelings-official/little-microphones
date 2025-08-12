@@ -246,7 +246,7 @@ export default async function handler(req, res) {
         const placeholderName = 'QR_PLACEHOLDER_1';
         // Looking for QR placeholder in PDF
         
-        const qrPlaceholderFound = await findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName);
+        const qrPlaceholderFound = await findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName, shareUrl);
         
         if (!qrPlaceholderFound) {
             // Fallback: place QR in bottom-right corner if placeholder not found
@@ -255,12 +255,30 @@ export default async function handler(req, res) {
             const qrX = width - qrSize - margin;
             const qrY = margin;
             
+            // Embed font and draw QR with text for fallback position
             const qrImage = await pdfDoc.embedPng(qrPngBuffer);
+            const font = await pdfDoc.embedFont('Helvetica');
+            
+            // Draw QR code
             firstPage.drawImage(qrImage, {
                 x: qrX,
                 y: qrY,
                 width: qrSize,
                 height: qrSize,
+            });
+            
+            // Draw URL text below QR code
+            const fontSize = 8;
+            const textY = qrY - fontSize - 4;
+            const textWidth = font.widthOfTextAtSize(shareUrl, fontSize);
+            const textX = qrX + (qrSize - textWidth) / 2;
+            
+            firstPage.drawText(shareUrl, {
+                x: textX,
+                y: textY,
+                size: fontSize,
+                font: font,
+                color: rgb(0, 0, 0),
             });
             
             console.log('⚠️ QR_PLACEHOLDER_1 not found, placed QR in bottom-right corner:', { x: qrX, y: qrY, size: qrSize });
@@ -304,12 +322,43 @@ export default async function handler(req, res) {
  * @param {PDFDocument} pdfDoc - PDF document
  * @param {Buffer} qrPngBuffer - QR code PNG buffer
  * @param {string} placeholderName - Name of placeholder to find (e.g., 'QR_PLACEHOLDER_1')
+ * @param {string} shareUrl - URL to display under QR code
  * @returns {Promise<boolean>} True if placeholder was found and replaced
  */
-async function findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName) {
+async function findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName, shareUrl) {
     try {
         const qrImage = await pdfDoc.embedPng(qrPngBuffer);
         const pages = pdfDoc.getPages();
+        
+        // Embed font for URL text
+        const font = await pdfDoc.embedFont('Helvetica');
+        
+        // Helper function to draw QR code with URL text
+        const drawQrWithText = (page, x, y, width, height) => {
+            // Draw QR code
+            page.drawImage(qrImage, {
+                x: x,
+                y: y,
+                width: width,
+                height: height,
+            });
+            
+            // Draw URL text below QR code
+            const fontSize = Math.max(8, Math.min(10, width / 15)); // Scale font with QR size
+            const textY = y - fontSize - 4; // Position below QR code
+            const textWidth = font.widthOfTextAtSize(shareUrl, fontSize);
+            const textX = x + (width - textWidth) / 2; // Center text under QR
+            
+            page.drawText(shareUrl, {
+                x: textX,
+                y: textY,
+                size: fontSize,
+                font: font,
+                color: rgb(0, 0, 0), // Black text
+            });
+            
+            console.log(`📝 Added URL text: "${shareUrl}" at (${textX}, ${textY})`);
+        };
         
         // Searching PDF pages for placeholder
         
@@ -336,15 +385,10 @@ async function findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName)
                                 const widget = widgets[0];
                                 const rect = widget.getRectangle();
                                 
-                                page.drawImage(qrImage, {
-                                    x: rect.x,
-                                    y: rect.y,
-                                    width: rect.width,
-                                    height: rect.height,
-                                });
+                                drawQrWithText(page, rect.x, rect.y, rect.width, rect.height);
                                 
                                 form.removeField(field);
-                                console.log(`✅ QR code placed at form field ${placeholderName}:`, rect);
+                                console.log(`✅ QR code with URL text placed at form field ${placeholderName}:`, rect);
                                 return true;
                             }
                         }
@@ -362,15 +406,10 @@ async function findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName)
                 if (placeholderMatch) {
                     console.log(`🎯 Found text placeholder: ${placeholderName}`);
                     
-                    // Place QR code at the found position
+                    // Place QR code with text at the found position
                     const qrSize = Math.min(placeholderMatch.width || 120, placeholderMatch.height || 120, 120);
                     
-                    page.drawImage(qrImage, {
-                        x: placeholderMatch.x,
-                        y: placeholderMatch.y,
-                        width: qrSize,
-                        height: qrSize,
-                    });
+                    drawQrWithText(page, placeholderMatch.x, placeholderMatch.y, qrSize, qrSize);
                     
                     console.log(`✅ QR code placed at text placeholder ${placeholderName}:`, placeholderMatch);
                     return true;
@@ -385,12 +424,7 @@ async function findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName)
                 if (placeholderRect) {
                     console.log(`🎯 Found graphic placeholder: ${placeholderName}`);
                     
-                    page.drawImage(qrImage, {
-                        x: placeholderRect.x,
-                        y: placeholderRect.y,
-                        width: placeholderRect.width,
-                        height: placeholderRect.height,
-                    });
+                    drawQrWithText(page, placeholderRect.x, placeholderRect.y, placeholderRect.width, placeholderRect.height);
                     
                     console.log(`✅ QR code placed at graphic placeholder ${placeholderName}:`, placeholderRect);
                     return true;
