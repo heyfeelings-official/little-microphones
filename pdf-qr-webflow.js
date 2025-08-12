@@ -154,10 +154,12 @@
                             e.stopPropagation(); // Stop event bubbling to prevent double tabs
                             
                             console.log(`🖱️ PDF download initiated with member ID: ${memberData.id}`);
+                            console.log(`🔗 Original URL: ${originalHref}`);
                             
                             try {
                                 // Add cache-busting parameter to ensure fresh PDF generation
                                 const cacheBustingUrl = originalHref + '&t=' + Date.now();
+                                console.log(`🔗 Cache-busting URL: ${cacheBustingUrl}`);
                                 
                                 // Make request with member ID in header
                                 const response = await fetch(cacheBustingUrl, {
