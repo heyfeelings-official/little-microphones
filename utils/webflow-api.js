@@ -33,7 +33,13 @@ const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 // World ID to name mapping (based on your Webflow CMS Option field)
 const WORLD_ID_MAP = {
     '2706219f5b529481804b4e24ff1d88aa': 'spookyland',
-    // Add more mappings as needed - you can find these IDs in Webflow API responses
+    // TODO: Add remaining world IDs from Webflow API responses:
+    // Look for these world names in logs and add their IDs:
+    // - waterpark
+    // - shopping-spree  
+    // - amusement-park
+    // - big-city
+    // - neighborhood
 };
 
 /**
@@ -213,18 +219,10 @@ function mapWebflowFields(webflowItem, language = 'en') {
     // Debug: log field data (remove after testing)
     console.log('🔍 Mapping Webflow fields for:', fieldData.slug, '- World ID:', fieldData.world, '→', WORLD_ID_MAP[fieldData.world] || 'unmapped');
     console.log('🔍 All available fields:', Object.keys(fieldData));
-    console.log('🔍 Raw field data for ALL PDF-related fields:', JSON.stringify({
+    console.log('🔍 Raw Template PDF field data:', JSON.stringify({
+        'Template PDF': fieldData['Template PDF'],     // CORRECT field name
         'template-pdf': fieldData['template-pdf'],
-        'Template PDF': fieldData['Template PDF'],
-        'templatepdf': fieldData['templatepdf'],
-        'file': fieldData.file,
-        'File field': fieldData['file-field'] || fieldData['File field'],
-        'pdf': fieldData.pdf,
-        'PDF': fieldData.PDF,
-        'base-pdf': fieldData['base-pdf'],
-        'Base PDF': fieldData['Base PDF'],
-        'workbook-pdf': fieldData['workbook-pdf'],
-        'Workbook PDF': fieldData['Workbook PDF']
+        'templatepdf': fieldData['templatepdf']
     }, null, 2));
     
     return {
@@ -327,36 +325,20 @@ export function getWebflowCacheStats() {
  * @returns {string|null} PDF URL or null
  */
 function getLanguageSpecificPdfUrl(fieldData, language) {
-    // Try all possible field variations that might contain the PDF
-    // Priority order: specific PDF fields first, then generic file fields
-    const templateField = fieldData['template-pdf'] || 
-                         fieldData['Template PDF'] || 
-                         fieldData['templatepdf'] ||
-                         fieldData['base-pdf'] ||
-                         fieldData['Base PDF'] ||
-                         fieldData['workbook-pdf'] ||
-                         fieldData['Workbook PDF'] ||
-                         fieldData['pdf'] ||
-                         fieldData['PDF'] ||
-                         fieldData['file'] ||           // Generic file field (could be image!)
-                         fieldData['File field'];
+    // User confirmed: the PDF template field is named "Template PDF" in Webflow
+    // Priority order: Template PDF first (this is the correct field)
+    const templateField = fieldData['Template PDF'] ||     // CORRECT field name
+                         fieldData['template-pdf'] || 
+                         fieldData['templatepdf'];
     
     const templatePdf = templateField?.url || null;
 
     console.log(`🔍 Template PDF field search for ${language}:`, {
+        'Template PDF': Boolean(fieldData['Template PDF']),     // CORRECT field
         'template-pdf': Boolean(fieldData['template-pdf']),
-        'Template PDF': Boolean(fieldData['Template PDF']),
         'templatepdf': Boolean(fieldData['templatepdf']),
-        'base-pdf': Boolean(fieldData['base-pdf']),
-        'Base PDF': Boolean(fieldData['Base PDF']),
-        'workbook-pdf': Boolean(fieldData['workbook-pdf']),
-        'Workbook PDF': Boolean(fieldData['Workbook PDF']),
-        'pdf': Boolean(fieldData['pdf']),
-        'PDF': Boolean(fieldData['PDF']),
-        'file': Boolean(fieldData['file']),
-        'File field': Boolean(fieldData['File field']),
         foundUrl: templatePdf,
-        isImage: templatePdf ? templatePdf.includes('.jpg') || templatePdf.includes('.jpeg') || templatePdf.includes('.png') : false
+        isPDF: templatePdf ? templatePdf.includes('.pdf') : false
     });
 
     if (templatePdf) {
