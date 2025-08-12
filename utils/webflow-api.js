@@ -181,8 +181,9 @@ export async function getWebflowItem(itemSlug, language = 'en') {
         // Debug: Log first item's Template PDF field to see what Webflow returns
         if (result.items && result.items.length > 0) {
             const firstItem = result.items[0];
-            const firstItemPdf = firstItem.fieldData?.['template-pdf'] || firstItem.fieldData?.['Template PDF'] || firstItem.fieldData?.file;
-            console.log('🔍 Sample item Template PDF URL:', firstItemPdf?.url);
+            const firstItemTemplate = firstItem.fieldData?.['template-pdf'] || firstItem.fieldData?.['Template PDF'];
+            const firstItemPdf = firstItemTemplate?.url;
+            console.log('🔍 Sample item Template PDF URL:', firstItemPdf);
             
             // Additional debug for localization
             if (language === 'pl' && firstItemPdf?.url) {
@@ -343,30 +344,25 @@ export function getWebflowCacheStats() {
  * @returns {string|null} PDF URL or null
  */
 function getLanguageSpecificPdfUrl(fieldData, language) {
-    
-    // Webflow localization automatically returns the correct content based on locale parameter
-    // So we just need to check the standard Template PDF field
-    const templatePdf = fieldData['template-pdf']?.url ||
-                       fieldData['Template PDF']?.url ||
-                       fieldData.file?.url ||
-                       fieldData['file-field']?.url ||
-                       fieldData['File field']?.url ||
-                       fieldData['base-pdf']?.url;
+    // STRICT MODE: Only use Template PDF field. No fallbacks.
+    // This prevents mistakenly using EN file for PL or vice versa.
+    const templateField = fieldData['template-pdf'] || fieldData['Template PDF'];
+    const templatePdf = templateField?.url || null;
 
     if (templatePdf) {
         console.log(`📄 Using localized Template PDF (${language}):`, templatePdf);
 
-        // Additional debug: Check if this is the expected file for the language
-        if (language === 'pl' && templatePdf) {
-            const isPolishFile = templatePdf.includes('pl') || templatePdf.includes('polish') || templatePdf.includes('PL');
-            console.log(`🔍 Polish file check: ${isPolishFile ? 'CORRECT' : 'WRONG'} - File: ${templatePdf}`);
-        } else if (language === 'en' && templatePdf) {
-            const isEnglishFile = !templatePdf.includes('pl') && !templatePdf.includes('polish');
-            console.log(`🔍 English file check: ${isEnglishFile ? 'CORRECT' : 'WRONG'} - File: ${templatePdf}`);
+        // Debug: assert language correctness for PL
+        if (language === 'pl') {
+            const looksPolish = /(^|[-_])pl(\.|-|_|$)/i.test(templatePdf);
+            console.log(`🔍 Polish file check: ${looksPolish ? 'CORRECT' : 'WRONG'} - File: ${templatePdf}`);
         }
         return templatePdf;
     }
 
-    console.log('⚠️ No Template PDF found for language:', language);
+    console.error('⚠️ Template PDF field is empty for language:', language, {
+        hasTemplateSlug: Boolean(fieldData['template-pdf']),
+        hasTemplateLabel: Boolean(fieldData['Template PDF'])
+    });
     return null;
 }
