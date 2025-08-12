@@ -161,13 +161,12 @@
                                 const cacheBustingUrl = originalHref + '&t=' + Date.now();
                                 console.log(`🔗 Cache-busting URL: ${cacheBustingUrl}`);
                                 
-                                // Make request with member ID in header
+                                // Make request with member ID in header (removed Cache-Control due to CORS)
                                 const response = await fetch(cacheBustingUrl, {
                                     method: 'GET',
                                     headers: {
                                         'X-Member-ID': memberData.id,
-                                        'X-Requested-With': 'XMLHttpRequest',
-                                        'Cache-Control': 'no-cache'
+                                        'X-Requested-With': 'XMLHttpRequest'
                                     }
                                 });
                                 
