@@ -430,18 +430,37 @@ async function findGraphicPlaceholder(page, placeholderName) {
         
         console.log(`📐 PDF dimensions: ${pageWidth} x ${pageHeight}`);
         
-        // Position based on your PDF layout - QR code is in bottom right corner
-        // The white square in your PDF appears to be roughly 120x120 pixels
-        // And positioned about 30-40 pixels from right and bottom edges
-        const qrPosition = {
-            x: pageWidth - 160,  // 160px from right edge 
-            y: 40,               // 40px from bottom edge
-            width: 120,          // Standard QR code size
-            height: 120
-        };
+        // Check if this matches expected PDF dimensions (595x842)
+        const isExpectedSize = Math.abs(pageWidth - 595) < 10 && Math.abs(pageHeight - 842) < 10;
         
-        console.log(`📐 Using calculated QR position for ${placeholderName}:`, qrPosition);
-        return qrPosition;
+        if (isExpectedSize) {
+            // Exact coordinates for 595x842px PDF
+            // QR code position: 253px from left, 532px from top
+            // QR code size: 90x90px
+            const qrPosition = {
+                x: 253,              // 253px from left edge
+                y: pageHeight - 532 - 90,  // Convert from top coordinate to bottom coordinate (PDF coordinate system)
+                width: 90,           // User specified size
+                height: 90
+            };
+            
+            console.log(`📐 Using exact coordinates for standard PDF (595x842):`, qrPosition);
+            return qrPosition;
+        } else {
+            // Fallback for different PDF sizes - scale proportionally
+            const scaleX = pageWidth / 595;
+            const scaleY = pageHeight / 842;
+            
+            const qrPosition = {
+                x: 253 * scaleX,
+                y: pageHeight - (532 * scaleY) - (90 * Math.min(scaleX, scaleY)),
+                width: 90 * Math.min(scaleX, scaleY),
+                height: 90 * Math.min(scaleX, scaleY)
+            };
+            
+            console.log(`📐 Using scaled coordinates for PDF (${pageWidth}x${pageHeight}):`, qrPosition);
+            return qrPosition;
+        }
         
     } catch (error) {
         console.log('Graphic placeholder detection failed');
