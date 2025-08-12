@@ -31,8 +31,8 @@
     function initializePdfQrLinks() {
         console.log('🔍 Searching for PDF QR links...');
         
-        // Find all elements with data-item-slug (PDF buttons)
-        const pdfButtons = document.querySelectorAll('[data-item-slug]');
+        // Find all elements with data-item-slug AND data-dynamic-qr="true" (only PDF buttons with Dynamic QR enabled)
+        const pdfButtons = document.querySelectorAll('[data-item-slug][data-dynamic-qr="true"]');
         
         if (pdfButtons.length === 0) {
             console.log('ℹ️ No PDF QR buttons found on this page');
@@ -132,11 +132,11 @@
             mutations.forEach((mutation) => {
                 mutation.addedNodes.forEach((node) => {
                     if (node.nodeType === Node.ELEMENT_NODE) {
-                        // Check if new node has PDF buttons or contains them
-                        if (node.hasAttribute && node.hasAttribute('data-item-slug')) {
+                        // Check if new node has PDF buttons with Dynamic QR or contains them
+                        if (node.hasAttribute && node.hasAttribute('data-item-slug') && node.hasAttribute('data-dynamic-qr')) {
                             hasNewButtons = true;
                         } else if (node.querySelectorAll) {
-                            const newButtons = node.querySelectorAll('[data-item-slug]');
+                            const newButtons = node.querySelectorAll('[data-item-slug][data-dynamic-qr="true"]');
                             if (newButtons.length > 0) {
                                 hasNewButtons = true;
                             }

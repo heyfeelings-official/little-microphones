@@ -217,16 +217,18 @@ async function getBasePdfFromWebflow(itemSlug) {
         // Mock implementation for testing - replace with real Webflow API integration
         console.log('🔍 Looking up base PDF for item:', itemSlug);
         
-        // For testing, return a sample PDF URL
-        // In production, this would query Webflow CMS API
-        const mockPdfUrls = {
-            'lesson-4-math': 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
-            'workbook-emotions': 'https://www.africau.edu/images/default/sample.pdf',
+        // Map item slugs to real PDF URLs from Webflow CMS
+        // Using real Spookyland PDF for testing
+        const pdfUrls = {
+            'lesson-4-math': 'https://cdn.prod.website-files.com/67ed2ca426df0fc1a0b57c79/689aff303d73c9664bbee584_lm-base-pdf.pdf',
+            'lesson-4-art': 'https://cdn.prod.website-files.com/67ed2ca426df0fc1a0b57c79/689aff303d73c9664bbee584_lm-base-pdf.pdf',
+            'lesson-5-history': 'https://cdn.prod.website-files.com/67ed2ca426df0fc1a0b57c79/689aff303d73c9664bbee584_lm-base-pdf.pdf',
+            'workbook-emotions': 'https://cdn.prod.website-files.com/67ed2ca426df0fc1a0b57c79/689aff303d73c9664bbee584_lm-base-pdf.pdf',
             'default': 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
         };
         
-        const pdfUrl = mockPdfUrls[itemSlug] || mockPdfUrls['default'];
-        console.log('📄 Mock PDF URL:', pdfUrl);
+        const pdfUrl = pdfUrls[itemSlug] || pdfUrls['default'];
+        console.log('📄 PDF URL:', pdfUrl);
         
         return pdfUrl;
         
