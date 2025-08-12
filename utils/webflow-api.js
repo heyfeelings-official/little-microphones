@@ -83,9 +83,18 @@ async function getLocaleIds() {
         
         // Find Polish locale in secondary locales
         if (siteData.locale?.secondary) {
+            console.log('🔍 All secondary locales:', siteData.locale.secondary.map(loc => ({
+                id: loc.id,
+                subdirectory: loc.subdirectory,
+                cmsLocaleId: loc.cmsLocaleId
+            })));
+            
             const polishLocale = siteData.locale.secondary.find(loc => 
-                loc.id === 'pl-PL' || loc.id === 'pl' || loc.subdirectory === '/pl'
+                loc.id === 'pl-PL' || loc.id === 'pl' || loc.subdirectory === '/pl' || loc.subdirectory === 'pl'
             );
+            
+            console.log('🇵🇱 Found Polish locale:', polishLocale);
+            
             if (polishLocale) {
                 locales.pl = polishLocale.cmsLocaleId;
             }
@@ -164,9 +173,11 @@ export async function getWebflowItem(itemSlug, language = 'en') {
         let url = `${WEBFLOW_API_BASE}/collections/${COLLECTION_ID}/items`;
         if (localeId) {
             url += `?cmsLocaleIds=${localeId}`;
-            console.log('🌐 Fetching from Webflow API:', url, 'Language:', language, 'LocaleId:', localeId);
+            console.log('🌐 Fetching from Webflow API with locale:', url);
+            console.log('🔍 Request details:', { language, localeId, collectionId: COLLECTION_ID });
         } else {
             console.log('🌐 Fetching from Webflow API (no locale):', url, 'Language:', language);
+            console.log('⚠️ No locale ID found for language:', language);
         }
         
         const response = await fetch(url, {

@@ -112,6 +112,7 @@
                         // Remove any existing click handlers and href
                         button.onclick = null;
                         button.removeAttribute('href'); // Remove Webflow's original href
+                        button.removeAttribute('target'); // Remove target="_blank" to prevent double tabs
                         button.style.cursor = 'pointer'; // Keep pointer cursor
                         
                         console.log(`🔧 Button ${index + 1} original href removed, custom handler added`);
