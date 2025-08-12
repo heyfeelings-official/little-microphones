@@ -121,10 +121,10 @@ export async function getWebflowItem(itemSlug, language = 'en') {
         const locales = await getLocaleIds();
         const localeId = locales[language];
         
-        // Fetch all items from collection with correct cmsLocaleIds (plural for query)
+        // Fetch all items from collection with correct cmsLocaleId (SINGULAR per Webflow docs)
         let url = `${WEBFLOW_API_BASE}/collections/${COLLECTION_ID}/items`;
         if (localeId) {
-            url += `?cmsLocaleIds=${localeId}`;  // Use plural form for query parameter
+            url += `?cmsLocaleId=${localeId}`;  // SINGULAR form per Webflow API documentation
             console.log('🌐 Fetching from Webflow API with locale:', url);
             console.log('🔍 Request details:', { language, localeId, collectionId: COLLECTION_ID });
         } else {
