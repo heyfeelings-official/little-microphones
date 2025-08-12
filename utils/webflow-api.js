@@ -27,6 +27,12 @@ const COLLECTION_ID = '689a16dd10cb6df7ff0094a0';
 const itemCache = new Map();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
+// World ID to name mapping (based on your Webflow CMS Option field)
+const WORLD_ID_MAP = {
+    '2706219f5b529481804b4e24ff1d88aa': 'spookyland',
+    // Add more mappings as needed - you can find these IDs in Webflow API responses
+};
+
 /**
  * Get Webflow API headers with authentication
  * @returns {Object} Headers object
@@ -112,19 +118,19 @@ export async function getWebflowItem(itemSlug) {
 function mapWebflowFields(webflowItem) {
     const fieldData = webflowItem.fieldData || {};
     
-    // Debug: log all field data to understand structure
-    console.log('🔍 Raw Webflow fieldData:', JSON.stringify(fieldData, null, 2));
+    // Debug: log field data (remove after testing)
+    console.log('🔍 Mapping Webflow fields for:', fieldData.slug, '- World ID:', fieldData.world, '→', WORLD_ID_MAP[fieldData.world] || 'unmapped');
     
     return {
         id: webflowItem.id,
         slug: fieldData.slug || fieldData['slug'],
         name: fieldData.name || fieldData['name'],
-        world: fieldData.world || fieldData['world'],
+        world: WORLD_ID_MAP[fieldData.world] || fieldData.world || fieldData['world'],
         dynamicQR: fieldData['dynamic-qr'] || fieldData['dynamicQR'] || fieldData['Dynamic QR'] || false,
-        basePdfUrl: fieldData['file-field']?.url || 
+        basePdfUrl: fieldData.file?.url || 
+                   fieldData['file-field']?.url || 
                    fieldData['File field']?.url || 
                    fieldData['base-pdf']?.url || 
-                   fieldData['Base PDF']?.url || 
                    null,
         qrPosition: fieldData['qr-position'] || 
                    fieldData['QR position'] || 
