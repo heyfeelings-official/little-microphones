@@ -96,32 +96,6 @@
                     
                     if (!response.ok) {
                         console.warn(`⚠️ Failed to check Dynamic QR for ${itemSlug}: ${response.status} ${response.statusText}`);
-                        
-                        // If rate limited (429) or server error (5xx), retry once after delay
-                        if (response.status === 429 || response.status >= 500) {
-                            console.log(`🔄 Retrying ${itemSlug} after delay...`);
-                            await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1000));
-                            
-                            try {
-                                const retryResponse = await fetch(checkUrl);
-                                if (retryResponse.ok) {
-                                    const retryResult = await retryResponse.json();
-                                    if (retryResult.success && retryResult.needsDynamicQR) {
-                                        console.log(`✅ Retry successful for ${itemSlug}`);
-                                        // Continue with dynamic QR setup...
-                                        const encodedWorld = encodeURIComponent(world);
-                                        const memberData = await getMemberIdFromMemberstack();
-                                        // ... rest of setup code
-                                    } else {
-                                        console.log(`ℹ️ Button ${index + 1} keeps original Webflow URL (retry: Dynamic QR = false): ${itemSlug}`);
-                                    }
-                                    return;
-                                }
-                            } catch (retryError) {
-                                console.warn(`⚠️ Retry failed for ${itemSlug}:`, retryError);
-                            }
-                        }
-                        
                         // If check fails, assume it's a regular Webflow link
                         console.log(`ℹ️ Button ${index + 1} keeps original Webflow URL (check failed): ${itemSlug}`);
                         return;

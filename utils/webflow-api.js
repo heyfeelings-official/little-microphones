@@ -58,8 +58,7 @@ function getWebflowHeaders() {
  * @returns {Promise<Object>} Object with locale mappings
  */
 async function getLocaleIds() {
-    // DISABLE CACHE - Always fetch fresh locale data
-    console.log('🔄 Locale cache disabled - fetching fresh site data');
+    // No cache - always fetch fresh locale data
     
     try {
         const url = `${WEBFLOW_API_BASE}/sites/${SITE_ID}`;
@@ -100,14 +99,7 @@ async function getLocaleIds() {
         }
         
         console.log('🌍 Found locale IDs:', locales);
-        console.log('🔍 Site data structure:', {
-            primary: siteData.locale?.primary,
-            secondary: siteData.locale?.secondary?.map(loc => ({
-                id: loc.id,
-                subdirectory: loc.subdirectory,
-                cmsLocaleId: loc.cmsLocaleId
-            }))
-        });
+        // Site data structure logged above
         
         // Additional debug: Show which locales are available
         if (locales.en && locales.pl) {
@@ -144,26 +136,7 @@ export async function getWebflowItem(itemSlug, language = 'en') {
     try {
         console.log('🔍 Fetching Webflow item:', itemSlug, 'Language:', language);
         
-        // DISABLE CACHE - Always fetch fresh data from Webflow API
-        console.log('🔄 Cache disabled - fetching fresh data from Webflow API');
-        
-        // Clear any existing cache entries to ensure fresh data
-        const cacheKey = `webflow_item_${itemSlug}_${language}`;
-        const oldEnKey = `webflow_item_${itemSlug}_en`;
-        const oldPlKey = `webflow_item_${itemSlug}_pl`;
-        
-        if (itemCache.has(cacheKey)) {
-            itemCache.delete(cacheKey);
-            console.log('🗑️ Cleared existing cache for:', cacheKey);
-        }
-        if (itemCache.has(oldEnKey)) {
-            itemCache.delete(oldEnKey);
-            console.log('🗑️ Cleared English cache');
-        }
-        if (itemCache.has(oldPlKey)) {
-            itemCache.delete(oldPlKey);
-            console.log('🗑️ Cleared Polish cache');
-        }
+        // No cache - always fetch fresh data from Webflow API
         
         // Get locale IDs from site configuration
         const locales = await getLocaleIds();
@@ -342,16 +315,6 @@ export function getWebflowCacheStats() {
  * @returns {string|null} PDF URL or null
  */
 function getLanguageSpecificPdfUrl(fieldData, language) {
-    console.log('🔍 getLanguageSpecificPdfUrl called with:', { language });
-    console.log('🔍 Available field data keys:', Object.keys(fieldData));
-    console.log('🔍 Template PDF field raw data:', {
-        'template-pdf': fieldData['template-pdf'],
-        'Template PDF': fieldData['Template PDF'],
-        'file': fieldData.file,
-        'file-field': fieldData['file-field'],
-        'File field': fieldData['File field'],
-        'base-pdf': fieldData['base-pdf']
-    });
     
     // Webflow localization automatically returns the correct content based on locale parameter
     // So we just need to check the standard Template PDF field
