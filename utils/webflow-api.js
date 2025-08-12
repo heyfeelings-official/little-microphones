@@ -209,10 +209,7 @@ export async function getWebflowItem(itemSlug, language = 'en') {
 function mapWebflowFields(webflowItem, language = 'en') {
     const fieldData = webflowItem.fieldData || {};
     
-    // Debug: log field data using CONFIRMED API field names
-    console.log('🔍 Mapping Webflow fields for:', fieldData.slug, '- World ID:', fieldData.world, '→', WORLD_ID_MAP[fieldData.world] || 'unmapped');
-    
-    // All World IDs should now be mapped - log any unmapped ones
+    // Log unmapped World IDs for debugging
     if (fieldData.world && !WORLD_ID_MAP[fieldData.world]) {
         console.log('🌍 UNMAPPED WORLD ID:', {
             slug: fieldData.slug,
@@ -221,21 +218,15 @@ function mapWebflowFields(webflowItem, language = 'en') {
         });
     }
     
-            console.log('🔍 All available fields:', Object.keys(fieldData));
-        console.log('🔍 RAW FIELD DATA (to see actual field names from API):', JSON.stringify(fieldData, null, 2));
-    
     return {
         id: webflowItem.id,
-        // Use CONFIRMED API field names
-        slug: fieldData.slug,                                        // API: "slug"
-        name: fieldData.name,                                        // API: "name"  
-        world: WORLD_ID_MAP[fieldData.world] || fieldData.world,     // API: "world" (UUID)
-        dynamicQR: fieldData['dynamic-qr'] || false,                 // API: "dynamic-qr"
-        templatePdfUrl: getLanguageSpecificPdfUrl(fieldData, language), // API: "file"
-        staticPdfUrl: fieldData['static-pdf']?.url || null,         // API: "static-pdf"
-        qrPosition: null,  // Not in CMS - remove old references
-        // Store original field data for debugging
-        _originalFields: fieldData
+        slug: fieldData.slug,
+        name: fieldData.name,
+        world: WORLD_ID_MAP[fieldData.world] || fieldData.world,
+        dynamicQR: fieldData['dynamic-qr'] || false,
+        templatePdfUrl: getLanguageSpecificPdfUrl(fieldData, language),
+        staticPdfUrl: fieldData['static-pdf']?.url || null,
+        qrPosition: null
     };
 }
 
@@ -295,55 +286,36 @@ export function getQrPosition(item) {
  * @returns {string|null} PDF URL or null
  */
 function getLanguageSpecificPdfUrl(fieldData, language) {
-    // CONFIRMED from API: "Template PDF" field has slug "file"
-    const templateField = fieldData['file'];              // CORRECT API field name
-    
+    const templateField = fieldData['file'];
     const templatePdf = templateField?.url || null;
 
-    console.log(`🔍 Template PDF field search for ${language}:`, {
-        'file': Boolean(fieldData['file']),                       // CORRECT API field name
-        foundUrl: templatePdf,
-        isPDF: templatePdf ? templatePdf.includes('.pdf') : false,
-        isImage: templatePdf ? (templatePdf.includes('.jpg') || templatePdf.includes('.jpeg') || templatePdf.includes('.png')) : false
-    });
-
     if (templatePdf) {
-        // Check if it's an image file (not a PDF)
+        // Check if it's an image file instead of PDF
         const isImage = templatePdf.includes('.jpg') || templatePdf.includes('.jpeg') || templatePdf.includes('.png') || templatePdf.includes('.gif');
         
         if (isImage) {
             console.error('🚨 CRITICAL: Found IMAGE file instead of PDF!', {
                 language,
                 foundUrl: templatePdf,
-                fileType: 'IMAGE',
-                expectedType: 'PDF'
+                fileType: 'IMAGE'
             });
-            console.error('⚠️ Please check your Webflow CMS - the file field should contain a PDF, not an image!');
-            return null; // Don't use image files as PDFs
+            return null;
         }
 
-        console.log(`📄 Using Template PDF (${language}):`, templatePdf);
-
-        // Validate language correctness for PL
+        // Validate Polish locale files contain 'pl' in filename
         if (language === 'pl') {
             const looksPolish = /(^|[-_])pl(\.|-|_|$)/i.test(templatePdf);
-            console.log(`🔍 Polish file validation: ${looksPolish ? '✅ CORRECT' : '❌ WRONG'} - File: ${templatePdf}`);
-            
             if (!looksPolish) {
                 console.error('🚨 CRITICAL: Polish locale returned non-Polish PDF!', {
                     language,
-                    expectedPattern: 'should contain "pl"',
                     actualUrl: templatePdf
                 });
             }
-        } else if (language === 'en') {
-            const looksEnglish = !/(^|[-_])pl(\.|-|_|$)/i.test(templatePdf);
-            console.log(`🔍 English file validation: ${looksEnglish ? '✅ CORRECT' : '❌ WRONG'} - File: ${templatePdf}`);
         }
         
         return templatePdf;
     }
 
-    console.error('⚠️ No Template PDF found for language:', language, 'Available fields:', Object.keys(fieldData));
+    console.error('⚠️ No Template PDF found for language:', language);
     return null;
 }
