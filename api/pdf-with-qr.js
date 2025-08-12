@@ -149,18 +149,18 @@ export default async function handler(req, res) {
 
         console.log('🔗 Generated QR URL:', shareUrl);
 
-        // Generate QR code as SVG
-        const qrSvgString = await QRCode.toString(shareUrl, {
-            type: 'svg',
-            width: 200,
+        // Generate QR code as PNG buffer
+        const qrPngBuffer = await QRCode.toBuffer(shareUrl, {
+            type: 'png',
+            width: 400,
             margin: 2,
             color: {
-                dark: '#000000',
-                light: '#FFFFFF'
+                dark: '#000000FF',
+                light: '#FFFFFFFF'
             }
         });
 
-        // Embed QR code SVG in PDF
+        // Embed QR code PNG in PDF
         const qrSize = 120; // Size in points (about 4.2cm at 72 DPI)
         const margin = 32; // Margin from edges
         
@@ -168,8 +168,8 @@ export default async function handler(req, res) {
         const qrX = width - qrSize - margin;
         const qrY = margin;
 
-        // Embed SVG (pdf-lib handles SVG conversion)
-        const qrImage = await pdfDoc.embedSvg(qrSvgString);
+        // Embed PNG (pdf-lib supports PNG)
+        const qrImage = await pdfDoc.embedPng(qrPngBuffer);
         
         // Draw QR code on first page
         firstPage.drawImage(qrImage, {
