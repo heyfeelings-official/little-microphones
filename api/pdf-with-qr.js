@@ -44,7 +44,7 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { item, world } = req.query;
+        const { item, world, check } = req.query;
 
         // Validate required parameters
         if (!item) {
@@ -73,17 +73,6 @@ export default async function handler(req, res) {
             });
         }
 
-        // Get educator from session (with URL fallback for now)
-        const member = await getMemberFromSession(req);
-        if (!member) {
-            return res.status(401).json({ 
-                success: false, 
-                error: 'Authentication required. Please log in as an educator.' 
-            });
-        }
-
-        console.log('👨‍🏫 Educator authenticated:', member.id);
-
         // Get workbook item from Webflow CMS
         const webflowItem = await getWebflowItem(item);
         if (!webflowItem) {
@@ -98,6 +87,27 @@ export default async function handler(req, res) {
             dynamicQR: webflowItem.dynamicQR,
             world: webflowItem.world
         });
+
+        // If this is just a check request, return Dynamic QR status
+        if (check === 'true') {
+            return res.status(200).json({
+                success: true,
+                needsDynamicQR: checkDynamicQR(webflowItem),
+                item: webflowItem.slug,
+                world: webflowItem.world
+            });
+        }
+
+        // For actual PDF generation, require authentication
+        const member = await getMemberFromSession(req);
+        if (!member) {
+            return res.status(401).json({ 
+                success: false, 
+                error: 'Authentication required. Please log in as an educator.' 
+            });
+        }
+
+        console.log('👨‍🏫 Educator authenticated:', member.id);
 
         // Check if Dynamic QR is enabled
         if (!checkDynamicQR(webflowItem)) {

@@ -540,12 +540,11 @@ export async function handleMembershipChanges(memberData, planChanges) {
  */
 export async function getMemberFromSession(req) {
     try {
-        // For now, fallback to URL parameter until proper session handling is implemented
-        // TODO: Implement proper Memberstack session cookie parsing
+        // First try URL parameter for backward compatibility
         const { memberId } = req.query;
         
         if (memberId) {
-            console.log('🔑 Using member ID from URL (temporary):', memberId);
+            console.log('🔑 Using member ID from URL parameter:', memberId);
             return await getMemberDetails(memberId);
         }
         

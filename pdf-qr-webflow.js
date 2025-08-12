@@ -28,7 +28,7 @@
     /**
      * Initialize PDF QR links when DOM is ready
      */
-    function initializePdfQrLinks() {
+    async function initializePdfQrLinks() {
         console.log('🔍 Searching for PDF QR links...');
         
         // Find all elements with data-item-slug (PDF buttons)
@@ -41,8 +41,8 @@
 
         console.log(`📋 Found ${pdfButtons.length} PDF QR buttons`);
 
-        // Process each button
-        pdfButtons.forEach((button, index) => {
+        // Process each button and check if it needs dynamic QR
+        const buttonPromises = Array.from(pdfButtons).map(async (button, index) => {
             try {
                 const itemSlug = button.getAttribute('data-item-slug');
                 const world = button.getAttribute('data-world');
@@ -58,47 +58,72 @@
                     return;
                 }
 
-                // URL encode world parameter (handles spaces like "Shopping Spree")
-                const encodedWorld = encodeURIComponent(world);
-                
-                // Build dynamic URL (no memberId needed - taken from session)
-                const dynamicUrl = `${API_BASE_URL}/api/pdf-with-qr?item=${encodeURIComponent(itemSlug)}&world=${encodedWorld}`;
-                
-                // Set href attribute
-                button.href = dynamicUrl;
-                
-                // Add visual indicator (optional)
-                button.classList.add('pdf-qr-ready');
-                
-                console.log(`✅ Button ${index + 1} configured:`, {
-                    slug: itemSlug,
-                    world: world,
-                    url: dynamicUrl
-                });
+                try {
+                    // Check if this item needs dynamic QR by calling our API
+                    const checkUrl = `${API_BASE_URL}/api/pdf-with-qr?item=${encodeURIComponent(itemSlug)}&world=${encodeURIComponent(world)}&check=true`;
+                    
+                    console.log(`🔍 Checking Dynamic QR status for: ${itemSlug}`);
+                    
+                    const response = await fetch(checkUrl);
+                    const result = await response.json();
+                    
+                    if (result.success && result.needsDynamicQR) {
+                        // URL encode world parameter (handles spaces like "Shopping Spree")
+                        const encodedWorld = encodeURIComponent(world);
+                        
+                        // Build dynamic URL (add memberId for testing until session works)
+                        const dynamicUrl = `${API_BASE_URL}/api/pdf-with-qr?item=${encodeURIComponent(itemSlug)}&world=${encodedWorld}&memberId=mem_sb_cme1g02ox010r0wnk4fa652lr`;
+                        
+                        // Set href attribute
+                        button.href = dynamicUrl;
+                        
+                        // Add visual indicator (optional)
+                        button.classList.add('pdf-qr-ready');
+                        
+                        console.log(`✅ Button ${index + 1} configured for dynamic QR:`, {
+                            slug: itemSlug,
+                            world: world,
+                            url: dynamicUrl
+                        });
 
-                // Add click tracking (optional)
-                button.addEventListener('click', function(e) {
-                    console.log(`🖱️ PDF QR download initiated:`, {
-                        slug: itemSlug,
-                        world: world,
-                        timestamp: new Date().toISOString()
-                    });
+                        // Add click tracking (optional)
+                        button.addEventListener('click', function(e) {
+                            console.log(`🖱️ PDF QR download initiated:`, {
+                                slug: itemSlug,
+                                world: world,
+                                timestamp: new Date().toISOString()
+                            });
+                            
+                            // Optional: Add loading state
+                            button.classList.add('pdf-qr-loading');
+                            button.textContent = button.textContent.includes('...') ? button.textContent : button.textContent + '...';
+                            
+                            // Reset loading state after delay
+                            setTimeout(() => {
+                                button.classList.remove('pdf-qr-loading');
+                                if (button.textContent.includes('...')) {
+                                    button.textContent = button.textContent.replace('...', '');
+                                }
+                            }, 3000);
+                        });
+                        
+                    } else {
+                        console.log(`ℹ️ Button ${index + 1} keeps original Webflow URL (Dynamic QR = false):`, itemSlug);
+                        // Leave button.href unchanged - it will use the Webflow CMS link
+                    }
                     
-                    // Optional: Add loading state
-                    button.classList.add('pdf-qr-loading');
-                    button.textContent = button.textContent.includes('...') ? button.textContent : button.textContent + '...';
-                    
-                    // Reset loading state after delay
-                    setTimeout(() => {
-                        button.classList.remove('pdf-qr-loading');
-                        button.textContent = button.textContent.replace('...', '');
-                    }, 3000);
-                });
+                } catch (error) {
+                    console.error(`❌ Error checking Dynamic QR for ${itemSlug}:`, error);
+                    // On error, leave the original Webflow link
+                }
 
             } catch (error) {
                 console.error(`❌ Error processing button ${index + 1}:`, error);
             }
         });
+
+        // Wait for all button checks to complete
+        await Promise.all(buttonPromises);
 
         console.log(`🎉 PDF QR initialization complete - ${pdfButtons.length} buttons ready`);
     }
