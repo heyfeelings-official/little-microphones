@@ -77,9 +77,6 @@
                         // Set href attribute
                         button.href = dynamicUrl;
                         
-                        // Add visual indicator (optional)
-                        button.classList.add('pdf-qr-ready');
-                        
                         console.log(`✅ Button ${index + 1} configured for dynamic QR:`, {
                             slug: itemSlug,
                             world: world,
@@ -94,13 +91,7 @@
                                 timestamp: new Date().toISOString()
                             });
                             
-                            // Add loading state class without changing text
-                            button.classList.add('pdf-qr-loading');
-                            
-                            // Reset loading state after delay
-                            setTimeout(() => {
-                                button.classList.remove('pdf-qr-loading');
-                            }, 3000);
+                            // Track click without visual changes
                         });
                         
                     } else {
