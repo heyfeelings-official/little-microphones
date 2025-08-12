@@ -61,8 +61,26 @@
                 // URL encode world parameter (handles spaces like "Shopping Spree")
                 const encodedWorld = encodeURIComponent(world);
                 
-                // Build dynamic URL
-                const dynamicUrl = `${API_BASE_URL}/api/pdf-with-qr?item=${encodeURIComponent(itemSlug)}&world=${encodedWorld}`;
+                // Get member ID from Memberstack session
+                let memberId = 'unknown';
+                if (window.$memberstackDom) {
+                    try {
+                        window.$memberstackDom.getCurrentMember().then(({ data: member }) => {
+                            if (member && member.id) {
+                                memberId = member.id;
+                                // Update the URL with real member ID
+                                const finalUrl = `${API_BASE_URL}/api/pdf-with-qr?item=${encodeURIComponent(itemSlug)}&world=${encodedWorld}&memberId=${memberId}`;
+                                button.href = finalUrl;
+                                console.log(`🔄 Updated button ${index + 1} with member ID:`, memberId);
+                            }
+                        });
+                    } catch (error) {
+                        console.warn('Could not get Memberstack member:', error);
+                    }
+                }
+                
+                // Build dynamic URL (initial URL, will be updated with real memberId)
+                const dynamicUrl = `${API_BASE_URL}/api/pdf-with-qr?item=${encodeURIComponent(itemSlug)}&world=${encodedWorld}&memberId=${memberId}`;
                 
                 // Set href attribute
                 button.href = dynamicUrl;
