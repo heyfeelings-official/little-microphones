@@ -44,7 +44,7 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { item, world, check } = req.query;
+        const { item, world, check, lang } = req.query;
 
         // Validate required parameters
         if (!item) {
@@ -61,9 +61,19 @@ export default async function handler(req, res) {
             });
         }
 
+        // Detect language from query parameter or referer header
+        let detectedLang = lang || 'en'; // Default to English
+        
+        if (!lang) {
+            const referer = req.headers.referer || req.headers.referrer || '';
+            if (referer.includes('/pl/')) {
+                detectedLang = 'pl';
+            }
+        }
+
         // Decode world parameter (handles spaces like "Shopping Spree")
         const decodedWorld = decodeURIComponent(world).toLowerCase();
-        console.log('📋 PDF Request:', { item, world: decodedWorld });
+        console.log('📋 PDF Request:', { item, world: decodedWorld, language: detectedLang });
 
         // Validate world name (case insensitive)
         if (!WORLDS.includes(decodedWorld)) {
@@ -74,7 +84,7 @@ export default async function handler(req, res) {
         }
 
         // Get workbook item from Webflow CMS
-        const webflowItem = await getWebflowItem(item);
+        const webflowItem = await getWebflowItem(item, detectedLang);
         if (!webflowItem) {
             return res.status(404).json({ 
                 success: false, 

@@ -53,14 +53,15 @@ function getWebflowHeaders() {
 /**
  * Get workbook item from Webflow CMS by slug
  * @param {string} itemSlug - Workbook item slug
+ * @param {string} language - Language code ('en' or 'pl')
  * @returns {Promise<Object|null>} Workbook item data or null if not found
  */
-export async function getWebflowItem(itemSlug) {
+export async function getWebflowItem(itemSlug, language = 'en') {
     try {
-        console.log('🔍 Fetching Webflow item:', itemSlug);
+        console.log('🔍 Fetching Webflow item:', itemSlug, 'Language:', language);
         
-        // Check cache first
-        const cacheKey = `webflow_item_${itemSlug}`;
+        // Check cache first (include language in cache key)
+        const cacheKey = `webflow_item_${itemSlug}_${language}`;
         const cached = itemCache.get(cacheKey);
         if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
             console.log('📋 Using cached Webflow item:', itemSlug);
@@ -93,7 +94,7 @@ export async function getWebflowItem(itemSlug) {
         }
         
         // Map Webflow fields to our structure
-        const mappedItem = mapWebflowFields(item);
+        const mappedItem = mapWebflowFields(item, language);
         
         // Cache the result
         itemCache.set(cacheKey, {
@@ -113,9 +114,10 @@ export async function getWebflowItem(itemSlug) {
 /**
  * Map Webflow field names to internal structure
  * @param {Object} webflowItem - Raw Webflow item
+ * @param {string} language - Language code ('en' or 'pl')
  * @returns {Object} Mapped item structure
  */
-function mapWebflowFields(webflowItem) {
+function mapWebflowFields(webflowItem, language = 'en') {
     const fieldData = webflowItem.fieldData || {};
     
     // Debug: log field data (remove after testing)
@@ -127,11 +129,7 @@ function mapWebflowFields(webflowItem) {
         name: fieldData.name || fieldData['name'],
         world: WORLD_ID_MAP[fieldData.world] || fieldData.world || fieldData['world'],
         dynamicQR: fieldData['dynamic-qr'] || fieldData['dynamicQR'] || fieldData['Dynamic QR'] || false,
-        basePdfUrl: fieldData.file?.url || 
-                   fieldData['file-field']?.url || 
-                   fieldData['File field']?.url || 
-                   fieldData['base-pdf']?.url || 
-                   null,
+        basePdfUrl: getLanguageSpecificPdfUrl(fieldData, language),
         qrPosition: fieldData['qr-position'] || 
                    fieldData['QR position'] || 
                    fieldData['qrPosition'] || 
@@ -216,4 +214,42 @@ export function getWebflowCacheStats() {
         size: itemCache.size,
         keys: Array.from(itemCache.keys())
     };
+}
+
+/**
+ * Get language-specific PDF URL from Webflow field data
+ * @param {Object} fieldData - Webflow field data
+ * @param {string} language - Language code ('en' or 'pl')
+ * @returns {string|null} PDF URL or null
+ */
+function getLanguageSpecificPdfUrl(fieldData, language) {
+    // Try language-specific Template PDF fields first
+    if (language === 'pl') {
+        // Try Polish-specific fields
+        const polishPdf = fieldData['template-pdf-pl']?.url || 
+                         fieldData['Template PDF PL']?.url ||
+                         fieldData['template-pdf-polish']?.url ||
+                         fieldData['Template PDF Polish']?.url;
+        
+        if (polishPdf) {
+            console.log('📄 Using Polish Template PDF:', polishPdf);
+            return polishPdf;
+        }
+    }
+    
+    // Fallback to general Template PDF fields
+    const generalPdf = fieldData['template-pdf']?.url || 
+                      fieldData['Template PDF']?.url || 
+                      fieldData.file?.url || 
+                      fieldData['file-field']?.url || 
+                      fieldData['File field']?.url || 
+                      fieldData['base-pdf']?.url;
+    
+    if (generalPdf) {
+        console.log(`📄 Using ${language === 'pl' ? 'fallback' : 'default'} Template PDF:`, generalPdf);
+        return generalPdf;
+    }
+    
+    console.log('⚠️ No Template PDF found for language:', language);
+    return null;
 }
