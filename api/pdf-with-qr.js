@@ -190,19 +190,28 @@ export default async function handler(req, res) {
 
         console.log('🎯 Found ShareID:', shareId, 'for LMID:', primaryLmid.lmid, 'world:', worldToUse);
         
-        // Get teacher data from LMID (same approach as radio.js)
+        // Get teacher data from LMID using lmid-operations API (has correct Supabase data)
         let teacherName = 'Teacher';
         try {
             console.log(`👨‍🏫 Fetching teacher data for LMID: ${primaryLmid.lmid}`);
-            const teacherResponse = await fetch(`${req.protocol}://${req.get('host')}/api/get-teacher-data?lmid=${primaryLmid.lmid}`);
+            const teacherResponse = await fetch(`${req.protocol}://${req.get('host')}/api/lmid-operations`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    action: 'get',
+                    lmid: primaryLmid.lmid
+                })
+            });
             
             if (teacherResponse.ok) {
                 const teacherData = await teacherResponse.json();
                 if (teacherData.success) {
                     teacherName = teacherData.data.teacherName || 'Teacher';
-                    console.log('✅ Teacher name retrieved:', teacherName);
+                    console.log('✅ Teacher name retrieved from Supabase:', teacherName);
                 } else {
-                    console.warn('⚠️ Teacher data API returned error:', teacherData.error);
+                    console.warn('⚠️ LMID operations API returned error:', teacherData.error);
                 }
             } else {
                 console.warn(`⚠️ Failed to fetch teacher data: ${teacherResponse.status}`);
@@ -313,8 +322,9 @@ export default async function handler(req, res) {
                 color: rgb(0, 0, 0),
             });
             
-            // Draw "Your Teacher" below name
-            firstPage.drawText('Your Teacher', {
+            // Draw language-appropriate teacher label below name
+            const teacherLabel = detectedLang === 'pl' ? 'Wasz Nauczyciel' : 'Your Teacher';
+            firstPage.drawText(teacherLabel, {
                 x: FALLBACK_POSITIONS.TEACHER_INFO.x,
                 y: FALLBACK_POSITIONS.TEACHER_INFO.y - FALLBACK_POSITIONS.TEACHER_INFO.fontSize - 2,
                 size: FALLBACK_POSITIONS.TEACHER_INFO.fontSize - 1,
@@ -427,8 +437,9 @@ async function findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName,
                 color: rgb(0, 0, 0),
             });
             
-            // Draw "Your Teacher" below name
-            page.drawText('Your Teacher', {
+            // Draw language-appropriate teacher label below name
+            const teacherLabel = detectedLang === 'pl' ? 'Wasz Nauczyciel' : 'Your Teacher';
+            page.drawText(teacherLabel, {
                 x: x,
                 y: y - fontSize - 2,
                 size: fontSize - 1,
@@ -436,7 +447,7 @@ async function findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName,
                 color: rgb(0.3, 0.3, 0.3), // Gray color
             });
             
-            console.log(`✅ Teacher info placed successfully: "${teacherName}" at (${x}, ${y})`);
+            console.log(`✅ Teacher info placed successfully: "${teacherName}" (${teacherLabel}) at (${x}, ${y})`);
         };
         
         // Searching PDF pages for placeholder
@@ -464,8 +475,8 @@ async function findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName,
                                 const widget = widgets[0];
                                 const rect = widget.getRectangle();
                                 
-                                // Draw QR code at placeholder position
-                                drawQrCode(page, rect.x, rect.y, rect.width, rect.height);
+                                // Draw QR code at configured position (ignore placeholder position)
+                                drawQrCode(page, POSITIONS.QR_CODE.x, POSITIONS.QR_CODE.y, POSITIONS.QR_CODE.size, POSITIONS.QR_CODE.size);
                                 
                                 // Draw URL text at configured position
                                 drawUrlText(page, POSITIONS.URL_TEXT.x, POSITIONS.URL_TEXT.y, POSITIONS.URL_TEXT.fontSize);
@@ -495,8 +506,8 @@ async function findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName,
                     // Place QR code with text at the found position
                     const qrSize = Math.min(placeholderMatch.width || 120, placeholderMatch.height || 120, 120);
                     
-                    // Draw QR code at placeholder position
-                    drawQrCode(page, placeholderMatch.x, placeholderMatch.y, qrSize, qrSize);
+                    // Draw QR code at configured position (ignore placeholder position)
+                    drawQrCode(page, POSITIONS.QR_CODE.x, POSITIONS.QR_CODE.y, POSITIONS.QR_CODE.size, POSITIONS.QR_CODE.size);
                     
                     // Draw URL text at configured position
                     drawUrlText(page, POSITIONS.URL_TEXT.x, POSITIONS.URL_TEXT.y, POSITIONS.URL_TEXT.fontSize);
@@ -517,8 +528,8 @@ async function findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName,
                 if (placeholderRect) {
                     console.log(`🎯 Found graphic placeholder: ${placeholderName}`);
                     
-                    // Draw QR code at placeholder position
-                    drawQrCode(page, placeholderRect.x, placeholderRect.y, placeholderRect.width, placeholderRect.height);
+                    // Draw QR code at configured position (ignore placeholder position)
+                    drawQrCode(page, POSITIONS.QR_CODE.x, POSITIONS.QR_CODE.y, POSITIONS.QR_CODE.size, POSITIONS.QR_CODE.size);
                     
                     // Draw URL text at configured position
                     drawUrlText(page, POSITIONS.URL_TEXT.x, POSITIONS.URL_TEXT.y, POSITIONS.URL_TEXT.fontSize);
