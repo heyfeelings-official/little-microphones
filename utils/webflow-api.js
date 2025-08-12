@@ -58,11 +58,10 @@ function getWebflowHeaders() {
  * @returns {Promise<Object>} Object with locale mappings
  */
 async function getLocaleIds() {
-    // No cache - always fetch fresh locale data
-    
     try {
-        const url = `${WEBFLOW_API_BASE}/sites/${SITE_ID}`;
-        console.log('🌐 Fetching site details for locales:', url);
+        // Use correct Webflow API v2 endpoint for locales
+        const url = `${WEBFLOW_API_BASE}/sites/${SITE_ID}/locales`;
+        console.log('🌐 Fetching locales from Webflow API v2:', url);
         
         const response = await fetch(url, {
             method: 'GET',
@@ -70,70 +69,38 @@ async function getLocaleIds() {
         });
         
         if (!response.ok) {
-            throw new Error(`Webflow Site API error: ${response.status} ${response.statusText}`);
+            const errorText = await response.text();
+            console.error('❌ Webflow Locales API error:', response.status, errorText);
+            throw new Error(`Webflow Locales API error: ${response.status} ${response.statusText}`);
         }
         
-        const siteData = await response.json();
+        const data = await response.json();
+        console.log('🔍 Locales API response:', JSON.stringify(data, null, 2));
         
-        // Debug full site data structure
-        console.log('🔍 Site locale structure:', JSON.stringify({
-            primary: siteData.locale?.primary,
-            secondaryCount: siteData.locale?.secondary?.length || 0
-        }, null, 2));
+        const locales = { en: null, pl: null };
         
-        const locales = {
-            en: siteData.locale?.primary?.cmsLocaleId,
-            pl: null
-        };
-        
-        // Find Polish locale in secondary locales
-        if (siteData.locale?.secondary) {
-            console.log('🔍 All secondary locales:', siteData.locale.secondary.map(loc => ({
-                id: loc.id,
-                subdirectory: loc.subdirectory,
-                cmsLocaleId: loc.cmsLocaleId
-            })));
-            
-            const polishLocale = siteData.locale.secondary.find(loc => 
-                loc.id === 'pl-PL' || loc.id === 'pl' || loc.subdirectory === '/pl' || loc.subdirectory === 'pl'
-            );
-            
-            console.log('🇵🇱 Found Polish locale:', polishLocale);
-            
-            if (polishLocale) {
-                locales.pl = polishLocale.cmsLocaleId;
-                console.log('✅ Polish CMS Locale ID set:', locales.pl);
-            } else {
-                console.error('❌ Polish locale not found in secondary locales!');
+        // Parse locales from API response
+        if (data.locales && Array.isArray(data.locales)) {
+            for (const locale of data.locales) {
+                console.log('🔍 Processing locale:', locale);
+                
+                // Map based on locale code or subdirectory
+                if (locale.code === 'en' || locale.code === 'en-US' || !locale.subdirectory) {
+                    locales.en = locale.cmsLocaleId;
+                    console.log('🇬🇧 English locale ID:', locale.cmsLocaleId);
+                } else if (locale.code === 'pl' || locale.code === 'pl-PL' || locale.subdirectory === 'pl') {
+                    locales.pl = locale.cmsLocaleId;
+                    console.log('🇵🇱 Polish locale ID:', locale.cmsLocaleId);
+                }
             }
-        } else {
-            console.error('❌ No secondary locales found in site data!');
         }
         
-        console.log('🌍 Found locale IDs:', locales);
-        // Site data structure logged above
-        
-        // Additional debug: Show which locales are available
-        if (locales.en && locales.pl) {
-            console.log('✅ Both EN and PL locales configured correctly');
-            console.log('🇬🇧 EN cmsLocaleId:', locales.en);
-            console.log('🇵🇱 PL cmsLocaleId:', locales.pl);
-        } else if (locales.en && !locales.pl) {
-            console.log('⚠️ Only EN locale found, PL locale missing');
-            console.log('🇬🇧 EN cmsLocaleId:', locales.en);
-        } else if (!locales.en && locales.pl) {
-            console.log('⚠️ Only PL locale found, EN locale missing');
-            console.log('🇵🇱 PL cmsLocaleId:', locales.pl);
-        } else {
-            console.log('❌ No locales found in Webflow configuration');
-        }
-        
-        // Don't cache - return fresh data
+        console.log('🌍 Final locale mapping:', locales);
         return locales;
         
     } catch (error) {
         console.error('❌ Error fetching locale IDs:', error);
-        // Fallback to no locale filtering
+        // Return empty locales on error
         return { en: null, pl: null };
     }
 }
@@ -154,11 +121,10 @@ export async function getWebflowItem(itemSlug, language = 'en') {
         const locales = await getLocaleIds();
         const localeId = locales[language];
         
-        // Fetch all items from collection with correct cmsLocaleId
-        // NOTE: For GET requests, use cmsLocaleId (singular) not cmsLocaleIds (plural)
+        // Fetch all items from collection with correct cmsLocaleIds (plural for query)
         let url = `${WEBFLOW_API_BASE}/collections/${COLLECTION_ID}/items`;
         if (localeId) {
-            url += `?cmsLocaleId=${localeId}`;  // Changed from cmsLocaleIds to cmsLocaleId
+            url += `?cmsLocaleIds=${localeId}`;  // Use plural form for query parameter
             console.log('🌐 Fetching from Webflow API with locale:', url);
             console.log('🔍 Request details:', { language, localeId, collectionId: COLLECTION_ID });
         } else {
@@ -238,10 +204,12 @@ function mapWebflowFields(webflowItem, language = 'en') {
     
     // Debug: log field data (remove after testing)
     console.log('🔍 Mapping Webflow fields for:', fieldData.slug, '- World ID:', fieldData.world, '→', WORLD_ID_MAP[fieldData.world] || 'unmapped');
-    console.log('🔍 Raw Template PDF field data:', JSON.stringify({
+    console.log('🔍 All available fields:', Object.keys(fieldData));
+    console.log('🔍 Raw field data for PDF fields:', JSON.stringify({
         'template-pdf': fieldData['template-pdf'],
         'Template PDF': fieldData['Template PDF'],
-        'file': fieldData.file
+        'file': fieldData.file,
+        'File field': fieldData['file-field'] || fieldData['File field']
     }, null, 2));
     
     return {
@@ -344,25 +312,46 @@ export function getWebflowCacheStats() {
  * @returns {string|null} PDF URL or null
  */
 function getLanguageSpecificPdfUrl(fieldData, language) {
-    // STRICT MODE: Only use Template PDF field. No fallbacks.
-    // This prevents mistakenly using EN file for PL or vice versa.
-    const templateField = fieldData['template-pdf'] || fieldData['Template PDF'];
+    // Based on logs, Webflow returns 'file' field, not 'template-pdf'
+    // Try multiple field variations that might contain the PDF
+    const templateField = fieldData['template-pdf'] || 
+                         fieldData['Template PDF'] || 
+                         fieldData['file'] ||           // This is what Webflow actually returns
+                         fieldData['File field'];
+    
     const templatePdf = templateField?.url || null;
 
-    if (templatePdf) {
-        console.log(`📄 Using localized Template PDF (${language}):`, templatePdf);
+    console.log(`🔍 Template PDF field search for ${language}:`, {
+        'template-pdf': Boolean(fieldData['template-pdf']),
+        'Template PDF': Boolean(fieldData['Template PDF']),
+        'file': Boolean(fieldData['file']),
+        'File field': Boolean(fieldData['File field']),
+        foundUrl: templatePdf
+    });
 
-        // Debug: assert language correctness for PL
+    if (templatePdf) {
+        console.log(`📄 Using Template PDF (${language}):`, templatePdf);
+
+        // Validate language correctness for PL
         if (language === 'pl') {
             const looksPolish = /(^|[-_])pl(\.|-|_|$)/i.test(templatePdf);
-            console.log(`🔍 Polish file check: ${looksPolish ? 'CORRECT' : 'WRONG'} - File: ${templatePdf}`);
+            console.log(`🔍 Polish file validation: ${looksPolish ? '✅ CORRECT' : '❌ WRONG'} - File: ${templatePdf}`);
+            
+            if (!looksPolish) {
+                console.error('🚨 CRITICAL: Polish locale returned non-Polish PDF!', {
+                    language,
+                    expectedPattern: 'should contain "pl"',
+                    actualUrl: templatePdf
+                });
+            }
+        } else if (language === 'en') {
+            const looksEnglish = !/(^|[-_])pl(\.|-|_|$)/i.test(templatePdf);
+            console.log(`🔍 English file validation: ${looksEnglish ? '✅ CORRECT' : '❌ WRONG'} - File: ${templatePdf}`);
         }
+        
         return templatePdf;
     }
 
-    console.error('⚠️ Template PDF field is empty for language:', language, {
-        hasTemplateSlug: Boolean(fieldData['template-pdf']),
-        hasTemplateLabel: Boolean(fieldData['Template PDF'])
-    });
+    console.error('⚠️ No Template PDF found for language:', language, 'Available fields:', Object.keys(fieldData));
     return null;
 }
