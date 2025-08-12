@@ -141,11 +141,8 @@ export default async function handler(req, res) {
         const firstPage = pages[0];
         const { width, height } = firstPage.getSize();
 
-        // Generate ShareID URL
-        const baseUrl = req.headers.host?.includes('localhost') 
-            ? `http://${req.headers.host}` 
-            : `https://${req.headers.host}`;
-        const shareUrl = `${baseUrl}/members/radio?ID=${shareId}`;
+        // Generate ShareID URL (should point to Webflow, not Vercel)
+        const shareUrl = `https://hey-feelings-v2.webflow.io/little-microphones?ID=${shareId}`;
 
         console.log('🔗 Generated QR URL:', shareUrl);
 
