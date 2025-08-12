@@ -157,26 +157,26 @@ export default async function handler(req, res) {
             }
         });
 
-        // Embed QR code PNG in PDF
-        const qrSize = 120; // Size in points (about 4.2cm at 72 DPI)
-        const margin = 32; // Margin from edges
+        // Look for QR_PLACEHOLDER_1 in PDF and replace it with QR code
+        const qrPlaceholderFound = await findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, 'QR_PLACEHOLDER_1');
         
-        // Position: bottom-right corner
-        const qrX = width - qrSize - margin;
-        const qrY = margin;
-
-        // Embed PNG (pdf-lib supports PNG)
-        const qrImage = await pdfDoc.embedPng(qrPngBuffer);
-        
-        // Draw QR code on first page
-        firstPage.drawImage(qrImage, {
-            x: qrX,
-            y: qrY,
-            width: qrSize,
-            height: qrSize,
-        });
-
-        console.log('✅ QR code embedded at position:', { x: qrX, y: qrY, size: qrSize });
+        if (!qrPlaceholderFound) {
+            // Fallback: place QR in bottom-right corner if placeholder not found
+            const qrSize = 120;
+            const margin = 32;
+            const qrX = width - qrSize - margin;
+            const qrY = margin;
+            
+            const qrImage = await pdfDoc.embedPng(qrPngBuffer);
+            firstPage.drawImage(qrImage, {
+                x: qrX,
+                y: qrY,
+                width: qrSize,
+                height: qrSize,
+            });
+            
+            console.log('⚠️ QR_PLACEHOLDER_1 not found, placed QR in bottom-right corner:', { x: qrX, y: qrY, size: qrSize });
+        }
         console.log('📋 PDF generation completed successfully');
 
         // Generate modified PDF
@@ -243,5 +243,82 @@ async function getBasePdfFromWebflow(itemSlug) {
     } catch (error) {
         console.error('❌ Error fetching base PDF from Webflow:', error);
         return null;
+    }
+}
+
+/**
+ * Find and replace QR placeholder in PDF with QR code
+ * @param {PDFDocument} pdfDoc - PDF document
+ * @param {Buffer} qrPngBuffer - QR code PNG buffer
+ * @param {string} placeholderName - Name of placeholder to find (e.g., 'QR_PLACEHOLDER_1')
+ * @returns {Promise<boolean>} True if placeholder was found and replaced
+ */
+async function findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName) {
+    try {
+        const qrImage = await pdfDoc.embedPng(qrPngBuffer);
+        const pages = pdfDoc.getPages();
+        
+        // Search through all pages
+        for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
+            const page = pages[pageIndex];
+            
+            // Get page content - this is a simplified approach
+            // In practice, finding text in PDF is complex, so we'll use form fields or annotations
+            
+            // Try to find form fields with the placeholder name
+            const form = pdfDoc.getForm();
+            const fields = form.getFields();
+            
+            for (const field of fields) {
+                if (field.getName() === placeholderName) {
+                    console.log(`🎯 Found placeholder field: ${placeholderName}`);
+                    
+                    // Get field position and size
+                    const widgets = field.acroField.getWidgets();
+                    if (widgets.length > 0) {
+                        const widget = widgets[0];
+                        const rect = widget.getRectangle();
+                        
+                        const x = rect.x;
+                        const y = rect.y; 
+                        const width = rect.width;
+                        const height = rect.height;
+                        
+                        // Draw QR code at placeholder position
+                        page.drawImage(qrImage, {
+                            x: x,
+                            y: y,
+                            width: width,
+                            height: height,
+                        });
+                        
+                        // Remove the placeholder field
+                        form.removeField(field);
+                        
+                        console.log(`✅ QR code placed at placeholder ${placeholderName}:`, { x, y, width, height });
+                        return true;
+                    }
+                }
+            }
+            
+            // Alternative: Look for text annotations or other markers
+            // This is a fallback if form fields don't work
+            try {
+                const annotations = page.node.Annots;
+                if (annotations) {
+                    // Search through annotations for placeholder
+                    // This is more complex and would require additional PDF parsing
+                }
+            } catch (annotationError) {
+                // Annotations might not exist or be accessible
+            }
+        }
+        
+        console.log(`⚠️ Placeholder ${placeholderName} not found in PDF`);
+        return false;
+        
+    } catch (error) {
+        console.error(`❌ Error finding/replacing placeholder ${placeholderName}:`, error);
+        return false;
     }
 }
