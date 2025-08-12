@@ -92,14 +92,26 @@ async function getLocaleIds() {
         }
         
         console.log('🌍 Found locale IDs:', locales);
+        console.log('🔍 Site data structure:', {
+            primary: siteData.locale?.primary,
+            secondary: siteData.locale?.secondary?.map(loc => ({
+                id: loc.id,
+                subdirectory: loc.subdirectory,
+                cmsLocaleId: loc.cmsLocaleId
+            }))
+        });
         
         // Additional debug: Show which locales are available
         if (locales.en && locales.pl) {
             console.log('✅ Both EN and PL locales configured correctly');
+            console.log('🇬🇧 EN cmsLocaleId:', locales.en);
+            console.log('🇵🇱 PL cmsLocaleId:', locales.pl);
         } else if (locales.en && !locales.pl) {
             console.log('⚠️ Only EN locale found, PL locale missing');
+            console.log('🇬🇧 EN cmsLocaleId:', locales.en);
         } else if (!locales.en && locales.pl) {
             console.log('⚠️ Only PL locale found, EN locale missing');
+            console.log('🇵🇱 PL cmsLocaleId:', locales.pl);
         } else {
             console.log('❌ No locales found in Webflow configuration');
         }
@@ -322,18 +334,29 @@ export function getWebflowCacheStats() {
  * @returns {string|null} PDF URL or null
  */
 function getLanguageSpecificPdfUrl(fieldData, language) {
+    console.log('🔍 getLanguageSpecificPdfUrl called with:', { language });
+    console.log('🔍 Available field data keys:', Object.keys(fieldData));
+    console.log('🔍 Template PDF field raw data:', {
+        'template-pdf': fieldData['template-pdf'],
+        'Template PDF': fieldData['Template PDF'],
+        'file': fieldData.file,
+        'file-field': fieldData['file-field'],
+        'File field': fieldData['File field'],
+        'base-pdf': fieldData['base-pdf']
+    });
+    
     // Webflow localization automatically returns the correct content based on locale parameter
     // So we just need to check the standard Template PDF field
-    const templatePdf = fieldData['template-pdf']?.url || 
-                       fieldData['Template PDF']?.url || 
-                       fieldData.file?.url || 
-                       fieldData['file-field']?.url || 
-                       fieldData['File field']?.url || 
+    const templatePdf = fieldData['template-pdf']?.url ||
+                       fieldData['Template PDF']?.url ||
+                       fieldData.file?.url ||
+                       fieldData['file-field']?.url ||
+                       fieldData['File field']?.url ||
                        fieldData['base-pdf']?.url;
-    
+
     if (templatePdf) {
         console.log(`📄 Using localized Template PDF (${language}):`, templatePdf);
-        
+
         // Additional debug: Check if this is the expected file for the language
         if (language === 'pl' && templatePdf) {
             const isPolishFile = templatePdf.includes('pl') || templatePdf.includes('polish') || templatePdf.includes('PL');
@@ -344,7 +367,7 @@ function getLanguageSpecificPdfUrl(fieldData, language) {
         }
         return templatePdf;
     }
-    
+
     console.log('⚠️ No Template PDF found for language:', language);
     return null;
 }

@@ -109,8 +109,12 @@
                         // Backend will auto-detect language from referer header
                         const originalHref = `${API_BASE_URL}/api/pdf-with-qr?item=${encodeURIComponent(itemSlug)}&world=${encodedWorld}`;
                         
-                        // Remove any existing click handlers
+                        // Remove any existing click handlers and href
                         button.onclick = null;
+                        button.removeAttribute('href'); // Remove Webflow's original href
+                        button.style.cursor = 'pointer'; // Keep pointer cursor
+                        
+                        console.log(`🔧 Button ${index + 1} original href removed, custom handler added`);
                         
                         // Add custom click handler with member ID in header
                         button.addEventListener('click', async function(e) {
