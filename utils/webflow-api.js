@@ -69,7 +69,11 @@ export async function getWebflowItem(itemSlug, language = 'en') {
         }
         
         // Fetch all items from collection (Webflow API doesn't support direct slug lookup)
-        const url = `${WEBFLOW_API_BASE}/collections/${COLLECTION_ID}/items`;
+        // Fetch all items from the collection with locale
+        const locale = language === 'pl' ? 'pl' : 'en'; // Map language to Webflow locale
+        const url = `${WEBFLOW_API_BASE}/collections/${COLLECTION_ID}/items?locale=${locale}`;
+        console.log('🌐 Fetching from Webflow API:', url, 'Locale:', locale);
+        
         const response = await fetch(url, {
             method: 'GET',
             headers: getWebflowHeaders()
@@ -217,37 +221,24 @@ export function getWebflowCacheStats() {
 }
 
 /**
- * Get language-specific PDF URL from Webflow field data
+ * Get PDF URL from Webflow field data (localized content handled by Webflow API)
  * @param {Object} fieldData - Webflow field data
  * @param {string} language - Language code ('en' or 'pl')
  * @returns {string|null} PDF URL or null
  */
 function getLanguageSpecificPdfUrl(fieldData, language) {
-    // Try language-specific Template PDF fields first
-    if (language === 'pl') {
-        // Try Polish-specific fields
-        const polishPdf = fieldData['template-pdf-pl']?.url || 
-                         fieldData['Template PDF PL']?.url ||
-                         fieldData['template-pdf-polish']?.url ||
-                         fieldData['Template PDF Polish']?.url;
-        
-        if (polishPdf) {
-            console.log('📄 Using Polish Template PDF:', polishPdf);
-            return polishPdf;
-        }
-    }
+    // Webflow localization automatically returns the correct content based on locale parameter
+    // So we just need to check the standard Template PDF field
+    const templatePdf = fieldData['template-pdf']?.url || 
+                       fieldData['Template PDF']?.url || 
+                       fieldData.file?.url || 
+                       fieldData['file-field']?.url || 
+                       fieldData['File field']?.url || 
+                       fieldData['base-pdf']?.url;
     
-    // Fallback to general Template PDF fields
-    const generalPdf = fieldData['template-pdf']?.url || 
-                      fieldData['Template PDF']?.url || 
-                      fieldData.file?.url || 
-                      fieldData['file-field']?.url || 
-                      fieldData['File field']?.url || 
-                      fieldData['base-pdf']?.url;
-    
-    if (generalPdf) {
-        console.log(`📄 Using ${language === 'pl' ? 'fallback' : 'default'} Template PDF:`, generalPdf);
-        return generalPdf;
+    if (templatePdf) {
+        console.log(`📄 Using localized Template PDF (${language}):`, templatePdf);
+        return templatePdf;
     }
     
     console.log('⚠️ No Template PDF found for language:', language);
