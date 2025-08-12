@@ -276,7 +276,7 @@ export default async function handler(req, res) {
         const placeholderName = 'QR_PLACEHOLDER_1';
         // Looking for QR placeholder in PDF
         
-        const qrPlaceholderFound = await findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName, shareUrl, teacherName);
+        const qrPlaceholderFound = await findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName, shareUrl, teacherName, detectedLang);
         
         if (!qrPlaceholderFound) {
             // Fallback: place QR in bottom-right corner if placeholder not found
@@ -371,16 +371,17 @@ export default async function handler(req, res) {
 // Removed: getBasePdfFromWebflow() - now handled by utils/webflow-api.js
 
 /**
- * Find and replace QR placeholder in PDF with QR code
- * Searches for graphic objects/layers with the placeholder name
+ * Find and replace placeholders in PDF with QR code, URL text, and teacher info
+ * Searches for form fields: QR_PLACEHOLDER_1, TEACHER_PLACEHOLDER, URL_PLACEHOLDER
  * @param {PDFDocument} pdfDoc - PDF document
  * @param {Buffer} qrPngBuffer - QR code PNG buffer
- * @param {string} placeholderName - Name of placeholder to find (e.g., 'QR_PLACEHOLDER_1')
+ * @param {string} placeholderName - Legacy parameter (kept for compatibility)
  * @param {string} shareUrl - URL to display under QR code
  * @param {string} teacherName - Teacher's full name
- * @returns {Promise<boolean>} True if placeholder was found and replaced
+ * @param {string} detectedLang - Language code ('en' or 'pl')
+ * @returns {Promise<boolean>} True if any placeholder was found, false if all fallback
  */
-async function findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName, shareUrl, teacherName) {
+async function findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName, shareUrl, teacherName, detectedLang) {
     try {
         const qrImage = await pdfDoc.embedPng(qrPngBuffer);
         const pages = pdfDoc.getPages();
@@ -388,18 +389,85 @@ async function findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName,
         // Embed font for URL text
         const font = await pdfDoc.embedFont('Helvetica');
         
-        // Position configuration for PDF elements (all left-aligned at x=50)
-        // Note: In PDF coordinates, Y=0 is at bottom, so higher Y values = higher on page
-        const POSITIONS = {
+        // Default position configuration for PDF elements (fallback coordinates)
+        const FALLBACK_POSITIONS = {
             // Teacher info position (Y=700 = highest on page)
             TEACHER_INFO: { x: 50, y: 700, fontSize: 10 },
             
-            // URL text position (Y=650 = middle)
+            // URL text position (Y=650 = middle)  
             URL_TEXT: { x: 50, y: 650, fontSize: 8 },
             
             // QR code position (Y=500 = lower, but above bottom)
             QR_CODE: { x: 50, y: 500, size: 120 }
         };
+        
+        // Track found placeholder positions
+        let foundPositions = {
+            qr: null,
+            teacher: null,
+            url: null
+        };
+        
+        // Function to search for all placeholders
+        const searchForPlaceholders = async () => {
+            console.log('🔍 Searching for placeholders: QR_PLACEHOLDER_1, TEACHER_PLACEHOLDER, URL_PLACEHOLDER');
+            
+            for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
+                const page = pages[pageIndex];
+                console.log(`📄 Searching page ${pageIndex + 1}...`);
+                
+                // Search for form fields
+                try {
+                    const form = pdfDoc.getForm();
+                    const fields = form.getFields();
+                    
+                    for (const field of fields) {
+                        const fieldName = field.getName();
+                        
+                        if (fieldName === 'QR_PLACEHOLDER_1' && !foundPositions.qr) {
+                            const widgets = field.acroField.getWidgets();
+                            if (widgets.length > 0) {
+                                const rect = widgets[0].getRectangle();
+                                foundPositions.qr = { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+                                console.log(`✅ Found QR_PLACEHOLDER_1 at:`, foundPositions.qr);
+                                form.removeField(field);
+                            }
+                        }
+                        
+                        if (fieldName === 'TEACHER_PLACEHOLDER' && !foundPositions.teacher) {
+                            const widgets = field.acroField.getWidgets();
+                            if (widgets.length > 0) {
+                                const rect = widgets[0].getRectangle();
+                                foundPositions.teacher = { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+                                console.log(`✅ Found TEACHER_PLACEHOLDER at:`, foundPositions.teacher);
+                                form.removeField(field);
+                            }
+                        }
+                        
+                        if (fieldName === 'URL_PLACEHOLDER' && !foundPositions.url) {
+                            const widgets = field.acroField.getWidgets();
+                            if (widgets.length > 0) {
+                                const rect = widgets[0].getRectangle();
+                                foundPositions.url = { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+                                console.log(`✅ Found URL_PLACEHOLDER at:`, foundPositions.url);
+                                form.removeField(field);
+                            }
+                        }
+                    }
+                } catch (formError) {
+                    console.log('ℹ️ No form fields found on page', pageIndex + 1);
+                }
+                
+                // If all placeholders found, break early
+                if (foundPositions.qr && foundPositions.teacher && foundPositions.url) {
+                    console.log('🎯 All placeholders found!');
+                    break;
+                }
+            }
+        };
+        
+        // Search for placeholders first
+        await searchForPlaceholders();
         
         // Helper function to draw QR code only
         const drawQrCode = (page, x, y, width, height) => {
@@ -450,203 +518,38 @@ async function findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName,
             console.log(`✅ Teacher info placed successfully: "${teacherName}" (${teacherLabel}) at (${x}, ${y})`);
         };
         
-        // Searching PDF pages for placeholder
+        // Draw elements using found placeholders or fallback positions
+        const firstPage = pages[0];
         
-        // Search through all pages
-        for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
-            const page = pages[pageIndex];
-            
-            // Method 1: Try to find form fields (legacy support)
-            try {
-                const form = pdfDoc.getForm();
-                const fields = form.getFields();
-                
-                if (fields.length > 0) {
-                    console.log(`📄 Page ${pageIndex + 1}: Found ${fields.length} form fields`);
-                    const fieldNames = fields.map(f => f.getName());
-                    console.log('🏷️ Available field names:', fieldNames);
-                    
-                    for (const field of fields) {
-                        if (field.getName() === placeholderName) {
-                            console.log(`🎯 Found placeholder field: ${placeholderName}`);
-                            
-                            const widgets = field.acroField.getWidgets();
-                            if (widgets.length > 0) {
-                                const widget = widgets[0];
-                                const rect = widget.getRectangle();
-                                
-                                // Draw QR code at configured position (ignore placeholder position)
-                                drawQrCode(page, POSITIONS.QR_CODE.x, POSITIONS.QR_CODE.y, POSITIONS.QR_CODE.size, POSITIONS.QR_CODE.size);
-                                
-                                // Draw URL text at configured position
-                                drawUrlText(page, POSITIONS.URL_TEXT.x, POSITIONS.URL_TEXT.y, POSITIONS.URL_TEXT.fontSize);
-                                
-                                // Draw teacher info at configured position
-                                drawTeacherInfo(page, POSITIONS.TEACHER_INFO.x, POSITIONS.TEACHER_INFO.y, POSITIONS.TEACHER_INFO.fontSize);
-                                
-                                form.removeField(field);
-                                console.log(`✅ QR code with URL text placed at form field ${placeholderName}:`, rect);
-                                return true;
-                            }
-                        }
-                    }
-                }
-            } catch (formError) {
-                console.log('ℹ️ No form fields found, searching for graphic objects...');
-            }
-            
-            // Method 2: Search for text objects containing the placeholder name
-            try {
-                const pageContent = await extractPageContent(page);
-                const placeholderMatch = findTextPlaceholder(pageContent, placeholderName);
-                
-                if (placeholderMatch) {
-                    console.log(`🎯 Found text placeholder: ${placeholderName}`);
-                    
-                    // Place QR code with text at the found position
-                    const qrSize = Math.min(placeholderMatch.width || 120, placeholderMatch.height || 120, 120);
-                    
-                    // Draw QR code at configured position (ignore placeholder position)
-                    drawQrCode(page, POSITIONS.QR_CODE.x, POSITIONS.QR_CODE.y, POSITIONS.QR_CODE.size, POSITIONS.QR_CODE.size);
-                    
-                    // Draw URL text at configured position
-                    drawUrlText(page, POSITIONS.URL_TEXT.x, POSITIONS.URL_TEXT.y, POSITIONS.URL_TEXT.fontSize);
-                    
-                    // Draw teacher info at configured position
-                    drawTeacherInfo(page, POSITIONS.TEACHER_INFO.x, POSITIONS.TEACHER_INFO.y, POSITIONS.TEACHER_INFO.fontSize);
-                    
-                    console.log(`✅ QR code placed at text placeholder ${placeholderName}:`, placeholderMatch);
-                    return true;
-                }
-            } catch (textError) {
-                console.log('ℹ️ Text extraction failed, trying coordinate-based placement...');
-            }
-            
-            // Method 3: Try to find rectangular objects that might be placeholders
-            try {
-                const placeholderRect = await findGraphicPlaceholder(page, placeholderName);
-                if (placeholderRect) {
-                    console.log(`🎯 Found graphic placeholder: ${placeholderName}`);
-                    
-                    // Draw QR code at configured position (ignore placeholder position)
-                    drawQrCode(page, POSITIONS.QR_CODE.x, POSITIONS.QR_CODE.y, POSITIONS.QR_CODE.size, POSITIONS.QR_CODE.size);
-                    
-                    // Draw URL text at configured position
-                    drawUrlText(page, POSITIONS.URL_TEXT.x, POSITIONS.URL_TEXT.y, POSITIONS.URL_TEXT.fontSize);
-                    
-                    // Draw teacher info at configured position
-                    drawTeacherInfo(page, POSITIONS.TEACHER_INFO.x, POSITIONS.TEACHER_INFO.y, POSITIONS.TEACHER_INFO.fontSize);
-                    
-                    console.log(`✅ QR code placed at graphic placeholder ${placeholderName}:`, placeholderRect);
-                    return true;
-                }
-            } catch (graphicError) {
-                console.log('ℹ️ Graphic object search failed');
-            }
-        }
+        // Determine positions for each element
+        const qrPos = foundPositions.qr || FALLBACK_POSITIONS.QR_CODE;
+        const teacherPos = foundPositions.teacher || FALLBACK_POSITIONS.TEACHER_INFO;
+        const urlPos = foundPositions.url || FALLBACK_POSITIONS.URL_TEXT;
         
-        console.log(`⚠️ Placeholder ${placeholderName} not found in PDF`);
+        console.log('📍 Using positions:');
+        console.log(`   QR: ${foundPositions.qr ? 'PLACEHOLDER' : 'FALLBACK'} at (${qrPos.x}, ${qrPos.y})`);
+        console.log(`   Teacher: ${foundPositions.teacher ? 'PLACEHOLDER' : 'FALLBACK'} at (${teacherPos.x}, ${teacherPos.y})`);
+        console.log(`   URL: ${foundPositions.url ? 'PLACEHOLDER' : 'FALLBACK'} at (${urlPos.x}, ${urlPos.y})`);
+        
+        // Draw QR code
+        const qrSize = foundPositions.qr ? Math.min(qrPos.width, qrPos.height) : FALLBACK_POSITIONS.QR_CODE.size;
+        drawQrCode(firstPage, qrPos.x, qrPos.y, qrSize, qrSize);
+        
+        // Draw URL text  
+        const urlFontSize = foundPositions.url ? 8 : FALLBACK_POSITIONS.URL_TEXT.fontSize;
+        drawUrlText(firstPage, urlPos.x, urlPos.y, urlFontSize);
+        
+        // Draw teacher info
+        const teacherFontSize = foundPositions.teacher ? 10 : FALLBACK_POSITIONS.TEACHER_INFO.fontSize;
+        drawTeacherInfo(firstPage, teacherPos.x, teacherPos.y, teacherFontSize);
+        
+        console.log('✅ All PDF elements placed successfully!');
+        
+        // Return true if any placeholder was found
+        return !!(foundPositions.qr || foundPositions.teacher || foundPositions.url);
+        
+    } catch (error) {
+        console.error('❌ Error in placeholder replacement:', error);
         return false;
-        
-    } catch (error) {
-        console.error(`❌ Error finding/replacing placeholder ${placeholderName}:`, error);
-        return false;
-    }
-}
-
-/**
- * Extract text content and positions from a PDF page
- * @param {PDFPage} page - PDF page
- * @returns {Promise<Array>} Array of text objects with positions
- */
-async function extractPageContent(page) {
-    try {
-        // This is a simplified approach - pdf-lib doesn't have built-in text extraction
-        // We'll try to access the page's content stream
-        const pageNode = page.node;
-        
-        // Look for text objects in the page content
-        // This is complex and may not work for all PDF structures
-        return [];
-    } catch (error) {
-        console.log('Text extraction not available');
-        return [];
-    }
-}
-
-/**
- * Find text placeholder in page content
- * @param {Array} pageContent - Page content objects
- * @param {string} placeholderName - Placeholder name to find
- * @returns {Object|null} Position object or null
- */
-function findTextPlaceholder(pageContent, placeholderName) {
-    // Search through text objects for the placeholder name
-    for (const textObj of pageContent) {
-        if (textObj.text && textObj.text.includes(placeholderName)) {
-            return {
-                x: textObj.x || 0,
-                y: textObj.y || 0,
-                width: textObj.width || 120,
-                height: textObj.height || 120
-            };
-        }
-    }
-    return null;
-}
-
-/**
- * Find graphic placeholder (rectangle/shape) that might represent QR position
- * @param {PDFPage} page - PDF page
- * @param {string} placeholderName - Placeholder name to find
- * @returns {Promise<Object|null>} Position object or null
- */
-async function findGraphicPlaceholder(page, placeholderName) {
-    try {
-        // For Figma-exported PDFs, we'll use a heuristic approach
-        // Look for squares/rectangles that are likely QR code placeholders
-        
-        const { width: pageWidth, height: pageHeight } = page.getSize();
-        
-        // Based on your PDF screenshot, the QR code appears to be in the bottom right
-        // Let's calculate the exact position based on the white square visible in the PDF
-        
-        console.log(`📐 PDF dimensions: ${pageWidth} x ${pageHeight}`);
-        
-        // Check if this matches expected PDF dimensions (595x842)
-        const isExpectedSize = Math.abs(pageWidth - 595) < 10 && Math.abs(pageHeight - 842) < 10;
-        
-        if (isExpectedSize) {
-            // Exact coordinates for 595x842px PDF
-            // QR code position: 253px from left, 532px from top
-            // QR code size: 90x90px
-            const qrPosition = {
-                x: 253,              // 253px from left edge
-                y: 170,              // User specified y coordinate
-                width: 90,           // User specified size
-                height: 90
-            };
-            
-            console.log(`📐 Using exact coordinates for standard PDF (595x842):`, qrPosition);
-            return qrPosition;
-        } else {
-            // Fallback for different PDF sizes - scale proportionally
-            const scaleX = pageWidth / 595;
-            const scaleY = pageHeight / 842;
-            
-            const qrPosition = {
-                x: 253 * scaleX,
-                y: pageHeight - (532 * scaleY) - (90 * Math.min(scaleX, scaleY)),
-                width: 90 * Math.min(scaleX, scaleY),
-                height: 90 * Math.min(scaleX, scaleY)
-            };
-            
-            console.log(`📐 Using scaled coordinates for PDF (${pageWidth}x${pageHeight}):`, qrPosition);
-            return qrPosition;
-        }
-        
-    } catch (error) {
-        console.log('Graphic placeholder detection failed');
-        return null;
     }
 }
