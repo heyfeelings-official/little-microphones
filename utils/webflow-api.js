@@ -41,7 +41,7 @@ const WORLD_ID_MAP = {
  * Get Webflow API headers with authentication
  * @returns {Object} Headers object
  */
-function getWebflowHeaders() {
+export function getWebflowHeaders() {
     const token = process.env.WEBFLOW_API_TOKEN;
     if (!token) {
         throw new Error('WEBFLOW_API_TOKEN environment variable is required');
