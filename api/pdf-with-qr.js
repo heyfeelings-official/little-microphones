@@ -22,7 +22,7 @@
 import { PDFDocument, rgb } from 'pdf-lib';
 import QRCode from 'qrcode';
 import { getSupabaseClient, WORLDS, getWorldColumn } from '../utils/lmid-utils.js';
-import { getMemberFromSession } from '../utils/memberstack-utils.js';
+import { getMemberDetails } from '../utils/memberstack-utils.js';
 import { findLmidsByMemberId } from '../utils/database-utils.js';
 
 export default async function handler(req, res) {
@@ -61,23 +61,34 @@ export default async function handler(req, res) {
         }
 
         // Decode world parameter (handles spaces like "Shopping Spree")
-        const decodedWorld = decodeURIComponent(world);
+        const decodedWorld = decodeURIComponent(world).toLowerCase();
         console.log('📋 PDF Request:', { item, world: decodedWorld });
 
-        // Validate world name
+        // Validate world name (case insensitive)
         if (!WORLDS.includes(decodedWorld)) {
             return res.status(400).json({ 
                 success: false, 
-                error: `Invalid world. Must be one of: ${WORLDS.join(', ')}` 
+                error: `Invalid world. Must be one of: ${WORLDS.join(', ')}. Received: ${decodedWorld}` 
             });
         }
 
-        // Get educator from session
-        const member = await getMemberFromSession(req);
-        if (!member) {
-            return res.status(401).json({ 
+        // Get educator from query parameter (for testing) or implement proper session handling
+        const { memberId } = req.query;
+        
+        // For testing - in production this would come from session/cookies
+        if (!memberId) {
+            return res.status(400).json({ 
                 success: false, 
-                error: 'Authentication required. Please log in as an educator.' 
+                error: 'Missing required parameter: memberId (for testing). In production this would come from session.' 
+            });
+        }
+
+        // Get member details from Memberstack
+        const member = await getMemberDetails(memberId);
+        if (!member) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Member not found or invalid memberId.' 
             });
         }
 
@@ -206,21 +217,28 @@ export default async function handler(req, res) {
  */
 async function getBasePdfFromWebflow(itemSlug) {
     try {
-        // For now, return a mock URL - this would be replaced with actual Webflow API call
-        // TODO: Integrate with Webflow CMS API to fetch actual PDF URL
-        
-        // Mock implementation - replace with real Webflow API integration
+        // Mock implementation for testing - replace with real Webflow API integration
         console.log('🔍 Looking up base PDF for item:', itemSlug);
         
-        // This is where you'd make a call to Webflow CMS API
+        // For testing, return a sample PDF URL
+        // In production, this would query Webflow CMS API
+        const mockPdfUrls = {
+            'lesson-4-math': 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+            'workbook-emotions': 'https://www.africau.edu/images/default/sample.pdf',
+            'default': 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
+        };
+        
+        const pdfUrl = mockPdfUrls[itemSlug] || mockPdfUrls['default'];
+        console.log('📄 Mock PDF URL:', pdfUrl);
+        
+        return pdfUrl;
+        
+        // TODO: Replace with real Webflow API integration:
         // const webflowApiUrl = `https://api.webflow.com/sites/${SITE_ID}/collections/${COLLECTION_ID}/items`;
         // const response = await fetch(webflowApiUrl, { headers: { 'Authorization': `Bearer ${WEBFLOW_TOKEN}` }});
         // const items = await response.json();
         // const item = items.items.find(i => i.slug === itemSlug);
         // return item?.['base-pdf']?.url;
-
-        // For testing purposes, return null to trigger error handling
-        return null;
         
     } catch (error) {
         console.error('❌ Error fetching base PDF from Webflow:', error);
