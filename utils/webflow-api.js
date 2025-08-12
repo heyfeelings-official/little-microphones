@@ -27,14 +27,12 @@ const COLLECTION_ID = '689a16dd10cb6df7ff0094a0';
 
 // World ID to name mapping (based on your Webflow CMS Option field)
 const WORLD_ID_MAP = {
-    '2706219f5b529481804b4e24ff1d88aa': 'spookyland',
-    // TODO: Add remaining world IDs from Webflow API responses:
-    // Look for these world names in logs and add their IDs:
-    // - waterpark
-    // - shopping-spree  
-    // - amusement-park
-    // - big-city
-    // - neighborhood
+    '0cf56f86b166aa623329b5f8d4b2cfab': 'neighborhood',
+    'b8b1f1d1a4ec9f8b3522c4202ae44223': 'amusement-park', 
+    '9de7ec84974d0fd5377dc044cdf90677': 'waterpark',
+    '297751f8ebde13753af8e7508ab39fc0': 'big-city',
+    '3b1ea852faa84905441ba211ffcfde47': 'shopping-spree',
+    '2706219f5b529481804b4e24ff1d88aa': 'spookyland'
 };
 
 /**
@@ -211,17 +209,15 @@ export async function getWebflowItem(itemSlug, language = 'en') {
 function mapWebflowFields(webflowItem, language = 'en') {
     const fieldData = webflowItem.fieldData || {};
     
-    // Debug: log field data - try both display names and slug format
-    const itemSlug = fieldData.slug || fieldData['Slug'];
-    const worldId = fieldData.world || fieldData['World'];
-    console.log('🔍 Mapping Webflow fields for:', itemSlug, '- World ID:', worldId, '→', WORLD_ID_MAP[worldId] || 'unmapped');
+    // Debug: log field data using CONFIRMED API field names
+    console.log('🔍 Mapping Webflow fields for:', fieldData.slug, '- World ID:', fieldData.world, '→', WORLD_ID_MAP[fieldData.world] || 'unmapped');
     
-    // Special logging for World ID mapping (easy to find in logs)
-    if (worldId && !WORLD_ID_MAP[worldId]) {
-        console.log('🌍 WORLD_ID_NEEDED:', {
-            slug: itemSlug,
-            worldId: worldId,
-            worldName: 'UNKNOWN - ADD TO WORLD_ID_MAP'
+    // All World IDs should now be mapped - log any unmapped ones
+    if (fieldData.world && !WORLD_ID_MAP[fieldData.world]) {
+        console.log('🌍 UNMAPPED WORLD ID:', {
+            slug: fieldData.slug,
+            worldId: fieldData.world,
+            worldName: 'UNKNOWN - CHECK WORLD_ID_MAP'
         });
     }
     
@@ -230,13 +226,13 @@ function mapWebflowFields(webflowItem, language = 'en') {
     
     return {
         id: webflowItem.id,
-        // Try both display names and API slug format
-        slug: fieldData.slug || fieldData['Slug'],                    
-        name: fieldData.name || fieldData['Name'],                    
-        world: WORLD_ID_MAP[fieldData.world] || WORLD_ID_MAP[fieldData['World']] || fieldData.world || fieldData['World'],
-        dynamicQR: fieldData['dynamic-qr'] || fieldData['Dynamic QR'] || false,
-        templatePdfUrl: getLanguageSpecificPdfUrl(fieldData, language),
-        staticPdfUrl: fieldData['static-pdf']?.url || fieldData['Static PDF']?.url || null,
+        // Use CONFIRMED API field names
+        slug: fieldData.slug,                                        // API: "slug"
+        name: fieldData.name,                                        // API: "name"  
+        world: WORLD_ID_MAP[fieldData.world] || fieldData.world,     // API: "world" (UUID)
+        dynamicQR: fieldData['dynamic-qr'] || false,                 // API: "dynamic-qr"
+        templatePdfUrl: getLanguageSpecificPdfUrl(fieldData, language), // API: "file"
+        staticPdfUrl: fieldData['static-pdf']?.url || null,         // API: "static-pdf"
         qrPosition: null,  // Not in CMS - remove old references
         // Store original field data for debugging
         _originalFields: fieldData
@@ -299,18 +295,13 @@ export function getQrPosition(item) {
  * @returns {string|null} PDF URL or null
  */
 function getLanguageSpecificPdfUrl(fieldData, language) {
-    // Webflow API likely converts "Template PDF" to slug format
-    // Try both display name and likely API field names
-    const templateField = fieldData['template-pdf'] ||     // Likely API field name (slug format)
-                         fieldData['Template PDF'] ||      // Display name from CMS
-                         fieldData['templatePdf'];         // camelCase variant
+    // CONFIRMED from API: "Template PDF" field has slug "file"
+    const templateField = fieldData['file'];              // CORRECT API field name
     
     const templatePdf = templateField?.url || null;
 
     console.log(`🔍 Template PDF field search for ${language}:`, {
-        'template-pdf': Boolean(fieldData['template-pdf']),       // Slug format (likely)
-        'Template PDF': Boolean(fieldData['Template PDF']),       // Display name
-        'templatePdf': Boolean(fieldData['templatePdf']),         // camelCase
+        'file': Boolean(fieldData['file']),                       // CORRECT API field name
         foundUrl: templatePdf,
         isPDF: templatePdf ? templatePdf.includes('.pdf') : false,
         isImage: templatePdf ? (templatePdf.includes('.jpg') || templatePdf.includes('.jpeg') || templatePdf.includes('.png')) : false
