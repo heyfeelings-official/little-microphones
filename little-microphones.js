@@ -1444,7 +1444,19 @@
             return;
         }
 
-        const itemToDelete = deleteButton.closest("[data-lmid]");
+        // Try to find program container for this delete button
+        let itemToDelete = deleteButton.closest("[data-lmid]");
+        if (!itemToDelete) {
+            // Handle layout where `.lm-slot-buttons` is a sibling placed after the grid
+            itemToDelete = findProgramElementForDeleteButton(deleteButton);
+        }
+        if (!itemToDelete) {
+            // Fallback: derive LMID from the button's own content and query it
+            const lmidFromButton = findLmidFromButton(deleteButton);
+            if (lmidFromButton) {
+                itemToDelete = document.querySelector(`[data-lmid="${lmidFromButton}"]`);
+            }
+        }
         if (!itemToDelete) {
             console.error("❌ Could not find parent element with 'data-lmid' attribute");
             return;
@@ -1688,6 +1700,54 @@
     }
 
     /**
+     * Given a delete button that might live inside `.lm-slot-buttons`,
+     * find the corresponding program element `[data-lmid]`.
+     * Strategy:
+     * - If buttons live under the same container as the grids, pick the last visible `[data-lmid]` before buttons.
+     * - If there is only one `[data-lmid]`, return it.
+     */
+    function findProgramElementForDeleteButton(deleteButton) {
+        try {
+            const container = document.getElementById('lm-slot')?.parentNode || document.body;
+            const allPrograms = Array.from(container.querySelectorAll('[data-lmid]'));
+            if (allPrograms.length === 0) return null;
+
+            // If only one, it's unambiguous
+            if (allPrograms.length === 1) return allPrograms[0];
+
+            // Prefer the closest previous sibling program relative to `.lm-slot-buttons`
+            const buttonsBlock = deleteButton.closest('.lm-slot-buttons');
+            if (buttonsBlock && buttonsBlock.parentNode === container) {
+                // Walk backwards from buttonsBlock to find the last program block
+                let prev = buttonsBlock.previousElementSibling;
+                while (prev) {
+                    if (prev.hasAttribute && prev.hasAttribute('data-lmid')) return prev;
+                    prev = prev.previousElementSibling;
+                }
+            }
+
+            // Fallback: return the last program in DOM order
+            return allPrograms[allPrograms.length - 1] || null;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    /**
+     * Extract LMID from delete button content (e.g., "DELETE ID 39" or nested with #lmid-number)
+     */
+    function findLmidFromButton(deleteButton) {
+        const numberEl = deleteButton.querySelector('#lmid-number, [data-lmid-number]');
+        if (numberEl && numberEl.textContent) {
+            const n = numberEl.textContent.trim().match(/\d+/);
+            return n ? n[0] : null;
+        }
+        const text = (deleteButton.textContent || '').trim();
+        const match = text.match(/\b(\d{1,6})\b/);
+        return match ? match[1] : null;
+    }
+
+    /**
      * Delete files from cloud storage
      */
     async function deleteCloudFiles(lmid, lang) {
@@ -1834,8 +1894,8 @@
             itemElement.style.filter = '';
             itemElement.style.pointerEvents = '';
             
-            // Update LMID number in delete button and recreate proper structure
-            const deleteButton = itemElement.querySelector('#lm-delete, .lm-delete');
+            // Update LMID number in the global delete button (lives in .lm-slot-buttons)
+            const deleteButton = document.querySelector('#lm-delete, .lm-delete');
             if (deleteButton) {
                 console.log(`🔍 Recreating delete button structure for LMID:`, newLmid);
                 
@@ -1844,7 +1904,7 @@
                     <div>delete</div>
                     <div class="w-layout-vflex flex-block-19">
                         <div>ID</div>
-                        <div id="lmid-number" class="w-node-_32c0fba4-26de-f032-bad8-da5ab567b7b5-0386c4d7">${newLmid}</div>
+                        <div id="lmid-number" class="w-node-_32c0fba4-26de-f032-bad8-da5ab567b7b5-0386c4d7" data-lmid-number="true">${newLmid}</div>
                     </div>
                 `;
                 
