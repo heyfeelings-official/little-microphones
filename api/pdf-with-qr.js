@@ -127,18 +127,6 @@ export default async function handler(req, res) {
         }
 
         console.log('👨‍🏫 Educator authenticated with member ID:', member.id);
-        console.log('👤 Member data structure:', JSON.stringify(member, null, 2));
-        
-        // Extract teacher name from member data
-        const teacherFirstName = member.firstName || member.customFields?.firstName || 'Teacher';
-        const teacherLastName = member.lastName || member.customFields?.lastName || '';
-        const teacherName = `${teacherFirstName} ${teacherLastName}`.trim();
-        
-        console.log('📝 Teacher name extracted:', {
-            firstName: teacherFirstName,
-            lastName: teacherLastName,
-            fullName: teacherName
-        });
 
         // Check if Dynamic QR is enabled
         if (!checkDynamicQR(webflowItem)) {
@@ -201,6 +189,27 @@ export default async function handler(req, res) {
         }
 
         console.log('🎯 Found ShareID:', shareId, 'for LMID:', primaryLmid.lmid, 'world:', worldToUse);
+        
+        // Get teacher data from LMID (same approach as radio.js)
+        let teacherName = 'Teacher';
+        try {
+            console.log(`👨‍🏫 Fetching teacher data for LMID: ${primaryLmid.lmid}`);
+            const teacherResponse = await fetch(`${req.protocol}://${req.get('host')}/api/get-teacher-data?lmid=${primaryLmid.lmid}`);
+            
+            if (teacherResponse.ok) {
+                const teacherData = await teacherResponse.json();
+                if (teacherData.success) {
+                    teacherName = teacherData.data.teacherName || 'Teacher';
+                    console.log('✅ Teacher name retrieved:', teacherName);
+                } else {
+                    console.warn('⚠️ Teacher data API returned error:', teacherData.error);
+                }
+            } else {
+                console.warn(`⚠️ Failed to fetch teacher data: ${teacherResponse.status}`);
+            }
+        } catch (error) {
+            console.warn('⚠️ Error fetching teacher data:', error.message);
+        }
 
         // Get Template PDF URL from Webflow CMS
         const templatePdfUrl = getTemplatePdfUrl(webflowItem);
