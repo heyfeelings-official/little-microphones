@@ -211,36 +211,32 @@ export async function getWebflowItem(itemSlug, language = 'en') {
 function mapWebflowFields(webflowItem, language = 'en') {
     const fieldData = webflowItem.fieldData || {};
     
-    // Debug: log field data using EXACT Webflow field names
-    console.log('🔍 Mapping Webflow fields for:', fieldData['Slug'] || fieldData.slug, '- World ID:', fieldData['World'], '→', WORLD_ID_MAP[fieldData['World']] || 'unmapped');
+    // Debug: log field data - try both display names and slug format
+    const itemSlug = fieldData.slug || fieldData['Slug'];
+    const worldId = fieldData.world || fieldData['World'];
+    console.log('🔍 Mapping Webflow fields for:', itemSlug, '- World ID:', worldId, '→', WORLD_ID_MAP[worldId] || 'unmapped');
     
     // Special logging for World ID mapping (easy to find in logs)
-    if (fieldData['World'] && !WORLD_ID_MAP[fieldData['World']]) {
+    if (worldId && !WORLD_ID_MAP[worldId]) {
         console.log('🌍 WORLD_ID_NEEDED:', {
-            slug: fieldData['Slug'] || fieldData.slug,
-            worldId: fieldData['World'],
+            slug: itemSlug,
+            worldId: worldId,
             worldName: 'UNKNOWN - ADD TO WORLD_ID_MAP'
         });
     }
     
-    console.log('🔍 All available fields:', Object.keys(fieldData));
-    console.log('🔍 Raw PDF field data (exact Webflow field names):', JSON.stringify({
-        'Template PDF': fieldData['Template PDF'],    // Exact field name from Webflow CMS
-        'Static PDF': fieldData['Static PDF'],        // Exact field name from Webflow CMS
-        'Dynamic QR': fieldData['Dynamic QR'],        // Exact field name from Webflow CMS
-        'World': fieldData['World'],                  // Exact field name from Webflow CMS
-        'Name': fieldData['Name'],                    // Exact field name from Webflow CMS
-        'Slug': fieldData['Slug']                     // Exact field name from Webflow CMS
-    }, null, 2));
+            console.log('🔍 All available fields:', Object.keys(fieldData));
+        console.log('🔍 RAW FIELD DATA (to see actual field names from API):', JSON.stringify(fieldData, null, 2));
     
     return {
         id: webflowItem.id,
-        slug: fieldData['Slug'] || fieldData.slug,                    // EXACT: "Slug" (Plain text)
-        name: fieldData['Name'] || fieldData.name,                    // EXACT: "Name" (Plain text)
-        world: WORLD_ID_MAP[fieldData['World']] || fieldData['World'] || fieldData.world,  // EXACT: "World" (Option)
-        dynamicQR: fieldData['Dynamic QR'] || false,                  // EXACT: "Dynamic QR" (Switch)
-        templatePdfUrl: getLanguageSpecificPdfUrl(fieldData, language),  // EXACT: "Template PDF" (File)
-        staticPdfUrl: fieldData['Static PDF']?.url || null,          // EXACT: "Static PDF" (File)
+        // Try both display names and API slug format
+        slug: fieldData.slug || fieldData['Slug'],                    
+        name: fieldData.name || fieldData['Name'],                    
+        world: WORLD_ID_MAP[fieldData.world] || WORLD_ID_MAP[fieldData['World']] || fieldData.world || fieldData['World'],
+        dynamicQR: fieldData['dynamic-qr'] || fieldData['Dynamic QR'] || false,
+        templatePdfUrl: getLanguageSpecificPdfUrl(fieldData, language),
+        staticPdfUrl: fieldData['static-pdf']?.url || fieldData['Static PDF']?.url || null,
         qrPosition: null,  // Not in CMS - remove old references
         // Store original field data for debugging
         _originalFields: fieldData
@@ -303,13 +299,18 @@ export function getQrPosition(item) {
  * @returns {string|null} PDF URL or null
  */
 function getLanguageSpecificPdfUrl(fieldData, language) {
-    // Use EXACT Webflow CMS field name from screenshot: "Template PDF" (File)
-    const templateField = fieldData['Template PDF'];      // EXACT field name from Webflow CMS
+    // Webflow API likely converts "Template PDF" to slug format
+    // Try both display name and likely API field names
+    const templateField = fieldData['template-pdf'] ||     // Likely API field name (slug format)
+                         fieldData['Template PDF'] ||      // Display name from CMS
+                         fieldData['templatePdf'];         // camelCase variant
     
     const templatePdf = templateField?.url || null;
 
     console.log(`🔍 Template PDF field search for ${language}:`, {
-        'Template PDF': Boolean(fieldData['Template PDF']),    // EXACT field name
+        'template-pdf': Boolean(fieldData['template-pdf']),       // Slug format (likely)
+        'Template PDF': Boolean(fieldData['Template PDF']),       // Display name
+        'templatePdf': Boolean(fieldData['templatePdf']),         // camelCase
         foundUrl: templatePdf,
         isPDF: templatePdf ? templatePdf.includes('.pdf') : false,
         isImage: templatePdf ? (templatePdf.includes('.jpg') || templatePdf.includes('.jpeg') || templatePdf.includes('.png')) : false
