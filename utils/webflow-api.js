@@ -207,6 +207,7 @@ export async function getWebflowItem(itemSlug, language = 'en') {
         
         if (!item) {
             console.log(`⚠️ Webflow item not found: ${itemSlug}`);
+            console.log(`📋 Available items in collection:`, result.items?.map(i => i.fieldData?.slug || i.fieldData?.['slug']) || []);
             return null;
         }
         

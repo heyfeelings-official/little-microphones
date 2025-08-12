@@ -60,6 +60,13 @@
         }
 
         console.log(`📋 Found ${pdfButtons.length} PDF QR buttons`);
+        console.log(`📋 Button details:`, Array.from(pdfButtons).map((btn, i) => ({
+            index: i + 1,
+            slug: btn.getAttribute('data-item-slug'),
+            world: btn.getAttribute('data-world'),
+            href: btn.href,
+            hasHref: !!btn.href
+        })));
 
         // Process each button and check if it needs dynamic QR
         const buttonPromises = Array.from(pdfButtons).map(async (button, index) => {
@@ -86,6 +93,14 @@
                     console.log(`🔍 Checking Dynamic QR status for: ${itemSlug}`);
                     
                     const response = await fetch(checkUrl);
+                    
+                    if (!response.ok) {
+                        console.warn(`⚠️ Failed to check Dynamic QR for ${itemSlug}: ${response.status} ${response.statusText}`);
+                        // If check fails, assume it's a regular Webflow link
+                        console.log(`ℹ️ Button ${index + 1} keeps original Webflow URL (check failed): ${itemSlug}`);
+                        return;
+                    }
+                    
                     const result = await response.json();
                     
                     if (result.success && result.needsDynamicQR) {
