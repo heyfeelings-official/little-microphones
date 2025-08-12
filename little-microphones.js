@@ -712,6 +712,11 @@
         // Ensure slot buttons are placed at the very end
         ensureLmSlotButtonsAfterGrids(container);
 
+        // Update global delete button to reflect the current LMID (limit = 1)
+        if (lmids && lmids.length > 0) {
+            updateGlobalDeleteButtonLmid(lmids[0]);
+        }
+
         // Reinitialize Webflow interactions
         reinitializeWebflow();
         
@@ -1895,32 +1900,7 @@
             itemElement.style.pointerEvents = '';
             
             // Update LMID number in the global delete button (lives in .lm-slot-buttons)
-            const deleteButton = document.querySelector('#lm-delete, .lm-delete');
-            if (deleteButton) {
-                console.log(`🔍 Recreating delete button structure for LMID:`, newLmid);
-                
-                // Recreate the proper HTML structure as it should be
-                deleteButton.innerHTML = `
-                    <div>delete</div>
-                    <div class="w-layout-vflex flex-block-19">
-                        <div>ID</div>
-                        <div id="lmid-number" class="w-node-_32c0fba4-26de-f032-bad8-da5ab567b7b5-0386c4d7" data-lmid-number="true">${newLmid}</div>
-                    </div>
-                `;
-                
-                // Reset button state
-                if (deleteButton.tagName.toLowerCase() === 'button') {
-                    deleteButton.disabled = false;
-                } else {
-                    deleteButton.style.pointerEvents = '';
-                    deleteButton.style.opacity = '';
-                }
-                
-                // Remove any data attributes from the deletion process
-                deleteButton.removeAttribute('data-original-text');
-                
-                console.log(`✅ Delete button structure recreated with LMID:`, newLmid);
-            }
+            updateGlobalDeleteButtonLmid(newLmid);
             
             // Remove any remaining overlay
             const overlay = itemElement.querySelector('.lm-deleting-overlay');
@@ -2007,6 +1987,8 @@
             
             // Keep slot buttons below the grids
             ensureLmSlotButtonsAfterGrids(container);
+            // Sync delete button number for the new LMID
+            updateGlobalDeleteButtonLmid(newLmid);
             
             // Setup backgrounds for the new LMID
             setupWorldBackgroundsForContainer(clone);
@@ -2651,6 +2633,25 @@
             });
         } catch (err) {
             console.warn('⚠️ Failed to ensure lm-slot-buttons position:', err);
+        }
+    }
+
+    /**
+     * Keep the global delete button (inside `.lm-slot-buttons`) in sync with the active LMID
+     */
+    function updateGlobalDeleteButtonLmid(lmid) {
+        try {
+            const deleteButton = document.querySelector('#lm-delete, .lm-delete');
+            if (!deleteButton || !lmid) return;
+            deleteButton.innerHTML = `
+                <div>delete</div>
+                <div class="w-layout-vflex flex-block-19">
+                    <div>ID</div>
+                    <div id="lmid-number" class="w-node-_32c0fba4-26de-f032-bad8-da5ab567b7b5-0386c4d7" data-lmid-number="true">${lmid}</div>
+                </div>
+            `;
+        } catch (err) {
+            console.warn('⚠️ Failed to update global delete button LMID:', err);
         }
     }
 })();
