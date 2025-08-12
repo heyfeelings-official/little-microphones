@@ -1,5 +1,31 @@
 # Changelog - Little Microphones
 
+## [6.13.0] - 2025-08-12 - Dynamic QR PDFs stable, UX improved ✅
+
+### ✨ Features
+- Dynamic QR PDF generation fully stable (Webflow CMS + localized Template PDF)
+- Frontend adds explicit `lang` parameter; backend fallback to referer
+- Opens PDFs in a new tab (`inline`), no downloads
+- Accurate QR placement using `QR_PLACEHOLDER_1`
+
+### 🧑‍💻 Developer Experience
+- Removed excessive logs across frontend/backend
+- Simplified language detection and Webflow field mapping
+- Removed unused QR position code (hardcoded placeholder)
+- Parallel checks for all buttons (Promise.all)
+
+### 🧑‍🏫 Educator UX
+- Loading state on buttons: "Generating..." / "Generuję..."
+- Auto reset button text after completion or error
+- Only buttons with `Dynamic QR = ON` are modified; others stay as Webflow links
+
+### 🛠️ Files
+- `api/pdf-with-qr.js`: simplified language detection and logs
+- `utils/webflow-api.js`: cleaned logs, removed unused code, solid mapping
+- `pdf-qr-webflow.js`: loading state, less logs, lang param
+
+---
+
 ## [6.0.1] - 2025-01-15 - Brevo Environment Variables Configuration ⚙️
 
 ### 🔧 Configuration Improvements
