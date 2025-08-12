@@ -214,8 +214,20 @@ export default async function handler(req, res) {
         const firstPage = pages[0];
         const { width, height } = firstPage.getSize();
 
-        // Generate ShareID URL (should point to Webflow, not Vercel)
-        const shareUrl = `https://hey-feelings-v2.webflow.io/little-microphones?ID=${shareId}`;
+        // Generate ShareID URL - detect domain from referer header
+        const referer = req.headers.referer || req.headers.referrer || '';
+        let baseDomain = 'https://heyfeelings.com'; // Default to production
+        
+        if (referer) {
+            try {
+                const refererUrl = new URL(referer);
+                baseDomain = `${refererUrl.protocol}//${refererUrl.hostname}`;
+            } catch (error) {
+                console.warn('⚠️ Could not parse referer URL, using default domain');
+            }
+        }
+        
+        const shareUrl = `${baseDomain}/little-microphones?ID=${shareId}`;
 
         console.log('🔗 Generated QR URL:', shareUrl);
 
