@@ -24,6 +24,7 @@ import QRCode from 'qrcode';
 import { getSupabaseClient, WORLDS, getWorldColumn } from '../utils/lmid-utils.js';
 import { getMemberDetails } from '../utils/memberstack-utils.js';
 import { findLmidsByMemberId } from '../utils/database-utils.js';
+import { getWebflowItem, checkDynamicQR, getBasePdfUrl, getFinalPdfLink, getQrPosition } from '../utils/webflow-api.js';
 
 export default async function handler(req, res) {
     // Secure CORS headers
@@ -94,6 +95,44 @@ export default async function handler(req, res) {
 
         console.log('👨‍🏫 Educator authenticated:', member.id);
 
+        // Get workbook item from Webflow CMS
+        const webflowItem = await getWebflowItem(item);
+        if (!webflowItem) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Workbook item not found in CMS' 
+            });
+        }
+
+        console.log('📋 Webflow item loaded:', { 
+            slug: webflowItem.slug, 
+            dynamicQR: webflowItem.dynamicQR,
+            world: webflowItem.world
+        });
+
+        // Check if Dynamic QR is enabled
+        if (!checkDynamicQR(webflowItem)) {
+            console.log('🔄 Dynamic QR disabled, redirecting to final PDF link');
+            const finalPdfLink = getFinalPdfLink(webflowItem);
+            if (finalPdfLink) {
+                return res.redirect(302, finalPdfLink);
+            } else {
+                return res.status(404).json({ 
+                    success: false, 
+                    error: 'No PDF link available for this item' 
+                });
+            }
+        }
+
+        // Use world from CMS if not provided in URL
+        const worldToUse = decodedWorld || webflowItem.world?.toLowerCase();
+        if (!worldToUse || !WORLDS.includes(worldToUse)) {
+            return res.status(400).json({ 
+                success: false, 
+                error: `Invalid world: ${worldToUse}. Must be one of: ${WORLDS.join(', ')}` 
+            });
+        }
+
         // Find educator's LMIDs
         const educatorLmids = await findLmidsByMemberId(member.id);
         if (!educatorLmids || educatorLmids.length === 0) {
@@ -105,20 +144,20 @@ export default async function handler(req, res) {
 
         // Get ShareID for the first LMID and specified world
         const primaryLmid = educatorLmids[0];
-        const worldColumn = getWorldColumn(decodedWorld);
+        const worldColumn = getWorldColumn(worldToUse);
         const shareId = primaryLmid[worldColumn];
 
         if (!shareId) {
             return res.status(404).json({ 
                 success: false, 
-                error: `No ShareID found for world: ${decodedWorld}` 
+                error: `No ShareID found for world: ${worldToUse}` 
             });
         }
 
-        console.log('🎯 Found ShareID:', shareId, 'for LMID:', primaryLmid.lmid, 'world:', decodedWorld);
+        console.log('🎯 Found ShareID:', shareId, 'for LMID:', primaryLmid.lmid, 'world:', worldToUse);
 
         // Get base PDF URL from Webflow CMS
-        const basePdfUrl = await getBasePdfFromWebflow(item);
+        const basePdfUrl = getBasePdfUrl(webflowItem);
         if (!basePdfUrl) {
             return res.status(404).json({ 
                 success: false, 
@@ -126,7 +165,7 @@ export default async function handler(req, res) {
             });
         }
 
-        console.log('📄 Base PDF URL:', basePdfUrl);
+        console.log('📄 Base PDF URL from CMS:', basePdfUrl);
 
         // Download base PDF
         const pdfResponse = await fetch(basePdfUrl);
@@ -157,8 +196,10 @@ export default async function handler(req, res) {
             }
         });
 
-        // Look for QR_PLACEHOLDER_1 in PDF and replace it with QR code
-        const qrPlaceholderFound = await findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, 'QR_PLACEHOLDER_1');
+        // Look for QR placeholder in PDF and replace it with QR code
+        const qrPositionConfig = getQrPosition(webflowItem);
+        const placeholderName = qrPositionConfig?.placeholder || 'QR_PLACEHOLDER_1';
+        const qrPlaceholderFound = await findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName);
         
         if (!qrPlaceholderFound) {
             // Fallback: place QR in bottom-right corner if placeholder not found
@@ -208,43 +249,7 @@ export default async function handler(req, res) {
     }
 }
 
-/**
- * Get base PDF URL from Webflow CMS for a given item
- * @param {string} itemSlug - Webflow CMS item slug
- * @returns {Promise<string|null>} Base PDF URL or null
- */
-async function getBasePdfFromWebflow(itemSlug) {
-    try {
-        // Mock implementation for testing - replace with real Webflow API integration
-        console.log('🔍 Looking up base PDF for item:', itemSlug);
-        
-        // Map item slugs to real PDF URLs from Webflow CMS
-        // Using real Spookyland PDF for testing
-        const pdfUrls = {
-            'lesson-4-math': 'https://cdn.prod.website-files.com/67ed2ca426df0fc1a0b57c79/689aff303d73c9664bbee584_lm-base-pdf.pdf',
-            'lesson-4-art': 'https://cdn.prod.website-files.com/67ed2ca426df0fc1a0b57c79/689aff303d73c9664bbee584_lm-base-pdf.pdf',
-            'lesson-5-history': 'https://cdn.prod.website-files.com/67ed2ca426df0fc1a0b57c79/689aff303d73c9664bbee584_lm-base-pdf.pdf',
-            'workbook-emotions': 'https://cdn.prod.website-files.com/67ed2ca426df0fc1a0b57c79/689aff303d73c9664bbee584_lm-base-pdf.pdf',
-            'default': 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
-        };
-        
-        const pdfUrl = pdfUrls[itemSlug] || pdfUrls['default'];
-        console.log('📄 PDF URL:', pdfUrl);
-        
-        return pdfUrl;
-        
-        // TODO: Replace with real Webflow API integration:
-        // const webflowApiUrl = `https://api.webflow.com/sites/${SITE_ID}/collections/${COLLECTION_ID}/items`;
-        // const response = await fetch(webflowApiUrl, { headers: { 'Authorization': `Bearer ${WEBFLOW_TOKEN}` }});
-        // const items = await response.json();
-        // const item = items.items.find(i => i.slug === itemSlug);
-        // return item?.['base-pdf']?.url;
-        
-    } catch (error) {
-        console.error('❌ Error fetching base PDF from Webflow:', error);
-        return null;
-    }
-}
+// Removed: getBasePdfFromWebflow() - now handled by utils/webflow-api.js
 
 /**
  * Find and replace QR placeholder in PDF with QR code
