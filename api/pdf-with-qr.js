@@ -24,7 +24,7 @@ import QRCode from 'qrcode';
 import { getSupabaseClient, WORLDS, getWorldColumn } from '../utils/lmid-utils.js';
 import { getMemberFromSession } from '../utils/memberstack-utils.js';
 import { findLmidsByMemberId } from '../utils/database-utils.js';
-import { getWebflowItem, checkDynamicQR, getTemplatePdfUrl, getStaticPdfUrl, getQrPosition } from '../utils/webflow-api.js';
+import { getWebflowItem, checkDynamicQR, getTemplatePdfUrl, getStaticPdfUrl } from '../utils/webflow-api.js';
 
 export default async function handler(req, res) {
     // Secure CORS headers
@@ -231,8 +231,7 @@ export default async function handler(req, res) {
         });
 
         // Look for QR placeholder in PDF and replace it with QR code
-        const qrPositionConfig = getQrPosition(webflowItem);
-        const placeholderName = qrPositionConfig?.placeholder || 'QR_PLACEHOLDER_1';
+        const placeholderName = 'QR_PLACEHOLDER_1';
         // Looking for QR placeholder in PDF
         
         const qrPlaceholderFound = await findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName);

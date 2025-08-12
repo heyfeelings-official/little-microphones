@@ -225,8 +225,7 @@ function mapWebflowFields(webflowItem, language = 'en') {
         world: WORLD_ID_MAP[fieldData.world] || fieldData.world,
         dynamicQR: fieldData['dynamic-qr'] || false,
         templatePdfUrl: getLanguageSpecificPdfUrl(fieldData, language),
-        staticPdfUrl: fieldData['static-pdf']?.url || null,
-        qrPosition: null
+        staticPdfUrl: fieldData['static-pdf']?.url || null
     };
 }
 
@@ -260,22 +259,7 @@ export function getStaticPdfUrl(item) {
     return item.staticPdfUrl;
 }
 
-/**
- * Get QR position configuration from item
- * @param {Object} item - Mapped workbook item
- * @returns {Object|null} QR position config or null
- */
-export function getQrPosition(item) {
-    if (!item || !item.qrPosition) return null;
-    
-    try {
-        // Try to parse as JSON
-        return JSON.parse(item.qrPosition);
-    } catch (error) {
-        console.warn('⚠️ Invalid QR position JSON:', item.qrPosition);
-        return null;
-    }
-}
+// QR position is hardcoded to QR_PLACEHOLDER_1 in PDF generation
 
 // Cache functions removed - always fetch fresh data
 
