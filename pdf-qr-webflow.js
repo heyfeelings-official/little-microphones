@@ -156,12 +156,16 @@
                             console.log(`🖱️ PDF download initiated with member ID: ${memberData.id}`);
                             
                             try {
+                                // Add cache-busting parameter to ensure fresh PDF generation
+                                const cacheBustingUrl = originalHref + '&t=' + Date.now();
+                                
                                 // Make request with member ID in header
-                                const response = await fetch(originalHref, {
+                                const response = await fetch(cacheBustingUrl, {
                                     method: 'GET',
                                     headers: {
                                         'X-Member-ID': memberData.id,
-                                        'X-Requested-With': 'XMLHttpRequest'
+                                        'X-Requested-With': 'XMLHttpRequest',
+                                        'Cache-Control': 'no-cache'
                                     }
                                 });
                                 
