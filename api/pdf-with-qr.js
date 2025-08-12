@@ -24,7 +24,7 @@ import QRCode from 'qrcode';
 import { getSupabaseClient, WORLDS, getWorldColumn } from '../utils/lmid-utils.js';
 import { getMemberFromSession } from '../utils/memberstack-utils.js';
 import { findLmidsByMemberId } from '../utils/database-utils.js';
-import { getWebflowItem, checkDynamicQR, getBasePdfUrl, getFinalPdfLink, getQrPosition } from '../utils/webflow-api.js';
+import { getWebflowItem, checkDynamicQR, getTemplatePdfUrl, getFinalPdfLink, getQrPosition } from '../utils/webflow-api.js';
 
 export default async function handler(req, res) {
     // Secure CORS headers
@@ -146,12 +146,12 @@ export default async function handler(req, res) {
         // Check if Dynamic QR is enabled
         if (!checkDynamicQR(webflowItem)) {
             console.log('🔄 Dynamic QR disabled, redirecting to base PDF file');
-            const basePdfUrl = getBasePdfUrl(webflowItem);
-            if (basePdfUrl) {
-                console.log('📄 Redirecting to base PDF:', basePdfUrl);
-                return res.redirect(302, basePdfUrl);
+            const templatePdfUrl = getTemplatePdfUrl(webflowItem);
+            if (templatePdfUrl) {
+                console.log('📄 Redirecting to Template PDF:', templatePdfUrl);
+                return res.redirect(302, templatePdfUrl);
             } else {
-                // Fallback to Final PDF Link if base PDF not available
+                // Fallback to Final PDF Link if Template PDF not available
                 const finalPdfLink = getFinalPdfLink(webflowItem);
                 if (finalPdfLink) {
                     console.log('📄 Redirecting to final PDF link:', finalPdfLink);
@@ -205,21 +205,21 @@ export default async function handler(req, res) {
 
         console.log('🎯 Found ShareID:', shareId, 'for LMID:', primaryLmid.lmid, 'world:', worldToUse);
 
-        // Get base PDF URL from Webflow CMS
-        const basePdfUrl = getBasePdfUrl(webflowItem);
-        if (!basePdfUrl) {
+        // Get Template PDF URL from Webflow CMS
+        const templatePdfUrl = getTemplatePdfUrl(webflowItem);
+        if (!templatePdfUrl) {
             return res.status(404).json({ 
                 success: false, 
-                error: 'Base PDF not found for this item' 
+                error: 'Template PDF not found for this item' 
             });
         }
 
-        console.log('📄 Base PDF URL from CMS:', basePdfUrl);
+        console.log('📄 Template PDF URL from CMS:', templatePdfUrl);
 
-        // Download base PDF
-        const pdfResponse = await fetch(basePdfUrl);
+        // Download Template PDF
+        const pdfResponse = await fetch(templatePdfUrl);
         if (!pdfResponse.ok) {
-            throw new Error(`Failed to download base PDF: ${pdfResponse.statusText}`);
+            throw new Error(`Failed to download Template PDF: ${pdfResponse.statusText}`);
         }
         const pdfBuffer = await pdfResponse.arrayBuffer();
 
@@ -287,9 +287,9 @@ export default async function handler(req, res) {
         console.error('❌ PDF generation error:', error);
         
         // Try to return base PDF as fallback
-        if (error.basePdfUrl) {
-            console.log('🔄 Falling back to base PDF');
-            return res.redirect(302, error.basePdfUrl);
+        if (error.templatePdfUrl) {
+            console.log('🔄 Falling back to Template PDF');
+            return res.redirect(302, error.templatePdfUrl);
         }
 
         return res.status(500).json({ 

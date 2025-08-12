@@ -23,12 +23,7 @@ const WEBFLOW_API_BASE = 'https://api.webflow.com/v2';
 const SITE_ID = '67e5317b686eccb10a95be01';
 const COLLECTION_ID = '689a16dd10cb6df7ff0094a0';
 
-// Cache for locale IDs
-let localeCache = null;
-
-// Cache for Webflow items (5 minutes TTL)
-const itemCache = new Map();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+// NO CACHE - Always fetch fresh data from Webflow API
 
 // World ID to name mapping (based on your Webflow CMS Option field)
 const WORLD_ID_MAP = {
@@ -241,7 +236,7 @@ function mapWebflowFields(webflowItem, language = 'en') {
         name: fieldData.name || fieldData['name'],
         world: WORLD_ID_MAP[fieldData.world] || fieldData.world || fieldData['world'],
         dynamicQR: fieldData['dynamic-qr'] || fieldData['dynamicQR'] || fieldData['Dynamic QR'] || false,
-        basePdfUrl: getLanguageSpecificPdfUrl(fieldData, language),
+        templatePdfUrl: getLanguageSpecificPdfUrl(fieldData, language),
         qrPosition: fieldData['qr-position'] || 
                    fieldData['QR position'] || 
                    fieldData['qrPosition'] || 
@@ -266,13 +261,13 @@ export function checkDynamicQR(item) {
 }
 
 /**
- * Get Base PDF URL from workbook item
+ * Get Template PDF URL from workbook item
  * @param {Object} item - Mapped workbook item
- * @returns {string|null} Base PDF URL or null
+ * @returns {string|null} Template PDF URL or null
  */
-export function getBasePdfUrl(item) {
+export function getTemplatePdfUrl(item) {
     if (!item) return null;
-    return item.basePdfUrl;
+    return item.templatePdfUrl;
 }
 
 /**
@@ -302,31 +297,7 @@ export function getQrPosition(item) {
     }
 }
 
-/**
- * Clear Webflow item cache
- * @param {string} itemSlug - Optional specific item to clear, or all if not provided
- */
-export function clearWebflowCache(itemSlug = null) {
-    if (itemSlug) {
-        const cacheKey = `webflow_item_${itemSlug}`;
-        itemCache.delete(cacheKey);
-        console.log('🗑️ Cleared Webflow cache for:', itemSlug);
-    } else {
-        itemCache.clear();
-        console.log('🗑️ Cleared all Webflow cache');
-    }
-}
-
-/**
- * Get cache statistics
- * @returns {Object} Cache statistics
- */
-export function getWebflowCacheStats() {
-    return {
-        size: itemCache.size,
-        keys: Array.from(itemCache.keys())
-    };
-}
+// Cache functions removed - always fetch fresh data
 
 /**
  * Get PDF URL from Webflow field data (localized content handled by Webflow API)
