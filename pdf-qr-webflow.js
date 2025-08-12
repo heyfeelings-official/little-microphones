@@ -79,14 +79,11 @@
                 }
 
                 try {
-                    // Detect current language from URL
-                    const currentLang = window.location.pathname.startsWith('/pl/') ? 'pl' : 'en';
-                    console.log(`🌍 Detected language: ${currentLang}`);
-                    
                     // Check if this item needs dynamic QR by calling our API
-                    const checkUrl = `${API_BASE_URL}/api/pdf-with-qr?item=${encodeURIComponent(itemSlug)}&world=${encodeURIComponent(world)}&check=true&lang=${currentLang}`;
+                    // Backend will auto-detect language from referer header
+                    const checkUrl = `${API_BASE_URL}/api/pdf-with-qr?item=${encodeURIComponent(itemSlug)}&world=${encodeURIComponent(world)}&check=true`;
                     
-                    console.log(`🔍 Checking Dynamic QR status for: ${itemSlug} (${currentLang})`);
+                    console.log(`🔍 Checking Dynamic QR status for: ${itemSlug}`);
                     
                     const response = await fetch(checkUrl);
                     const result = await response.json();
@@ -109,7 +106,8 @@
                         console.log(`🔑 Member authenticated: ${memberData.id}`);
                         
                         // Create a custom click handler that sends member ID in request header
-                        const originalHref = `${API_BASE_URL}/api/pdf-with-qr?item=${encodeURIComponent(itemSlug)}&world=${encodedWorld}&lang=${currentLang}`;
+                        // Backend will auto-detect language from referer header
+                        const originalHref = `${API_BASE_URL}/api/pdf-with-qr?item=${encodeURIComponent(itemSlug)}&world=${encodedWorld}`;
                         
                         // Remove any existing click handlers
                         button.onclick = null;

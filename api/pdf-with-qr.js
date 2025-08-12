@@ -66,9 +66,15 @@ export default async function handler(req, res) {
         
         if (!lang) {
             const referer = req.headers.referer || req.headers.referrer || '';
+            console.log('🌐 Referer header:', referer);
             if (referer.includes('/pl/')) {
                 detectedLang = 'pl';
+                console.log('🇵🇱 Polish language detected from referer');
+            } else {
+                console.log('🇬🇧 English language (default/detected from referer)');
             }
+        } else {
+            console.log('🌍 Language from query parameter:', detectedLang);
         }
 
         // Decode world parameter (handles spaces like "Shopping Spree")
