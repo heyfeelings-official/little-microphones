@@ -127,6 +127,11 @@ export default async function handler(req, res) {
         }
 
         console.log('👨‍🏫 Educator authenticated with member ID:', member.id);
+        
+        // Extract teacher name from member data
+        const teacherFirstName = member.firstName || member.customFields?.firstName || 'Teacher';
+        const teacherLastName = member.lastName || member.customFields?.lastName || '';
+        const teacherName = `${teacherFirstName} ${teacherLastName}`.trim();
 
         // Check if Dynamic QR is enabled
         if (!checkDynamicQR(webflowItem)) {
@@ -246,7 +251,7 @@ export default async function handler(req, res) {
         const placeholderName = 'QR_PLACEHOLDER_1';
         // Looking for QR placeholder in PDF
         
-        const qrPlaceholderFound = await findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName, shareUrl);
+        const qrPlaceholderFound = await findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName, shareUrl, teacherName);
         
         if (!qrPlaceholderFound) {
             // Fallback: place QR in bottom-right corner if placeholder not found
@@ -255,11 +260,17 @@ export default async function handler(req, res) {
             const qrX = width - qrSize - margin;
             const qrY = margin;
             
-            // Embed font and draw QR with text for fallback position
+            // Embed font and draw elements at fallback positions
             const qrImage = await pdfDoc.embedPng(qrPngBuffer);
             const font = await pdfDoc.embedFont('Helvetica');
             
-            // Draw QR code
+            // Position configuration for fallback
+            const FALLBACK_POSITIONS = {
+                URL_TEXT: { x: 50, y: 50, fontSize: 8 },
+                TEACHER_INFO: { x: 32, y: 46, fontSize: 10 }
+            };
+            
+            // Draw QR code in bottom-right corner
             firstPage.drawImage(qrImage, {
                 x: qrX,
                 y: qrY,
@@ -267,21 +278,35 @@ export default async function handler(req, res) {
                 height: qrSize,
             });
             
-            // Draw URL text below QR code
-            const fontSize = 8;
-            const textY = qrY - fontSize - 4;
-            const textWidth = font.widthOfTextAtSize(shareUrl, fontSize);
-            const textX = qrX + (qrSize - textWidth) / 2;
-            
+            // Draw URL text at configured position
             firstPage.drawText(shareUrl, {
-                x: textX,
-                y: textY,
-                size: fontSize,
+                x: FALLBACK_POSITIONS.URL_TEXT.x,
+                y: FALLBACK_POSITIONS.URL_TEXT.y,
+                size: FALLBACK_POSITIONS.URL_TEXT.fontSize,
                 font: font,
                 color: rgb(0, 0, 0),
             });
             
+            // Draw teacher name at configured position
+            firstPage.drawText(teacherName, {
+                x: FALLBACK_POSITIONS.TEACHER_INFO.x,
+                y: FALLBACK_POSITIONS.TEACHER_INFO.y,
+                size: FALLBACK_POSITIONS.TEACHER_INFO.fontSize,
+                font: font,
+                color: rgb(0, 0, 0),
+            });
+            
+            // Draw "Your Teacher" below name
+            firstPage.drawText('Your Teacher', {
+                x: FALLBACK_POSITIONS.TEACHER_INFO.x,
+                y: FALLBACK_POSITIONS.TEACHER_INFO.y - FALLBACK_POSITIONS.TEACHER_INFO.fontSize - 2,
+                size: FALLBACK_POSITIONS.TEACHER_INFO.fontSize - 1,
+                font: font,
+                color: rgb(0.3, 0.3, 0.3),
+            });
+            
             console.log('⚠️ QR_PLACEHOLDER_1 not found, placed QR in bottom-right corner:', { x: qrX, y: qrY, size: qrSize });
+            console.log('👨‍🏫 Teacher info added in bottom-left corner:', teacherName);
         }
         console.log('📋 PDF generation completed successfully');
 
@@ -323,9 +348,10 @@ export default async function handler(req, res) {
  * @param {Buffer} qrPngBuffer - QR code PNG buffer
  * @param {string} placeholderName - Name of placeholder to find (e.g., 'QR_PLACEHOLDER_1')
  * @param {string} shareUrl - URL to display under QR code
+ * @param {string} teacherName - Teacher's full name
  * @returns {Promise<boolean>} True if placeholder was found and replaced
  */
-async function findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName, shareUrl) {
+async function findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName, shareUrl, teacherName) {
     try {
         const qrImage = await pdfDoc.embedPng(qrPngBuffer);
         const pages = pdfDoc.getPages();
@@ -333,31 +359,59 @@ async function findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName,
         // Embed font for URL text
         const font = await pdfDoc.embedFont('Helvetica');
         
-        // Helper function to draw QR code with URL text
-        const drawQrWithText = (page, x, y, width, height) => {
-            // Draw QR code
+        // Position configuration for PDF elements
+        const POSITIONS = {
+            // URL text position (you can adjust these coordinates)
+            URL_TEXT: { x: 50, y: 50, fontSize: 8 },
+            
+            // Teacher info position (bottom-left corner by default)
+            TEACHER_INFO: { x: 32, y: 46, fontSize: 10 }
+        };
+        
+        // Helper function to draw QR code only
+        const drawQrCode = (page, x, y, width, height) => {
             page.drawImage(qrImage, {
                 x: x,
                 y: y,
                 width: width,
                 height: height,
             });
-            
-            // Draw URL text below QR code
-            const fontSize = Math.max(8, Math.min(10, width / 15)); // Scale font with QR size
-            const textY = y - fontSize - 4; // Position below QR code
-            const textWidth = font.widthOfTextAtSize(shareUrl, fontSize);
-            const textX = x + (width - textWidth) / 2; // Center text under QR
-            
+            console.log(`📱 QR code placed at (${x}, ${y}) size: ${width}x${height}`);
+        };
+        
+        // Helper function to draw URL text at specific coordinates
+        const drawUrlText = (page, x, y, fontSize = 8) => {
             page.drawText(shareUrl, {
-                x: textX,
-                y: textY,
+                x: x,
+                y: y,
                 size: fontSize,
                 font: font,
-                color: rgb(0, 0, 0), // Black text
+                color: rgb(0, 0, 0),
+            });
+            console.log(`📝 URL text placed at (${x}, ${y}): "${shareUrl}"`);
+        };
+        
+        // Helper function to draw teacher info at specific coordinates
+        const drawTeacherInfo = (page, x, y, fontSize = 10) => {
+            // Draw teacher name
+            page.drawText(teacherName, {
+                x: x,
+                y: y,
+                size: fontSize,
+                font: font,
+                color: rgb(0, 0, 0),
             });
             
-            console.log(`📝 Added URL text: "${shareUrl}" at (${textX}, ${textY})`);
+            // Draw "Your Teacher" below name
+            page.drawText('Your Teacher', {
+                x: x,
+                y: y - fontSize - 2,
+                size: fontSize - 1,
+                font: font,
+                color: rgb(0.3, 0.3, 0.3), // Gray color
+            });
+            
+            console.log(`👨‍🏫 Teacher info placed at (${x}, ${y}): "${teacherName}"`);
         };
         
         // Searching PDF pages for placeholder
@@ -385,7 +439,14 @@ async function findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName,
                                 const widget = widgets[0];
                                 const rect = widget.getRectangle();
                                 
-                                drawQrWithText(page, rect.x, rect.y, rect.width, rect.height);
+                                // Draw QR code at placeholder position
+                                drawQrCode(page, rect.x, rect.y, rect.width, rect.height);
+                                
+                                // Draw URL text at configured position
+                                drawUrlText(page, POSITIONS.URL_TEXT.x, POSITIONS.URL_TEXT.y, POSITIONS.URL_TEXT.fontSize);
+                                
+                                // Draw teacher info at configured position
+                                drawTeacherInfo(page, POSITIONS.TEACHER_INFO.x, POSITIONS.TEACHER_INFO.y, POSITIONS.TEACHER_INFO.fontSize);
                                 
                                 form.removeField(field);
                                 console.log(`✅ QR code with URL text placed at form field ${placeholderName}:`, rect);
@@ -409,7 +470,14 @@ async function findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName,
                     // Place QR code with text at the found position
                     const qrSize = Math.min(placeholderMatch.width || 120, placeholderMatch.height || 120, 120);
                     
-                    drawQrWithText(page, placeholderMatch.x, placeholderMatch.y, qrSize, qrSize);
+                    // Draw QR code at placeholder position
+                    drawQrCode(page, placeholderMatch.x, placeholderMatch.y, qrSize, qrSize);
+                    
+                    // Draw URL text at configured position
+                    drawUrlText(page, POSITIONS.URL_TEXT.x, POSITIONS.URL_TEXT.y, POSITIONS.URL_TEXT.fontSize);
+                    
+                    // Draw teacher info at configured position
+                    drawTeacherInfo(page, POSITIONS.TEACHER_INFO.x, POSITIONS.TEACHER_INFO.y, POSITIONS.TEACHER_INFO.fontSize);
                     
                     console.log(`✅ QR code placed at text placeholder ${placeholderName}:`, placeholderMatch);
                     return true;
@@ -424,7 +492,14 @@ async function findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName,
                 if (placeholderRect) {
                     console.log(`🎯 Found graphic placeholder: ${placeholderName}`);
                     
-                    drawQrWithText(page, placeholderRect.x, placeholderRect.y, placeholderRect.width, placeholderRect.height);
+                    // Draw QR code at placeholder position
+                    drawQrCode(page, placeholderRect.x, placeholderRect.y, placeholderRect.width, placeholderRect.height);
+                    
+                    // Draw URL text at configured position
+                    drawUrlText(page, POSITIONS.URL_TEXT.x, POSITIONS.URL_TEXT.y, POSITIONS.URL_TEXT.fontSize);
+                    
+                    // Draw teacher info at configured position
+                    drawTeacherInfo(page, POSITIONS.TEACHER_INFO.x, POSITIONS.TEACHER_INFO.y, POSITIONS.TEACHER_INFO.fontSize);
                     
                     console.log(`✅ QR code placed at graphic placeholder ${placeholderName}:`, placeholderRect);
                     return true;
