@@ -77,15 +77,26 @@ export default async function handler(req, res) {
             console.log('🌍 Language from query parameter:', detectedLang);
         }
 
-        // Decode world parameter (handles spaces like "Shopping Spree")
-        const decodedWorld = decodeURIComponent(world).toLowerCase();
-        console.log('📋 PDF Request:', { item, world: decodedWorld, language: detectedLang });
+        // Normalize world name: handle spaces, case, and convert to kebab-case
+        const rawWorld = decodeURIComponent(world);
+        const normalizedWorld = rawWorld
+            .toLowerCase()
+            .trim()
+            .replace(/\s+/g, '-') // Convert spaces to hyphens
+            .replace(/[^a-z0-9-]/g, ''); // Remove special characters
+        
+        console.log('📋 PDF Request:', { 
+            item, 
+            rawWorld, 
+            normalizedWorld, 
+            language: detectedLang 
+        });
 
-        // Validate world name (case insensitive)
-        if (!WORLDS.includes(decodedWorld)) {
+        // Validate world name
+        if (!WORLDS.includes(normalizedWorld)) {
             return res.status(400).json({ 
                 success: false, 
-                error: `Invalid world. Must be one of: ${WORLDS.join(', ')}. Received: ${decodedWorld}` 
+                error: `Invalid world. Must be one of: ${WORLDS.join(', ')}. Received: ${rawWorld} (normalized: ${normalizedWorld})` 
             });
         }
 
@@ -147,8 +158,16 @@ export default async function handler(req, res) {
             }
         }
 
-        // Use world from CMS if not provided in URL
-        const worldToUse = decodedWorld || webflowItem.world?.toLowerCase();
+        // Use normalized world or normalize world from CMS
+        let worldToUse = normalizedWorld;
+        if (!worldToUse && webflowItem.world) {
+            worldToUse = webflowItem.world
+                .toLowerCase()
+                .trim()
+                .replace(/\s+/g, '-')
+                .replace(/[^a-z0-9-]/g, '');
+        }
+        
         if (!worldToUse || !WORLDS.includes(worldToUse)) {
             return res.status(400).json({ 
                 success: false, 
