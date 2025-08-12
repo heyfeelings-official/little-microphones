@@ -1,18 +1,18 @@
 # 🏫 Brevo Companies Implementation
 
-**STATUS:** Development Complete ✅  
+**STATUS:** Production Ready ✅  
 **CREATED:** January 2025  
-**VERSION:** 1.0.0 (Initial Implementation)
+**VERSION:** 1.1.0 (Added automatic unlinking from old Companies)
 
 ## 🎯 **OVERVIEW**
 
-Complete implementation of Brevo Companies for school/organization management, integrated as a NON-BREAKING addition to existing Contact synchronization.
+Complete implementation of Brevo Companies for school/organization management, integrated as a NON-BREAKING addition to existing Contact synchronization. Version 1.1.0 adds automatic unlinking when educator changes school.
 
 ## 🔄 **INTEGRATION ARCHITECTURE**
 
 ### **✅ SAFE IMPLEMENTATION:**
 ```
-Existing Contact Sync → SUCCESS → Optional Company Sync → Complete
+Existing Contact Sync → SUCCESS → Unlink Old Company → Create/Update Company → Link New Company
                     ↓
                     FAILURE → Return (no Company sync attempted)
 ```
@@ -22,76 +22,69 @@ Existing Contact Sync → SUCCESS → Optional Company Sync → Complete
 - ✅ **Company sync optional** - Failures don't affect Contact sync  
 - ✅ **Backward compatible** - Existing API responses unchanged
 - ✅ **Error isolated** - Company errors logged but don't break flow
+- ✅ **Automatic unlinking** - Prevents multiple Company links (v1.1.0)
+- ✅ **One Contact = One Company** - Clean relationship management
 
 ## 📋 **COMPANY DATA MAPPING**
 
 ### **Data Source: Educator Onboarding**
 URL: `https://hey-feelings-v2.webflow.io/members/educators/onboarding`
 
-### **Memberstack Fields → Company Attributes:**
-```javascript
-// Required (minimum for Company creation):
-SCHOOL_NAME    ← customFields['school-name'] | customFields['school']
-SCHOOL_CITY    ← customFields['school-city'] | customFields['city'] 
-SCHOOL_COUNTRY ← customFields['school-country'] | customFields['country']
-
-// Optional (enhanced Company data):
-SCHOOL_ADDRESS   ← customFields['school-address']
-SCHOOL_PHONE     ← customFields['school-phone']
-SCHOOL_WEBSITE   ← customFields['school-website']
-FACILITY_TYPE    ← customFields['school-type']
-SCHOOL_RATING    ← customFields['school-rating']
-PLACE_ID         ← customFields['school-place-id']
-```
+### **DATA STRUCTURE:**
+- **Company Name:** School name from `place-name` field
+- **Company Attributes (lowercase_underscore required!):** 
+  - `school_id` - Google Place ID (unique key)
+  - `school_name` - Institution name
+  - `school_city`, `school_country` - Location
+  - `school_street_address` - Street address
+  - `school_postal_code`, `school_state_province` - Address details
+  - `school_phone`, `school_website` - Contact info
+  - `school_latitude`, `school_longitude` - GPS coordinates
 
 ## 🏗️ **COMPANY DEDUPLICATION**
 
 ### **Unique School Identification:**
 ```javascript
-// Generated key: schoolname_city_country (normalized)
-"oxford_primary_school_london_uk"
-"warszawska_szkola_podstawowa_warszawa_poland"
+// Priority 1: Google Place ID (most reliable)
+school_id: "ChIJgRxIqq1bH0cRAxg3vJdrJEk"
+
+// Priority 2: Name + City combination (fallback)
+key: "szkola_podstawowa_nr_11_siedlce_poland"
 ```
 
-### **Deduplication Logic:**
-1. Extract school data from educator
-2. Generate normalized school key
-3. Search existing Companies by key
-4. **If found:** Update existing Company
-5. **If not found:** Create new Company
-6. Link Contact to Company
+### **🎯 FLOW:**
+1. Extract school data from Memberstack member
+2. Check if educator/therapist (skip parents)
+3. Search existing Company by place_id OR name+city
+4. Create/Update Company with school attributes
+5. **Unlink Contact from old Company if exists** (v1.1.0)
+6. Link Contact to new Company
+7. Update COMPANY/COMPANY_ID attributes on Contact
+8. Return result (non-blocking)
 
-## 🔧 **TECHNICAL IMPLEMENTATION**
+## 🚀 **KEY FUNCTIONS**
 
-### **New Files:**
-- `utils/brevo-company-manager.js` - Company management functions
-- `api/test-companies.js` - Test endpoint for development
+### **`createOrUpdateSchoolCompany(schoolData)`**
+- Creates new Company or updates existing
+- Deduplication by Google Place ID (primary) or name+city (fallback)
+- Returns Company ID for linking
 
-### **Modified Files:**
-- `utils/brevo-contact-manager.js` - Added optional Company sync
+### **`unlinkContactFromAllCompanies(email)`** (v1.1.0)
+- Finds Contact's current Company via COMPANY_ID attribute
+- Unlinks Contact from that Company
+- Clears COMPANY and COMPANY_ID attributes
+- Prevents Contact being linked to multiple Companies
 
-### **Key Functions:**
+### **`linkContactToSchoolCompany(email, companyId, companyName)`** 
+- Gets Contact numeric ID for linking
+- Links Contact to Company via `/companies/link-unlink/{id}`
+- Updates COMPANY and COMPANY_ID attributes
+- Non-blocking operation
 
-#### **Company Management:**
-```javascript
-// Extract school data from member (only for educators/therapists)
-extractSchoolDataFromMember(memberData)
-
-// Find existing Company to prevent duplicates
-findSchoolCompanyByData(schoolData)
-
-// Create or update Company with school data
-createOrUpdateSchoolCompany(schoolData)
-
-// Link Contact to Company
-linkContactToSchoolCompany(contactEmail, companyId)
-```
-
-#### **Integrated Sync:**
-```javascript
-// Main integration point (called after Contact sync)
-handleMemberSchoolCompanySync(memberData, contactEmail)
-```
+### **`handleMemberSchoolCompanySync(memberData, contactEmail)`**
+- Main orchestrator function
+- Extracts school data and manages full sync flow
+- Called after successful Contact sync
 
 ## 📊 **SYNC SCENARIOS**
 
@@ -100,22 +93,79 @@ handleMemberSchoolCompanySync(memberData, contactEmail)
 Memberstack Webhook → Contact Created → Company Created → Contact Linked
 ```
 
-### **2. Educator Profile Update:**
+### **2. Educator Profile Update (Same School):**
 ```
 Memberstack Update → Contact Updated → Company Updated → Linking Verified
 ```
 
-### **3. Parent Registration:**
+### **3. Educator Changes School (v1.1.0):**
+```
+School Change → Contact Updated → Unlink Old Company → Create/Find New Company → Link New Company
+```
+
+### **4. Parent Registration:**
 ```
 Memberstack Webhook → Contact Created → Company Sync SKIPPED
 ```
 
-### **4. Existing Contact Update:**
-```
-Profile Change → Contact Preserved → Company Sync Added (if educator)
+## 🔧 **TECHNICAL DETAILS**
+
+### **API Endpoints Used:**
+- `GET /companies?limit=500` - Search existing companies
+- `POST /companies` - Create new company
+- `PATCH /companies/{id}` - Update existing company
+- `PATCH /companies/link-unlink/{id}` - Link/unlink contacts
+- `GET /contacts/{email}` - Get contact details with numeric ID
+
+### **Company Creation:**
+```javascript
+// Company data sent to Brevo (attributes MUST be lowercase_underscore!)
+{
+  name: "Szkola Podstawowa Nr.11 Im.Jana Pawla II",
+  attributes: {
+    school_id: "ChIJgRxIqq1bH0cRAxg3vJdrJEk",  // Google Place ID (key field)
+    school_name: "Szkola Podstawowa Nr.11",
+    school_city: "Siedlce",
+    school_country: "Poland",
+    school_street_address: "5 Wiśniowa",
+    school_postal_code: "08-110",
+    school_state_province: "Mazowieckie",
+    school_phone: "25 794 36 81",
+    school_website: "http://sp11.siedlce.pl/",
+    school_latitude: "52.174817",
+    school_longitude: "22.280589"
+  }
+}
 ```
 
-## 🧪 **TESTING**
+### **Contact Linking:**
+```javascript
+// Unlink from old Company first (v1.1.0)
+unlinkContactFromAllCompanies(contactEmail)
+
+// Link Contact to new Company
+linkContactToSchoolCompany(contactEmail, companyId, companyName)
+```
+
+## 📋 **FIELD MAPPINGS**
+
+### **Memberstack Webhook → Company Attributes:**
+| Webhook Field | Company Attribute | Type | Notes |
+|-------------------|-------------------|------|-------|
+| place-name | school_name | Text | School name |
+| place-id | school_id | Text | **KEY: Google Place ID for deduplication** |
+| city | school_city | Text | City name |
+| country | school_country | Text | Country name |
+| street-address | school_street_address__memberdata_customfiel | Text | Truncated internal name |
+| zip | school_postal_code | Text | Postal code |
+| state | school_state_province | Text | State/Province |
+| phone | school_phone | Text | Phone number |
+| website | school_website | Text | Website URL |
+| latitude | school_latitude | Text | GPS latitude |
+| longitude | school_longitude | Text | GPS longitude |
+| address-result | school_address | Text | Full address string |
+
+## 🧪 **TESTING & VERIFICATION**
 
 ### **Test Endpoint:** `/api/test-companies`
 
@@ -127,12 +177,29 @@ GET /api/test-companies?action=test_extraction
 GET /api/test-companies?action=test_educator_flow&email=test@school.com
 ```
 
-#### **Test Coverage:**
-- ✅ Data extraction from educator onboarding
-- ✅ Company creation and deduplication
-- ✅ Search functionality
-- ✅ End-to-end educator flow simulation
-- ✅ Parent data skipping (correct behavior)
+### **Verify in Brevo Dashboard:**
+1. **Companies:** CRM → Companies → Search by name
+2. **Attributes:** View all school data fields
+3. **Linking:** Check linkedContactsIds array
+4. **Contact:** Check COMPANY and COMPANY_ID attributes
+
+## 🛠 **TROUBLESHOOTING**
+
+### **Company not created:**
+- Check if member has school data: `place-name`, `city` fields
+- Verify educator role: `role = "Teacher"` or plan contains "educators"
+- Check field mapping: webhook sends WITHOUT "school-" prefix
+- Verify API logs for detailed error messages
+
+### **Contact not unlinking from old Company:**
+- Check if Contact has COMPANY_ID attribute set
+- Verify old Company still exists in Brevo
+- Check `/companies/link-unlink/{id}` API response
+
+### **Field mapping issues:**
+- Webhook fields: `place-name`, `city`, `phone` (no prefix)
+- Memberstack UI: `school-place-name`, `school-city` (with prefix)
+- Company attributes: `school_name`, `school_city` (lowercase_underscore)
 
 ## 📈 **BREVO DASHBOARD IMPACT**
 
@@ -146,12 +213,12 @@ GET /api/test-companies?action=test_educator_flow&email=test@school.com
 ```javascript
 // New template variables available:
 {{company.name}}           // School name
-{{company.city}}           // School location  
-{{company.facility_type}}  // School type
-{{company.rating}}         // School rating
+{{company.school_city}}    // School location  
+{{company.school_website}} // School website
+{{company.school_phone}}   // School phone
 
 // Combined personalization:
-"Hello {{contact.FIRSTNAME}} from {{company.name}} in {{company.city}}"
+"Hello {{contact.FIRSTNAME}} from {{company.name}} in {{company.school_city}}"
 ```
 
 ## 🎛️ **OPERATIONAL NOTES**
@@ -160,32 +227,42 @@ GET /api/test-companies?action=test_educator_flow&email=test@school.com
 - **Educators/Therapists:** Automatic Company creation and linking
 - **Parents:** Skipped (no Company processing)
 - **Existing Contacts:** Retroactive Company processing on next sync
+- **School Changes:** Automatic unlinking and relinking (v1.1.0)
 
 ### **Error Handling:**
 - Company creation errors don't affect Contact sync
 - Missing school data → Company sync skipped gracefully  
 - API failures → Logged warnings, Contact sync continues
+- Unlinking failures → Logged but doesn't block new linking
 
 ### **Performance:**
 - Additional API calls only for educators with school data
 - Deduplication prevents Company proliferation
 - Async Company sync doesn't block Contact sync
+- Unlinking adds ~1 second to school change sync
 
-## 🚀 **DEPLOYMENT STATUS**
+## 🚀 **VERSION HISTORY**
 
-### **✅ Ready for Production:**
-- Non-breaking implementation
-- Comprehensive error handling
-- Full test coverage
-- Documentation complete
+### **v1.0.0 (January 2025)**
+- Initial Companies implementation
+- School data extraction and mapping
+- Company creation with deduplication
+- Contact linking to Companies
 
-### **🎯 Next Steps:**
-1. Deploy to development environment
-2. Test with real educator onboarding data
-3. Monitor Company creation and linking
-4. Gradual rollout to production
-5. Enhanced email templates utilizing Company data
+### **v1.1.0 (January 2025)**
+- Added `unlinkContactFromAllCompanies()` function
+- Automatic unlinking when educator changes school
+- Prevents multiple Company links per Contact
+- Clears old COMPANY/COMPANY_ID attributes
+
+## 🎯 **NEXT STEPS**
+
+1. **Monitor Company operations** in production
+2. **Track school changes** and unlinking success
+3. **Add Company analytics** to dashboard
+4. **Implement Company-based** email campaigns
+5. **Create school district** hierarchies (future)
 
 ---
 
-**IMPLEMENTATION COMPLETE:** Companies functionality fully integrated with existing Contact sync as optional, non-breaking enhancement.
+**IMPLEMENTATION COMPLETE:** Companies functionality fully integrated with automatic unlinking for school changes. Non-breaking enhancement to existing Contact sync.

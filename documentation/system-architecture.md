@@ -41,6 +41,7 @@ Little Microphones is an educational audio recording platform that allows teache
 - **CDN**: Bunny.net (audio file storage and delivery)
 - **Database**: Supabase (managed PostgreSQL)
 - **Auth Provider**: Memberstack (user management)
+- **CRM/Email**: Brevo (contact management, companies, email marketing)
 - **Automation**: Make.com (webhooks and workflows)
 
 ## 📁 File Organization by Function
@@ -75,9 +76,9 @@ api/
 ├── get-world-info.js      # World metadata (75 lines)
 ├── get-teacher-data.js    # Teacher info retrieval (119 lines)
 ├── lmid-operations.js     # LMID CRUD operations (275 lines)
-├── memberstack-webhook.js # User registration webhook (180 lines)
-├── handle-new-member.js   # New member processing (199 lines)
-└── test-memberstack.js    # Sync utilities (106 lines)
+├── memberstack-webhook.js # User registration webhook + Brevo sync (267 lines)
+├── send-email-notifications.js # Brevo email sender (155 lines)
+└── test-companies.js      # Company testing endpoint (280 lines)
 ```
 
 ### 4. **Utilities** (`/utils/`)
@@ -89,6 +90,9 @@ utils/
 ├── database-utils.js     # Database operations (424 lines)
 ├── lmid-utils.js         # LMID management (391 lines)
 ├── memberstack-utils.js  # Memberstack integration (538 lines)
+├── brevo-contact-config.js  # Brevo configuration (285 lines)
+├── brevo-contact-manager.js # Brevo sync engine (670 lines)
+├── brevo-company-manager.js # Company management (598 lines)
 ├── api-utils.js          # API helpers (398 lines)
 └── cache-busting.js      # Cache management (248 lines)
 ```
@@ -166,6 +170,15 @@ Page Load → Check Memberstack → Validate LMID → Load UI
             Verify Permissions
 ```
 
+### CRM Sync Flow (Brevo)
+```
+Memberstack Event → Webhook → Sync Contact to Brevo → Create/Update Company
+                                     ↓                         ↓
+                              32 Custom Attributes     Link Contact to Company
+                                     ↓
+                              Dynamic Segmentation
+```
+
 ## 🔒 Security Architecture
 
 ### Multi-Layer Security
@@ -210,6 +223,12 @@ Bunny.net CDN
 Memberstack
     ├── User accounts
     └── Metadata storage
+    
+Brevo CRM
+    ├── Contact management (32 attributes)
+    ├── Company entities (schools)
+    ├── Dynamic segments
+    └── Email templates
 ```
 
 ### Environment Variables
@@ -225,6 +244,14 @@ SUPABASE_SERVICE_ROLE_KEY
 
 # Memberstack
 MEMBERSTACK_SECRET_KEY
+MEMBERSTACK_WEBHOOK_SECRET
+
+# Brevo
+BREVO_API_KEY
+BREVO_TEACHER_TEMPLATE_PL
+BREVO_PARENT_TEMPLATE_PL
+BREVO_TEACHER_TEMPLATE_EN
+BREVO_PARENT_TEMPLATE_EN
 
 # System
 NODE_ENV
@@ -264,5 +291,5 @@ NODE_ENV
 ---
 
 **Last Updated**: January 2025  
-**Version**: 4.7.0  
+**Version**: 4.8.0 (Added Brevo CRM Integration)
 **Status**: Production Ready ✅ 
