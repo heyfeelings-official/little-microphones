@@ -60,13 +60,6 @@
         }
 
         console.log(`📋 Found ${pdfButtons.length} PDF QR buttons`);
-        console.log(`📋 Button details:`, Array.from(pdfButtons).map((btn, i) => ({
-            index: i + 1,
-            slug: btn.getAttribute('data-item-slug'),
-            world: btn.getAttribute('data-world'),
-            href: btn.href,
-            hasHref: !!btn.href
-        })));
 
         // Process each button and check if it needs dynamic QR
         const buttonPromises = Array.from(pdfButtons).map(async (button, index) => {
@@ -97,9 +90,6 @@
                     // Check if this item needs dynamic QR by calling our API
                     // Backend will auto-detect language from referer header
                     const checkUrl = `${API_BASE_URL}/api/pdf-with-qr?item=${encodeURIComponent(itemSlug)}&world=${encodeURIComponent(world)}&check=true`;
-                    
-                    console.log(`🔍 Checking Dynamic QR status for: ${itemSlug}`);
-                    
                     const response = await fetch(checkUrl);
                     
                     if (!response.ok) {
@@ -114,9 +104,8 @@
                     
                     const result = await response.json();
                     
-                    if (result.success && result.needsDynamicQR) {
-                        // ONLY modify URL when Dynamic QR = true
-                        console.log(`✅ Dynamic QR enabled for ${itemSlug} - replacing with custom PDF generation`);
+                                            if (result.success && result.needsDynamicQR) {
+                            // ONLY modify URL when Dynamic QR = true
                         
                         // URL encode world parameter (handles spaces like "Shopping Spree")
                         const encodedWorld = encodeURIComponent(world);
@@ -132,12 +121,9 @@
                             return;
                         }
                         
-                        console.log(`🔑 Member authenticated: ${memberData.id}`);
-                        
                         // Detect language from current URL
                         const isPolish = window.location.pathname.startsWith('/pl/');
                         const language = isPolish ? 'pl' : 'en';
-                        console.log(`🌍 Detected language: ${language} (from URL: ${window.location.pathname})`);
                         
                         // Create a custom click handler that sends member ID in request header
                         const originalHref = `${API_BASE_URL}/api/pdf-with-qr?item=${encodeURIComponent(itemSlug)}&world=${encodedWorld}&lang=${language}`;
@@ -150,14 +136,23 @@
                         // Mark as initialized to avoid duplicate listeners
                         targetEl.dataset.pdfQrInit = '1';
                         
-                        console.log(`🔧 Button ${index + 1} converted to dynamic PDF generation`);
+                        // Button converted to dynamic PDF generation
                         
                         // Add custom click handler with member ID in header
                         targetEl.addEventListener('click', async function(e) {
                             e.preventDefault();
                             e.stopPropagation(); // Stop event bubbling to prevent double tabs
                             
-                            console.log(`🖱️ PDF download initiated with member ID: ${memberData.id}`);
+                            // Save original button text and set loading state
+                            const originalText = targetEl.textContent || targetEl.innerText;
+                            const isPolish = window.location.pathname.startsWith('/pl/');
+                            const loadingText = isPolish ? 'Generuję...' : 'Generating...';
+                            
+                            targetEl.textContent = loadingText;
+                            targetEl.style.opacity = '0.7';
+                            targetEl.style.cursor = 'wait';
+                            
+                            // PDF download initiated
                             
                             try {
                                 // Add cache-busting parameter to ensure fresh PDF generation
@@ -194,18 +189,18 @@
                             } catch (error) {
                                 console.error('PDF download error:', error);
                                 alert('Network error. Please check your connection and try again.');
+                            } finally {
+                                // Reset button to original state
+                                targetEl.textContent = originalText;
+                                targetEl.style.opacity = '1';
+                                targetEl.style.cursor = 'pointer';
                             }
                         });
                         
-                        console.log(`✅ Button ${index + 1} configured for dynamic QR:`, {
-                            slug: itemSlug,
-                            world: world,
-                            customHandler: true
-                        });
+                        // Button configured for dynamic QR generation
                         
                     } else {
                         // Dynamic QR = false - keep original Webflow link unchanged
-                        console.log(`ℹ️ Button ${index + 1} keeps original Webflow Static PDF link (Dynamic QR = false):`, itemSlug);
                         // Mark as initialized but don't change anything - Webflow link remains
                         targetEl.dataset.pdfQrInit = '1';
                     }
@@ -223,7 +218,7 @@
         // Wait for all button checks to complete
         await Promise.all(buttonPromises);
 
-        console.log(`🎉 PDF QR initialization complete - ${pdfButtons.length} buttons ready`);
+        console.log(`✅ PDF QR initialization complete - ${pdfButtons.length} buttons ready`);
     }
 
     /**
