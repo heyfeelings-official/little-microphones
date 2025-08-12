@@ -74,6 +74,13 @@ async function getLocaleIds() {
         }
         
         const siteData = await response.json();
+        
+        // Debug full site data structure
+        console.log('🔍 Site locale structure:', JSON.stringify({
+            primary: siteData.locale?.primary,
+            secondaryCount: siteData.locale?.secondary?.length || 0
+        }, null, 2));
+        
         const locales = {
             en: siteData.locale?.primary?.cmsLocaleId,
             pl: null
@@ -95,7 +102,12 @@ async function getLocaleIds() {
             
             if (polishLocale) {
                 locales.pl = polishLocale.cmsLocaleId;
+                console.log('✅ Polish CMS Locale ID set:', locales.pl);
+            } else {
+                console.error('❌ Polish locale not found in secondary locales!');
             }
+        } else {
+            console.error('❌ No secondary locales found in site data!');
         }
         
         console.log('🌍 Found locale IDs:', locales);
@@ -171,6 +183,21 @@ export async function getWebflowItem(itemSlug, language = 'en') {
             const firstItem = result.items[0];
             const firstItemPdf = firstItem.fieldData?.['template-pdf'] || firstItem.fieldData?.['Template PDF'] || firstItem.fieldData?.file;
             console.log('🔍 Sample item Template PDF URL:', firstItemPdf?.url);
+            
+            // Additional debug for localization
+            if (language === 'pl' && firstItemPdf?.url) {
+                const isPolishFile = firstItemPdf.url.includes('-pl') || firstItemPdf.url.includes('_pl');
+                console.log(`🇵🇱 Polish PDF validation: ${isPolishFile ? '✅ CORRECT Polish file' : '❌ WRONG - Getting English file!'}`);
+                if (!isPolishFile) {
+                    console.error('⚠️ CRITICAL: Webflow API returned English PDF for Polish locale!');
+                    console.log('Debug info:', { 
+                        requestedLanguage: language, 
+                        localeId, 
+                        apiUrl: url,
+                        receivedUrl: firstItemPdf.url 
+                    });
+                }
+            }
         }
         
         // Find item by slug

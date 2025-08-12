@@ -95,9 +95,12 @@
                     const response = await fetch(checkUrl);
                     
                     if (!response.ok) {
-                        console.warn(`⚠️ Failed to check Dynamic QR for ${itemSlug}: ${response.status} ${response.statusText}`);
-                        // If check fails, assume it's a regular Webflow link
-                        console.log(`ℹ️ Button ${index + 1} keeps original Webflow URL (check failed): ${itemSlug}`);
+                        // Silently handle 404s - these are items not in CMS
+                        if (response.status === 404) {
+                            // Item not in CMS, keep original link without logging error
+                            return;
+                        }
+                        console.warn(`⚠️ Failed to check Dynamic QR for ${itemSlug}: ${response.status}`);
                         return;
                     }
                     
@@ -135,6 +138,7 @@
                         // Add custom click handler with member ID in header
                         button.addEventListener('click', async function(e) {
                             e.preventDefault();
+                            e.stopPropagation(); // Stop event bubbling to prevent double tabs
                             
                             console.log(`🖱️ PDF download initiated with member ID: ${memberData.id}`);
                             
