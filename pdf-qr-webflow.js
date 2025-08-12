@@ -71,6 +71,14 @@
         // Process each button and check if it needs dynamic QR
         const buttonPromises = Array.from(pdfButtons).map(async (button, index) => {
             try {
+                // Ensure we operate on the actual clickable anchor
+                const targetEl = button.matches('a') ? button : (button.querySelector('a') || button);
+                
+                // De-duplication: skip if already initialized
+                if (targetEl.dataset.pdfQrInit === '1') {
+                    return;
+                }
+
                 const itemSlug = button.getAttribute('data-item-slug');
                 const world = button.getAttribute('data-world');
 
@@ -128,15 +136,17 @@
                         const originalHref = `${API_BASE_URL}/api/pdf-with-qr?item=${encodeURIComponent(itemSlug)}&world=${encodedWorld}`;
                         
                         // Remove any existing click handlers and href
-                        button.onclick = null;
-                        button.removeAttribute('href'); // Remove Webflow's original href
-                        button.removeAttribute('target'); // Remove target="_blank" to prevent double tabs
-                        button.style.cursor = 'pointer'; // Keep pointer cursor
+                        targetEl.onclick = null;
+                        targetEl.removeAttribute('href'); // Remove Webflow's original href
+                        targetEl.removeAttribute('target'); // Remove target="_blank" to prevent double tabs
+                        targetEl.style.cursor = 'pointer'; // Keep pointer cursor
+                        // Mark as initialized to avoid duplicate listeners
+                        targetEl.dataset.pdfQrInit = '1';
                         
                         console.log(`🔧 Button ${index + 1} original href removed, custom handler added`);
                         
                         // Add custom click handler with member ID in header
-                        button.addEventListener('click', async function(e) {
+                        targetEl.addEventListener('click', async function(e) {
                             e.preventDefault();
                             e.stopPropagation(); // Stop event bubbling to prevent double tabs
                             
@@ -180,7 +190,7 @@
                         console.log(`✅ Button ${index + 1} configured for dynamic QR:`, {
                             slug: itemSlug,
                             world: world,
-                            url: button.href
+                            url: targetEl.href
                         });
 
 
@@ -248,29 +258,7 @@
     /**
      * Add CSS for visual feedback (optional)
      */
-    function addStyles() {
-        const style = document.createElement('style');
-        style.textContent = `
-            .pdf-qr-ready {
-                position: relative;
-            }
-            
-            .pdf-qr-loading {
-                opacity: 0.7;
-                pointer-events: none;
-            }
-            
-            .pdf-qr-ready::after {
-                content: "📋";
-                position: absolute;
-                top: -5px;
-                right: -5px;
-                font-size: 12px;
-                opacity: 0.6;
-            }
-        `;
-        document.head.appendChild(style);
-    }
+    function addStyles() {}
 
     /**
      * Initialize everything when DOM is ready
@@ -298,9 +286,6 @@
         init();
     }
 
-    // Also initialize on window load as fallback
-    window.addEventListener('load', function() {
-        setTimeout(initializePdfQrLinks, 500); // Re-check after page fully loads
-    });
+    // Removed extra window load re-initialization to avoid duplicate listeners
 
 })();
