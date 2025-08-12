@@ -211,44 +211,37 @@ export async function getWebflowItem(itemSlug, language = 'en') {
 function mapWebflowFields(webflowItem, language = 'en') {
     const fieldData = webflowItem.fieldData || {};
     
-    // Debug: log field data (remove after testing)
-    console.log('🔍 Mapping Webflow fields for:', fieldData.slug, '- World ID:', fieldData.world, '→', WORLD_ID_MAP[fieldData.world] || 'unmapped');
+    // Debug: log field data using EXACT Webflow field names
+    console.log('🔍 Mapping Webflow fields for:', fieldData['Slug'] || fieldData.slug, '- World ID:', fieldData['World'], '→', WORLD_ID_MAP[fieldData['World']] || 'unmapped');
     
     // Special logging for World ID mapping (easy to find in logs)
-    if (fieldData.world && !WORLD_ID_MAP[fieldData.world]) {
+    if (fieldData['World'] && !WORLD_ID_MAP[fieldData['World']]) {
         console.log('🌍 WORLD_ID_NEEDED:', {
-            slug: fieldData.slug,
-            worldId: fieldData.world,
+            slug: fieldData['Slug'] || fieldData.slug,
+            worldId: fieldData['World'],
             worldName: 'UNKNOWN - ADD TO WORLD_ID_MAP'
         });
     }
     
     console.log('🔍 All available fields:', Object.keys(fieldData));
-    console.log('🔍 Raw PDF field data (checking all possible fields):', JSON.stringify({
-        'Template PDF': fieldData['Template PDF'],
-        'template-pdf': fieldData['template-pdf'],
-        'templatepdf': fieldData['templatepdf'],
-        'file': fieldData['file'],
-        'File': fieldData['File'],
-        'static-pdf': fieldData['static-pdf'],
-        'Static PDF': fieldData['Static PDF']
+    console.log('🔍 Raw PDF field data (exact Webflow field names):', JSON.stringify({
+        'Template PDF': fieldData['Template PDF'],    // Exact field name from Webflow CMS
+        'Static PDF': fieldData['Static PDF'],        // Exact field name from Webflow CMS
+        'Dynamic QR': fieldData['Dynamic QR'],        // Exact field name from Webflow CMS
+        'World': fieldData['World'],                  // Exact field name from Webflow CMS
+        'Name': fieldData['Name'],                    // Exact field name from Webflow CMS
+        'Slug': fieldData['Slug']                     // Exact field name from Webflow CMS
     }, null, 2));
     
     return {
         id: webflowItem.id,
-        slug: fieldData.slug || fieldData['slug'],
-        name: fieldData.name || fieldData['name'],
-        world: WORLD_ID_MAP[fieldData.world] || fieldData.world || fieldData['world'],
-        dynamicQR: fieldData['dynamic-qr'] || fieldData['dynamicQR'] || fieldData['Dynamic QR'] || false,
-        templatePdfUrl: getLanguageSpecificPdfUrl(fieldData, language),
-        qrPosition: fieldData['qr-position'] || 
-                   fieldData['QR position'] || 
-                   fieldData['qrPosition'] || 
-                   null,
-        staticPdfUrl: fieldData['static-pdf']?.url || 
-                     fieldData['Static PDF']?.url || 
-                     fieldData['staticPdf']?.url || 
-                     null,
+        slug: fieldData['Slug'] || fieldData.slug,                    // EXACT: "Slug" (Plain text)
+        name: fieldData['Name'] || fieldData.name,                    // EXACT: "Name" (Plain text)
+        world: WORLD_ID_MAP[fieldData['World']] || fieldData['World'] || fieldData.world,  // EXACT: "World" (Option)
+        dynamicQR: fieldData['Dynamic QR'] || false,                  // EXACT: "Dynamic QR" (Switch)
+        templatePdfUrl: getLanguageSpecificPdfUrl(fieldData, language),  // EXACT: "Template PDF" (File)
+        staticPdfUrl: fieldData['Static PDF']?.url || null,          // EXACT: "Static PDF" (File)
+        qrPosition: null,  // Not in CMS - remove old references
         // Store original field data for debugging
         _originalFields: fieldData
     };
@@ -310,26 +303,13 @@ export function getQrPosition(item) {
  * @returns {string|null} PDF URL or null
  */
 function getLanguageSpecificPdfUrl(fieldData, language) {
-    // Check all possible PDF field names - logs show 'file' field exists
-    // Priority order: Template PDF fields first, then file field
-    const templateField = fieldData['Template PDF'] ||     // User said this should be the field
-                         fieldData['template-pdf'] || 
-                         fieldData['templatepdf'] ||
-                         fieldData['file'] ||              // This field exists in logs
-                         fieldData['File'] ||
-                         fieldData['static-pdf'] ||
-                         fieldData['Static PDF'];
+    // Use EXACT Webflow CMS field name from screenshot: "Template PDF" (File)
+    const templateField = fieldData['Template PDF'];      // EXACT field name from Webflow CMS
     
     const templatePdf = templateField?.url || null;
 
-    console.log(`🔍 PDF field search for ${language}:`, {
-        'Template PDF': Boolean(fieldData['Template PDF']),
-        'template-pdf': Boolean(fieldData['template-pdf']),
-        'templatepdf': Boolean(fieldData['templatepdf']),
-        'file': Boolean(fieldData['file']),
-        'File': Boolean(fieldData['File']),
-        'static-pdf': Boolean(fieldData['static-pdf']),
-        'Static PDF': Boolean(fieldData['Static PDF']),
+    console.log(`🔍 Template PDF field search for ${language}:`, {
+        'Template PDF': Boolean(fieldData['Template PDF']),    // EXACT field name
         foundUrl: templatePdf,
         isPDF: templatePdf ? templatePdf.includes('.pdf') : false,
         isImage: templatePdf ? (templatePdf.includes('.jpg') || templatePdf.includes('.jpeg') || templatePdf.includes('.png')) : false
