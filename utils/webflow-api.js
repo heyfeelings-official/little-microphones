@@ -112,15 +112,28 @@ export async function getWebflowItem(itemSlug) {
 function mapWebflowFields(webflowItem) {
     const fieldData = webflowItem.fieldData || {};
     
+    // Debug: log all field data to understand structure
+    console.log('🔍 Raw Webflow fieldData:', JSON.stringify(fieldData, null, 2));
+    
     return {
         id: webflowItem.id,
         slug: fieldData.slug || fieldData['slug'],
         name: fieldData.name || fieldData['name'],
         world: fieldData.world || fieldData['world'],
-        dynamicQR: fieldData['dynamic-qr'] || fieldData['dynamicQR'] || false,
-        basePdfUrl: fieldData['file-field']?.url || fieldData['base-pdf']?.url || null,
-        qrPosition: fieldData['qr-position'] || fieldData['qrPosition'] || null,
-        finalPdfLink: fieldData['final-pdf-link']?.url || fieldData['finalPdfLink']?.url || null,
+        dynamicQR: fieldData['dynamic-qr'] || fieldData['dynamicQR'] || fieldData['Dynamic QR'] || false,
+        basePdfUrl: fieldData['file-field']?.url || 
+                   fieldData['File field']?.url || 
+                   fieldData['base-pdf']?.url || 
+                   fieldData['Base PDF']?.url || 
+                   null,
+        qrPosition: fieldData['qr-position'] || 
+                   fieldData['QR position'] || 
+                   fieldData['qrPosition'] || 
+                   null,
+        finalPdfLink: fieldData['final-pdf-link']?.url || 
+                     fieldData['Final PDF Link']?.url || 
+                     fieldData['finalPdfLink']?.url || 
+                     null,
         // Store original field data for debugging
         _originalFields: fieldData
     };
