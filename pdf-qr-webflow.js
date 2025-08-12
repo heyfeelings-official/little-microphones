@@ -115,6 +115,9 @@
                     const result = await response.json();
                     
                     if (result.success && result.needsDynamicQR) {
+                        // ONLY modify URL when Dynamic QR = true
+                        console.log(`✅ Dynamic QR enabled for ${itemSlug} - replacing with custom PDF generation`);
+                        
                         // URL encode world parameter (handles spaces like "Shopping Spree")
                         const encodedWorld = encodeURIComponent(world);
                         
@@ -123,9 +126,9 @@
                         
                         if (!memberData?.id) {
                             console.error('❌ No member ID found - user must be logged in');
-                            button.href = '#'; // Disable button
-                            button.style.opacity = '0.5';
-                            button.title = 'Please log in to download PDF';
+                            targetEl.href = '#'; // Disable button
+                            targetEl.style.opacity = '0.5';
+                            targetEl.title = 'Please log in to download PDF';
                             return;
                         }
                         
@@ -143,7 +146,7 @@
                         // Mark as initialized to avoid duplicate listeners
                         targetEl.dataset.pdfQrInit = '1';
                         
-                        console.log(`🔧 Button ${index + 1} original href removed, custom handler added`);
+                        console.log(`🔧 Button ${index + 1} converted to dynamic PDF generation`);
                         
                         // Add custom click handler with member ID in header
                         targetEl.addEventListener('click', async function(e) {
@@ -190,14 +193,14 @@
                         console.log(`✅ Button ${index + 1} configured for dynamic QR:`, {
                             slug: itemSlug,
                             world: world,
-                            url: targetEl.href
+                            customHandler: true
                         });
-
-
                         
                     } else {
-                        console.log(`ℹ️ Button ${index + 1} keeps original Webflow URL (Dynamic QR = false):`, itemSlug);
-                        // Leave button.href unchanged - it will use the Webflow CMS link
+                        // Dynamic QR = false - keep original Webflow link unchanged
+                        console.log(`ℹ️ Button ${index + 1} keeps original Webflow Static PDF link (Dynamic QR = false):`, itemSlug);
+                        // Mark as initialized but don't change anything - Webflow link remains
+                        targetEl.dataset.pdfQrInit = '1';
                     }
                     
                 } catch (error) {

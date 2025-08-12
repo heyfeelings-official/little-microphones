@@ -224,10 +224,14 @@ function mapWebflowFields(webflowItem, language = 'en') {
     }
     
     console.log('🔍 All available fields:', Object.keys(fieldData));
-    console.log('🔍 Raw Template PDF field data:', JSON.stringify({
-        'Template PDF': fieldData['Template PDF'],     // CORRECT field name
+    console.log('🔍 Raw PDF field data (checking all possible fields):', JSON.stringify({
+        'Template PDF': fieldData['Template PDF'],
         'template-pdf': fieldData['template-pdf'],
-        'templatepdf': fieldData['templatepdf']
+        'templatepdf': fieldData['templatepdf'],
+        'file': fieldData['file'],
+        'File': fieldData['File'],
+        'static-pdf': fieldData['static-pdf'],
+        'Static PDF': fieldData['Static PDF']
     }, null, 2));
     
     return {
@@ -241,9 +245,9 @@ function mapWebflowFields(webflowItem, language = 'en') {
                    fieldData['QR position'] || 
                    fieldData['qrPosition'] || 
                    null,
-        finalPdfLink: fieldData['final-pdf-link']?.url || 
-                     fieldData['Final PDF Link']?.url || 
-                     fieldData['finalPdfLink']?.url || 
+        staticPdfUrl: fieldData['static-pdf']?.url || 
+                     fieldData['Static PDF']?.url || 
+                     fieldData['staticPdf']?.url || 
                      null,
         // Store original field data for debugging
         _originalFields: fieldData
@@ -271,13 +275,13 @@ export function getTemplatePdfUrl(item) {
 }
 
 /**
- * Get final PDF link (for non-Dynamic QR items)
+ * Get static PDF URL (for non-Dynamic QR items)
  * @param {Object} item - Mapped workbook item
- * @returns {string|null} Final PDF link or null
+ * @returns {string|null} Static PDF URL or null
  */
-export function getFinalPdfLink(item) {
+export function getStaticPdfUrl(item) {
     if (!item) return null;
-    return item.finalPdfLink;
+    return item.staticPdfUrl;
 }
 
 /**
@@ -306,20 +310,29 @@ export function getQrPosition(item) {
  * @returns {string|null} PDF URL or null
  */
 function getLanguageSpecificPdfUrl(fieldData, language) {
-    // User confirmed: the PDF template field is named "Template PDF" in Webflow
-    // Priority order: Template PDF first (this is the correct field)
-    const templateField = fieldData['Template PDF'] ||     // CORRECT field name
+    // Check all possible PDF field names - logs show 'file' field exists
+    // Priority order: Template PDF fields first, then file field
+    const templateField = fieldData['Template PDF'] ||     // User said this should be the field
                          fieldData['template-pdf'] || 
-                         fieldData['templatepdf'];
+                         fieldData['templatepdf'] ||
+                         fieldData['file'] ||              // This field exists in logs
+                         fieldData['File'] ||
+                         fieldData['static-pdf'] ||
+                         fieldData['Static PDF'];
     
     const templatePdf = templateField?.url || null;
 
-    console.log(`🔍 Template PDF field search for ${language}:`, {
-        'Template PDF': Boolean(fieldData['Template PDF']),     // CORRECT field
+    console.log(`🔍 PDF field search for ${language}:`, {
+        'Template PDF': Boolean(fieldData['Template PDF']),
         'template-pdf': Boolean(fieldData['template-pdf']),
         'templatepdf': Boolean(fieldData['templatepdf']),
+        'file': Boolean(fieldData['file']),
+        'File': Boolean(fieldData['File']),
+        'static-pdf': Boolean(fieldData['static-pdf']),
+        'Static PDF': Boolean(fieldData['Static PDF']),
         foundUrl: templatePdf,
-        isPDF: templatePdf ? templatePdf.includes('.pdf') : false
+        isPDF: templatePdf ? templatePdf.includes('.pdf') : false,
+        isImage: templatePdf ? (templatePdf.includes('.jpg') || templatePdf.includes('.jpeg') || templatePdf.includes('.png')) : false
     });
 
     if (templatePdf) {

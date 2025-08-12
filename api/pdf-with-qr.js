@@ -24,7 +24,7 @@ import QRCode from 'qrcode';
 import { getSupabaseClient, WORLDS, getWorldColumn } from '../utils/lmid-utils.js';
 import { getMemberFromSession } from '../utils/memberstack-utils.js';
 import { findLmidsByMemberId } from '../utils/database-utils.js';
-import { getWebflowItem, checkDynamicQR, getTemplatePdfUrl, getFinalPdfLink, getQrPosition } from '../utils/webflow-api.js';
+import { getWebflowItem, checkDynamicQR, getTemplatePdfUrl, getStaticPdfUrl, getQrPosition } from '../utils/webflow-api.js';
 
 export default async function handler(req, res) {
     // Secure CORS headers
@@ -151,11 +151,11 @@ export default async function handler(req, res) {
                 console.log('📄 Redirecting to Template PDF:', templatePdfUrl);
                 return res.redirect(302, templatePdfUrl);
             } else {
-                // Fallback to Final PDF Link if Template PDF not available
-                const finalPdfLink = getFinalPdfLink(webflowItem);
-                if (finalPdfLink) {
-                    console.log('📄 Redirecting to final PDF link:', finalPdfLink);
-                    return res.redirect(302, finalPdfLink);
+                // Fallback to Static PDF if Template PDF not available
+                const staticPdfUrl = getStaticPdfUrl(webflowItem);
+                if (staticPdfUrl) {
+                    console.log('📄 Redirecting to Static PDF:', staticPdfUrl);
+                    return res.redirect(302, staticPdfUrl);
                 } else {
                     return res.status(404).json({ 
                         success: false, 
