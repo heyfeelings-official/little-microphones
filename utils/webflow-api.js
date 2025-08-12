@@ -218,6 +218,16 @@ function mapWebflowFields(webflowItem, language = 'en') {
     
     // Debug: log field data (remove after testing)
     console.log('🔍 Mapping Webflow fields for:', fieldData.slug, '- World ID:', fieldData.world, '→', WORLD_ID_MAP[fieldData.world] || 'unmapped');
+    
+    // Special logging for World ID mapping (easy to find in logs)
+    if (fieldData.world && !WORLD_ID_MAP[fieldData.world]) {
+        console.log('🌍 WORLD_ID_NEEDED:', {
+            slug: fieldData.slug,
+            worldId: fieldData.world,
+            worldName: 'UNKNOWN - ADD TO WORLD_ID_MAP'
+        });
+    }
+    
     console.log('🔍 All available fields:', Object.keys(fieldData));
     console.log('🔍 Raw Template PDF field data:', JSON.stringify({
         'Template PDF': fieldData['Template PDF'],     // CORRECT field name

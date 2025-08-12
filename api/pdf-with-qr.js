@@ -103,6 +103,13 @@ export default async function handler(req, res) {
         // Get workbook item from Webflow CMS
         const webflowItem = await getWebflowItem(item, detectedLang);
         if (!webflowItem) {
+            // Don't log as error - this is normal for items not in CMS
+            if (check === 'true') {
+                // For check requests, this is expected - some buttons don't have CMS items
+                console.log(`ℹ️ Item not in CMS (normal): ${item}`);
+            } else {
+                console.log(`⚠️ PDF generation attempted for non-existent item: ${item}`);
+            }
             return res.status(404).json({ 
                 success: false, 
                 error: 'Workbook item not found in CMS' 
