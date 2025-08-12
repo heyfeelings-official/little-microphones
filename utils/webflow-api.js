@@ -59,9 +59,9 @@ function getWebflowHeaders() {
  */
 async function getLocaleIds() {
     try {
-        // Use correct Webflow API v2 endpoint for locales
-        const url = `${WEBFLOW_API_BASE}/sites/${SITE_ID}/locales`;
-        console.log('🌐 Fetching locales from Webflow API v2:', url);
+        // Use correct Webflow API v2 endpoint for site details (locales are in site object)
+        const url = `${WEBFLOW_API_BASE}/sites/${SITE_ID}`;
+        console.log('🌐 Fetching site details from Webflow API v2:', url);
         
         const response = await fetch(url, {
             method: 'GET',
@@ -70,27 +70,35 @@ async function getLocaleIds() {
         
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('❌ Webflow Locales API error:', response.status, errorText);
-            throw new Error(`Webflow Locales API error: ${response.status} ${response.statusText}`);
+            console.error('❌ Webflow Site API error:', response.status, errorText);
+            throw new Error(`Webflow Site API error: ${response.status} ${response.statusText}`);
         }
         
-        const data = await response.json();
-        console.log('🔍 Locales API response:', JSON.stringify(data, null, 2));
+        const siteData = await response.json();
+        console.log('🔍 Site locales data:', JSON.stringify(siteData.locales, null, 2));
         
         const locales = { en: null, pl: null };
         
-        // Parse locales from API response
-        if (data.locales && Array.isArray(data.locales)) {
-            for (const locale of data.locales) {
-                console.log('🔍 Processing locale:', locale);
+        // Parse locales from site data (based on documentation examples)
+        if (siteData.locales) {
+            // Primary locale (usually English)
+            if (siteData.locales.primary) {
+                locales.en = siteData.locales.primary.cmsLocaleId;
+                console.log('🇬🇧 English (primary) locale ID:', siteData.locales.primary.cmsLocaleId);
+            }
+            
+            // Secondary locales (look for Polish)
+            if (siteData.locales.secondary && Array.isArray(siteData.locales.secondary)) {
+                const polishLocale = siteData.locales.secondary.find(locale => 
+                    locale.displayName?.toLowerCase().includes('polish') || 
+                    locale.displayName?.toLowerCase().includes('pl') ||
+                    locale.tag?.toLowerCase() === 'pl' ||
+                    locale.subdirectory === '/pl'
+                );
                 
-                // Map based on locale code or subdirectory
-                if (locale.code === 'en' || locale.code === 'en-US' || !locale.subdirectory) {
-                    locales.en = locale.cmsLocaleId;
-                    console.log('🇬🇧 English locale ID:', locale.cmsLocaleId);
-                } else if (locale.code === 'pl' || locale.code === 'pl-PL' || locale.subdirectory === 'pl') {
-                    locales.pl = locale.cmsLocaleId;
-                    console.log('🇵🇱 Polish locale ID:', locale.cmsLocaleId);
+                if (polishLocale) {
+                    locales.pl = polishLocale.cmsLocaleId;
+                    console.log('🇵🇱 Polish (secondary) locale ID:', polishLocale.cmsLocaleId);
                 }
             }
         }
@@ -205,11 +213,18 @@ function mapWebflowFields(webflowItem, language = 'en') {
     // Debug: log field data (remove after testing)
     console.log('🔍 Mapping Webflow fields for:', fieldData.slug, '- World ID:', fieldData.world, '→', WORLD_ID_MAP[fieldData.world] || 'unmapped');
     console.log('🔍 All available fields:', Object.keys(fieldData));
-    console.log('🔍 Raw field data for PDF fields:', JSON.stringify({
+    console.log('🔍 Raw field data for ALL PDF-related fields:', JSON.stringify({
         'template-pdf': fieldData['template-pdf'],
         'Template PDF': fieldData['Template PDF'],
+        'templatepdf': fieldData['templatepdf'],
         'file': fieldData.file,
-        'File field': fieldData['file-field'] || fieldData['File field']
+        'File field': fieldData['file-field'] || fieldData['File field'],
+        'pdf': fieldData.pdf,
+        'PDF': fieldData.PDF,
+        'base-pdf': fieldData['base-pdf'],
+        'Base PDF': fieldData['Base PDF'],
+        'workbook-pdf': fieldData['workbook-pdf'],
+        'Workbook PDF': fieldData['Workbook PDF']
     }, null, 2));
     
     return {
@@ -312,11 +327,18 @@ export function getWebflowCacheStats() {
  * @returns {string|null} PDF URL or null
  */
 function getLanguageSpecificPdfUrl(fieldData, language) {
-    // Based on logs, Webflow returns 'file' field, not 'template-pdf'
-    // Try multiple field variations that might contain the PDF
+    // Try all possible field variations that might contain the PDF
+    // Priority order: specific PDF fields first, then generic file fields
     const templateField = fieldData['template-pdf'] || 
                          fieldData['Template PDF'] || 
-                         fieldData['file'] ||           // This is what Webflow actually returns
+                         fieldData['templatepdf'] ||
+                         fieldData['base-pdf'] ||
+                         fieldData['Base PDF'] ||
+                         fieldData['workbook-pdf'] ||
+                         fieldData['Workbook PDF'] ||
+                         fieldData['pdf'] ||
+                         fieldData['PDF'] ||
+                         fieldData['file'] ||           // Generic file field (could be image!)
                          fieldData['File field'];
     
     const templatePdf = templateField?.url || null;
@@ -324,12 +346,34 @@ function getLanguageSpecificPdfUrl(fieldData, language) {
     console.log(`🔍 Template PDF field search for ${language}:`, {
         'template-pdf': Boolean(fieldData['template-pdf']),
         'Template PDF': Boolean(fieldData['Template PDF']),
+        'templatepdf': Boolean(fieldData['templatepdf']),
+        'base-pdf': Boolean(fieldData['base-pdf']),
+        'Base PDF': Boolean(fieldData['Base PDF']),
+        'workbook-pdf': Boolean(fieldData['workbook-pdf']),
+        'Workbook PDF': Boolean(fieldData['Workbook PDF']),
+        'pdf': Boolean(fieldData['pdf']),
+        'PDF': Boolean(fieldData['PDF']),
         'file': Boolean(fieldData['file']),
         'File field': Boolean(fieldData['File field']),
-        foundUrl: templatePdf
+        foundUrl: templatePdf,
+        isImage: templatePdf ? templatePdf.includes('.jpg') || templatePdf.includes('.jpeg') || templatePdf.includes('.png') : false
     });
 
     if (templatePdf) {
+        // Check if it's an image file (not a PDF)
+        const isImage = templatePdf.includes('.jpg') || templatePdf.includes('.jpeg') || templatePdf.includes('.png') || templatePdf.includes('.gif');
+        
+        if (isImage) {
+            console.error('🚨 CRITICAL: Found IMAGE file instead of PDF!', {
+                language,
+                foundUrl: templatePdf,
+                fileType: 'IMAGE',
+                expectedType: 'PDF'
+            });
+            console.error('⚠️ Please check your Webflow CMS - the file field should contain a PDF, not an image!');
+            return null; // Don't use image files as PDFs
+        }
+
         console.log(`📄 Using Template PDF (${language}):`, templatePdf);
 
         // Validate language correctness for PL
