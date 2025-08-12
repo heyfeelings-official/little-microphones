@@ -143,9 +143,10 @@ export async function getWebflowItem(itemSlug, language = 'en') {
         const localeId = locales[language];
         
         // Fetch all items from collection with correct cmsLocaleId
+        // NOTE: For GET requests, use cmsLocaleId (singular) not cmsLocaleIds (plural)
         let url = `${WEBFLOW_API_BASE}/collections/${COLLECTION_ID}/items`;
         if (localeId) {
-            url += `?cmsLocaleIds=${localeId}`;
+            url += `?cmsLocaleId=${localeId}`;  // Changed from cmsLocaleIds to cmsLocaleId
             console.log('🌐 Fetching from Webflow API with locale:', url);
             console.log('🔍 Request details:', { language, localeId, collectionId: COLLECTION_ID });
         } else {
