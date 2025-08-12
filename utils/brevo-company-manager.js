@@ -9,6 +9,7 @@
  * 
  * FUNCTIONS:
  * - createOrUpdateSchoolCompany(): Create/update school as Brevo Company
+ * - unlinkContactFromAllCompanies(): Unlink Contact from all Companies
  * - linkContactToSchoolCompany(): Link Contact to school Company  
  * - findSchoolCompanyByData(): Find existing Company by school data
  * - generateSchoolCompanyKey(): Generate unique key for school identification
@@ -19,7 +20,7 @@
  * - Target: Brevo Company with attributes and linked Contacts
  * 
  * LAST UPDATED: January 2025
- * VERSION: 1.0.0 (Initial Implementation)
+ * VERSION: 1.1.0 (Added Contact unlinking from old Companies)
  * STATUS: Development Ready ⚠️
  */
 
@@ -332,9 +333,76 @@ export async function createOrUpdateSchoolCompany(schoolData) {
 }
 
 /**
+ * Unlink Contact from all Companies in Brevo
+ * @param {string} contactEmail - Contact email address
+ * @returns {Promise<Object>} Unlinking result
+ */
+export async function unlinkContactFromAllCompanies(contactEmail) {
+    const syncId = Math.random().toString(36).substring(2, 15);
+    
+    console.log(`🔓 [${syncId}] Checking for existing Company links for ${contactEmail}`);
+    
+    try {
+        // Get Contact details to find current Company ID from attributes
+        const contactDetails = await makeBrevoRequest(`/contacts/${encodeURIComponent(contactEmail)}`, 'GET');
+        
+        if (!contactDetails || !contactDetails.id) {
+            console.log(`📋 [${syncId}] Contact ${contactEmail} not found in Brevo`);
+            return { success: false, error: 'Contact not found' };
+        }
+        
+        const contactId = contactDetails.id;
+        const currentCompanyId = contactDetails.attributes?.COMPANY_ID;
+        
+        // If Contact has a COMPANY_ID attribute, unlink from that Company
+        if (currentCompanyId) {
+            console.log(`🔗 [${syncId}] Found existing Company link: ${currentCompanyId}`);
+            
+            try {
+                const unlinkData = {
+                    unlinkContactIds: [contactId]
+                };
+                
+                await makeBrevoRequest(`/companies/link-unlink/${currentCompanyId}`, 'PATCH', unlinkData);
+                console.log(`✅ [${syncId}] Unlinked Contact from Company ${currentCompanyId}`);
+                
+                // Clear Company attributes from Contact
+                await makeBrevoRequest(`/contacts/${encodeURIComponent(contactEmail)}`, 'PUT', {
+                    attributes: {
+                        COMPANY: '',
+                        COMPANY_ID: ''
+                    }
+                });
+                
+                return { 
+                    success: true, 
+                    unlinkedFrom: currentCompanyId,
+                    action: 'unlinked'
+                };
+                
+            } catch (unlinkError) {
+                console.warn(`⚠️ [${syncId}] Could not unlink from Company ${currentCompanyId}:`, unlinkError.message);
+                // Continue anyway - old Company might be deleted
+            }
+        }
+        
+        console.log(`📋 [${syncId}] No existing Company links found for ${contactEmail}`);
+        return { success: true, action: 'no_existing_links' };
+        
+    } catch (error) {
+        console.error(`❌ [${syncId}] Error checking Company links:`, error.message);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+}
+
+/**
  * Link Contact to school Company in Brevo
  * @param {string} contactEmail - Contact email address
  * @param {string} companyId - Brevo Company ID
+ * @param {string} companyName - Company name for attributes
  * @returns {Promise<Object>} Linking result
  */
 export async function linkContactToSchoolCompany(contactEmail, companyId, companyName = '') {
@@ -427,6 +495,7 @@ export async function handleMemberSchoolCompanySync(memberData, contactEmail) {
         }
         
         console.log(`🏫 [${syncId}] Processing Company sync for ${contactEmail} at ${schoolData.name}`);
+        console.log(`📍 [${syncId}] School change detection: Will unlink from old Company if exists`);
         
         // Create or update school Company
         const companyResult = await createOrUpdateSchoolCompany(schoolData);
@@ -439,6 +508,14 @@ export async function handleMemberSchoolCompanySync(memberData, contactEmail) {
                 action: 'company_creation_failed',
                 error: companyResult.error
             };
+        }
+        
+        // IMPORTANT: Unlink from any existing Company before linking to new one
+        // This prevents Contact being linked to multiple Companies
+        const unlinkResult = await unlinkContactFromAllCompanies(contactEmail);
+        
+        if (unlinkResult.unlinkedFrom) {
+            console.log(`🔄 [${syncId}] Contact was unlinked from previous Company: ${unlinkResult.unlinkedFrom}`);
         }
         
         // Link Contact to Company
