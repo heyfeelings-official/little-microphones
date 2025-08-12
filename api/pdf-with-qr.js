@@ -439,7 +439,7 @@ async function findGraphicPlaceholder(page, placeholderName) {
             // QR code size: 90x90px
             const qrPosition = {
                 x: 253,              // 253px from left edge
-                y: pageHeight - 532 - 90,  // Convert from top coordinate to bottom coordinate (PDF coordinate system)
+                y: 170,              // User specified y coordinate
                 width: 90,           // User specified size
                 height: 90
             };
