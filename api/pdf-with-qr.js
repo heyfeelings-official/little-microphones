@@ -61,20 +61,14 @@ export default async function handler(req, res) {
             });
         }
 
-        // Detect language from query parameter or referer header
-        let detectedLang = lang || 'en'; // Default to English
+        // Language detection: priority to query parameter, fallback to referer
+        let detectedLang = lang || 'en';
         
         if (!lang) {
             const referer = req.headers.referer || req.headers.referrer || '';
-            console.log('🌐 Referer header:', referer);
             if (referer.includes('/pl/')) {
                 detectedLang = 'pl';
-                console.log('🇵🇱 Polish language detected from referer');
-            } else {
-                console.log('🇬🇧 English language (default/detected from referer)');
             }
-        } else {
-            console.log('🌍 Language from query parameter:', detectedLang);
         }
 
         // Normalize world name: handle spaces, case, and convert to kebab-case
@@ -85,12 +79,7 @@ export default async function handler(req, res) {
             .replace(/\s+/g, '-') // Convert spaces to hyphens
             .replace(/[^a-z0-9-]/g, ''); // Remove special characters
         
-        console.log('📋 PDF Request:', { 
-            item, 
-            rawWorld, 
-            normalizedWorld, 
-            language: detectedLang 
-        });
+        // PDF generation request initiated
 
         // Validate world name
         if (!WORLDS.includes(normalizedWorld)) {
@@ -116,11 +105,7 @@ export default async function handler(req, res) {
             });
         }
 
-        console.log('📋 Webflow item loaded:', { 
-            slug: webflowItem.slug, 
-            dynamicQR: webflowItem.dynamicQR,
-            world: webflowItem.world
-        });
+        // Webflow item loaded successfully
 
         // If this is just a check request, return Dynamic QR status
         if (check === 'true') {
@@ -248,7 +233,7 @@ export default async function handler(req, res) {
         // Look for QR placeholder in PDF and replace it with QR code
         const qrPositionConfig = getQrPosition(webflowItem);
         const placeholderName = qrPositionConfig?.placeholder || 'QR_PLACEHOLDER_1';
-        console.log('🔍 Looking for QR placeholder:', placeholderName);
+        // Looking for QR placeholder in PDF
         
         const qrPlaceholderFound = await findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName);
         
@@ -315,7 +300,7 @@ async function findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName)
         const qrImage = await pdfDoc.embedPng(qrPngBuffer);
         const pages = pdfDoc.getPages();
         
-        console.log(`📋 Searching ${pages.length} pages for graphic placeholder: ${placeholderName}`);
+        // Searching PDF pages for placeholder
         
         // Search through all pages
         for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
