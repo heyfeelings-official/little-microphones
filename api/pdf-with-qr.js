@@ -280,18 +280,19 @@ export default async function handler(req, res) {
             const qrImage = await pdfDoc.embedPng(qrPngBuffer);
             const font = await pdfDoc.embedFont('Helvetica');
             
-            // Position configuration for fallback
+            // Use same positions as when placeholder is found
             const FALLBACK_POSITIONS = {
-                URL_TEXT: { x: 50, y: 50, fontSize: 8 },
-                TEACHER_INFO: { x: 32, y: 46, fontSize: 10 }
+                QR_CODE: { x: 50, y: 500, size: 120 },
+                URL_TEXT: { x: 50, y: 650, fontSize: 8 },
+                TEACHER_INFO: { x: 50, y: 700, fontSize: 10 }
             };
             
-            // Draw QR code in bottom-right corner
+            // Draw QR code at left-aligned position instead of bottom-right
             firstPage.drawImage(qrImage, {
-                x: qrX,
-                y: qrY,
-                width: qrSize,
-                height: qrSize,
+                x: FALLBACK_POSITIONS.QR_CODE.x,
+                y: FALLBACK_POSITIONS.QR_CODE.y,
+                width: FALLBACK_POSITIONS.QR_CODE.size,
+                height: FALLBACK_POSITIONS.QR_CODE.size,
             });
             
             // Draw URL text at configured position
@@ -321,8 +322,10 @@ export default async function handler(req, res) {
                 color: rgb(0.3, 0.3, 0.3),
             });
             
-            console.log('⚠️ QR_PLACEHOLDER_1 not found, placed QR in bottom-right corner:', { x: qrX, y: qrY, size: qrSize });
-            console.log('👨‍🏫 Teacher info added in bottom-left corner:', teacherName);
+            console.log('⚠️ QR_PLACEHOLDER_1 not found, placed elements at left-aligned positions');
+            console.log(`📱 QR code placed at (${FALLBACK_POSITIONS.QR_CODE.x}, ${FALLBACK_POSITIONS.QR_CODE.y})`);
+            console.log(`📝 URL text placed at (${FALLBACK_POSITIONS.URL_TEXT.x}, ${FALLBACK_POSITIONS.URL_TEXT.y})`);
+            console.log(`👨‍🏫 Teacher info placed at (${FALLBACK_POSITIONS.TEACHER_INFO.x}, ${FALLBACK_POSITIONS.TEACHER_INFO.y}): ${teacherName}`);
         }
         console.log('📋 PDF generation completed successfully');
 
@@ -375,13 +378,17 @@ async function findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName,
         // Embed font for URL text
         const font = await pdfDoc.embedFont('Helvetica');
         
-        // Position configuration for PDF elements
+        // Position configuration for PDF elements (all left-aligned at x=50)
+        // Note: In PDF coordinates, Y=0 is at bottom, so higher Y values = higher on page
         const POSITIONS = {
-            // URL text position (you can adjust these coordinates)
-            URL_TEXT: { x: 50, y: 50, fontSize: 8 },
+            // Teacher info position (Y=700 = highest on page)
+            TEACHER_INFO: { x: 50, y: 700, fontSize: 10 },
             
-            // Teacher info position (bottom-left corner by default)
-            TEACHER_INFO: { x: 32, y: 46, fontSize: 10 }
+            // URL text position (Y=650 = middle)
+            URL_TEXT: { x: 50, y: 650, fontSize: 8 },
+            
+            // QR code position (Y=500 = lower, but above bottom)
+            QR_CODE: { x: 50, y: 500, size: 120 }
         };
         
         // Helper function to draw QR code only
