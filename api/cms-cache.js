@@ -222,7 +222,8 @@ function getWorldName(worldId) {
  */
 export default async function handler(req, res) {
     // Set CORS headers
-    setCorsHeaders(res);
+    const corsHandler = setCorsHeaders(res, ['GET', 'OPTIONS']);
+    corsHandler(req);
     
     // Handle OPTIONS request
     if (req.method === 'OPTIONS') {
