@@ -343,34 +343,34 @@ export default async function handler(req, res) {
             const font = await pdfDoc.embedFont('Helvetica');
             
             // Use same positions as main function - based on Figma A4 measurements
-            const FALLBACK_POSITIONS = {
-                QR_CODE: { x: 100, y: 178, size: 120 },        // Updated position
-                URL_TEXT: { x: 100, y: 162, fontSize: 8 },     // Updated position  
-                TEACHER_INFO: { x: 100, y: 120, fontSize: 10 } // Updated position
+            const PDF_POSITIONS = {
+                QR_CODE: { x: 100, y: 178, size: 120 },        // 178px from bottom in Figma
+                URL_TEXT: { x: 100, y: 162, fontSize: 8 },     // 162px from bottom in Figma  
+                TEACHER_INFO: { x: 100, y: 120, fontSize: 10 } // 120px from bottom in Figma
             };
             
-            // Draw QR code at left-aligned position instead of bottom-right
+            // Draw QR code at configured position
             firstPage.drawImage(qrImage, {
-                x: FALLBACK_POSITIONS.QR_CODE.x,
-                y: FALLBACK_POSITIONS.QR_CODE.y,
-                width: FALLBACK_POSITIONS.QR_CODE.size,
-                height: FALLBACK_POSITIONS.QR_CODE.size,
+                x: PDF_POSITIONS.QR_CODE.x,
+                y: PDF_POSITIONS.QR_CODE.y,
+                width: PDF_POSITIONS.QR_CODE.size,
+                height: PDF_POSITIONS.QR_CODE.size,
             });
             
             // Draw URL text at configured position
             firstPage.drawText(shareUrl, {
-                x: FALLBACK_POSITIONS.URL_TEXT.x,
-                y: FALLBACK_POSITIONS.URL_TEXT.y,
-                size: FALLBACK_POSITIONS.URL_TEXT.fontSize,
+                x: PDF_POSITIONS.URL_TEXT.x,
+                y: PDF_POSITIONS.URL_TEXT.y,
+                size: PDF_POSITIONS.URL_TEXT.fontSize,
                 font: font,
                 color: rgb(0, 0, 0),
             });
             
             // Draw teacher name at configured position
             firstPage.drawText(teacherName, {
-                x: FALLBACK_POSITIONS.TEACHER_INFO.x,
-                y: FALLBACK_POSITIONS.TEACHER_INFO.y,
-                size: FALLBACK_POSITIONS.TEACHER_INFO.fontSize,
+                x: PDF_POSITIONS.TEACHER_INFO.x,
+                y: PDF_POSITIONS.TEACHER_INFO.y,
+                size: PDF_POSITIONS.TEACHER_INFO.fontSize,
                 font: font,
                 color: rgb(0, 0, 0),
             });
@@ -378,17 +378,17 @@ export default async function handler(req, res) {
             // Draw language-appropriate teacher label below name
             const teacherLabel = detectedLang === 'pl' ? 'Wasz Nauczyciel' : 'Your Teacher';
             firstPage.drawText(teacherLabel, {
-                x: FALLBACK_POSITIONS.TEACHER_INFO.x,
-                y: FALLBACK_POSITIONS.TEACHER_INFO.y - FALLBACK_POSITIONS.TEACHER_INFO.fontSize - 2,
-                size: FALLBACK_POSITIONS.TEACHER_INFO.fontSize - 1,
+                x: PDF_POSITIONS.TEACHER_INFO.x,
+                y: PDF_POSITIONS.TEACHER_INFO.y - PDF_POSITIONS.TEACHER_INFO.fontSize - 2,
+                size: PDF_POSITIONS.TEACHER_INFO.fontSize - 1,
                 font: font,
                 color: rgb(0.3, 0.3, 0.3),
             });
             
-            console.log('⚠️ QR_PLACEHOLDER_1 not found, placed elements at left-aligned positions');
-            console.log(`📱 QR code placed at (${FALLBACK_POSITIONS.QR_CODE.x}, ${FALLBACK_POSITIONS.QR_CODE.y})`);
-            console.log(`📝 URL text placed at (${FALLBACK_POSITIONS.URL_TEXT.x}, ${FALLBACK_POSITIONS.URL_TEXT.y})`);
-            console.log(`👨‍🏫 Teacher info placed at (${FALLBACK_POSITIONS.TEACHER_INFO.x}, ${FALLBACK_POSITIONS.TEACHER_INFO.y}): ${teacherName}`);
+            console.log('✅ Elements placed at configured positions');
+            console.log(`📱 QR code placed at (${PDF_POSITIONS.QR_CODE.x}, ${PDF_POSITIONS.QR_CODE.y})`);
+            console.log(`📝 URL text placed at (${PDF_POSITIONS.URL_TEXT.x}, ${PDF_POSITIONS.URL_TEXT.y})`);
+            console.log(`👨‍🏫 Teacher info placed at (${PDF_POSITIONS.TEACHER_INFO.x}, ${PDF_POSITIONS.TEACHER_INFO.y}): ${teacherName}`);
         }
         console.log('📋 PDF generation completed successfully');
 
@@ -444,16 +444,15 @@ async function findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName,
         // Embed font for URL text
         const font = await pdfDoc.embedFont('Helvetica');
         
-        // Default position configuration for PDF elements (fallback coordinates)
-        // Based on Figma A4 artboard (595x842px) measurements from bottom edge
-        const FALLBACK_POSITIONS = {
-            // Teacher info: 116px from bottom in Figma (updated)
+        // PDF element positions based on Figma A4 artboard (595x842px) measurements
+        const PDF_POSITIONS = {
+            // Teacher info: 120px from bottom in Figma
             TEACHER_INFO: { x: 100, y: 120, fontSize: 10 },
             
-            // URL text: 172px from bottom in Figma (swapped with QR)
+            // URL text: 162px from bottom in Figma
             URL_TEXT: { x: 100, y: 162, fontSize: 8 },
             
-            // QR code: 188px from bottom in Figma (swapped with URL)
+            // QR code: 178px from bottom in Figma
             QR_CODE: { x: 100, y: 178, size: 120 }
         };
         
@@ -589,21 +588,21 @@ async function findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName,
             if (foundPositions.teacher) console.log(`   Teacher: PLACEHOLDER at (${foundPositions.teacher.x}, ${foundPositions.teacher.y})`);
             if (foundPositions.url) console.log(`   URL: PLACEHOLDER at (${foundPositions.url.x}, ${foundPositions.url.y})`);
             
-            // Draw QR code at placeholder position
-            if (foundPositions.qr) {
-                const qrSize = Math.min(foundPositions.qr.width, foundPositions.qr.height);
-                drawQrCode(firstPage, foundPositions.qr.x, foundPositions.qr.y, qrSize, qrSize);
-            }
+            // Draw QR code
+            const qrSize = foundPositions.qr ? Math.min(foundPositions.qr.width, foundPositions.qr.height) : PDF_POSITIONS.QR_CODE.size;
+            const qrX = foundPositions.qr ? foundPositions.qr.x : PDF_POSITIONS.QR_CODE.x;
+            const qrY = foundPositions.qr ? foundPositions.qr.y : PDF_POSITIONS.QR_CODE.y;
+            drawQrCode(firstPage, qrX, qrY, qrSize, qrSize);
             
-            // Draw URL text at placeholder position
-            if (foundPositions.url) {
-                drawUrlText(firstPage, foundPositions.url.x, foundPositions.url.y, 8);
-            }
+            // Draw URL text
+            const urlX = foundPositions.url ? foundPositions.url.x : PDF_POSITIONS.URL_TEXT.x;
+            const urlY = foundPositions.url ? foundPositions.url.y : PDF_POSITIONS.URL_TEXT.y;
+            drawUrlText(firstPage, urlX, urlY, 8);
             
-            // Draw teacher info at placeholder position
-            if (foundPositions.teacher) {
-                drawTeacherInfo(firstPage, foundPositions.teacher.x, foundPositions.teacher.y, 10);
-            }
+            // Draw teacher info
+            const teacherX = foundPositions.teacher ? foundPositions.teacher.x : PDF_POSITIONS.TEACHER_INFO.x;
+            const teacherY = foundPositions.teacher ? foundPositions.teacher.y : PDF_POSITIONS.TEACHER_INFO.y;
+            drawTeacherInfo(firstPage, teacherX, teacherY, 10);
             
             console.log('✅ Elements placed using PLACEHOLDERS!');
             return true;
