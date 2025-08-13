@@ -10,12 +10,22 @@ WEBFLOW_API_TOKEN=
 WEBFLOW_SITE_ID=
 
 # Webflow Webhooks - do walidacji sygnatur webhook
-# Użyj JEDNEJ z opcji poniżej:
-# 1) Jeden secret dla wszystkich webhooków:
+# Opcje konfiguracji:
+# A) Jeden secret dla wszystkich webhooków:
 #    WEBFLOW_WEBHOOK_SECRET=sekret_z_response
-# 2) Różne secrety (CSV):
+# B) Różne secrety (CSV) dla wszystkich razem:
 #    WEBFLOW_WEBHOOK_SECRET=sekret1,sekret2,sekret3,sekret4
+# C) Oddzielne secrety per-trigger (najbardziej precyzyjne):
+#    WEBFLOW_WEBHOOK_CREATED_SECRET=sekret_created
+#    WEBFLOW_WEBHOOK_CHANGED_SECRET=sekret_changed
+#    WEBFLOW_WEBHOOK_DELETED_SECRET=sekret_deleted
+#    WEBFLOW_WEBHOOK_UNPUBLISHED_SECRET=sekret_unpublished
+# (Per-trigger mają pierwszeństwo; jeśli pusty, używany jest global/CSV.)
 WEBFLOW_WEBHOOK_SECRET=
+WEBFLOW_WEBHOOK_CREATED_SECRET=
+WEBFLOW_WEBHOOK_CHANGED_SECRET=
+WEBFLOW_WEBHOOK_DELETED_SECRET=
+WEBFLOW_WEBHOOK_UNPUBLISHED_SECRET=
 
 # Supabase - do operacji na bazie danych (LMID, ShareID)
 SUPABASE_URL=
