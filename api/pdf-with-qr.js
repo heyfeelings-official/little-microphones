@@ -190,34 +190,38 @@ export default async function handler(req, res) {
 
         console.log('🎯 Found ShareID:', shareId, 'for LMID:', primaryLmid.lmid, 'world:', worldToUse);
         
-        // Get teacher data from LMID using lmid-operations API (has correct Supabase data)
+        // Get teacher data directly from Supabase database
         let teacherName = 'Teacher';
         try {
             console.log(`👨‍🏫 Fetching teacher data for LMID: ${primaryLmid.lmid}`);
-            const teacherResponse = await fetch(`${req.protocol}://${req.get('host')}/api/lmid-operations`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    action: 'get',
-                    lmid: primaryLmid.lmid
-                })
-            });
             
-            if (teacherResponse.ok) {
-                const teacherData = await teacherResponse.json();
-                if (teacherData.success) {
-                    teacherName = teacherData.data.teacherName || 'Teacher';
-                    console.log('✅ Teacher name retrieved from Supabase:', teacherName);
-                } else {
-                    console.warn('⚠️ LMID operations API returned error:', teacherData.error);
-                }
+            // Get Supabase client and query LMID data directly
+            const supabase = getSupabaseClient();
+            const { data: lmidData, error: lmidError } = await supabase
+                .from('lmids')
+                .select('teacher_first_name, teacher_last_name, teacher_school_name, assigned_to_member_email')
+                .eq('lmid', primaryLmid.lmid)
+                .single();
+                
+            if (lmidError) {
+                console.warn('⚠️ Supabase query error:', lmidError);
+            } else if (lmidData) {
+                // Build teacher name from first + last name
+                const firstName = lmidData.teacher_first_name || '';
+                const lastName = lmidData.teacher_last_name || '';
+                teacherName = `${firstName} ${lastName}`.trim() || 'Teacher';
+                
+                console.log('✅ Teacher data from Supabase:');
+                console.log(`   First Name: "${firstName}"`);
+                console.log(`   Last Name: "${lastName}"`);
+                console.log(`   Full Name: "${teacherName}"`);
+                console.log(`   School: "${lmidData.teacher_school_name || 'N/A'}"`);
+                console.log(`   Email: "${lmidData.assigned_to_member_email || 'N/A'}"`);
             } else {
-                console.warn(`⚠️ Failed to fetch teacher data: ${teacherResponse.status}`);
+                console.warn('⚠️ No LMID data found in Supabase');
             }
         } catch (error) {
-            console.warn('⚠️ Error fetching teacher data:', error.message);
+            console.warn('⚠️ Error fetching teacher data from Supabase:', error.message);
         }
 
         // Get Template PDF URL from Webflow CMS
