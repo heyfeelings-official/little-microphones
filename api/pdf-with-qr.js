@@ -448,13 +448,13 @@ async function findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName,
         // Based on Figma A4 artboard (595x842px) measurements from bottom edge
         const FALLBACK_POSITIONS = {
             // Teacher info: 116px from bottom in Figma (updated)
-            TEACHER_INFO: { x: 100, y: 116, fontSize: 10 },
+            TEACHER_INFO: { x: 100, y: 120, fontSize: 10 },
             
             // URL text: 172px from bottom in Figma (swapped with QR)
-            URL_TEXT: { x: 100, y: 172, fontSize: 8 },
+            URL_TEXT: { x: 100, y: 162, fontSize: 8 },
             
             // QR code: 188px from bottom in Figma (swapped with URL)
-            QR_CODE: { x: 100, y: 188, size: 120 }
+            QR_CODE: { x: 100, y: 178, size: 120 }
         };
         
         // Track found placeholder positions
