@@ -10,7 +10,7 @@ WEBFLOW_API_TOKEN=
 WEBFLOW_SITE_ID=
 
 # Webflow Webhooks - do walidacji sygnatur webhook
-WEBFLOW_CLIENT_SECRET=
+WEBFLOW_WEBHOOK_SECRET=
 
 # Supabase - do operacji na bazie danych (LMID, ShareID)
 SUPABASE_URL=

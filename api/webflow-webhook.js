@@ -11,9 +11,9 @@
  * 4. Optionally sync to Supabase for backup
  * 
  * ENVIRONMENT VARIABLES REQUIRED:
- * - WEBFLOW_CLIENT_SECRET: For signature validation
+ * - WEBFLOW_WEBHOOK_SECRET: For signature validation (from webhook response)
  * 
- * VERSION: 1.0.0
+ * VERSION: 1.0.1
  * LAST UPDATED: January 2025
  */
 
@@ -27,14 +27,14 @@ let webflowCache = new Map();
  * Validate Webflow webhook signature
  * Based on: https://developers.webflow.com/data/docs/working-with-webhooks.md#validating-request-signatures
  */
-function verifyWebflowSignature(clientSecret, timestamp, requestBody, providedSignature) {
+function verifyWebflowSignature(webhookSecret, timestamp, requestBody, providedSignature) {
     try {
         // Convert timestamp to integer
         const requestTimestamp = parseInt(timestamp, 10);
         
         // Generate HMAC hash
         const data = `${requestTimestamp}:${requestBody}`;
-        const hash = crypto.createHmac('sha256', clientSecret)
+        const hash = crypto.createHmac('sha256', webhookSecret)
                           .update(data)
                           .digest('hex');
         
@@ -126,15 +126,15 @@ export default async function handler(req, res) {
         const timestamp = req.headers['x-webflow-timestamp'];
         const providedSignature = req.headers['x-webflow-signature'];
         
-        // Get client secret from environment
-        const clientSecret = process.env.WEBFLOW_CLIENT_SECRET;
-        if (!clientSecret) {
-            console.error('❌ WEBFLOW_CLIENT_SECRET not configured');
+        // Get webhook secret from environment
+        const webhookSecret = process.env.WEBFLOW_WEBHOOK_SECRET;
+        if (!webhookSecret) {
+            console.error('❌ WEBFLOW_WEBHOOK_SECRET not configured');
             return res.status(500).json({ error: 'Server configuration error' });
         }
         
         // Validate signature
-        if (!verifyWebflowSignature(clientSecret, timestamp, requestBody, providedSignature)) {
+        if (!verifyWebflowSignature(webhookSecret, timestamp, requestBody, providedSignature)) {
             console.error('❌ Invalid webhook signature - possible security threat');
             return res.status(400).json({ error: 'Invalid signature' });
         }
