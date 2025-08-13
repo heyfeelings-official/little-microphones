@@ -188,6 +188,7 @@ export default async function handler(req, res) {
         }
 
         console.log('📄 Template PDF URL from CMS:', templatePdfUrl);
+        console.log('🔄 Using cache-busting for fresh PDF download');
 
         // For PDF generation, we need member data
         if (!member) {
@@ -204,8 +205,13 @@ export default async function handler(req, res) {
             // Database query for LMIDs
             findLmidsByMemberId(member.id),
             
-            // PDF download
-            fetch(templatePdfUrl).then(async (pdfResponse) => {
+            // PDF download with cache busting
+            fetch(`${templatePdfUrl}?v=${Date.now()}`, {
+                headers: {
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache'
+                }
+            }).then(async (pdfResponse) => {
                 if (!pdfResponse.ok) {
                     throw new Error(`Failed to download Template PDF: ${pdfResponse.statusText}`);
                 }
