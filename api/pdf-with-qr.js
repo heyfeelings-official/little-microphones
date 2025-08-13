@@ -97,8 +97,8 @@ export default async function handler(req, res) {
         const [webflowItem, member] = await Promise.all([
             // Webflow CMS API call
             getWebflowItem(item, detectedLang),
-            // Memberstack session validation (only for non-check requests)
-            check === 'true' ? null : getMemberFromSession(req)
+            // Memberstack session data (for teacher name in PDF)
+            getMemberFromSession(req)
         ]);
         
         console.timeEnd('⚡ Parallel API calls');
@@ -126,17 +126,9 @@ export default async function handler(req, res) {
             });
         }
 
-        // For actual PDF generation (not checks), verify authentication
-        if (check !== 'true' && !member) {
-            return res.status(401).json({ 
-                success: false, 
-                error: 'Authentication required. Please log in as an educator.' 
-            });
-        }
+        // Authentication handled by Memberstack at page level - no additional check needed
 
-        if (member) {
-            console.log('👨‍🏫 Educator authenticated with member ID:', member.id);
-        }
+        console.log('👨‍🏫 Educator session:', member ? `ID: ${member.id}` : 'No session data');
 
         // Early return for check requests (frontend button validation)
         if (check === 'true') {
@@ -196,6 +188,14 @@ export default async function handler(req, res) {
         }
 
         console.log('📄 Template PDF URL from CMS:', templatePdfUrl);
+
+        // For PDF generation, we need member data
+        if (!member) {
+            return res.status(500).json({ 
+                success: false, 
+                error: 'Unable to retrieve educator session data' 
+            });
+        }
 
         // PERFORMANCE OPTIMIZATION: Parallel execution of data fetching
         console.time('⚡ Parallel data fetching');
