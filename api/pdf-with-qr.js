@@ -344,9 +344,9 @@ export default async function handler(req, res) {
             
             // Use same positions as main function - based on Figma A4 measurements
             const FALLBACK_POSITIONS = {
-                QR_CODE: { x: 100, y: 188, size: 120 },        // 172px from bottom in Figma
-                URL_TEXT: { x: 100, y: 172, fontSize: 8 },     // 188px from bottom in Figma  
-                TEACHER_INFO: { x: 100, y: 116, fontSize: 10 } // 106px from bottom in Figma
+                QR_CODE: { x: 100, y: 178, size: 120 },        // Updated position
+                URL_TEXT: { x: 100, y: 162, fontSize: 8 },     // Updated position  
+                TEACHER_INFO: { x: 100, y: 120, fontSize: 10 } // Updated position
             };
             
             // Draw QR code at left-aligned position instead of bottom-right
