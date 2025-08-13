@@ -274,29 +274,6 @@ function getLanguageSpecificPdfUrl(fieldData, language) {
     const templatePdf = templateField?.url || null;
 
     if (templatePdf) {
-        // Check if it's an image file instead of PDF
-        const isImage = templatePdf.includes('.jpg') || templatePdf.includes('.jpeg') || templatePdf.includes('.png') || templatePdf.includes('.gif');
-        
-        if (isImage) {
-            console.error('🚨 CRITICAL: Found IMAGE file instead of PDF!', {
-                language,
-                foundUrl: templatePdf,
-                fileType: 'IMAGE'
-            });
-            return null;
-        }
-
-        // Validate Polish locale files contain 'pl' in filename
-        if (language === 'pl') {
-            const looksPolish = /(^|[-_])pl(\.|-|_|$)/i.test(templatePdf);
-            if (!looksPolish) {
-                console.error('🚨 CRITICAL: Polish locale returned non-Polish PDF!', {
-                    language,
-                    actualUrl: templatePdf
-                });
-            }
-        }
-        
         return templatePdf;
     }
 
