@@ -21,7 +21,7 @@
 
 import { PDFDocument, rgb } from 'pdf-lib';
 import QRCode from 'qrcode';
-import { getSupabaseClient, WORLDS, getWorldColumn } from '../utils/lmid-utils.js';
+import { WORLDS, getWorldColumn } from '../utils/lmid-utils.js';
 import { getMemberFromSession } from '../utils/memberstack-utils.js';
 import { findLmidsByMemberId } from '../utils/database-utils.js';
 import { getWebflowItem, checkDynamicQR, getTemplatePdfUrl, getStaticPdfUrl } from '../utils/webflow-api.js';
@@ -190,38 +190,62 @@ export default async function handler(req, res) {
 
         console.log('🎯 Found ShareID:', shareId, 'for LMID:', primaryLmid.lmid, 'world:', worldToUse);
         
-        // Get teacher data directly from Supabase database
+        // Get teacher data from Memberstack (same approach as get-teacher-data.js)
         let teacherName = 'Teacher';
         try {
-            console.log(`👨‍🏫 Fetching teacher data for LMID: ${primaryLmid.lmid}`);
+            console.log(`👨‍🏫 Fetching teacher data for member ID: ${member.id}`);
             
-            // Get Supabase client and query LMID data directly
-            const supabase = getSupabaseClient();
-            const { data: lmidData, error: lmidError } = await supabase
-                .from('lmids')
-                .select('teacher_first_name, teacher_last_name, teacher_school_name, assigned_to_member_email')
-                .eq('lmid', primaryLmid.lmid)
-                .single();
-                
-            if (lmidError) {
-                console.warn('⚠️ Supabase query error:', lmidError);
-            } else if (lmidData) {
-                // Build teacher name from first + last name
-                const firstName = lmidData.teacher_first_name || '';
-                const lastName = lmidData.teacher_last_name || '';
-                teacherName = `${firstName} ${lastName}`.trim() || 'Teacher';
-                
-                console.log('✅ Teacher data from Supabase:');
-                console.log(`   First Name: "${firstName}"`);
-                console.log(`   Last Name: "${lastName}"`);
-                console.log(`   Full Name: "${teacherName}"`);
-                console.log(`   School: "${lmidData.teacher_school_name || 'N/A'}"`);
-                console.log(`   Email: "${lmidData.assigned_to_member_email || 'N/A'}"`);
+            // Use same Memberstack approach as get-teacher-data.js
+            const MEMBERSTACK_SECRET_KEY = process.env.MEMBERSTACK_SECRET_KEY;
+            if (!MEMBERSTACK_SECRET_KEY) {
+                console.warn(`⚠️ Memberstack secret key not configured`);
             } else {
-                console.warn('⚠️ No LMID data found in Supabase');
+                const response = await fetch(`https://admin.memberstack.com/members/${member.id}`, {
+                    method: 'GET',
+                    headers: {
+                        'x-api-key': MEMBERSTACK_SECRET_KEY,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const memberData = data.data || data;
+                    
+                    // Extract first name from various possible fields (same as get-teacher-data.js)
+                    const firstName = 
+                        memberData.customFields?.['first-name'] || // Correct field name with hyphen
+                        memberData.customFields?.['First Name'] ||  // Alternative with space  
+                        memberData.customFields?.firstName ||
+                        memberData.customFields?.['first_name'] ||
+                        memberData.metaData?.firstName ||
+                        memberData.metaData?.['first-name'] ||
+                        '';
+                    
+                    const lastName = 
+                        memberData.customFields?.['last-name'] ||   // Correct field name with hyphen
+                        memberData.customFields?.['Last Name'] ||   // Alternative with space
+                        memberData.customFields?.lastName ||
+                        memberData.customFields?.['last_name'] ||
+                        memberData.metaData?.lastName ||
+                        memberData.metaData?.['last-name'] ||
+                        '';
+                    
+                    console.log(`✅ Teacher data from Memberstack:"`);
+                    console.log(`   First Name: "${firstName}"`);
+                    console.log(`   Last Name: "${lastName}"`);
+                    
+                    // Combine names (same logic as get-teacher-data.js)
+                    const fullName = [firstName, lastName].filter(Boolean).join(' ').trim();
+                    teacherName = fullName || 'Teacher';
+                    
+                    console.log(`   Full Name: "${teacherName}"`);
+                } else {
+                    console.warn(`⚠️ Memberstack API error: ${response.status} ${response.statusText}`);
+                }
             }
         } catch (error) {
-            console.warn('⚠️ Error fetching teacher data from Supabase:', error.message);
+            console.warn('⚠️ Error fetching teacher data from Memberstack:', error.message);
         }
 
         // Get Template PDF URL from Webflow CMS
