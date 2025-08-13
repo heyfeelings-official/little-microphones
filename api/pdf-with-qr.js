@@ -80,6 +80,7 @@ export default async function handler(req, res) {
             .replace(/[^a-z0-9-]/g, ''); // Remove special characters
         
         // PDF generation request initiated
+        console.time('🚀 Total PDF generation time');
 
         // Validate world name
         if (!WORLDS.includes(normalizedWorld)) {
@@ -89,12 +90,22 @@ export default async function handler(req, res) {
             });
         }
 
-        // Get workbook item from Webflow CMS
-        const webflowItem = await getWebflowItem(item, detectedLang);
+        // PERFORMANCE OPTIMIZATION: Parallel execution of independent operations
+        console.time('⚡ Parallel API calls');
+        
+        // Start all independent API calls in parallel
+        const [webflowItem, member] = await Promise.all([
+            // Webflow CMS API call
+            getWebflowItem(item, detectedLang),
+            // Memberstack session validation (only for non-check requests)
+            check === 'true' ? null : getMemberFromSession(req)
+        ]);
+        
+        console.timeEnd('⚡ Parallel API calls');
+        
         if (!webflowItem) {
             // Don't log as error - this is normal for items not in CMS
             if (check === 'true') {
-                // For check requests, this is expected - some buttons don't have CMS items
                 console.log(`ℹ️ Item not in CMS (normal): ${item}`);
             } else {
                 console.log(`⚠️ PDF generation attempted for non-existent item: ${item}`);
@@ -105,9 +116,7 @@ export default async function handler(req, res) {
             });
         }
 
-        // Webflow item loaded successfully
-
-        // If this is just a check request, return Dynamic QR status
+        // If this is just a check request, return Dynamic QR status immediately
         if (check === 'true') {
             return res.status(200).json({
                 success: true,
@@ -117,8 +126,7 @@ export default async function handler(req, res) {
             });
         }
 
-        // For actual PDF generation, require authentication
-        const member = await getMemberFromSession(req);
+        // For actual PDF generation, verify authentication
         if (!member) {
             return res.status(401).json({ 
                 success: false, 
@@ -128,7 +136,7 @@ export default async function handler(req, res) {
 
         console.log('👨‍🏫 Educator authenticated with member ID:', member.id);
 
-        // Check if Dynamic QR is enabled
+        // Check if Dynamic QR is enabled - early exit for static PDFs
         if (!checkDynamicQR(webflowItem)) {
             console.log('🔄 Dynamic QR disabled, redirecting to base PDF file');
             const templatePdfUrl = getTemplatePdfUrl(webflowItem);
@@ -136,7 +144,6 @@ export default async function handler(req, res) {
                 console.log('📄 Redirecting to Template PDF:', templatePdfUrl);
                 return res.redirect(302, templatePdfUrl);
             } else {
-                // Fallback to Static PDF if Template PDF not available
                 const staticPdfUrl = getStaticPdfUrl(webflowItem);
                 if (staticPdfUrl) {
                     console.log('📄 Redirecting to Static PDF:', staticPdfUrl);
@@ -150,7 +157,7 @@ export default async function handler(req, res) {
             }
         }
 
-        // Use normalized world or normalize world from CMS
+        // World validation
         let worldToUse = normalizedWorld;
         if (!worldToUse && webflowItem.world) {
             worldToUse = webflowItem.world
@@ -167,8 +174,66 @@ export default async function handler(req, res) {
             });
         }
 
-        // Find educator's LMIDs using the member ID
-        const educatorLmids = await findLmidsByMemberId(member.id);
+        // Get Template PDF URL early for parallel download
+        const templatePdfUrl = getTemplatePdfUrl(webflowItem);
+        if (!templatePdfUrl) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Template PDF not found for this item' 
+            });
+        }
+
+        console.log('📄 Template PDF URL from CMS:', templatePdfUrl);
+
+        // PERFORMANCE OPTIMIZATION: Parallel execution of data fetching
+        console.time('⚡ Parallel data fetching');
+        
+        const [educatorLmids, pdfBuffer, memberData] = await Promise.all([
+            // Database query for LMIDs
+            findLmidsByMemberId(member.id),
+            
+            // PDF download
+            fetch(templatePdfUrl).then(async (pdfResponse) => {
+                if (!pdfResponse.ok) {
+                    throw new Error(`Failed to download Template PDF: ${pdfResponse.statusText}`);
+                }
+                return pdfResponse.arrayBuffer();
+            }),
+            
+            // Memberstack API call for teacher data
+            (async () => {
+                const MEMBERSTACK_SECRET_KEY = process.env.MEMBERSTACK_SECRET_KEY;
+                if (!MEMBERSTACK_SECRET_KEY) {
+                    console.warn(`⚠️ Memberstack secret key not configured`);
+                    return null;
+                }
+                
+                try {
+                    const response = await fetch(`https://admin.memberstack.com/members/${member.id}`, {
+                        method: 'GET',
+                        headers: {
+                            'x-api-key': MEMBERSTACK_SECRET_KEY,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        return data.data || data;
+                    } else {
+                        console.warn(`⚠️ Memberstack API error: ${response.status} ${response.statusText}`);
+                        return null;
+                    }
+                } catch (error) {
+                    console.warn('⚠️ Error fetching teacher data from Memberstack:', error.message);
+                    return null;
+                }
+            })()
+        ]);
+        
+        console.timeEnd('⚡ Parallel data fetching');
+
+        // Process results
         if (!educatorLmids || educatorLmids.length === 0) {
             return res.status(404).json({ 
                 success: false, 
@@ -190,87 +255,34 @@ export default async function handler(req, res) {
 
         console.log('🎯 Found ShareID:', shareId, 'for LMID:', primaryLmid.lmid, 'world:', worldToUse);
         
-        // Get teacher data from Memberstack (same approach as get-teacher-data.js)
+        // Process teacher data
         let teacherName = 'Teacher';
-        try {
-            console.log(`👨‍🏫 Fetching teacher data for member ID: ${member.id}`);
+        if (memberData) {
+            // Extract first name from various possible fields (same as get-teacher-data.js)
+            const firstName = 
+                memberData.customFields?.['first-name'] || // Correct field name with hyphen
+                memberData.customFields?.['First Name'] ||  // Alternative with space  
+                memberData.customFields?.firstName ||
+                memberData.customFields?.['first_name'] ||
+                memberData.metaData?.firstName ||
+                memberData.metaData?.['first-name'] ||
+                '';
             
-            // Use same Memberstack approach as get-teacher-data.js
-            const MEMBERSTACK_SECRET_KEY = process.env.MEMBERSTACK_SECRET_KEY;
-            if (!MEMBERSTACK_SECRET_KEY) {
-                console.warn(`⚠️ Memberstack secret key not configured`);
-            } else {
-                const response = await fetch(`https://admin.memberstack.com/members/${member.id}`, {
-                    method: 'GET',
-                    headers: {
-                        'x-api-key': MEMBERSTACK_SECRET_KEY,
-                        'Content-Type': 'application/json'
-                    }
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    const memberData = data.data || data;
-                    
-                    // Extract first name from various possible fields (same as get-teacher-data.js)
-                    const firstName = 
-                        memberData.customFields?.['first-name'] || // Correct field name with hyphen
-                        memberData.customFields?.['First Name'] ||  // Alternative with space  
-                        memberData.customFields?.firstName ||
-                        memberData.customFields?.['first_name'] ||
-                        memberData.metaData?.firstName ||
-                        memberData.metaData?.['first-name'] ||
-                        '';
-                    
-                    const lastName = 
-                        memberData.customFields?.['last-name'] ||   // Correct field name with hyphen
-                        memberData.customFields?.['Last Name'] ||   // Alternative with space
-                        memberData.customFields?.lastName ||
-                        memberData.customFields?.['last_name'] ||
-                        memberData.metaData?.lastName ||
-                        memberData.metaData?.['last-name'] ||
-                        '';
-                    
-                    console.log(`✅ Teacher data from Memberstack:"`);
-                    console.log(`   First Name: "${firstName}"`);
-                    console.log(`   Last Name: "${lastName}"`);
-                    
-                    // Combine names (same logic as get-teacher-data.js)
-                    const fullName = [firstName, lastName].filter(Boolean).join(' ').trim();
-                    teacherName = fullName || 'Teacher';
-                    
-                    console.log(`   Full Name: "${teacherName}"`);
-                } else {
-                    console.warn(`⚠️ Memberstack API error: ${response.status} ${response.statusText}`);
-                }
-            }
-        } catch (error) {
-            console.warn('⚠️ Error fetching teacher data from Memberstack:', error.message);
+            const lastName = 
+                memberData.customFields?.['last-name'] ||   // Correct field name with hyphen
+                memberData.customFields?.['Last Name'] ||   // Alternative with space
+                memberData.customFields?.lastName ||
+                memberData.customFields?.['last_name'] ||
+                memberData.metaData?.lastName ||
+                memberData.metaData?.['last-name'] ||
+                '';
+            
+            console.log(`✅ Teacher data from Memberstack: "${firstName} ${lastName}"`);
+            
+            // Combine names (same logic as get-teacher-data.js)
+            const fullName = [firstName, lastName].filter(Boolean).join(' ').trim();
+            teacherName = fullName || 'Teacher';
         }
-
-        // Get Template PDF URL from Webflow CMS
-        const templatePdfUrl = getTemplatePdfUrl(webflowItem);
-        if (!templatePdfUrl) {
-            return res.status(404).json({ 
-                success: false, 
-                error: 'Template PDF not found for this item' 
-            });
-        }
-
-        console.log('📄 Template PDF URL from CMS:', templatePdfUrl);
-
-        // Download Template PDF
-        const pdfResponse = await fetch(templatePdfUrl);
-        if (!pdfResponse.ok) {
-            throw new Error(`Failed to download Template PDF: ${pdfResponse.statusText}`);
-        }
-        const pdfBuffer = await pdfResponse.arrayBuffer();
-
-        // Load PDF document
-        const pdfDoc = await PDFDocument.load(pdfBuffer);
-        const pages = pdfDoc.getPages();
-        const firstPage = pages[0];
-        const { width, height } = firstPage.getSize();
 
         // Generate ShareID URL - detect domain from referer header
         const referer = req.headers.referer || req.headers.referrer || '';
@@ -286,19 +298,32 @@ export default async function handler(req, res) {
         }
         
         const shareUrl = `${baseDomain}/little-microphones?ID=${shareId}`;
-
         console.log('🔗 Generated QR URL:', shareUrl);
 
-        // Generate QR code as PNG buffer
-        const qrPngBuffer = await QRCode.toBuffer(shareUrl, {
-            type: 'png',
-            width: 400,
-            margin: 2,
-            color: {
-                dark: '#000000FF',
-                light: '#FFFFFFFF'
-            }
-        });
+        // PERFORMANCE OPTIMIZATION: Parallel PDF processing and QR generation
+        console.time('⚡ Parallel PDF + QR processing');
+        
+        const [pdfDoc, qrPngBuffer] = await Promise.all([
+            // PDF document loading
+            PDFDocument.load(pdfBuffer),
+            
+            // QR code generation
+            QRCode.toBuffer(shareUrl, {
+                type: 'png',
+                width: 400,
+                margin: 2,
+                color: {
+                    dark: '#000000FF',
+                    light: '#FFFFFFFF'
+                }
+            })
+        ]);
+        
+        console.timeEnd('⚡ Parallel PDF + QR processing');
+
+        const pages = pdfDoc.getPages();
+        const firstPage = pages[0];
+        const { width, height } = firstPage.getSize();
 
         // Look for QR placeholder in PDF and replace it with QR code
         const placeholderName = 'QR_PLACEHOLDER_1';
@@ -369,6 +394,8 @@ export default async function handler(req, res) {
 
         // Generate modified PDF
         const modifiedPdfBytes = await pdfDoc.save();
+        
+        console.timeEnd('🚀 Total PDF generation time');
 
         // Set response headers for PDF display in browser (not download)
         res.setHeader('Content-Type', 'application/pdf');
