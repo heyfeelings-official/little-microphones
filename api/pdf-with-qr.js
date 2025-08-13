@@ -291,9 +291,9 @@ export default async function handler(req, res) {
             
             // Use same positions as when placeholder is found
             const FALLBACK_POSITIONS = {
-                QR_CODE: { x: 65, y: 100, size: 120 },
-                URL_TEXT: { x: 60, y: 150, fontSize: 8 },
-                TEACHER_INFO: { x: 70, y: 200, fontSize: 10 }
+                QR_CODE: { x: 100, y: 40, size: 120 },        // Duży czerwony prostokąt (dół)
+                URL_TEXT: { x: 100, y: 400, fontSize: 8 },     // Najwyższy czerwony prostokąt (góra)
+                TEACHER_INFO: { x: 100, y: 250, fontSize: 10 } // Średni czerwony prostokąt (środek)
             };
             
             // Draw QR code at left-aligned position instead of bottom-right
@@ -391,14 +391,14 @@ async function findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName,
         
         // Default position configuration for PDF elements (fallback coordinates)
         const FALLBACK_POSITIONS = {
-            // Teacher info position (Y=700 = highest on page)
-            TEACHER_INFO: { x: 50, y: 700, fontSize: 10 },
+            // Teacher info position (środkowy czerwony prostokąt)
+            TEACHER_INFO: { x: 100, y: 250, fontSize: 10 },
             
-            // URL text position (Y=650 = middle)  
-            URL_TEXT: { x: 50, y: 650, fontSize: 8 },
+            // URL text position (najwyższy czerwony prostokąt)  
+            URL_TEXT: { x: 100, y: 400, fontSize: 8 },
             
-            // QR code position (Y=500 = lower, but above bottom)
-            QR_CODE: { x: 50, y: 500, size: 120 }
+            // QR code position (duży czerwony prostokąt na dole)
+            QR_CODE: { x: 100, y: 40, size: 120 }
         };
         
         // Track found placeholder positions
@@ -411,6 +411,9 @@ async function findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName,
         // Function to search for all placeholders
         const searchForPlaceholders = async () => {
             console.log('🔍 Searching for placeholders: QR_PLACEHOLDER_1, TEACHER_PLACEHOLDER, URL_PLACEHOLDER');
+            
+            // Also try to remove any existing QR codes/images that might conflict
+            console.log('🗑️ Attempting to clean existing QR codes from PDF...');
             
             for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
                 const page = pages[pageIndex];
