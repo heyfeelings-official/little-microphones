@@ -126,15 +126,27 @@ export default async function handler(req, res) {
             });
         }
 
-        // For actual PDF generation, verify authentication
-        if (!member) {
+        // For actual PDF generation (not checks), verify authentication
+        if (check !== 'true' && !member) {
             return res.status(401).json({ 
                 success: false, 
                 error: 'Authentication required. Please log in as an educator.' 
             });
         }
 
-        console.log('👨‍🏫 Educator authenticated with member ID:', member.id);
+        if (member) {
+            console.log('👨‍🏫 Educator authenticated with member ID:', member.id);
+        }
+
+        // Early return for check requests (frontend button validation)
+        if (check === 'true') {
+            return res.status(200).json({
+                success: true,
+                dynamicQR: checkDynamicQR(webflowItem),
+                item: webflowItem.slug,
+                world: webflowItem.world
+            });
+        }
 
         // Check if Dynamic QR is enabled - early exit for static PDFs
         if (!checkDynamicQR(webflowItem)) {
