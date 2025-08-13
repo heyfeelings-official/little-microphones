@@ -375,7 +375,7 @@ export default async function handler(req, res) {
                 y: PDF_POSITIONS.URL_TEXT.y,
                 size: PDF_POSITIONS.URL_TEXT.fontSize,
                 font: font,
-                color: rgb(0, 122, 247),
+                color: rgb(0/255, 122/255, 247/255),
             });
             
             // Draw teacher name at configured position
@@ -394,7 +394,7 @@ export default async function handler(req, res) {
                 y: PDF_POSITIONS.TEACHER_INFO.y - PDF_POSITIONS.TEACHER_INFO.fontSize - 2,
                 size: PDF_POSITIONS.TEACHER_INFO.fontSize - 1,
                 font: font,
-                color: rgb(128, 128, 128),
+                color: rgb(128/255, 128/255, 128/255),
             });
             
             console.log('✅ Elements placed at configured positions');
