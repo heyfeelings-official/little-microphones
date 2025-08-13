@@ -12,6 +12,7 @@
  * 
  * ENVIRONMENT VARIABLES REQUIRED:
  * - WEBFLOW_WEBHOOK_SECRET: For signature validation (from webhook response)
+ *   - Supports a single secret string OR multiple secrets separated by commas
  * 
  * VERSION: 1.0.1
  * LAST UPDATED: January 2025
@@ -126,16 +127,26 @@ export default async function handler(req, res) {
         const timestamp = req.headers['x-webflow-timestamp'];
         const providedSignature = req.headers['x-webflow-signature'];
         
-        // Get webhook secret from environment (optional for now)
-        const webhookSecret = process.env.WEBFLOW_WEBHOOK_SECRET;
-        
-        // Validate signature only if secret is provided
-        if (webhookSecret && timestamp && providedSignature) {
-            if (!verifyWebflowSignature(webhookSecret, timestamp, requestBody, providedSignature)) {
-                console.error('❌ Invalid webhook signature - possible security threat');
+        // Get webhook secret(s) from environment (optional for now)
+        const rawSecrets = process.env.WEBFLOW_WEBHOOK_SECRET || '';
+
+        // Normalize to an array of non-empty trimmed secrets (supports CSV)
+        const webhookSecrets = rawSecrets
+            .split(',')
+            .map(s => s.trim())
+            .filter(s => s.length > 0);
+
+        // Validate signature if we have headers and at least one secret
+        if (webhookSecrets.length > 0 && timestamp && providedSignature) {
+            const anyValid = webhookSecrets.some(secret =>
+                verifyWebflowSignature(secret, timestamp, requestBody, providedSignature)
+            );
+
+            if (!anyValid) {
+                console.error('❌ Invalid webhook signature with provided secrets - possible security threat');
                 return res.status(400).json({ error: 'Invalid signature' });
             }
-            console.log('✅ Webhook signature validated');
+            console.log(`✅ Webhook signature validated (matched 1 of ${webhookSecrets.length} secret(s))`);
         } else {
             console.log('⚠️ Webhook signature validation skipped (no secret configured)');
         }
