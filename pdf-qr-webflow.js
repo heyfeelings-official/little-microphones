@@ -192,9 +192,9 @@
                 }
                 
                 // Generate PDF with QR code
-                const pdfUrl = `${API_BASE_URL}/api/pdf-with-qr?item=${encodeURIComponent(itemSlug)}&world=${encodeURIComponent(world)}&lang=${detectedLang}`;
+                const pdfUrl = `${API_BASE_URL}/api/pdf-with-qr?item=${encodeURIComponent(itemSlug)}&world=${encodeURIComponent(world)}&lang=${detectedLang}&memberId=${encodeURIComponent(memberData.id)}`;
                 
-                console.log(`🎯 Opening PDF: ${itemSlug} (${detectedLang})`);
+                console.log(`🎯 Opening PDF: ${itemSlug} (${detectedLang}) for member: ${memberData.id}`);
                 
                 // Open PDF in new tab
                 window.open(pdfUrl, '_blank');
