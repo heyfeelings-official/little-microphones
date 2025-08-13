@@ -307,11 +307,11 @@ export default async function handler(req, res) {
             // PDF document loading
             PDFDocument.load(pdfBuffer),
             
-            // QR code generation
+            // QR code generation (no margin/padding around QR)
             QRCode.toBuffer(shareUrl, {
                 type: 'png',
                 width: 400,
-                margin: 2,
+                margin: 0,
                 color: {
                     dark: '#000000FF',
                     light: '#FFFFFFFF'
@@ -344,9 +344,9 @@ export default async function handler(req, res) {
             
             // Use same positions as main function - based on Figma A4 measurements
             const FALLBACK_POSITIONS = {
-                QR_CODE: { x: 100, y: 172, size: 120 },        // 172px from bottom in Figma
-                URL_TEXT: { x: 100, y: 188, fontSize: 8 },     // 188px from bottom in Figma  
-                TEACHER_INFO: { x: 100, y: 106, fontSize: 10 } // 106px from bottom in Figma
+                QR_CODE: { x: 100, y: 188, size: 120 },        // 172px from bottom in Figma
+                URL_TEXT: { x: 100, y: 172, fontSize: 8 },     // 188px from bottom in Figma  
+                TEACHER_INFO: { x: 100, y: 116, fontSize: 10 } // 106px from bottom in Figma
             };
             
             // Draw QR code at left-aligned position instead of bottom-right
@@ -447,14 +447,14 @@ async function findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName,
         // Default position configuration for PDF elements (fallback coordinates)
         // Based on Figma A4 artboard (595x842px) measurements from bottom edge
         const FALLBACK_POSITIONS = {
-            // Teacher info: 106px from bottom in Figma
-            TEACHER_INFO: { x: 100, y: 106, fontSize: 10 },
+            // Teacher info: 116px from bottom in Figma (updated)
+            TEACHER_INFO: { x: 100, y: 116, fontSize: 10 },
             
-            // URL text: 188px from bottom in Figma
-            URL_TEXT: { x: 100, y: 188, fontSize: 8 },
+            // URL text: 172px from bottom in Figma (swapped with QR)
+            URL_TEXT: { x: 100, y: 172, fontSize: 8 },
             
-            // QR code: 172px from bottom in Figma
-            QR_CODE: { x: 100, y: 172, size: 120 }
+            // QR code: 188px from bottom in Figma (swapped with URL)
+            QR_CODE: { x: 100, y: 188, size: 120 }
         };
         
         // Track found placeholder positions
