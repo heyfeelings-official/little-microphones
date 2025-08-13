@@ -549,35 +549,40 @@ async function findAndReplaceQrPlaceholder(pdfDoc, qrPngBuffer, placeholderName,
             console.log(`✅ Teacher info placed successfully: "${teacherName}" (${teacherLabel}) at (${x}, ${y})`);
         };
         
-        // Draw elements using found placeholders or fallback positions
-        const firstPage = pages[0];
+        // Check if any placeholders were found
+        const foundAnyPlaceholder = !!(foundPositions.qr || foundPositions.teacher || foundPositions.url);
         
-        // Determine positions for each element
-        const qrPos = foundPositions.qr || FALLBACK_POSITIONS.QR_CODE;
-        const teacherPos = foundPositions.teacher || FALLBACK_POSITIONS.TEACHER_INFO;
-        const urlPos = foundPositions.url || FALLBACK_POSITIONS.URL_TEXT;
-        
-        console.log('📍 Using positions:');
-        console.log(`   QR: ${foundPositions.qr ? 'PLACEHOLDER' : 'FALLBACK'} at (${qrPos.x}, ${qrPos.y})`);
-        console.log(`   Teacher: ${foundPositions.teacher ? 'PLACEHOLDER' : 'FALLBACK'} at (${teacherPos.x}, ${teacherPos.y})`);
-        console.log(`   URL: ${foundPositions.url ? 'PLACEHOLDER' : 'FALLBACK'} at (${urlPos.x}, ${urlPos.y})`);
-        
-        // Draw QR code
-        const qrSize = foundPositions.qr ? Math.min(qrPos.width, qrPos.height) : FALLBACK_POSITIONS.QR_CODE.size;
-        drawQrCode(firstPage, qrPos.x, qrPos.y, qrSize, qrSize);
-        
-        // Draw URL text  
-        const urlFontSize = foundPositions.url ? 8 : FALLBACK_POSITIONS.URL_TEXT.fontSize;
-        drawUrlText(firstPage, urlPos.x, urlPos.y, urlFontSize);
-        
-        // Draw teacher info
-        const teacherFontSize = foundPositions.teacher ? 10 : FALLBACK_POSITIONS.TEACHER_INFO.fontSize;
-        drawTeacherInfo(firstPage, teacherPos.x, teacherPos.y, teacherFontSize);
-        
-        console.log('✅ All PDF elements placed successfully!');
-        
-        // Return true if any placeholder was found
-        return !!(foundPositions.qr || foundPositions.teacher || foundPositions.url);
+        if (foundAnyPlaceholder) {
+            // Draw elements using found placeholder positions
+            const firstPage = pages[0];
+            
+            console.log('📍 Using PLACEHOLDER positions:');
+            if (foundPositions.qr) console.log(`   QR: PLACEHOLDER at (${foundPositions.qr.x}, ${foundPositions.qr.y})`);
+            if (foundPositions.teacher) console.log(`   Teacher: PLACEHOLDER at (${foundPositions.teacher.x}, ${foundPositions.teacher.y})`);
+            if (foundPositions.url) console.log(`   URL: PLACEHOLDER at (${foundPositions.url.x}, ${foundPositions.url.y})`);
+            
+            // Draw QR code at placeholder position
+            if (foundPositions.qr) {
+                const qrSize = Math.min(foundPositions.qr.width, foundPositions.qr.height);
+                drawQrCode(firstPage, foundPositions.qr.x, foundPositions.qr.y, qrSize, qrSize);
+            }
+            
+            // Draw URL text at placeholder position
+            if (foundPositions.url) {
+                drawUrlText(firstPage, foundPositions.url.x, foundPositions.url.y, 8);
+            }
+            
+            // Draw teacher info at placeholder position
+            if (foundPositions.teacher) {
+                drawTeacherInfo(firstPage, foundPositions.teacher.x, foundPositions.teacher.y, 10);
+            }
+            
+            console.log('✅ Elements placed using PLACEHOLDERS!');
+            return true;
+        } else {
+            console.log('⚠️ No placeholders found - will use fallback positioning');
+            return false;
+        }
         
     } catch (error) {
         console.error('❌ Error in placeholder replacement:', error);
