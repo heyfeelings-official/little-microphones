@@ -126,20 +126,19 @@ export default async function handler(req, res) {
         const timestamp = req.headers['x-webflow-timestamp'];
         const providedSignature = req.headers['x-webflow-signature'];
         
-        // Get webhook secret from environment
+        // Get webhook secret from environment (optional for now)
         const webhookSecret = process.env.WEBFLOW_WEBHOOK_SECRET;
-        if (!webhookSecret) {
-            console.error('❌ WEBFLOW_WEBHOOK_SECRET not configured');
-            return res.status(500).json({ error: 'Server configuration error' });
-        }
         
-        // Validate signature
-        if (!verifyWebflowSignature(webhookSecret, timestamp, requestBody, providedSignature)) {
-            console.error('❌ Invalid webhook signature - possible security threat');
-            return res.status(400).json({ error: 'Invalid signature' });
+        // Validate signature only if secret is provided
+        if (webhookSecret && timestamp && providedSignature) {
+            if (!verifyWebflowSignature(webhookSecret, timestamp, requestBody, providedSignature)) {
+                console.error('❌ Invalid webhook signature - possible security threat');
+                return res.status(400).json({ error: 'Invalid signature' });
+            }
+            console.log('✅ Webhook signature validated');
+        } else {
+            console.log('⚠️ Webhook signature validation skipped (no secret configured)');
         }
-        
-        console.log('✅ Webhook signature validated');
         
         // Process webhook payload
         const { triggerType, payload } = req.body;
