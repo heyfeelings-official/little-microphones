@@ -291,9 +291,9 @@ export default async function handler(req, res) {
             
             // Use same positions as when placeholder is found
             const FALLBACK_POSITIONS = {
-                QR_CODE: { x: 100, y: 40, size: 120 },        // Duży czerwony prostokąt (dół)
-                URL_TEXT: { x: 100, y: 400, fontSize: 8 },     // Najwyższy czerwony prostokąt (góra)
-                TEACHER_INFO: { x: 100, y: 250, fontSize: 10 } // Średni czerwony prostokąt (środek)
+                QR_CODE: { x: 90, y: 300, size: 120 },        // Duży czerwony prostokąt (dół)
+                URL_TEXT: { x: 100, y: 50, fontSize: 8 },     // Najwyższy czerwony prostokąt (góra)
+                TEACHER_INFO: { x: 100, y: 30, fontSize: 10 } // Średni czerwony prostokąt (środek)
             };
             
             // Draw QR code at left-aligned position instead of bottom-right
