@@ -206,7 +206,10 @@
     window.LM_CONFIG.UTILS = {
         // Format world name for display (e.g., "spookyland" -> "Spookyland", "big-city" -> "Big City")
         formatWorldName: function(world) {
-            return world.charAt(0).toUpperCase() + world.slice(1).replace(/-/g, ' ');
+            return world.replace(/-/g, ' ')
+                       .split(' ')
+                       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                       .join(' ');
         },
         
         // Get world video URL (preferred)

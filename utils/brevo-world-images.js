@@ -24,8 +24,8 @@ export const WORLD_IMAGES_CONFIG = {
   'spookyland': {
     pl: {
       imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/6880a0e0ec03072a1fa85842.png', // REPLACE: Upload to Brevo and paste URL
-      alt: 'Straszny Park - świat Halloween pełen duchów i potworów',
-      displayName: 'Straszny Park'
+      alt: 'Kraina Strachu - świat Halloween pełen duchów i potworów',
+      displayName: 'Kraina Strachu'
     },
     en: {
       imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/6880a0e0e4e4ea1a183ac37f.png', // REPLACE: Upload to Brevo and paste URL
@@ -37,8 +37,8 @@ export const WORLD_IMAGES_CONFIG = {
   'waterpark': {
     pl: {
       imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/6880a0e0a931bca9947fb9da.png', // REPLACE: Upload to Brevo and paste URL
-      alt: 'Aquapark - świat wodnych zabaw i zjeżdżalni',
-      displayName: 'Aquapark'
+      alt: 'Park Wodny - świat wodnych zabaw i zjeżdżalni',
+      displayName: 'Park Wodny'
     },
     en: {
       imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/6880a0e0a931bca9947fb9dc.png', // REPLACE: Upload to Brevo and paste URL
@@ -50,8 +50,8 @@ export const WORLD_IMAGES_CONFIG = {
   'shopping-spree': {
     pl: {
       imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/6880a0e0e4e4ea1a183ac380.png', // REPLACE: Upload to Brevo and paste URL
-      alt: 'Szaleństwo Zakupów - świat sklepów i centrum handlowych',
-      displayName: 'Szaleństwo Zakupów'
+      alt: 'Szaleństwo Zakupowe - świat sklepów i centrum handlowych',
+      displayName: 'Szaleństwo Zakupowe'
     },
     en: {
       imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/6880a0e031a9a1e0f502fa83.png', // REPLACE: Upload to Brevo and paste URL
@@ -89,8 +89,8 @@ export const WORLD_IMAGES_CONFIG = {
   'neighborhood': {
     pl: {
       imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/6880a0e0a931bca9947fb9db.png', // REPLACE: Upload to Brevo and paste URL
-      alt: 'Sąsiedztwo - świat domów, ulic i lokalnej społeczności',
-      displayName: 'Sąsiedztwo'
+      alt: 'Osiedle - świat domów, ulic i lokalnej społeczności',
+      displayName: 'Osiedle'
     },
     en: {
       imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/6880a0e0a931bca9947fb9d9.png', // REPLACE: Upload to Brevo and paste URL
