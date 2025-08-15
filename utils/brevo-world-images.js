@@ -187,6 +187,7 @@ function normalizeWorldName(worldName) {
 export function getWorldImageData(world, language = 'en') {
   // Validate language
   const lang = ['pl', 'en'].includes(language) ? language : 'en';
+  console.log(`🖼️ [getWorldImageData] Input: world="${world}", language="${language}" → lang="${lang}"`);
   
   // Normalize world name to match configuration
   const normalizedWorld = normalizeWorldName(world);
@@ -194,6 +195,8 @@ export function getWorldImageData(world, language = 'en') {
   
   // Get world configuration
   const worldConfig = WORLD_IMAGES_CONFIG[normalizedWorld];
+  console.log(`🔍 [getWorldImageData] World config found: ${worldConfig ? 'YES' : 'NO'}`);
+  console.log(`🔍 [getWorldImageData] Language config for "${lang}": ${worldConfig && worldConfig[lang] ? 'YES' : 'NO'}`);
   
   if (!worldConfig || !worldConfig[lang]) {
     console.warn(`⚠️ No image configuration found for world "${normalizedWorld}" (original: "${world}") in language "${lang}", using fallback`);
