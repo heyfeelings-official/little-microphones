@@ -507,13 +507,23 @@ async function sendNewRecordingNotifications(lmid, world, questionId, lang, uplo
             console.log(`🌍 [${requestId}] Forced environment: ${isDevelopment ? 'development' : 'production'}, using ${heyFeelingsBaseUrl}`);
         }
         
+        // Import world image utility
+        const { getWorldImageData } = await import('../utils/brevo-world-images.js');
+        
+        // Get world image data for email template
+        const worldImageData = getWorldImageData(world, lang);
+        console.log(`🖼️ [${requestId}] World image data: ${worldImageData.isSuccess ? 'found' : 'fallback'} - ${worldImageData.worldImageUrl ? 'URL available' : 'no URL'}`);
+        
         // SIMPLIFIED: Only dynamic data - contact data automatic from Brevo
         const dynamicData = {
             world: translateWorldName(world, lang),
             lmid: lmid,
             dashboardUrl: `${heyFeelingsBaseUrl}/${lang}/members/little-microphones`,
             radioUrl: `${heyFeelingsBaseUrl}/little-microphones?ID=${lmidData.shareId}`,
-            uploaderName: uploaderName
+            uploaderName: uploaderName,
+            worldImageUrl: worldImageData.worldImageUrl,
+            worldImageAlt: worldImageData.worldImageAlt,
+            worldName: worldImageData.worldName
         };
         
         console.log(`📧 [${requestId}] Simplified notifications - Dynamic data: ${Object.keys(dynamicData).length} fields`);
