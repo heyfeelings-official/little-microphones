@@ -431,11 +431,33 @@ async function handleGetLmidData(lmid) {
             }
         }
         
+        // Get enhanced teacher data from Memberstack if we have member ID
+        let teacherName = `${data.teacher_first_name || ''} ${data.teacher_last_name || ''}`.trim() || 'Teacher';
+        let schoolName = data.teacher_school_name || 'School';
+        
+        if (data.assigned_to_member_id) {
+            console.log(`👨‍🏫 Fetching enhanced teacher data from Memberstack for: ${data.assigned_to_member_id}`);
+            try {
+                // Get both name and school from Memberstack in parallel
+                const [memberName, memberSchool] = await Promise.all([
+                    getTeacherNameByMemberId(data.assigned_to_member_id),
+                    getSchoolNameByMemberId(data.assigned_to_member_id)
+                ]);
+                
+                teacherName = memberName || teacherName; // Fallback to Supabase data
+                schoolName = memberSchool || schoolName; // Fallback to Supabase data
+                
+                console.log(`✅ Enhanced teacher data: "${teacherName}" from "${schoolName}"`);
+            } catch (error) {
+                console.warn(`⚠️ Failed to get enhanced teacher data, using Supabase fallback:`, error.message);
+            }
+        }
+        
         const result = {
             lmid: data.lmid,
             teacherEmail: data.assigned_to_member_email,
-            teacherName: `${data.teacher_first_name || ''} ${data.teacher_last_name || ''}`.trim() || 'Teacher',
-            schoolName: data.teacher_school_name || 'School',
+            teacherName: teacherName,
+            schoolName: schoolName,
             parentEmails: parentEmails,
             parentMemberIdToEmail: parentMemberIdToEmail,
             shareId: shareId
@@ -577,5 +599,120 @@ export default async function handler(req, res) {
             success: false, 
             error: error.message || 'Internal server error' 
         });
+    }
+}
+
+/**
+ * Get teacher name from Memberstack API by Member ID
+ * @param {string} memberId - Memberstack Member ID
+ * @returns {Promise<string>} Teacher name or 'Teacher' if not found
+ */
+async function getTeacherNameByMemberId(memberId) {
+    if (!memberId) {
+        return 'Teacher';
+    }
+    
+    try {
+        const MEMBERSTACK_SECRET_KEY = process.env.MEMBERSTACK_SECRET_KEY;
+        if (!MEMBERSTACK_SECRET_KEY) {
+            console.warn(`⚠️ Memberstack secret key not configured`);
+            return 'Teacher';
+        }
+        
+        const response = await fetch(`https://admin.memberstack.com/members/${memberId}`, {
+            method: 'GET',
+            headers: {
+                'x-api-key': MEMBERSTACK_SECRET_KEY,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            const memberData = data.data || data;
+            
+            // Extract first name from various possible fields
+            const firstName = 
+                memberData.customFields?.['first-name'] || // Correct field name with hyphen
+                memberData.customFields?.['First Name'] ||  // Alternative with space  
+                memberData.customFields?.firstName ||
+                memberData.customFields?.['first_name'] ||
+                memberData.metaData?.firstName ||
+                memberData.metaData?.['first-name'] ||
+                '';
+            
+            const lastName = 
+                memberData.customFields?.['last-name'] ||   // Correct field name with hyphen
+                memberData.customFields?.['Last Name'] ||   // Alternative with space
+                memberData.customFields?.lastName ||
+                memberData.customFields?.['last_name'] ||
+                memberData.metaData?.lastName ||
+                memberData.metaData?.['last-name'] ||
+                '';
+            
+            console.log(`✅ [getTeacherNameByMemberId] Teacher name: "${firstName} ${lastName}"`);
+            
+            // Combine names
+            const fullName = [firstName, lastName].filter(Boolean).join(' ').trim();
+            return fullName || 'Teacher';
+        } else {
+            console.warn(`⚠️ [getTeacherNameByMemberId] Memberstack API error: ${response.status} ${response.statusText}`);
+            return 'Teacher';
+        }
+    } catch (error) {
+        console.error(`❌ [getTeacherNameByMemberId] Error fetching teacher data:`, error.message);
+        return 'Teacher';
+    }
+}
+
+/**
+ * Get school name from Memberstack API by Member ID
+ * @param {string} memberId - Memberstack Member ID
+ * @returns {Promise<string>} School name or 'School' if not found
+ */
+async function getSchoolNameByMemberId(memberId) {
+    if (!memberId) {
+        return 'School';
+    }
+    
+    try {
+        const MEMBERSTACK_SECRET_KEY = process.env.MEMBERSTACK_SECRET_KEY;
+        if (!MEMBERSTACK_SECRET_KEY) {
+            console.warn(`⚠️ Memberstack secret key not configured`);
+            return 'School';
+        }
+        
+        const response = await fetch(`https://admin.memberstack.com/members/${memberId}`, {
+            method: 'GET',
+            headers: {
+                'x-api-key': MEMBERSTACK_SECRET_KEY,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            const memberData = data.data || data;
+            
+            // Extract school name from various possible fields (based on your grep results)
+            const schoolName = 
+                memberData.customFields?.['place-name'] ||        // Primary field you mentioned
+                memberData.customFields?.['school-place-name'] || // Alternative field
+                memberData.customFields?.['school-name'] ||       // Another alternative
+                memberData.customFields?.school ||                // Simple field
+                memberData.metaData?.school ||
+                memberData.metaData?.schoolName ||
+                '';
+            
+            console.log(`✅ [getSchoolNameByMemberId] School name: "${schoolName}"`);
+            
+            return schoolName || 'School';
+        } else {
+            console.warn(`⚠️ [getSchoolNameByMemberId] Memberstack API error: ${response.status} ${response.statusText}`);
+            return 'School';
+        }
+    } catch (error) {
+        console.error(`❌ [getSchoolNameByMemberId] Error fetching school data:`, error.message);
+        return 'School';
     }
 } 
