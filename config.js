@@ -212,6 +212,30 @@
                        .join(' ');
         },
         
+        // Translate world name to current language (UI use)
+        translateWorldName: function(world, language = null) {
+            const lang = language || window.LM_CONFIG.getCurrentLanguage?.() || 'en';
+            const translations = {
+                pl: {
+                    'spookyland': 'Kraina Strachu',
+                    'waterpark': 'Park Wodny',
+                    'shopping-spree': 'Szaleństwo Zakupowe',
+                    'amusement-park': 'Park Rozrywki',
+                    'big-city': 'Wielkie Miasto',
+                    'neighborhood': 'Nasze Sąsiedztwo'
+                },
+                en: {
+                    'spookyland': 'Spookyland',
+                    'waterpark': 'Waterpark',
+                    'shopping-spree': 'Shopping Spree',
+                    'amusement-park': 'Amusement Park',
+                    'big-city': 'Big City',
+                    'neighborhood': 'Neighborhood'
+                }
+            };
+            return translations[lang]?.[world] || window.LM_CONFIG.UTILS.formatWorldName(world);
+        },
+        
         // Get world video URL (preferred)
         getWorldVideo: function(world) {
             return window.LM_CONFIG.WORLD_VIDEOS[world] || '';

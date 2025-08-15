@@ -89,8 +89,8 @@ export const WORLD_IMAGES_CONFIG = {
   'neighborhood': {
     pl: {
       imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/6880a0e0a931bca9947fb9db.png', // REPLACE: Upload to Brevo and paste URL
-      alt: 'Osiedle - świat domów, ulic i lokalnej społeczności',
-      displayName: 'Osiedle'
+      alt: 'Nasze Sąsiedztwo - świat domów, ulic i lokalnej społeczności',
+      displayName: 'Nasze Sąsiedztwo'
     },
     en: {
       imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/6880a0e0a931bca9947fb9d9.png', // REPLACE: Upload to Brevo and paste URL

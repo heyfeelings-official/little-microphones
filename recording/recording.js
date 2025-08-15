@@ -2114,7 +2114,9 @@ function showRadioProgramSuccess(audioUrl, world, lmid, questionCount, totalReco
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
     `;
     
-    const worldName = world.charAt(0).toUpperCase() + world.slice(1).replace(/-/g, ' ');
+    const worldName = (window.LM_CONFIG?.UTILS?.translateWorldName?.(world) ||
+                      window.LM_CONFIG?.UTILS?.formatWorldName?.(world) ||
+                      (world ? world.charAt(0).toUpperCase() + world.slice(1).replace(/-/g, ' ') : ''));
     
     modal.innerHTML = `
         <div style="font-size: 48px; margin-bottom: 20px;">🎉</div>

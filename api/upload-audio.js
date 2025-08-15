@@ -681,12 +681,12 @@ async function sendNotificationViaAPI(notificationData) {
 function translateWorldName(world, language) {
     const translations = {
         pl: {
-            'spookyland': 'Straszne Miasto',
-            'waterpark': 'Aquapark',
-            'shopping-spree': 'Centrum Handlowe',
-            'amusement-park': 'Wesołe Miasteczko',
+            'spookyland': 'Kraina Strachu',
+            'waterpark': 'Park Wodny',
+            'shopping-spree': 'Szaleństwo Zakupowe',
+            'amusement-park': 'Park Rozrywki',
             'big-city': 'Wielkie Miasto',
-            'neighborhood': 'Dzielnica'
+            'neighborhood': 'Nasze Sąsiedztwo'
         },
         en: {
             'spookyland': 'Spookyland',

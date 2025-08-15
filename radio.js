@@ -512,14 +512,15 @@
      * Update world name in header
      */
     function updateWorldName(worldName) {
-        const formattedWorld = window.LM_CONFIG?.UTILS?.formatWorldName(worldName) || 
+        const translatedWorld = window.LM_CONFIG?.UTILS?.translateWorldName?.(worldName) ||
+                              window.LM_CONFIG?.UTILS?.formatWorldName(worldName) ||
                               (worldName ? worldName.charAt(0).toUpperCase() + worldName.slice(1).replace(/-/g, ' ') : 'Loading...');
         
         const worldElement = document.getElementById('world-name');
         if (worldElement) {
-            worldElement.textContent = formattedWorld;
+            worldElement.textContent = translatedWorld;
+        }
     }
-}
 
 /**
      * Update teacher and school info
