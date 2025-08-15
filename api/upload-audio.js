@@ -369,20 +369,20 @@ export default async function handler(req, res) {
             let emailNotificationMessage = '';
             
             try {
-                // Only send notifications for parent uploads (not teacher uploads)
+                // Get LMID data first (contains all emails)
+                const lmidData = await getLmidData(lmid);
+                
+                if (!lmidData) {
+                    throw new Error(`LMID data not found for LMID ${lmid}`);
+                }
+                
+                // Determine upload type and set notification logic
                 const isParentUpload = filename.startsWith('parent_');
+                let uploaderEmail = null;
                 
                 if (isParentUpload) {
-                    // Get LMID data first (contains all emails)
-                    const lmidData = await getLmidData(lmid);
-                    
-                    if (!lmidData) {
-                        throw new Error(`LMID data not found for LMID ${lmid}`);
-                    }
-                    
                     // Extract parent member ID from filename
                     const memberIdMatch = filename.match(/^parent_([^-]+)-/);
-                    let uploaderEmail = null;
                     
                     if (memberIdMatch) {
                         const parentMemberId = memberIdMatch[1];
@@ -392,13 +392,20 @@ export default async function handler(req, res) {
                         console.warn(`⚠️ Could not extract Member ID from filename`);
                     }
                     
-                    await sendNewRecordingNotifications(lmid, world, questionId, lang, uploaderEmail, lmidData);
+                    console.log(`👨‍👩‍👧‍👦 Parent upload - notifying ONLY educator`);
+                    await sendNewRecordingNotifications(lmid, world, questionId, lang, uploaderEmail, lmidData, 'parent_upload');
                     
                     emailNotificationStatus = 'sent';
-                    emailNotificationMessage = 'Email notifications sent';
+                    emailNotificationMessage = 'Email notifications sent to educator only';
                 } else {
-                    console.log(`👨‍🏫 Teacher upload - skipping notifications`);
-                    emailNotificationStatus = 'skipped_teacher';
+                    console.log(`👨‍🏫 Educator upload - notifying ALL parents`);
+                    // For educator uploads, uploaderEmail is the teacher's email
+                    uploaderEmail = lmidData.teacherEmail;
+                    
+                    await sendNewRecordingNotifications(lmid, world, questionId, lang, uploaderEmail, lmidData, 'educator_upload');
+                    
+                    emailNotificationStatus = 'sent';
+                    emailNotificationMessage = 'Email notifications sent to all parents';
                 }
             } catch (emailError) {
                 console.error('❌ Email notification failed:', emailError.message);
@@ -457,18 +464,20 @@ function findParentMemberIdByEmail(email, parentMemberIdToEmail) {
 }
 
 /**
- * Send email notifications for new recording (ONLY for parent uploads)
+ * Send email notifications for new recording
  * @param {string} lmid - LMID number
  * @param {string} world - World name
  * @param {string} questionId - Question ID
  * @param {string} lang - Language code from request
- * @param {string} uploaderEmail - Email of parent who uploaded (to exclude from notifications)
+ * @param {string} uploaderEmail - Email of uploader (parent or educator)
  * @param {Object} lmidData - Pre-fetched LMID data to avoid duplicate API calls
+ * @param {string} uploadType - 'parent_upload' or 'educator_upload'
  */
-async function sendNewRecordingNotifications(lmid, world, questionId, lang, uploaderEmail, lmidData) {
+async function sendNewRecordingNotifications(lmid, world, questionId, lang, uploaderEmail, lmidData, uploadType) {
     try {
         const requestId = Math.random().toString(36).substring(2, 15);
         console.log(`📧 [${requestId}] Processing notifications - LMID ${lmid}, World ${world}, Lang: ${lang}`);
+        console.log(`📧 [${requestId}] Upload type: ${uploadType}`);
         console.log(`📧 [${requestId}] Uploader email: ${uploaderEmail ? 'provided' : 'not provided'}`);
         
         if (!lmidData) {
@@ -476,10 +485,9 @@ async function sendNewRecordingNotifications(lmid, world, questionId, lang, uplo
             return;
         }
         
-        // Determine who uploaded for template data
-        const isTeacherUpload = lmidData.teacherEmail === uploaderEmail;
+        // Determine uploader name for template data
+        const isTeacherUpload = uploadType === 'educator_upload';
         let uploaderName = isTeacherUpload ? lmidData.teacherName : 'Rodzic';
-        let parentName = null;
         
         // Note: Parent name resolution now handled by Brevo contact data in templates
         // All personalization (names, school, plan) comes from Brevo contact attributes
@@ -511,25 +519,25 @@ async function sendNewRecordingNotifications(lmid, world, questionId, lang, uplo
         console.log(`📧 [${requestId}] Simplified notifications - Dynamic data: ${Object.keys(dynamicData).length} fields`);
         console.log(`🎯 [${requestId}] Contact data (name, school, plan, etc.) automatic from Brevo`);
         
-        // Send teacher notification (only parent uploads trigger notifications)
-        if (lmidData.teacherEmail) {
-            console.log(`📧 [${requestId}] Sending simplified teacher notification in ${lang}`);
-            await sendNotificationViaAPI({
-                recipientEmail: lmidData.teacherEmail,
-                notificationType: 'teacher',
-                language: lang,
-                dynamicData: dynamicData
-            });
-            console.log(`✅ [${requestId}] Teacher notification sent (personalization from Brevo)`);
-        }
-        
-        // Send parent notifications (exclude uploader)
-        if (lmidData.parentEmails && lmidData.parentEmails.length > 0) {
-            const filteredParentEmails = lmidData.parentEmails.filter(email => email !== uploaderEmail);
-            
-            if (filteredParentEmails.length > 0) {
-                console.log(`📧 [${requestId}] Sending simplified parent notifications to ${filteredParentEmails.length} recipients in ${lang}`);
-                const parentPromises = filteredParentEmails.map(parentEmail => 
+        if (uploadType === 'parent_upload') {
+            // Parent uploaded → Send notification ONLY to educator
+            if (lmidData.teacherEmail) {
+                console.log(`📧 [${requestId}] Parent upload - sending notification ONLY to educator in ${lang}`);
+                await sendNotificationViaAPI({
+                    recipientEmail: lmidData.teacherEmail,
+                    notificationType: 'teacher',
+                    language: lang,
+                    dynamicData: dynamicData
+                });
+                console.log(`✅ [${requestId}] Educator notification sent (personalization from Brevo)`);
+            } else {
+                console.warn(`⚠️ [${requestId}] No teacher email found for parent upload notification`);
+            }
+        } else if (uploadType === 'educator_upload') {
+            // Educator uploaded → Send notifications to ALL parents (no exclusions)
+            if (lmidData.parentEmails && lmidData.parentEmails.length > 0) {
+                console.log(`📧 [${requestId}] Educator upload - sending notifications to ALL ${lmidData.parentEmails.length} parents in ${lang}`);
+                const parentPromises = lmidData.parentEmails.map(parentEmail => 
                     sendNotificationViaAPI({
                         recipientEmail: parentEmail,
                         notificationType: 'parent',
@@ -539,18 +547,22 @@ async function sendNewRecordingNotifications(lmid, world, questionId, lang, uplo
                 );
                 
                 await Promise.all(parentPromises);
-                console.log(`✅ [${requestId}] Parent notifications sent to ${filteredParentEmails.length} recipients (personalization from Brevo)`);
+                console.log(`✅ [${requestId}] Parent notifications sent to ${lmidData.parentEmails.length} recipients (personalization from Brevo)`);
             } else {
-                console.log(`⏭️ [${requestId}] No parent notifications to send - uploader was only parent`);
+                console.log(`⏭️ [${requestId}] No parent emails found for educator upload notification`);
             }
         }
         
         // Summary logging
-        const totalRecipients = (lmidData.teacherEmail ? 1 : 0) +
-                               (lmidData.parentEmails ? lmidData.parentEmails.filter(email => email !== uploaderEmail).length : 0);
+        let totalRecipients = 0;
+        if (uploadType === 'parent_upload') {
+            totalRecipients = lmidData.teacherEmail ? 1 : 0;
+        } else if (uploadType === 'educator_upload') {
+            totalRecipients = lmidData.parentEmails ? lmidData.parentEmails.length : 0;
+        }
         
         console.log(`✅ [${requestId}] Simplified notifications completed - LMID ${lmid}, World ${world}, Lang ${lang}`);
-        console.log(`📊 [${requestId}] Notification summary: ${totalRecipients} recipients, personalized via Brevo`);
+        console.log(`📊 [${requestId}] Upload type: ${uploadType}, Recipients: ${totalRecipients}, personalized via Brevo`);
         console.log(`🎯 [${requestId}] Template data: {{contact.*}} (automatic) + {{params.*}} (${Object.keys(dynamicData).length} dynamic)`);
         
     } catch (error) {
