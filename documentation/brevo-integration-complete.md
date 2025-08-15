@@ -270,9 +270,9 @@ key: "szkola_podstawowa_nr_11_siedlce_poland"
 ### Template System
 ```javascript
 // Templates in Brevo Dashboard
-BREVO_TEACHER_TEMPLATE_PL = 1  // Polish teacher
+BREVO_EDUCATOR_TEMPLATE_PL = 1  // Polish educator
 BREVO_PARENT_TEMPLATE_PL = 2   // Polish parent
-BREVO_TEACHER_TEMPLATE_EN = 4  // English teacher
+BREVO_EDUCATOR_TEMPLATE_EN = 4  // English educator
 BREVO_PARENT_TEMPLATE_EN = 6   // English parent
 ```
 
@@ -307,9 +307,9 @@ BREVO_API_KEY=xkeysib-xxxxxxxxxxxxx
 BREVO_API_URL=https://api.brevo.com/v3
 
 # Brevo Templates
-BREVO_TEACHER_TEMPLATE_PL=1
+BREVO_EDUCATOR_TEMPLATE_PL=1
 BREVO_PARENT_TEMPLATE_PL=2
-BREVO_TEACHER_TEMPLATE_EN=4
+BREVO_EDUCATOR_TEMPLATE_EN=4
 BREVO_PARENT_TEMPLATE_EN=6
 
 # Memberstack

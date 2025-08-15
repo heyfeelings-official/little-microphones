@@ -45,7 +45,7 @@
     
     // Email Configuration (Brevo)
     // NOTE: Template IDs are now managed via Vercel environment variables
-    // BREVO_TEACHER_TEMPLATE_PL=10, BREVO_TEACHER_TEMPLATE_EN=8
+    // BREVO_EDUCATOR_TEMPLATE_PL=10, BREVO_EDUCATOR_TEMPLATE_EN=8
     // BREVO_PARENT_TEMPLATE_PL=7, BREVO_PARENT_TEMPLATE_EN=6
     window.LM_CONFIG.EMAIL = {
         BREVO_API_URL: 'https://api.brevo.com/v3/smtp/email',

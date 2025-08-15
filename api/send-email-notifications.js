@@ -98,7 +98,7 @@ export default async function handler(req, res) {
         // Select template ID based on notification type and language
         let templateId;
         if (notificationType === 'teacher') {
-            templateId = language === 'pl' ? process.env.BREVO_TEACHER_TEMPLATE_PL : process.env.BREVO_TEACHER_TEMPLATE_EN;
+            templateId = language === 'pl' ? process.env.BREVO_EDUCATOR_TEMPLATE_PL : process.env.BREVO_EDUCATOR_TEMPLATE_EN;
         } else {
             templateId = language === 'pl' ? process.env.BREVO_PARENT_TEMPLATE_PL : process.env.BREVO_PARENT_TEMPLATE_EN;
         }

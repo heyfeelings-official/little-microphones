@@ -75,11 +75,11 @@ Available template parameters from Brevo:
 #### 3. **🎨 Template Selection Logic**
 ```javascript
 // Standard templates
-BREVO_TEACHER_TEMPLATE_EN = 4
+BREVO_EDUCATOR_TEMPLATE_EN = 4
 BREVO_PARENT_TEMPLATE_EN = 6
 
 // Premium templates (future)
-BREVO_TEACHER_TEMPLATE_EN_PREMIUM = 7
+BREVO_EDUCATOR_TEMPLATE_EN_PREMIUM = 7
 BREVO_PARENT_TEMPLATE_EN_PREMIUM = 8
 ```
 
