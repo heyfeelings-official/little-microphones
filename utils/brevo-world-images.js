@@ -2,33 +2,37 @@
  * utils/brevo-world-images.js - Configuration for World-specific Images in Email Templates
  * 
  * PURPOSE: Centralized configuration for world images used in Brevo email templates
- * USAGE: Images uploaded to Brevo Media Library, URLs mapped per world + language
+ * USAGE: Uses Webflow CDN URLs directly - no need to upload to Brevo Media Library
  * 
  * HOW TO USE:
- * 1. Upload images to Brevo Media Library (each world × 2 languages)
- * 2. Copy image URLs from Brevo and paste below
+ * 1. Get image URLs from Webflow Assets (cdn.prod.website-files.com)
+ * 2. Paste URLs below for each world + language combination
  * 3. Use getWorldImageData() in email API to get URLs for template params
  * 
  * TEMPLATE USAGE:
- * - {{params.worldImageUrl}} - Main world image
+ * - {{params.worldImageUrl}} - Main world image (Webflow CDN)
  * - {{params.worldImageAlt}} - Alt text for accessibility
  * - {{params.worldName}} - Human-readable world name
  * 
+ * WEBFLOW CDN FORMAT:
+ * https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/{fileId}_{filename}.{ext}
+ * 
  * LAST UPDATED: January 2025
- * VERSION: 1.0.0
+ * VERSION: 1.1.0
  * STATUS: Ready for Implementation
  */
 
 // ===== WORLD IMAGES CONFIGURATION =====
+// NOTE: Using Webflow CDN URLs - these work directly in email templates
 export const WORLD_IMAGES_CONFIG = {
   'spookyland': {
     pl: {
-      imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/6880a0e0ec03072a1fa85842.png', // REPLACE: Upload to Brevo and paste URL
+      imageUrl: 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/683859c64fa8c3f50ead799a_worlds-boredom.avif', // Webflow CDN URL
       alt: 'Kraina Strachu - świat Halloween pełen duchów i potworów',
       displayName: 'Kraina Strachu'
     },
     en: {
-      imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/6880a0e0e4e4ea1a183ac37f.png', // REPLACE: Upload to Brevo and paste URL
+      imageUrl: 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/683859c64fa8c3f50ead799a_worlds-boredom.avif', // Webflow CDN URL
       alt: 'Spookyland - Halloween world full of ghosts and monsters',
       displayName: 'Spookyland'
     }
@@ -103,12 +107,12 @@ export const WORLD_IMAGES_CONFIG = {
 // ===== FALLBACK CONFIGURATION =====
 const FALLBACK_IMAGE = {
   pl: {
-    imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/6880a447ec03072a1fa859bb.png', // REPLACE: Upload default image to Brevo
+    imageUrl: 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/683859c64fa8c3f50ead799a_worlds-boredom.avif', // Using same image as fallback for now
     alt: 'Hey Feelings - świat emocji i nauki',
     displayName: 'Hey Feelings'
   },
   en: {
-    imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/6880a447e4e4ea1a183ac4f5.png', // REPLACE: Upload default image to Brevo
+    imageUrl: 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/683859c64fa8c3f50ead799a_worlds-boredom.avif', // Using same image as fallback for now
     alt: 'Hey Feelings - world of emotions and learning',
     displayName: 'Hey Feelings'
   }
