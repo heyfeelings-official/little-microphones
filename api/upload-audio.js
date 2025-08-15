@@ -523,10 +523,14 @@ async function sendNewRecordingNotifications(lmid, world, questionId, lang, uplo
             uploaderName: uploaderName,
             worldImageUrl: worldImageData.worldImageUrl,
             worldImageAlt: worldImageData.worldImageAlt,
-            worldName: worldImageData.worldName
+            worldName: worldImageData.worldName,
+            teacherName: lmidData.teacherName || 'Teacher',
+            schoolName: lmidData.schoolName || 'School'
         };
         
         console.log(`📧 [${requestId}] Simplified notifications - Dynamic data: ${Object.keys(dynamicData).length} fields`);
+        console.log(`🖼️ [${requestId}] World image URL being sent: ${worldImageData.worldImageUrl}`);
+        console.log(`📋 [${requestId}] All dynamic data:`, JSON.stringify(dynamicData, null, 2));
         console.log(`🎯 [${requestId}] Contact data (name, school, plan, etc.) automatic from Brevo`);
         
         if (uploadType === 'parent_upload') {
