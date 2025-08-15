@@ -511,10 +511,8 @@ async function sendNewRecordingNotifications(lmid, world, questionId, lang, uplo
         const { getWorldImageData } = await import('../utils/brevo-world-images.js');
         
         // Get world image data for email template
-        console.log(`🖼️ [${requestId}] Requesting world image for: world="${world}", lang="${lang}"`);
         const worldImageData = getWorldImageData(world, lang);
         console.log(`🖼️ [${requestId}] World image data: ${worldImageData.isSuccess ? 'found' : 'fallback'} - ${worldImageData.worldImageUrl ? 'URL available' : 'no URL'}`);
-        console.log(`🖼️ [${requestId}] World image result:`, JSON.stringify(worldImageData, null, 2));
         
         // SIMPLIFIED: Only dynamic data - contact data automatic from Brevo
         const dynamicData = {
