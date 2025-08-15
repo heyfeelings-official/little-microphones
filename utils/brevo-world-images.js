@@ -2,37 +2,39 @@
  * utils/brevo-world-images.js - Configuration for World-specific Images in Email Templates
  * 
  * PURPOSE: Centralized configuration for world images used in Brevo email templates
- * USAGE: Uses Webflow CDN URLs directly - no need to upload to Brevo Media Library
+ * USAGE: Uses Brevo Media Library URLs for maximum deliverability and spam protection
  * 
- * HOW TO USE:
- * 1. Get image URLs from Webflow Assets (cdn.prod.website-files.com)
- * 2. Paste URLs below for each world + language combination
- * 3. Use getWorldImageData() in email API to get URLs for template params
+ * DELIVERABILITY BENEFITS:
+ * ✅ Same-domain delivery (img.mailinblue.com) - best spam protection
+ * ✅ Automatic image tracking and analytics in Brevo Dashboard
+ * ✅ Optimized for email clients and mobile devices
+ * ✅ No external domain issues with corporate firewalls
  * 
  * TEMPLATE USAGE:
- * - {{params.worldImageUrl}} - Main world image (Webflow CDN)
+ * - {{params.worldImageUrl}} - World image from Brevo Media Library
  * - {{params.worldImageAlt}} - Alt text for accessibility
  * - {{params.worldName}} - Human-readable world name
  * 
- * WEBFLOW CDN FORMAT:
- * https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/{fileId}_{filename}.{ext}
+ * IMAGE SOURCES:
+ * All images uploaded to Brevo Media Library (Dashboard → Assets → Media Library)
+ * Format: PNG optimized for email clients
  * 
  * LAST UPDATED: January 2025
- * VERSION: 1.1.0
- * STATUS: Ready for Implementation
+ * VERSION: 2.0.0
+ * STATUS: Production Ready ✅
  */
 
 // ===== WORLD IMAGES CONFIGURATION =====
-// NOTE: Using Webflow CDN URLs - these work directly in email templates
+// All images from Brevo Media Library for maximum deliverability
 export const WORLD_IMAGES_CONFIG = {
   'spookyland': {
     pl: {
-      imageUrl: 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/683859c64fa8c3f50ead799a_worlds-boredom.avif', // Webflow CDN URL
+      imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/689f254950b2bb414f3ce8d3.png',
       alt: 'Kraina Strachu - świat Halloween pełen duchów i potworów',
       displayName: 'Kraina Strachu'
     },
     en: {
-      imageUrl: 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/683859c64fa8c3f50ead799a_worlds-boredom.avif', // Webflow CDN URL
+      imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/689f2549b36039f76506ed4d.png',
       alt: 'Spookyland - Halloween world full of ghosts and monsters',
       displayName: 'Spookyland'
     }
@@ -40,12 +42,12 @@ export const WORLD_IMAGES_CONFIG = {
   
   'waterpark': {
     pl: {
-      imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/6880a0e0a931bca9947fb9da.png', // REPLACE: Upload to Brevo and paste URL
+      imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/689f254950b2bb414f3ce8d0.png',
       alt: 'Park Wodny - świat wodnych zabaw i zjeżdżalni',
       displayName: 'Park Wodny'
     },
     en: {
-      imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/6880a0e0a931bca9947fb9dc.png', // REPLACE: Upload to Brevo and paste URL
+      imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/689f25499f18aca603274cb4.png',
       alt: 'Waterpark - world of water fun and slides',
       displayName: 'Waterpark'
     }
@@ -53,12 +55,12 @@ export const WORLD_IMAGES_CONFIG = {
   
   'shopping-spree': {
     pl: {
-      imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/6880a0e0e4e4ea1a183ac380.png', // REPLACE: Upload to Brevo and paste URL
+      imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/689f2549b36039f76506ed4f.png',
       alt: 'Szaleństwo Zakupowe - świat sklepów i centrum handlowych',
       displayName: 'Szaleństwo Zakupowe'
     },
     en: {
-      imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/6880a0e031a9a1e0f502fa83.png', // REPLACE: Upload to Brevo and paste URL
+      imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/689f25499f18aca603274cb5.png',
       alt: 'Shopping Spree - world of stores and shopping centers',
       displayName: 'Shopping Spree'
     }
@@ -66,12 +68,12 @@ export const WORLD_IMAGES_CONFIG = {
   
   'amusement-park': {
     pl: {
-      imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/6880a0d7e4e4ea1a183ac37a.png', // REPLACE: Upload to Brevo and paste URL
+      imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/689f254950b2bb414f3ce8d1.png',
       alt: 'Park Rozrywki - świat karuzel, kolejek górskich i zabawy',
       displayName: 'Park Rozrywki'
     },
     en: {
-      imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/6880a0d7e4e4ea1a183ac37b.png', // REPLACE: Upload to Brevo and paste URL
+      imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/689f25494c43d784a80f4d66.png',
       alt: 'Amusement Park - world of carousels, roller coasters and fun',
       displayName: 'Amusement Park'
     }
@@ -79,12 +81,12 @@ export const WORLD_IMAGES_CONFIG = {
   
   'big-city': {
     pl: {
-      imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/6880a0e0e4e4ea1a183ac37e.png', // REPLACE: Upload to Brevo and paste URL
+      imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/689f25499f18aca603274cb3.png',
       alt: 'Wielkie Miasto - świat drapaczy chmur i miejskiego życia',
       displayName: 'Wielkie Miasto'
     },
     en: {
-      imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/6880a0e0ec03072a1fa85841.png', // REPLACE: Upload to Brevo and paste URL
+      imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/689f2549b36039f76506ed4e.png',
       alt: 'Big City - world of skyscrapers and urban life',
       displayName: 'Big City'
     }
@@ -92,12 +94,12 @@ export const WORLD_IMAGES_CONFIG = {
   
   'neighborhood': {
     pl: {
-      imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/6880a0e0a931bca9947fb9db.png', // REPLACE: Upload to Brevo and paste URL
+      imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/689f254950b2bb414f3ce8d2.png',
       alt: 'Nasze Sąsiedztwo - świat domów, ulic i lokalnej społeczności',
       displayName: 'Nasze Sąsiedztwo'
     },
     en: {
-      imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/6880a0e0a931bca9947fb9d9.png', // REPLACE: Upload to Brevo and paste URL
+      imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/689f2549fa7b47741e8e220b.png',
       alt: 'Neighborhood - world of houses, streets and local community',
       displayName: 'Neighborhood'
     }
@@ -107,12 +109,12 @@ export const WORLD_IMAGES_CONFIG = {
 // ===== FALLBACK CONFIGURATION =====
 const FALLBACK_IMAGE = {
   pl: {
-    imageUrl: 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/683859c64fa8c3f50ead799a_worlds-boredom.avif', // Using same image as fallback for now
+    imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/689f25494c43d784a80f4d65.png',
     alt: 'Hey Feelings - świat emocji i nauki',
     displayName: 'Hey Feelings'
   },
   en: {
-    imageUrl: 'https://cdn.prod.website-files.com/67e5317b686eccb10a95be01/683859c64fa8c3f50ead799a_worlds-boredom.avif', // Using same image as fallback for now
+    imageUrl: 'https://img.mailinblue.com/9578092/images/content_library/original/689f2549fa7b47741e8e220a.png',
     alt: 'Hey Feelings - world of emotions and learning',
     displayName: 'Hey Feelings'
   }
