@@ -378,6 +378,7 @@ async function handleGetLmidData(lmid) {
             .select(`
                 lmid,
                 assigned_to_member_email,
+                assigned_to_member_id,
                 teacher_first_name,
                 teacher_last_name,
                 teacher_school_name,
@@ -400,6 +401,8 @@ async function handleGetLmidData(lmid) {
             }
             throw new Error(`Database error: ${error.message}`);
         }
+        
+        console.log(`🔍 [handleGetLmidData] Raw data from Supabase:`, JSON.stringify(data, null, 2));
         
         // Get parent emails directly from database (no API calls needed!)
         const parentEmails = Array.isArray(data.associated_parent_emails) ? data.associated_parent_emails : [];
@@ -434,6 +437,9 @@ async function handleGetLmidData(lmid) {
         // Get enhanced teacher data from Memberstack if we have member ID
         let teacherName = `${data.teacher_first_name || ''} ${data.teacher_last_name || ''}`.trim() || 'Teacher';
         let schoolName = data.teacher_school_name || 'School';
+        
+        console.log(`🔍 [handleGetLmidData] Fallback teacher data from Supabase: "${teacherName}" from "${schoolName}"`);
+        console.log(`🔍 [handleGetLmidData] assigned_to_member_id: ${data.assigned_to_member_id ? data.assigned_to_member_id : 'NOT FOUND'}`);
         
         if (data.assigned_to_member_id) {
             console.log(`👨‍🏫 Fetching enhanced teacher data from Memberstack for: ${data.assigned_to_member_id}`);
