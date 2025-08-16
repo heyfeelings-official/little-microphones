@@ -42,13 +42,18 @@
             // Check reload stages
             const firstReloadFlag = 'survey_filled_first_reload_done';
             const secondReloadFlag = 'survey_filled_second_reload_done';
+            const entryFlag = 'survey_filled_entry_started';
             
-            // If no reload flags exist, clear all survey-related flags for fresh start
-            if (!sessionStorage.getItem(firstReloadFlag) && !sessionStorage.getItem(secondReloadFlag)) {
+            // If this is a completely fresh entry (no reload process flags at all)
+            if (!sessionStorage.getItem(firstReloadFlag) && !sessionStorage.getItem(secondReloadFlag) && !sessionStorage.getItem(entryFlag)) {
+                // Mark that we started the entry process to prevent clearing flags on subsequent reloads
+                sessionStorage.setItem(entryFlag, 'true');
+                
+                // Clear all previous survey-related flags for fresh start
                 sessionStorage.removeItem('survey_confetti_shown');
                 localStorage.removeItem(SURVEY_COMPLETION_FLAG);
                 localStorage.removeItem(SURVEY_HIDDEN_FLAG);
-                console.log('[Survey Completion] 🧹 Cleared all previous survey flags for fresh start');
+                console.log('[Survey Completion] 🧹 Fresh entry detected - cleared all previous survey flags');
             }
             
             if (!sessionStorage.getItem(firstReloadFlag)) {
@@ -549,6 +554,7 @@
             // Clear all sessionStorage flags
             sessionStorage.removeItem('survey_filled_first_reload_done');
             sessionStorage.removeItem('survey_filled_second_reload_done');
+            sessionStorage.removeItem('survey_filled_entry_started');
             sessionStorage.removeItem('survey_confetti_shown');
             
             // Clear all localStorage flags
