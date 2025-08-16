@@ -30,7 +30,7 @@
 /**
  * Fallback: Direct processing call when webhook fails
  */
-async function tryDirectProcessing(jobId, audioSegments) {
+async function tryDirectProcessing(jobId) {
     try {
         console.log(`🔧 Attempting direct processing for job: ${jobId}`);
         
@@ -40,7 +40,7 @@ async function tryDirectProcessing(jobId, audioSegments) {
         // Create mock request/response for direct call
         const mockReq = {
             method: 'POST',
-                                body: { specificJobId: jobId, triggeredBy: 'direct-fallback', audioSegments: audioSegments },
+                                body: { specificJobId: jobId, triggeredBy: 'direct-fallback' },
             headers: {}
         };
         
@@ -130,7 +130,7 @@ export default async function handler(req, res) {
             }
         });
 
-        // Create job in Supabase (audioSegments passed separately to process-queue)
+        // Create job in Supabase with audio_segments for reliable processing
         const { data: job, error } = await supabase
             .from('audio_generation_jobs')
             .insert({
@@ -138,7 +138,8 @@ export default async function handler(req, res) {
                 world,
                 lang,
                 type,
-                file_count: fileCount
+                file_count: fileCount,
+                audio_segments: audioSegments
             })
             .select()
             .single();
@@ -164,7 +165,7 @@ export default async function handler(req, res) {
             const baseUrl = `${protocol}://${host}`;
             
             console.log(`🌐 Webhook URL: ${baseUrl}/api/process-queue`);
-            console.log(`📤 Payload: ${JSON.stringify({ specificJobId: job.id, triggeredBy: 'immediate', audioSegments: audioSegments.length })}`);
+            console.log(`📤 Payload: ${JSON.stringify({ specificJobId: job.id, triggeredBy: 'immediate' })}`);
             
             // Trigger processing immediately with detailed logging
             fetch(`${baseUrl}/api/process-queue`, {
@@ -175,8 +176,7 @@ export default async function handler(req, res) {
                 },
                 body: JSON.stringify({ 
                     specificJobId: job.id,
-                    triggeredBy: 'immediate',
-                    audioSegments: audioSegments
+                    triggeredBy: 'immediate'
                 })
             })
             .then(response => {
@@ -185,7 +185,7 @@ export default async function handler(req, res) {
                     return response.text().then(text => {
                         console.error(`❌ Webhook failed: ${response.status} - ${text}`);
                         console.log(`🔄 Trying direct function call fallback...`);
-                        return tryDirectProcessing(job.id, audioSegments);
+                        return tryDirectProcessing(job.id);
                     });
                 } else {
                     console.log(`✅ Webhook sent successfully for job ${job.id}`);
@@ -195,7 +195,7 @@ export default async function handler(req, res) {
                 console.error(`❌ Immediate trigger failed for job ${job.id}:`, err.message);
                 console.error(`❌ Error details:`, err);
                 console.log(`🔄 Trying direct function call fallback...`);
-                return tryDirectProcessing(job.id, audioSegments);
+                return tryDirectProcessing(job.id);
             });
             
         } catch (triggerError) {
