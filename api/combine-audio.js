@@ -187,7 +187,7 @@ export default async function handler(req, res) {
                         console.log(`🔄 Trying direct function call fallback...`);
                         return tryDirectProcessing(job.id, audioSegments);
                     });
-            } else {
+                } else {
                     console.log(`✅ Webhook sent successfully for job ${job.id}`);
                 }
             })
