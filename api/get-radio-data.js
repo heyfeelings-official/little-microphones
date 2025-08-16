@@ -353,16 +353,18 @@ export default async function handler(req, res) {
         const parentProgram = latestPrograms?.find(p => p.type === 'parent');
 
         // Build combined manifest structure for radio.js compatibility
-        const combinedManifest = {};
+        const combinedManifest = {
+            // Always include counts even if no programs exist yet
+            kidsRecordingCount: lmidRecord.last_kids_recording_count || 0,
+            parentRecordingCount: lmidRecord.last_parent_recording_count || 0
+        };
         
         if (kidsProgram) {
             combinedManifest.kidsProgram = kidsProgram.program_url;
-            combinedManifest.kidsRecordingCount = lmidRecord.last_kids_recording_count || 0;
         }
         
         if (parentProgram) {
             combinedManifest.parentProgram = parentProgram.program_url;
-            combinedManifest.parentRecordingCount = lmidRecord.last_parent_recording_count || 0;
         }
 
         return res.status(200).json({
