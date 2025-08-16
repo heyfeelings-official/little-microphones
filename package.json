@@ -19,7 +19,7 @@
     "svix": "^1.69.0"
   },
   "engines": {
-    "node": ">=14.0.0"
+    "node": ">=22.0.0"
   },
   "repository": {
     "type": "git",
