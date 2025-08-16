@@ -29,7 +29,7 @@
   "crons": [
     {
       "path": "/api/process-queue",
-      "schedule": "*/30 * * * * *"
+      "schedule": "* * * * *"
     }
   ]
 }
