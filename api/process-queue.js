@@ -48,6 +48,15 @@ export default async function handler(req, res) {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
+    // Check if specific job ID provided (immediate trigger)
+    const { specificJobId, triggeredBy } = req.body || {};
+    
+    if (specificJobId) {
+        console.log(`🎯 Processing specific job: ${specificJobId} (triggered by: ${triggeredBy || 'unknown'})`);
+    } else {
+        console.log('🔄 Processing oldest pending job from queue');
+    }
+
     try {
         console.log('🎵 Audio queue processor started');
 
@@ -55,32 +64,63 @@ export default async function handler(req, res) {
         const { getSupabaseClient } = await import('../utils/database-utils.js');
         const supabase = getSupabaseClient();
 
-        // Find oldest pending job using atomic update to prevent race conditions
-        const { data: jobs, error: fetchError } = await supabase
-            .from('audio_generation_jobs')
-            .select('*')
-            .eq('status', 'pending')
-            .order('created_at', { ascending: true })
-            .limit(1);
+        let job = null;
+        
+        if (specificJobId) {
+            // Process specific job (immediate trigger)
+            const { data: specificJob, error: specificError } = await supabase
+                .from('audio_generation_jobs')
+                .select('*')
+                .eq('id', specificJobId)
+                .eq('status', 'pending')
+                .single();
+                
+            if (specificError) {
+                console.error(`❌ Failed to fetch specific job ${specificJobId}:`, specificError);
+                return res.status(500).json({ 
+                    error: 'Failed to fetch specific job',
+                    details: specificError.message
+                });
+            }
+            
+            if (!specificJob) {
+                console.log(`📭 Specific job ${specificJobId} not found or not pending`);
+                return res.status(404).json({
+                    success: false,
+                    message: `Job ${specificJobId} not found or already processed`
+                });
+            }
+            
+            job = specificJob;
+            
+        } else {
+            // Find oldest pending job (original cron behavior)
+            const { data: jobs, error: fetchError } = await supabase
+                .from('audio_generation_jobs')
+                .select('*')
+                .eq('status', 'pending')
+                .order('created_at', { ascending: true })
+                .limit(1);
 
-        if (fetchError) {
-            console.error('❌ Failed to fetch pending jobs:', fetchError);
-            return res.status(500).json({ 
-                error: 'Failed to fetch pending jobs',
-                details: fetchError.message
-            });
+            if (fetchError) {
+                console.error('❌ Failed to fetch pending jobs:', fetchError);
+                return res.status(500).json({ 
+                    error: 'Failed to fetch pending jobs',
+                    details: fetchError.message
+                });
+            }
+
+            if (!jobs || jobs.length === 0) {
+                console.log('📭 No pending jobs found');
+                return res.status(200).json({
+                    success: true,
+                    message: 'No pending jobs to process',
+                    processed: 0
+                });
+            }
+
+            job = jobs[0];
         }
-
-        if (!jobs || jobs.length === 0) {
-            console.log('📭 No pending jobs found');
-            return res.status(200).json({
-                success: true,
-                message: 'No pending jobs to process',
-                processed: 0
-            });
-        }
-
-        const job = jobs[0];
         console.log(`🎯 Processing job: ${job.id} | LMID: ${job.lmid} | World: ${job.world} | Type: ${job.type}`);
 
         // Atomically update job status to 'processing'

@@ -1452,73 +1452,139 @@
      * @returns {Promise<Object>} Final result when job is completed
      */
     async function pollForRadioJobCompletion(jobId, programType) {
-        console.log(`🔄 Starting to poll for ${programType} job completion: ${jobId}`);
+        console.log(`📡 Starting SSE monitoring for ${programType} job: ${jobId}`);
         
-        const maxAttempts = 60; // 5 minutes max (5s intervals)
-        let attempt = 0;
+        return new Promise((resolve, reject) => {
+            const eventSource = new EventSource(`${API_BASE_URL}/api/job-stream?jobId=${jobId}`);
+            let resolved = false;
+            
+            // Timeout after 5 minutes
+            const timeout = setTimeout(() => {
+                if (!resolved) {
+                    resolved = true;
+                    eventSource.close();
+                    console.error(`⏰ SSE timeout reached for ${programType} job:`, jobId);
+                    resolve({
+                        success: false,
+                        error: 'Timeout: Job took too long to complete'
+                    });
+                }
+            }, 5 * 60 * 1000);
+            
+            eventSource.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    console.log(`📊 SSE event for ${programType} job ${jobId}:`, data.type, data.status || '');
+                    
+                    switch (data.type) {
+                        case 'connected':
+                            console.log(`✅ SSE connection established for ${programType} job`);
+                            updateGeneratingMessage(`Connected to server for ${programType} program...`);
+                            break;
+                            
+                        case 'status':
+                            handleRadioJobStatusUpdate(data, programType);
+                            
+                            // Check if job is complete
+                            if (data.status === 'completed') {
+                                resolved = true;
+                                clearTimeout(timeout);
+                                eventSource.close();
+                                
+                                console.log(`✅ ${programType} job completed successfully`);
+                                resolve({
+                                    success: true,
+                                    programUrl: data.programUrl,
+                                    manifest: data.manifestData
+                                });
+                                
+                            } else if (data.status === 'failed') {
+                                resolved = true;
+                                clearTimeout(timeout);
+                                eventSource.close();
+                                
+                                console.error(`❌ ${programType} job failed:`, data.error);
+                                resolve({
+                                    success: false,
+                                    error: data.error || 'Job processing failed'
+                                });
+                            }
+                            break;
+                            
+                        case 'error':
+                            resolved = true;
+                            clearTimeout(timeout);
+                            eventSource.close();
+                            
+                            console.error(`❌ SSE error for ${programType} job:`, data.message);
+                            resolve({
+                                success: false,
+                                error: data.message || 'Server error occurred'
+                            });
+                            break;
+                            
+                        case 'timeout':
+                            resolved = true;
+                            clearTimeout(timeout);
+                            eventSource.close();
+                            
+                            console.error(`⏰ Server timeout for ${programType} job:`, data.message);
+                            resolve({
+                                success: false,
+                                error: data.message || 'Server monitoring timeout'
+                            });
+                            break;
+                    }
+                    
+                } catch (parseError) {
+                    console.error(`❌ Failed to parse SSE data for ${programType} job:`, parseError);
+                }
+            };
+            
+            eventSource.onerror = (error) => {
+                if (!resolved) {
+                    resolved = true;
+                    clearTimeout(timeout);
+                    eventSource.close();
+                    
+                    console.error(`❌ SSE connection error for ${programType} job:`, error);
+                    resolve({
+                        success: false,
+                        error: 'Connection error during monitoring'
+                    });
+                }
+            };
+        });
+    }
+
+    /**
+     * Handle job status updates from SSE for radio programs
+     * @param {Object} data - Status data from SSE
+     * @param {string} programType - Program type ('kids' or 'parent')
+     */
+    function handleRadioJobStatusUpdate(data, programType) {
+        const { status, fileCount } = data;
         
-        while (attempt < maxAttempts) {
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/get-job-status?jobId=${jobId}`);
-                const status = await response.json();
+        switch (status) {
+            case 'pending':
+                updateGeneratingMessage(`${programType} program waiting in queue...`);
+                break;
                 
-                console.log(`📋 ${programType} job ${jobId} status: ${status.status} (attempt ${attempt + 1})`);
+            case 'processing':
+                const funMessages = [
+                    `Processing ${programType} program with ${fileCount || 'audio'} files...`,
+                    `Mixing ${programType} recordings...`,
+                    `Adding music to ${programType} program...`,
+                    `Finalizing ${programType} audio...`
+                ];
+                const randomMessage = funMessages[Math.floor(Math.random() * funMessages.length)];
                 
-                switch (status.status) {
-                    case 'pending':
-                        updateGeneratingMessage(`${programType} program waiting in queue...`);
-                        break;
-                        
-                    case 'processing':
-                        updateGeneratingMessage(`Processing ${programType} program...`);
-                        break;
-                        
-                    case 'completed':
-                        console.log(`✅ ${programType} job completed successfully`);
-                        return {
-                            success: true,
-                            programUrl: status.programUrl,
-                            manifest: status.manifest
-                        };
-                        
-                    case 'failed':
-                        console.error(`❌ ${programType} job failed:`, status.error);
-                        return {
-                            success: false,
-                            error: status.error || 'Job processing failed'
-                        };
-                        
-                    default:
-                        console.warn(`Unknown ${programType} job status:`, status.status);
-                }
+                updateGeneratingMessage(randomMessage);
+                break;
                 
-                // Wait 5 seconds before next poll
-                await new Promise(resolve => setTimeout(resolve, 5000));
-                attempt++;
-                
-            } catch (error) {
-                console.error(`Polling error for ${programType} job:`, error);
-                
-                // On network errors, wait and retry
-                if (attempt < maxAttempts - 1) {
-                    await new Promise(resolve => setTimeout(resolve, 5000));
-                    attempt++;
-                    continue;
-                }
-                
-                return {
-                    success: false,
-                    error: `Polling failed: ${error.message}`
-                };
-            }
+            default:
+                console.log(`📋 ${programType} job status: ${status}`);
         }
-        
-        // Timeout
-        console.error(`${programType} job polling timeout after 5 minutes`);
-        return {
-            success: false,
-            error: 'Job processing timeout - please try again later'
-        };
     }
 
     /**

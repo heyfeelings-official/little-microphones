@@ -115,12 +115,42 @@ export default async function handler(req, res) {
         console.log(`✅ Job created successfully: ${job.id}`);
         console.log(`📋 Job status: ${job.status} | Files: ${fileCount} | Created: ${job.created_at}`);
 
-        // Return job ID immediately (no processing)
+        // 🚀 IMMEDIATE TRIGGER: Start processing right away (no cron waiting!)
+        console.log(`⚡ Triggering immediate processing for job ${job.id}`);
+        
+        try {
+            // Get the current domain for the webhook call
+            const protocol = req.headers['x-forwarded-proto'] || 'https';
+            const host = req.headers['host'];
+            const baseUrl = `${protocol}://${host}`;
+            
+            // Trigger processing immediately (fire and forget)
+            fetch(`${baseUrl}/api/process-queue`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'User-Agent': 'Little-Microphones-Internal'
+                },
+                body: JSON.stringify({ 
+                    specificJobId: job.id,
+                    triggeredBy: 'immediate'
+                })
+            }).catch(err => {
+                console.log(`⚠️ Immediate trigger failed for job ${job.id}:`, err.message);
+                console.log(`💡 Job will remain in queue for manual processing`);
+            });
+            
+        } catch (triggerError) {
+            console.log(`⚠️ Could not trigger immediate processing:`, triggerError.message);
+            console.log(`💡 Job ${job.id} will remain in queue for manual processing`);
+        }
+
+        // Return job ID immediately
         return res.status(200).json({
             success: true,
             jobId: job.id,
             status: job.status,
-            message: 'Generation job created successfully. Use get-job-status API to check progress.'
+            message: 'Job created and processing triggered. Use SSE job-stream API for real-time updates.'
         });
 
     } catch (error) {

@@ -10,6 +10,9 @@
     "api/get-job-status.js": {
       "maxDuration": 10
     },
+    "api/job-stream.js": {
+      "maxDuration": 300
+    },
     "api/get-teacher-data.js": {
       "memory": 1024
     }
@@ -26,10 +29,5 @@
       ]
     }
   ],
-  "crons": [
-    {
-      "path": "/api/process-queue",
-      "schedule": "*/2 * * * *"
-    }
-  ]
+
 }

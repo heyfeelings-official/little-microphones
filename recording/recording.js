@@ -1969,73 +1969,141 @@ async function generateRadioProgram(world, lmid) {
  * @returns {Promise<Object>} Final result when job is completed
  */
 async function pollForJobCompletion(jobId) {
-    console.log(`🔄 Starting to poll for job completion: ${jobId}`);
+    console.log(`📡 Starting SSE monitoring for job: ${jobId}`);
     
-    const maxAttempts = 60; // 5 minutes max (5s intervals)
-    let attempt = 0;
+    return new Promise((resolve, reject) => {
+        const eventSource = new EventSource(`https://little-microphones.vercel.app/api/job-stream?jobId=${jobId}`);
+        let resolved = false;
+        
+        // Timeout after 5 minutes
+        const timeout = setTimeout(() => {
+            if (!resolved) {
+                resolved = true;
+                eventSource.close();
+                console.error('⏰ SSE timeout reached for job:', jobId);
+                resolve({
+                    success: false,
+                    error: 'Timeout: Job took too long to complete'
+                });
+            }
+        }, 5 * 60 * 1000);
+        
+        eventSource.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                console.log(`📊 SSE event for job ${jobId}:`, data.type, data.status || '');
+                
+                switch (data.type) {
+                    case 'connected':
+                        console.log('✅ SSE connection established');
+                        updateRadioProgramProgress('Connected to server...', 20, 'Real-time monitoring active');
+                        break;
+                        
+                    case 'status':
+                        handleJobStatusUpdate(data);
+                        
+                        // Check if job is complete
+                        if (data.status === 'completed') {
+                            resolved = true;
+                            clearTimeout(timeout);
+                            eventSource.close();
+                            
+                            updateRadioProgramProgress('Processing complete!', 100, 'Audio processing finished successfully');
+                            resolve({
+                                success: true,
+                                programUrl: data.programUrl,
+                                manifest: data.manifestData
+                            });
+                            
+                        } else if (data.status === 'failed') {
+                            resolved = true;
+                            clearTimeout(timeout);
+                            eventSource.close();
+                            
+                            console.error('❌ Job failed:', data.error);
+                            resolve({
+                                success: false,
+                                error: data.error || 'Job processing failed'
+                            });
+                        }
+                        break;
+                        
+                    case 'error':
+                        resolved = true;
+                        clearTimeout(timeout);
+                        eventSource.close();
+                        
+                        console.error('❌ SSE error:', data.message);
+                        resolve({
+                            success: false,
+                            error: data.message || 'Server error occurred'
+                        });
+                        break;
+                        
+                    case 'timeout':
+                        resolved = true;
+                        clearTimeout(timeout);
+                        eventSource.close();
+                        
+                        console.error('⏰ Server timeout:', data.message);
+                        resolve({
+                            success: false,
+                            error: data.message || 'Server monitoring timeout'
+                        });
+                        break;
+                }
+                
+            } catch (parseError) {
+                console.error('❌ Failed to parse SSE data:', parseError);
+            }
+        };
+        
+        eventSource.onerror = (error) => {
+            if (!resolved) {
+                resolved = true;
+                clearTimeout(timeout);
+                eventSource.close();
+                
+                console.error('❌ SSE connection error:', error);
+                resolve({
+                    success: false,
+                    error: 'Connection error during monitoring'
+                });
+            }
+        };
+    });
+}
+
+/**
+ * Handle job status updates from SSE
+ * @param {Object} data - Status data from SSE
+ */
+function handleJobStatusUpdate(data) {
+    const { status, fileCount } = data;
     
-    while (attempt < maxAttempts) {
-        try {
-            const response = await fetch(`https://little-microphones.vercel.app/api/get-job-status?jobId=${jobId}`);
-            const status = await response.json();
+    switch (status) {
+        case 'pending':
+            updateRadioProgramProgress('Waiting in queue...', 25, 'Job is waiting for processing');
+            break;
             
-            console.log(`📋 Job ${jobId} status: ${status.status} (attempt ${attempt + 1})`);
+        case 'processing':
+            const progressPercent = Math.min(90, 40 + Math.random() * 40); // Dynamic progress 40-90%
+            const funMessages = [
+                `Processing ${fileCount || 'audio'} files...`,
+                'FFmpeg is mixing your recordings...',
+                'Adding background music...',
+                'Applying audio effects...',
+                'Optimizing audio quality...',
+                'Almost done...'
+            ];
+            const randomMessage = funMessages[Math.floor(Math.random() * funMessages.length)];
             
-            switch (status.status) {
-                case 'pending':
-                    updateRadioProgramProgress('Waiting in queue...', 30 + (attempt * 2), 'Job is waiting for processing');
-                    break;
-                    
-                case 'processing':
-                    updateRadioProgramProgress('Processing audio...', 40 + (attempt * 3), 'FFmpeg is combining your recordings');
-                    break;
-                    
-                case 'completed':
-                    updateRadioProgramProgress('Processing complete!', 95, 'Audio processing finished successfully');
-                    return {
-                        success: true,
-                        programUrl: status.programUrl,
-                        manifest: status.manifest
-                    };
-                    
-                case 'failed':
-                    console.error('Job failed:', status.error);
-                    return {
-                        success: false,
-                        error: status.error || 'Job processing failed'
-                    };
-                    
-                default:
-                    console.warn('Unknown job status:', status.status);
-            }
+            updateRadioProgramProgress(randomMessage, progressPercent, 'Audio processing in progress');
+            break;
             
-            // Wait 5 seconds before next poll
-            await new Promise(resolve => setTimeout(resolve, 5000));
-            attempt++;
-            
-        } catch (error) {
-            console.error('Polling error:', error);
-            
-            // On network errors, wait and retry
-            if (attempt < maxAttempts - 1) {
-                await new Promise(resolve => setTimeout(resolve, 5000));
-                attempt++;
-                continue;
-            }
-            
-            return {
-                success: false,
-                error: `Polling failed: ${error.message}`
-            };
-        }
+        default:
+            console.log(`📋 Job status: ${status}`);
     }
-    
-    // Timeout
-    console.error('Job polling timeout after 5 minutes');
-    return {
-        success: false,
-        error: 'Job processing timeout - please try again later'
-    };
 }
 
 /**
