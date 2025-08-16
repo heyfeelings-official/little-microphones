@@ -143,7 +143,7 @@ async function fetchLastProgramManifest(world, lmid, type = '', lang) {
  * @param {string} lmid - LMID number
  * @returns {Object} Object with needsKids and needsParent flags
  */
-function needsNewProgram(currentRecordings, kidsManifest, parentManifest, world, lmid) {
+function needsNewProgram(currentRecordings, lmidData, world, lmid) {
     // STRICT: Only count files that include timestamp marker -tm_{number}
     const kidsPattern = new RegExp(`^kids-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.(webm|mp3)$`);
     const parentPattern = new RegExp(`^parent_[^-]+-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.(webm|mp3)$`);
@@ -158,55 +158,19 @@ function needsNewProgram(currentRecordings, kidsManifest, parentManifest, world,
     
     console.log(`📊 Total files from list-recordings: ${currentRecordings.length}`);
     console.log(`📊 Found ${kidsRecordings.length} kids recordings, ${parentRecordings.length} parent recordings`);
-    console.log(`📊 Kids pattern: ^kids-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.(webm|mp3)$`);
-    console.log(`📊 Kids recordings:`, kidsRecordings.map(r => r.filename).sort());
-    console.log(`📊 Parent pattern: ^parent_[^-]+-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.(webm|mp3)$`);
-    console.log(`📊 Parent recordings:`, parentRecordings.map(r => r.filename).sort());
     
-    // Check kids program generation needs
-    let needsKids = false;
+    // Get counts from current storage vs lmids table
     const currentKidsCount = kidsRecordings.length;
-    const previousKidsCount = kidsManifest?.recordingCount || 0;
-    
-    console.log(`🔍 KIDS ANALYSIS: Current=${currentKidsCount}, Previous=${previousKidsCount}, HasManifest=${!!kidsManifest}`);
-    if (kidsManifest) {
-        console.log(`📄 Kids manifest data:`, {
-            programType: kidsManifest.programType,
-            recordingCount: kidsManifest.recordingCount,
-            generatedAt: kidsManifest.generatedAt,
-            version: kidsManifest.version,
-            programUrl: kidsManifest.programUrl ? 'exists' : 'missing'
-        });
-    }
-    
-    if (currentKidsCount > 0) {
-        if (!kidsManifest) {
-            console.log('📝 No kids manifest exists but recordings found - kids generation needed');
-            needsKids = true;
-        } else if (currentKidsCount !== previousKidsCount) {
-            console.log(`🔄 Kids recording count changed: was ${previousKidsCount}, now ${currentKidsCount} - kids generation needed`);
-            needsKids = true;
-        } else {
-            console.log(`✅ Kids recordings unchanged: ${currentKidsCount} = ${previousKidsCount} - no generation needed`);
-        }
-    } else {
-        console.log(`📭 No kids recordings found - no generation needed`);
-    }
-    
-    // Check parent program generation needs
-    let needsParent = false;
     const currentParentCount = parentRecordings.length;
-    const previousParentCount = parentManifest?.recordingCount || 0;
+    const previousKidsCount = lmidData?.last_kids_recording_count || 0;
+    const previousParentCount = lmidData?.last_parent_recording_count || 0;
     
-    if (currentParentCount > 0) {
-        if (!parentManifest) {
-            console.log('📝 No parent manifest exists but recordings found - parent generation needed');
-            needsParent = true;
-        } else if (currentParentCount !== previousParentCount) {
-            console.log(`🔄 Parent recording count changed: was ${previousParentCount}, now ${currentParentCount}`);
-            needsParent = true;
-        }
-    }
+    // Compare current vs previous counts
+    const needsKids = currentKidsCount > 0 && currentKidsCount > previousKidsCount;
+    const needsParent = currentParentCount > 0 && currentParentCount > previousParentCount;
+    
+    console.log(`🔍 KIDS ANALYSIS: Current=${currentKidsCount}, Previous=${previousKidsCount}, Needs=${needsKids}`);
+    console.log(`🔍 PARENT ANALYSIS: Current=${currentParentCount}, Previous=${previousParentCount}, Needs=${needsParent}`);
     
     // Return object with specific needs for each program type
     return {
@@ -367,28 +331,39 @@ export default async function handler(req, res) {
         // Fetch current recordings from cloud storage
         const currentRecordings = await fetchAllRecordingsFromCloud(world, lmid, lang);
 
-        // Fetch last program manifest
-        const kidsManifest = await fetchLastProgramManifest(world, lmid, 'kids', lang);
-        const parentManifest = await fetchLastProgramManifest(world, lmid, 'parent', lang);
-        
-        // Determine if new program generation is needed
-        const generationNeeds = needsNewProgram(currentRecordings, kidsManifest, parentManifest, world, lmid);
+        // Determine if new program generation is needed using lmid counts
+        const generationNeeds = needsNewProgram(currentRecordings, lmidRecord, world, lmid);
 
         // Check generation status for both types
         const kidsGenerationStatus = await getGenerationStatus(world, lmid, 'kids', lang);
         const parentGenerationStatus = await getGenerationStatus(world, lmid, 'parent', lang);
 
+        // Fetch latest completed programs from jobs table
+        const { getSupabaseClient } = await import('../utils/database-utils.js');
+        const supabaseClient = getSupabaseClient();
+        
+        const { data: latestPrograms } = await supabaseClient
+            .from('audio_generation_jobs')
+            .select('program_url, completed_at, type, manifest_data')
+            .eq('lmid', lmid)
+            .eq('status', 'completed')
+            .order('completed_at', { ascending: false })
+            .limit(2);
+
+        const kidsProgram = latestPrograms?.find(p => p.type === 'kids');
+        const parentProgram = latestPrograms?.find(p => p.type === 'parent');
+
         // Build combined manifest structure for radio.js compatibility
         const combinedManifest = {};
         
-        if (kidsManifest) {
-            combinedManifest.kidsProgram = kidsManifest.programUrl;
-            combinedManifest.kidsRecordingCount = kidsManifest.recordingCount;
+        if (kidsProgram) {
+            combinedManifest.kidsProgram = kidsProgram.program_url;
+            combinedManifest.kidsRecordingCount = lmidRecord.last_kids_recording_count || 0;
         }
         
-        if (parentManifest) {
-            combinedManifest.parentProgram = parentManifest.programUrl;
-            combinedManifest.parentRecordingCount = parentManifest.recordingCount;
+        if (parentProgram) {
+            combinedManifest.parentProgram = parentProgram.program_url;
+            combinedManifest.parentRecordingCount = lmidRecord.last_parent_recording_count || 0;
         }
 
         return res.status(200).json({
@@ -397,8 +372,8 @@ export default async function handler(req, res) {
             world: world,
             currentRecordings: currentRecordings,
             lastManifest: combinedManifest,
-            kidsManifest: kidsManifest,
-            parentManifest: parentManifest,
+            kidsManifest: kidsProgram?.manifest_data || null,
+            parentManifest: parentProgram?.manifest_data || null,
             needsNewProgram: generationNeeds.needsKids || generationNeeds.needsParent, // Legacy compatibility
             needsKidsProgram: generationNeeds.needsKids,
             needsParentProgram: generationNeeds.needsParent,

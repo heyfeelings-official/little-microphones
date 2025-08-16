@@ -317,6 +317,9 @@ async function processAudioJob(job) {
         // Upload manifest to Bunny.net
         await uploadManifestToBunny(manifestData, world, lmid, type, lang);
 
+        // Update lmids table with new recording count
+        await updateLmidRecordingCount(lmid, type, recordingCount);
+
         // Cleanup temp files
         await cleanupTempDirectory(tempDir);
 
@@ -633,4 +636,37 @@ async function saveManifestFile(manifestData, uploadPath) {
         req.write(manifestJson);
         req.end();
     });
+}
+
+/**
+ * Update lmids table with new recording count after successful generation
+ * @param {string} lmid - LMID
+ * @param {string} type - Program type ('kids' or 'parent')
+ * @param {number} recordingCount - Count of recordings in the generated program
+ */
+async function updateLmidRecordingCount(lmid, type, recordingCount) {
+    try {
+        console.log(`📊 Updating LMID ${lmid} with ${type} recording count: ${recordingCount}`);
+        
+        // Import Supabase client
+        const { getSupabaseClient } = await import('../utils/database-utils.js');
+        const supabase = getSupabaseClient();
+        
+        const columnName = `last_${type}_recording_count`;
+        
+        const { error } = await supabase
+            .from('lmids')
+            .update({ [columnName]: recordingCount })
+            .eq('lmid', lmid.toString());
+        
+        if (error) {
+            console.error(`❌ Failed to update ${columnName} for LMID ${lmid}:`, error);
+        } else {
+            console.log(`✅ Updated ${columnName} = ${recordingCount} for LMID ${lmid}`);
+        }
+        
+    } catch (error) {
+        console.error(`❌ Error updating LMID recording count:`, error);
+        // Don't throw - this shouldn't fail the whole job
+    }
 }
