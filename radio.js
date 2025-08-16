@@ -992,10 +992,10 @@
             console.log('📊 Has parent recordings:', data.hasParentRecordings);
             
             if (data.hasKidsRecordings || data.hasParentRecordings) {
-                console.log('📻 Recordings available but no programs - triggering generation');
+                console.log('📻 Recordings available but no programs - using API generation needs');
                 generateNewProgram(data, { 
-                    needsKids: data.hasKidsRecordings, 
-                    needsParent: data.hasParentRecordings,
+                    needsKids: data.needsKidsProgram || false, 
+                    needsParent: data.needsParentProgram || false,
                     hasKidsRecordings: data.hasKidsRecordings,
                     hasParentRecordings: data.hasParentRecordings 
                 });
