@@ -1263,17 +1263,36 @@
             console.log(`🎯 API says - Needs generation: Kids(${needsKids}), Parent(${needsParent})`);
             console.log(`🎯 API says - Has recordings: Kids(${hasKidsRecordings}), Parent(${hasParentRecordings})`);
             
-            // Determine what we ACTUALLY need to generate
+            // Determine what we ACTUALLY need to generate based on user type
             let generateKids = false;
             let generateParent = false;
             
-            // ONLY generate if API says we need to (new recordings detected)
-            if (needsKids && hasKidsRecordings) {
-                generateKids = true;
-            }
-            
-            if (needsParent && hasParentRecordings) {
-                generateParent = true;
+            // OPTIMIZATION: Generate based on user role to save resources
+            if (userRole === 'parent') {
+                // Parents only see Kids program - only generate Kids
+                if (needsKids && hasKidsRecordings) {
+                    generateKids = true;
+                    console.log('👨‍👩‍👧‍👦 Parent user: Only generating Kids program');
+                }
+                // Skip Parent program generation for Parents (they can't see it anyway)
+            } else if (userRole === 'teacher' || userRole === 'therapist') {
+                // Teachers/Therapists can see both programs - generate both if needed
+                if (needsKids && hasKidsRecordings) {
+                    generateKids = true;
+                }
+                if (needsParent && hasParentRecordings) {
+                    generateParent = true;
+                }
+                console.log('👩‍🏫 Educator/Therapist user: Generating both programs if needed');
+            } else {
+                // Unknown role - fallback to old behavior (generate both)
+                if (needsKids && hasKidsRecordings) {
+                    generateKids = true;
+                }
+                if (needsParent && hasParentRecordings) {
+                    generateParent = true;
+                }
+                console.log('❓ Unknown user role: Generating both programs (fallback)');
             }
             
             console.log(`🎯 Final generation plan: Kids(${generateKids ? 'YES' : 'NO'}), Parent(${generateParent ? 'YES' : 'NO'})`);
