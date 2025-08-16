@@ -42,23 +42,16 @@
             // Check reload stages
             const firstReloadFlag = 'survey_filled_first_reload_done';
             const secondReloadFlag = 'survey_filled_second_reload_done';
-            const entryFlag = 'survey_filled_entry_started';
             
-            // If this is a completely fresh entry (no reload process flags at all)
-            if (!sessionStorage.getItem(firstReloadFlag) && !sessionStorage.getItem(secondReloadFlag) && !sessionStorage.getItem(entryFlag)) {
-                // Mark that we started the entry process to prevent clearing flags on subsequent reloads
-                sessionStorage.setItem(entryFlag, 'true');
+            if (!sessionStorage.getItem(firstReloadFlag)) {
+                console.log('[Survey Completion] 🔄 First reload in 1s - refreshing Memberstack data');
+                sessionStorage.setItem(firstReloadFlag, 'true');
                 
                 // Clear all previous survey-related flags for fresh start
                 sessionStorage.removeItem('survey_confetti_shown');
                 localStorage.removeItem(SURVEY_COMPLETION_FLAG);
                 localStorage.removeItem(SURVEY_HIDDEN_FLAG);
-                console.log('[Survey Completion] 🧹 Fresh entry detected - cleared all previous survey flags');
-            }
-            
-            if (!sessionStorage.getItem(firstReloadFlag)) {
-                console.log('[Survey Completion] 🔄 First reload in 1s - refreshing Memberstack data');
-                sessionStorage.setItem(firstReloadFlag, 'true');
+                console.log('[Survey Completion] 🧹 Cleared all previous survey flags for fresh start');
                 
                 // Set localStorage flag to remember survey completion after reload
                 localStorage.setItem(SURVEY_COMPLETION_FLAG, JSON.stringify({
@@ -67,22 +60,21 @@
                     reloaded: true
                 }));
                 
-                // First reload after 1 second (keep URL parameter for second reload)
+                // Remove survey=filled parameter from URL and reload
+                const newUrl = new URL(window.location);
+                newUrl.searchParams.delete('survey');
+                
                 setTimeout(() => {
-                    window.location.reload();
+                    window.location.replace(newUrl.toString());
                 }, 1000);
                 return false; // Won't reach this due to reload
             } else if (!sessionStorage.getItem(secondReloadFlag)) {
                 console.log('[Survey Completion] 🔄 Second reload in 1s - ensuring data is fully loaded');
                 sessionStorage.setItem(secondReloadFlag, 'true');
                 
-                // Remove survey=filled parameter from URL after second reload
-                const newUrl = new URL(window.location);
-                newUrl.searchParams.delete('survey');
-                
-                // Second reload after 1 second with clean URL
+                // Second reload without URL parameter (already removed)
                 setTimeout(() => {
-                    window.location.replace(newUrl.toString());
+                    window.location.reload();
                 }, 1000);
                 return false; // Won't reach this due to reload
             } else {
@@ -554,7 +546,6 @@
             // Clear all sessionStorage flags
             sessionStorage.removeItem('survey_filled_first_reload_done');
             sessionStorage.removeItem('survey_filled_second_reload_done');
-            sessionStorage.removeItem('survey_filled_entry_started');
             sessionStorage.removeItem('survey_confetti_shown');
             
             // Clear all localStorage flags
