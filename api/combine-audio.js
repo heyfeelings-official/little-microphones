@@ -168,7 +168,7 @@ export default async function handler(req, res) {
             console.log(`📤 Payload: ${JSON.stringify({ specificJobId: job.id, triggeredBy: 'immediate' })}`);
             
             // Trigger processing immediately with detailed logging
-            fetch(`${baseUrl}/api/process-queue`, {
+            await fetch(`${baseUrl}/api/process-queue`, {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
@@ -187,7 +187,7 @@ export default async function handler(req, res) {
                         console.log(`🔄 Trying direct function call fallback...`);
                         return tryDirectProcessing(job.id);
                     });
-                } else {
+            } else {
                     console.log(`✅ Webhook sent successfully for job ${job.id}`);
                 }
             })
