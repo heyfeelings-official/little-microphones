@@ -1,7 +1,14 @@
 {
   "functions": {
     "api/combine-audio.js": {
-      "maxDuration": 60
+      "maxDuration": 10
+    },
+    "api/process-queue.js": {
+      "maxDuration": 300,
+      "memory": 1024
+    },
+    "api/get-job-status.js": {
+      "maxDuration": 10
     },
     "api/get-teacher-data.js": {
       "memory": 1024
@@ -17,6 +24,12 @@
         { "key": "X-XSS-Protection", "value": "1; mode=block" },
         { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
       ]
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/process-queue",
+      "schedule": "*/30 * * * * *"
     }
   ]
 }
