@@ -135,20 +135,19 @@ async function fetchLastProgramManifest(world, lmid, type = '', lang) {
 }
 
 /**
- * Check if files have changed since last program generation for kids and parent programs
+ * SIMPLIFIED: Check if new program generation is needed by comparing file counts
  * @param {Array} currentRecordings - Current recordings from cloud
- * @param {Object|null} kidsManifest - Last kids program manifest
- * @param {Object|null} parentManifest - Last parent program manifest
- * @param {string} world - World identifier
+ * @param {Object} supabase - Supabase client for job queries
+ * @param {string} world - World identifier  
  * @param {string} lmid - LMID number
- * @returns {Object} Object with needsKids and needsParent flags
+ * @returns {Promise<Object>} Object with needsKids and needsParent flags
  */
-function needsNewProgram(currentRecordings, lmidData, world, lmid) {
+async function needsNewProgram(currentRecordings, supabase, world, lmid) {
     // STRICT: Only count files that include timestamp marker -tm_{number}
     const kidsPattern = new RegExp(`^kids-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.(webm|mp3)$`);
     const parentPattern = new RegExp(`^parent_[^-]+-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.(webm|mp3)$`);
     
-    // Apply patterns directly - list-recordings.js already filtered to audio files only
+    // Count current recordings by type
     const kidsRecordings = currentRecordings.filter(file => 
         file.filename && kidsPattern.test(file.filename)
     );
@@ -156,24 +155,41 @@ function needsNewProgram(currentRecordings, lmidData, world, lmid) {
         file.filename && parentPattern.test(file.filename)
     );
     
-    console.log(`📊 Total files from list-recordings: ${currentRecordings.length}`);
-    console.log(`📊 Found ${kidsRecordings.length} kids recordings, ${parentRecordings.length} parent recordings`);
-    
-    // Get counts from current storage vs lmids table
     const currentKidsCount = kidsRecordings.length;
     const currentParentCount = parentRecordings.length;
-    const previousKidsCount = lmidData?.last_kids_recording_count || 0;
-    const previousParentCount = lmidData?.last_parent_recording_count || 0;
     
-    // Compare current vs previous counts
-    const needsKids = currentKidsCount > 0 && currentKidsCount > previousKidsCount;
-    const needsParent = currentParentCount > 0 && currentParentCount > previousParentCount;
+    console.log(`📊 Total files from list-recordings: ${currentRecordings.length}`);
+    console.log(`📊 Found ${currentKidsCount} kids recordings, ${currentParentCount} parent recordings`);
     
-    console.log(`🔍 LMID DATA:`, lmidData ? `last_kids_recording_count=${lmidData.last_kids_recording_count}, last_parent_recording_count=${lmidData.last_parent_recording_count}` : 'NULL');
+    // Get last completed job file_count for each type
+    const { data: lastKidsJob } = await supabase
+        .from('audio_generation_jobs')
+        .select('file_count')
+        .eq('lmid', lmid.toString())
+        .eq('type', 'kids')
+        .eq('status', 'completed')
+        .order('completed_at', { ascending: false })
+        .limit(1);
+    
+    const { data: lastParentJob } = await supabase
+        .from('audio_generation_jobs')
+        .select('file_count')
+        .eq('lmid', lmid.toString())
+        .eq('type', 'parent')
+        .eq('status', 'completed')
+        .order('completed_at', { ascending: false })
+        .limit(1);
+    
+    const previousKidsCount = lastKidsJob?.[0]?.file_count || 0;
+    const previousParentCount = lastParentJob?.[0]?.file_count || 0;
+    
+    // Simple comparison: generate if current count > previous count
+    const needsKids = currentKidsCount > previousKidsCount;
+    const needsParent = currentParentCount > previousParentCount;
+    
     console.log(`🔍 KIDS ANALYSIS: Current=${currentKidsCount}, Previous=${previousKidsCount}, Needs=${needsKids}`);
     console.log(`🔍 PARENT ANALYSIS: Current=${currentParentCount}, Previous=${previousParentCount}, Needs=${needsParent}`);
     
-    // Return object with specific needs for each program type
     return {
         needsKids,
         needsParent,
@@ -333,7 +349,7 @@ export default async function handler(req, res) {
         const currentRecordings = await fetchAllRecordingsFromCloud(world, lmid, lang);
 
         // Determine if new program generation is needed using lmid counts
-        const generationNeeds = needsNewProgram(currentRecordings, lmidRecord, world, lmid);
+        const generationNeeds = await needsNewProgram(currentRecordings, supabase, world, lmid);
 
         // Check generation status for both types
         const kidsGenerationStatus = await getGenerationStatus(world, lmid, 'kids', lang);
@@ -353,11 +369,11 @@ export default async function handler(req, res) {
         const kidsProgram = latestPrograms?.find(p => p.type === 'kids');
         const parentProgram = latestPrograms?.find(p => p.type === 'parent');
 
-        // Build combined manifest structure for radio.js compatibility
+        // Build combined manifest structure for radio.js compatibility  
         const combinedManifest = {
-            // Always include counts even if no programs exist yet
-            kidsRecordingCount: lmidRecord.last_kids_recording_count || 0,
-            parentRecordingCount: lmidRecord.last_parent_recording_count || 0
+            // Always include counts from generation needs
+            kidsRecordingCount: generationNeeds.kidsCount,
+            parentRecordingCount: generationNeeds.parentCount
         };
         
         if (kidsProgram) {

@@ -154,14 +154,14 @@ export default async function handler(req, res) {
             const processingDuration = Date.now() - startTime;
             console.log(`✅ Job processed successfully in ${processingDuration}ms: ${result.programUrl}`);
 
-            // Update job status to completed with results
+            // Update job status to completed with results (SIMPLIFIED)
             const { error: completeError } = await supabase
                 .from('audio_generation_jobs')
                 .update({
                     status: 'completed',
                     completed_at: new Date().toISOString(),
                     program_url: result.programUrl,
-                    manifest_data: result.manifest,
+                    file_count: result.fileCount,
                     processing_duration_ms: processingDuration
                 })
                 .eq('id', job.id);
@@ -347,22 +347,7 @@ async function processAudioJob(job) {
         recordingCount = uniqueRecordings.size;
         console.log(`🔍 MANIFEST: Unique recording files matching pattern: ${recordingCount}`);
 
-        // Create manifest data
-        const manifestData = {
-            generatedAt: new Date().toISOString(),
-            world: world,
-            lmid: lmid,
-            programType: type,
-            recordingCount: recordingCount,
-            version: '5.4.0',
-            programUrl: uploadUrl
-        };
-
-        // Upload manifest to Bunny.net
-        await uploadManifestToBunny(manifestData, world, lmid, type, lang);
-
-        // Update lmids table with new recording count
-        await updateLmidRecordingCount(lmid, type, recordingCount);
+        // SIMPLIFIED: No manifest files, no lmids updates - just save program URL and file_count in job record
 
         // Cleanup temp files
         await cleanupTempDirectory(tempDir);
@@ -371,7 +356,7 @@ async function processAudioJob(job) {
         
         return {
             programUrl: uploadUrl,
-            manifest: manifestData
+            fileCount: recordingCount
         };
 
     } catch (error) {
@@ -622,95 +607,4 @@ async function cleanupTempDirectory(tempDir) {
     }
 }
 
-/**
- * Save manifest data to Bunny.net storage
- */
-async function uploadManifestToBunny(manifestData, world, lmid, programType = 'kids', lang = 'en') {
-    try {
-        // Only save type-specific manifest
-        const typeManifestPath = `/${lang}/${lmid}/${world}/last-program-manifest-${programType}.json`;
-        await saveManifestFile(manifestData, typeManifestPath);
-        
-        console.log(`✅ Manifest saved successfully for ${programType} program: ${typeManifestPath}`);
-    } catch (error) {
-        console.warn(`⚠️ Manifest save error: ${error.message}`);
-        // Don't throw - manifest save failure shouldn't fail the whole process
-    }
-}
-
-/**
- * Helper function to save a manifest file to Bunny.net
- */
-async function saveManifestFile(manifestData, uploadPath) {
-    const manifestJson = JSON.stringify(manifestData, null, 2);
-    
-    console.log(`📄 Saving manifest to Bunny.net: ${uploadPath}`);
-    
-    return new Promise((resolve, reject) => {
-        const options = {
-            hostname: 'storage.bunnycdn.com',
-            port: 443,
-            path: `/${process.env.BUNNY_STORAGE_ZONE}${uploadPath}`,
-            method: 'PUT',
-            headers: {
-                'AccessKey': process.env.BUNNY_API_KEY,
-                'Content-Type': 'application/json',
-                'Content-Length': Buffer.byteLength(manifestJson, 'utf8'),
-                'Cache-Control': 'no-cache, no-store, must-revalidate',
-                'Pragma': 'no-cache',
-                'Expires': '0'
-            }
-        };
-        
-        const req = https.request(options, (res) => {
-            if (res.statusCode === 200 || res.statusCode === 201) {
-                console.log(`✅ Manifest saved successfully: ${uploadPath}`);
-                resolve();
-            } else {
-                console.warn(`⚠️ Manifest save failed with status: ${res.statusCode}`);
-                resolve(); // Don't reject - treat as warning
-            }
-        });
-        
-        req.on('error', (error) => {
-            console.warn(`⚠️ Manifest save error: ${error.message}`);
-            resolve(); // Don't reject - treat as warning
-        });
-        
-        req.write(manifestJson);
-        req.end();
-    });
-}
-
-/**
- * Update lmids table with new recording count after successful generation
- * @param {string} lmid - LMID
- * @param {string} type - Program type ('kids' or 'parent')
- * @param {number} recordingCount - Count of recordings in the generated program
- */
-async function updateLmidRecordingCount(lmid, type, recordingCount) {
-    try {
-        console.log(`📊 Updating LMID ${lmid} with ${type} recording count: ${recordingCount}`);
-        
-        // Import Supabase client
-        const { getSupabaseClient } = await import('../utils/database-utils.js');
-        const supabase = getSupabaseClient();
-        
-        const columnName = `last_${type}_recording_count`;
-        
-        const { error } = await supabase
-            .from('lmids')
-            .update({ [columnName]: recordingCount })
-            .eq('lmid', lmid.toString());
-        
-        if (error) {
-            console.error(`❌ Failed to update ${columnName} for LMID ${lmid}:`, error);
-        } else {
-            console.log(`✅ Updated ${columnName} = ${recordingCount} for LMID ${lmid}`);
-        }
-        
-    } catch (error) {
-        console.error(`❌ Error updating LMID recording count:`, error);
-        // Don't throw - this shouldn't fail the whole job
-    }
-}
+// SIMPLIFIED: No manifest files or lmids updates needed - all data stored in audio_generation_jobs table
