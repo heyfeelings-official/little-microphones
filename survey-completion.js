@@ -44,7 +44,7 @@
             const secondReloadFlag = 'survey_filled_second_reload_done';
             
             if (!sessionStorage.getItem(firstReloadFlag)) {
-                console.log('[Survey Completion] 🔄 First reload - refreshing Memberstack data');
+                console.log('[Survey Completion] 🔄 First reload in 1s - refreshing Memberstack data');
                 sessionStorage.setItem(firstReloadFlag, 'true');
                 
                 // Set localStorage flag to remember survey completion after reload
@@ -54,19 +54,23 @@
                     reloaded: true
                 }));
                 
-                // First immediate reload (keep URL parameter for second reload)
-                window.location.reload();
+                // First reload after 1 second (keep URL parameter for second reload)
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
                 return false; // Won't reach this due to reload
             } else if (!sessionStorage.getItem(secondReloadFlag)) {
-                console.log('[Survey Completion] 🔄 Second reload - ensuring data is fully loaded');
+                console.log('[Survey Completion] 🔄 Second reload in 1s - ensuring data is fully loaded');
                 sessionStorage.setItem(secondReloadFlag, 'true');
                 
                 // Remove survey=filled parameter from URL after second reload
                 const newUrl = new URL(window.location);
                 newUrl.searchParams.delete('survey');
                 
-                // Second immediate reload with clean URL
-                window.location.replace(newUrl.toString());
+                // Second reload after 1 second with clean URL
+                setTimeout(() => {
+                    window.location.replace(newUrl.toString());
+                }, 1000);
                 return false; // Won't reach this due to reload
             } else {
                 console.log('[Survey Completion] ✅ Both reloads completed, proceeding with survey completion');
