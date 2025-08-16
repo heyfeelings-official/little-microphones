@@ -93,15 +93,29 @@ async function fetchLastProgramManifest(world, lmid, type = '', lang) {
     return new Promise((resolve) => {
         // Use separate manifest files for kids and parent programs
         const manifestName = type ? `last-program-manifest-${type}.json` : 'last-program-manifest.json';
-        const manifestUrl = `https://little-microphones.b-cdn.net/${lang}/${lmid}/${world}/${manifestName}?v=${Date.now()}`;
+        // CRITICAL: Strong cache-busting with timestamp AND random string to prevent CDN caching
+        const cacheBuster = `v=${Date.now()}&cb=${Math.random().toString(36).substring(2)}`;
+        const manifestUrl = `https://little-microphones.b-cdn.net/${lang}/${lmid}/${world}/${manifestName}?${cacheBuster}`;
         
-        https.get(manifestUrl, (response) => {
+        console.log(`📄 Fetching manifest: ${manifestName} with cache-buster: ${cacheBuster}`);
+        
+        https.get(manifestUrl, {
+            headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache'
+            }
+        }, (response) => {
             if (response.statusCode === 200) {
                 let data = '';
                 response.on('data', chunk => data += chunk);
                 response.on('end', () => {
                     try {
                         const manifest = JSON.parse(data);
+                        console.log(`✅ Manifest fetched for ${type}:`, {
+                            recordingCount: manifest.recordingCount,
+                            generatedAt: manifest.generatedAt,
+                            version: manifest.version
+                        });
                         resolve(manifest);
                     } catch (parseError) {
                         console.warn(`Failed to parse ${manifestName} JSON:`, parseError);
@@ -110,6 +124,7 @@ async function fetchLastProgramManifest(world, lmid, type = '', lang) {
                 });
             } else {
                 // 404 means no manifest exists yet - this is normal for first-time generation
+                console.log(`📭 No manifest exists yet for ${type} (${response.statusCode})`);
                 resolve(null);
             }
         }).on('error', (error) => {

@@ -176,63 +176,20 @@ export default async function handler(req, res) {
         try {
             const combinedAudioUrl = await combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams, type, lang);
             
-            // Count recordings by type for recordingCount
+            // CRITICAL FIX: Count recordings from audioSegments, not from cloud storage
+            // The audioSegments already contain the exact recordings used for generation
             let recordingCount = 0;
-            try {
-                // Import list-recordings handler directly to avoid HTTP call loop
-                const listRecordingsModule = await import('./list-recordings.js');
-                const listRecordingsHandler = listRecordingsModule.default;
-                
-                // Create mock request/response objects
-                const mockReq = {
-                    method: 'GET',
-                    query: { world, lmid, lang },
-                    headers: {
-                        'origin': 'https://little-microphones.vercel.app',
-                        'user-agent': 'internal-api-call'
-                    }
-                };
-                
-                let responseData = null;
-                const mockRes = {
-                    status: (code) => mockRes,
-                    json: (data) => { responseData = data; return mockRes; },
-                    end: () => mockRes,
-                    setHeader: () => mockRes,
-                    getHeader: () => null
-                };
-                
-                // Call handler directly
-                await listRecordingsHandler(mockReq, mockRes);
-                
-                if (responseData && responseData.success) {
-                    const data = responseData;
-                    
-                    if (type === 'kids') {
-                        // Count kids recordings using EXACT SAME PATTERN as get-radio-data.js
-                        const kidsPattern = new RegExp(`^kids-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.(webm|mp3)$`);
-                        const kidsFiles = (data.recordings || []).filter(
-                            file => kidsPattern.test(file.filename)
-                        );
-                        recordingCount = kidsFiles.length;
-                        console.log(`🔍 MANIFEST: Counting kids recordings for ${world}/${lmid}`);
-                        console.log(`📊 MANIFEST: Found ${recordingCount} kids files:`, kidsFiles.map(f => f.filename));
-                    } else if (type === 'parent') {
-                        // Count parent recordings using EXACT SAME PATTERN as get-radio-data.js
-                        const parentPattern = new RegExp(`^parent_[^-]+-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.(webm|mp3)$`);
-                        const parentFiles = (data.recordings || []).filter(
-                            file => parentPattern.test(file.filename)
-                        );
-                        recordingCount = parentFiles.length;
-                        console.log(`🔍 MANIFEST: Counting parent recordings for ${world}/${lmid}`);
-                        console.log(`📊 MANIFEST: Found ${recordingCount} parent files:`, parentFiles.map(f => f.filename));
-                    }
-                } else {
-                    console.warn(`Failed to fetch recording count for manifest: ${response.status}`);
+            
+            // Count actual user recordings from audioSegments
+            for (const segment of audioSegments) {
+                if (segment.type === 'combine_with_background' && segment.answerUrls) {
+                    // Each answerUrl is a user recording
+                    recordingCount += segment.answerUrls.length;
                 }
-            } catch (err) {
-                console.warn('Error fetching recording count for manifest:', err);
             }
+            
+            console.log(`🔍 MANIFEST: Recording count from audioSegments: ${recordingCount}`);
+            console.log(`📄 MANIFEST: This is the EXACT count of recordings used in generation`);
             
             // Create and save program manifest with type-specific data
             const manifestData = {
