@@ -1994,7 +1994,7 @@ async function pollForJobCompletion(jobId) {
             try {
                 const data = JSON.parse(event.data);
                 sseEventCount++;
-                console.log(`📊 SSE event for job ${jobId}:`, data.type, data.status || '', `(#${sseEventCount})`);
+                console.log(`📊 SSE event for job ${jobId}:`, data.type, data.status || '', `#${sseEventCount}`);
                 
                 switch (data.type) {
                     case 'connected':

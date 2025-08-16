@@ -1477,7 +1477,7 @@
                 try {
                     const data = JSON.parse(event.data);
                     sseEventCount++;
-                    console.log(`📊 SSE event for ${programType} job ${jobId}:`, data.type, data.status || '', `(#${sseEventCount})`);
+                    console.log(`📊 SSE event for ${programType} job ${jobId}:`, data.type, data.status || '', `#${sseEventCount}`);
                     
                     switch (data.type) {
                         case 'connected':

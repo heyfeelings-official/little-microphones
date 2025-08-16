@@ -169,6 +169,7 @@ function needsNewProgram(currentRecordings, lmidData, world, lmid) {
     const needsKids = currentKidsCount > 0 && currentKidsCount > previousKidsCount;
     const needsParent = currentParentCount > 0 && currentParentCount > previousParentCount;
     
+    console.log(`🔍 LMID DATA:`, lmidData ? `last_kids_recording_count=${lmidData.last_kids_recording_count}, last_parent_recording_count=${lmidData.last_parent_recording_count}` : 'NULL');
     console.log(`🔍 KIDS ANALYSIS: Current=${currentKidsCount}, Previous=${previousKidsCount}, Needs=${needsKids}`);
     console.log(`🔍 PARENT ANALYSIS: Current=${currentParentCount}, Previous=${previousParentCount}, Needs=${needsParent}`);
     
