@@ -51,6 +51,10 @@ export default async function handler(req, res) {
     // Check if specific job ID provided (immediate trigger)
     const { specificJobId, triggeredBy } = req.body || {};
     
+    console.log(`📥 process-queue called with method: ${req.method}`);
+    console.log(`📦 Request body:`, req.body);
+    console.log(`🔍 Extracted - specificJobId: ${specificJobId}, triggeredBy: ${triggeredBy}`);
+    
     if (specificJobId) {
         console.log(`🎯 Processing specific job: ${specificJobId} (triggered by: ${triggeredBy || 'unknown'})`);
     } else {

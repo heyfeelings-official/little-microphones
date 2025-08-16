@@ -27,6 +27,46 @@
  * - Better error handling and retry capabilities
  */
 
+/**
+ * Fallback: Direct processing call when webhook fails
+ */
+async function tryDirectProcessing(jobId) {
+    try {
+        console.log(`🔧 Attempting direct processing for job: ${jobId}`);
+        
+        // Import and call process-queue directly
+        const processQueueHandler = await import('./process-queue.js');
+        
+        // Create mock request/response for direct call
+        const mockReq = {
+            method: 'POST',
+            body: { specificJobId: jobId, triggeredBy: 'direct-fallback' },
+            headers: {}
+        };
+        
+        const mockRes = {
+            status: (code) => ({
+                json: (data) => {
+                    console.log(`📊 Direct processing response: ${code}`, data);
+                    return data;
+                },
+                end: () => console.log(`📊 Direct processing ended with status: ${code}`)
+            }),
+            setHeader: () => {},
+            writeHead: () => {},
+            write: () => {},
+            end: () => {}
+        };
+        
+        await processQueueHandler.default(mockReq, mockRes);
+        console.log(`✅ Direct processing initiated for job: ${jobId}`);
+        
+    } catch (directError) {
+        console.error(`❌ Direct processing failed for job ${jobId}:`, directError.message);
+        console.log(`💡 Job will remain in queue for manual processing`);
+    }
+}
+
 export default async function handler(req, res) {
     // Secure CORS headers
     const { setCorsHeaders } = await import('../utils/api-utils.js');
@@ -124,7 +164,10 @@ export default async function handler(req, res) {
             const host = req.headers['host'];
             const baseUrl = `${protocol}://${host}`;
             
-            // Trigger processing immediately (fire and forget)
+            console.log(`🌐 Webhook URL: ${baseUrl}/api/process-queue`);
+            console.log(`📤 Payload: ${JSON.stringify({ specificJobId: job.id, triggeredBy: 'immediate' })}`);
+            
+            // Trigger processing immediately with detailed logging
             fetch(`${baseUrl}/api/process-queue`, {
                 method: 'POST',
                 headers: { 
@@ -135,13 +178,29 @@ export default async function handler(req, res) {
                     specificJobId: job.id,
                     triggeredBy: 'immediate'
                 })
-            }).catch(err => {
-                console.log(`⚠️ Immediate trigger failed for job ${job.id}:`, err.message);
-                console.log(`💡 Job will remain in queue for manual processing`);
+            })
+            .then(response => {
+                console.log(`📊 Webhook response status: ${response.status} ${response.statusText}`);
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        console.error(`❌ Webhook failed: ${response.status} - ${text}`);
+                        console.log(`🔄 Trying direct function call fallback...`);
+                        return tryDirectProcessing(job.id);
+                    });
+                } else {
+                    console.log(`✅ Webhook sent successfully for job ${job.id}`);
+                }
+            })
+            .catch(err => {
+                console.error(`❌ Immediate trigger failed for job ${job.id}:`, err.message);
+                console.error(`❌ Error details:`, err);
+                console.log(`🔄 Trying direct function call fallback...`);
+                return tryDirectProcessing(job.id);
             });
             
         } catch (triggerError) {
-            console.log(`⚠️ Could not trigger immediate processing:`, triggerError.message);
+            console.error(`❌ Could not trigger immediate processing:`, triggerError.message);
+            console.error(`❌ Trigger error details:`, triggerError);
             console.log(`💡 Job ${job.id} will remain in queue for manual processing`);
         }
 
