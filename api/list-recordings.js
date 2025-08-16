@@ -145,7 +145,15 @@ export default async function handler(req, res) {
             });
         }
 
-        const fileList = await response.json();
+        let fileList = await response.json();
+        
+        // CRITICAL FIX: Filter out non-audio files (like .json manifests) at the source
+        // This ensures the count is only based on actual recordings
+        const audioExtensions = ['.webm', '.mp3'];
+        fileList = fileList.filter(file => {
+            const fileName = file.ObjectName || '';
+            return audioExtensions.some(ext => fileName.endsWith(ext));
+        });
         
         // Filter files for the specific question ID or all questions if questionId not provided
         // Support both teacher (kids-world_) and parent (parent_memberid-world_) formats

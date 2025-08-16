@@ -2,6 +2,9 @@
   "functions": {
     "api/combine-audio.js": {
       "maxDuration": 60
+    },
+    "api/get-teacher-data.js": {
+      "memory": 1024
     }
   },
   "headers": [
