@@ -49,7 +49,7 @@ export default async function handler(req, res) {
     }
 
     // Check if specific job ID provided (immediate trigger)
-    const { specificJobId, triggeredBy } = req.body || {};
+            const { specificJobId, triggeredBy, audioSegments } = req.body || {};
     
     console.log(`📥 process-queue called with method: ${req.method}`);
     console.log(`📦 Request body:`, req.body);
@@ -148,8 +148,12 @@ export default async function handler(req, res) {
         const startTime = Date.now();
 
         try {
-            // Process the audio job using FFmpeg
-            const result = await processAudioJob(job);
+            // Process the audio job using FFmpeg (audioSegments from request body or fallback)
+            if (!audioSegments) {
+                console.error(`❌ No audioSegments provided for job ${job.id}`);
+                throw new Error('audioSegments required for processing');
+            }
+            const result = await processAudioJob(job, audioSegments);
             
             const processingDuration = Date.now() - startTime;
             console.log(`✅ Job processed successfully in ${processingDuration}ms: ${result.programUrl}`);
@@ -223,8 +227,8 @@ export default async function handler(req, res) {
 /**
  * Process audio job using FFmpeg (original combine-audio logic)
  */
-async function processAudioJob(job) {
-    const { lmid, world, lang, type, audio_segments: audioSegments } = job;
+async function processAudioJob(job, audioSegments) {
+    const { lmid, world, lang, type } = job;
     
     console.log(`🎵 Starting FFmpeg processing for ${lang}/${world}/${lmid} (${type} program)`);
     console.log(`📊 Processing ${audioSegments.length} audio segments`);

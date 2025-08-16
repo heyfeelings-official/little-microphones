@@ -360,7 +360,7 @@ export default async function handler(req, res) {
         
         const { data: latestPrograms } = await supabaseClient
             .from('audio_generation_jobs')
-            .select('program_url, completed_at, type, manifest_data')
+            .select('program_url, completed_at, type')
             .eq('lmid', lmid)
             .eq('status', 'completed')
             .order('completed_at', { ascending: false })
