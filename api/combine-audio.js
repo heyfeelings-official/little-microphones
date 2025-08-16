@@ -176,20 +176,33 @@ export default async function handler(req, res) {
         try {
             const combinedAudioUrl = await combineAudioWithFFmpeg(audioSegments, world, lmid, audioParams, type, lang);
             
-            // CRITICAL FIX: Count recordings from audioSegments, not from cloud storage
-            // The audioSegments already contain the exact recordings used for generation
+            // FIX: Count unique recording FILES that match the pattern, not URLs
             let recordingCount = 0;
+            const uniqueRecordings = new Set();
             
-            // Count actual user recordings from audioSegments
+            // Extract filenames from audioSegments to count unique files
             for (const segment of audioSegments) {
                 if (segment.type === 'combine_with_background' && segment.answerUrls) {
-                    // Each answerUrl is a user recording
-                    recordingCount += segment.answerUrls.length;
+                    for (const url of segment.answerUrls) {
+                        // Extract filename from URL
+                        const urlParts = url.split('/');
+                        const filename = urlParts[urlParts.length - 1].split('?')[0]; // Remove query params
+                        
+                        // Check if this matches the expected pattern for this type
+                        const pattern = type === 'kids' 
+                            ? new RegExp(`^kids-world_${world}-lmid_${lmid}-question_\\d+-.*\\.(webm|mp3)$`)
+                            : new RegExp(`^parent_[^-]+-world_${world}-lmid_${lmid}-question_\\d+-.*\\.(webm|mp3)$`);
+                        
+                        if (pattern.test(filename)) {
+                            uniqueRecordings.add(filename);
+                        }
+                    }
                 }
             }
             
-            console.log(`🔍 MANIFEST: Recording count from audioSegments: ${recordingCount}`);
-            console.log(`📄 MANIFEST: This is the EXACT count of recordings used in generation`);
+            recordingCount = uniqueRecordings.size;
+            console.log(`🔍 MANIFEST: Unique recording files matching pattern: ${recordingCount}`);
+            console.log(`📄 MANIFEST: Files:`, Array.from(uniqueRecordings));
             
             // Create and save program manifest with type-specific data
             const manifestData = {
