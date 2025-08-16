@@ -355,19 +355,31 @@ export default async function handler(req, res) {
         const kidsGenerationStatus = await getGenerationStatus(world, lmid, 'kids', lang);
         const parentGenerationStatus = await getGenerationStatus(world, lmid, 'parent', lang);
 
-        // Fetch latest completed programs from jobs table
+        // Fetch latest completed programs from jobs table - get latest of each type separately
         const supabaseClient = getSupabaseClient();
         
-        const { data: latestPrograms } = await supabaseClient
+        // Get latest Kids program
+        const { data: kidsPrograms } = await supabaseClient
             .from('audio_generation_jobs')
             .select('program_url, completed_at, type')
             .eq('lmid', lmid)
             .eq('status', 'completed')
+            .eq('type', 'kids')
             .order('completed_at', { ascending: false })
-            .limit(2);
+            .limit(1);
 
-        const kidsProgram = latestPrograms?.find(p => p.type === 'kids');
-        const parentProgram = latestPrograms?.find(p => p.type === 'parent');
+        // Get latest Parent program  
+        const { data: parentPrograms } = await supabaseClient
+            .from('audio_generation_jobs')
+            .select('program_url, completed_at, type')
+            .eq('lmid', lmid)
+            .eq('status', 'completed')
+            .eq('type', 'parent')
+            .order('completed_at', { ascending: false })
+            .limit(1);
+
+        const kidsProgram = kidsPrograms?.[0];
+        const parentProgram = parentPrograms?.[0];
 
         // Build combined manifest structure for radio.js compatibility  
         const combinedManifest = {
