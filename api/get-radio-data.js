@@ -339,7 +339,6 @@ export default async function handler(req, res) {
         const parentGenerationStatus = await getGenerationStatus(world, lmid, 'parent', lang);
 
         // Fetch latest completed programs from jobs table
-        const { getSupabaseClient } = await import('../utils/database-utils.js');
         const supabaseClient = getSupabaseClient();
         
         const { data: latestPrograms } = await supabaseClient
