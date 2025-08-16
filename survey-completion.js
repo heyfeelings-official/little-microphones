@@ -43,6 +43,14 @@
             const firstReloadFlag = 'survey_filled_first_reload_done';
             const secondReloadFlag = 'survey_filled_second_reload_done';
             
+            // If no reload flags exist, clear all survey-related flags for fresh start
+            if (!sessionStorage.getItem(firstReloadFlag) && !sessionStorage.getItem(secondReloadFlag)) {
+                sessionStorage.removeItem('survey_confetti_shown');
+                localStorage.removeItem(SURVEY_COMPLETION_FLAG);
+                localStorage.removeItem(SURVEY_HIDDEN_FLAG);
+                console.log('[Survey Completion] 🧹 Cleared all previous survey flags for fresh start');
+            }
+            
             if (!sessionStorage.getItem(firstReloadFlag)) {
                 console.log('[Survey Completion] 🔄 First reload in 1s - refreshing Memberstack data');
                 sessionStorage.setItem(firstReloadFlag, 'true');
@@ -536,6 +544,21 @@
             localStorage.removeItem(SURVEY_HIDDEN_FLAG);
             userRequestedHide = false;
             console.log('[Survey Completion] 🧹 Cleared hide flag - survey can show again');
+        },
+        clearAllFlags: () => {
+            // Clear all sessionStorage flags
+            sessionStorage.removeItem('survey_filled_first_reload_done');
+            sessionStorage.removeItem('survey_filled_second_reload_done');
+            sessionStorage.removeItem('survey_confetti_shown');
+            
+            // Clear all localStorage flags
+            localStorage.removeItem(SURVEY_COMPLETION_FLAG);
+            localStorage.removeItem(SURVEY_HIDDEN_FLAG);
+            
+            // Reset user hide state
+            userRequestedHide = false;
+            
+            console.log('[Survey Completion] 🧹 Cleared ALL survey flags - ready for fresh start');
         },
         checkHidden: checkIfSurveyHiddenByUser
     };
