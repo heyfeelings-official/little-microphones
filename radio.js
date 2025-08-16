@@ -1562,8 +1562,19 @@
      * @param {Object} data - Status data from SSE
      * @param {string} programType - Program type ('kids' or 'parent')
      */
+    // Message throttling to prevent too frequent updates
+    let lastMessageUpdate = 0;
+    const MESSAGE_THROTTLE_MS = 5000; // 5 seconds minimum between message changes
+
     function handleRadioJobStatusUpdate(data, programType) {
         const { status, fileCount } = data;
+        const now = Date.now();
+        
+        // Throttle message updates to minimum 5 seconds
+        if (now - lastMessageUpdate < MESSAGE_THROTTLE_MS) {
+            console.log(`⏰ Message throttled - last update ${Math.round((now - lastMessageUpdate) / 1000)}s ago`);
+            return;
+        }
         
         switch (status) {
             case 'pending':
@@ -1581,6 +1592,7 @@
                 ];
                 const randomPendingMessage = pendingMessages[Math.floor(Math.random() * pendingMessages.length)];
                 updateGeneratingMessage(randomPendingMessage);
+                lastMessageUpdate = now;
                 break;
                 
             case 'processing':
@@ -1596,6 +1608,7 @@
                 ];
                 const randomProcessingMessage = processingMessages[Math.floor(Math.random() * processingMessages.length)];
                 updateGeneratingMessage(randomProcessingMessage);
+                lastMessageUpdate = now;
                 break;
                 
             default:
