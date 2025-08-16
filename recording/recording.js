@@ -1989,12 +1989,22 @@ async function pollForJobCompletion(jobId) {
         }, 5 * 60 * 1000);
         
         let sseEventCount = 0;
+        let lastLogTime = 0;
         
         eventSource.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
                 sseEventCount++;
-                console.log(`📊 SSE event for job ${jobId}:`, data.type, data.status || '', `#${sseEventCount}`);
+                
+                // Dynamic badge - only log every 3 events or status changes
+                const now = Date.now();
+                const shouldLog = sseEventCount % 3 === 1 || data.status !== 'pending' || (now - lastLogTime > 10000);
+                
+                if (shouldLog) {
+                    const badge = `🎵 RECORDING [${data.status || 'connecting'}] #${sseEventCount}`;
+                    console.log(`%c${badge}`, 'background: #2196F3; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold');
+                    lastLogTime = now;
+                }
                 
                 switch (data.type) {
                     case 'connected':
