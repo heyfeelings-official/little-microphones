@@ -1567,19 +1567,35 @@
         
         switch (status) {
             case 'pending':
-                updateGeneratingMessage(`${programType} program waiting in queue...`);
+                const pendingMessages = [
+                    'Gathering rainbow sound waves...',
+                    'Tuning magical frequencies...',
+                    'Preparing audio enchantments...',
+                    'Warming up the sound laboratory...',
+                    'Collecting musical stardust...',
+                    'Calibrating the audio crystals...',
+                    'Summoning the recording spirits...',
+                    'Charging the melody generators...',
+                    'Awakening the sound wizards...',
+                    'Brewing audio potions...'
+                ];
+                const randomPendingMessage = pendingMessages[Math.floor(Math.random() * pendingMessages.length)];
+                updateGeneratingMessage(randomPendingMessage);
                 break;
                 
             case 'processing':
-                const funMessages = [
+                const processingMessages = [
                     `Processing ${programType} program with ${fileCount || 'audio'} files...`,
                     `Mixing ${programType} recordings...`,
                     `Adding music to ${programType} program...`,
-                    `Finalizing ${programType} audio...`
+                    `Finalizing ${programType} audio...`,
+                    'Weaving sound tapestries...',
+                    'Painting with audio colors...',
+                    'Sculpting sonic masterpieces...',
+                    'Dancing with sound waves...'
                 ];
-                const randomMessage = funMessages[Math.floor(Math.random() * funMessages.length)];
-                
-                updateGeneratingMessage(randomMessage);
+                const randomProcessingMessage = processingMessages[Math.floor(Math.random() * processingMessages.length)];
+                updateGeneratingMessage(randomProcessingMessage);
                 break;
                 
             default:
