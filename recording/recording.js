@@ -1988,10 +1988,13 @@ async function pollForJobCompletion(jobId) {
             }
         }, 5 * 60 * 1000);
         
+        let sseEventCount = 0;
+        
         eventSource.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
-                console.log(`📊 SSE event for job ${jobId}:`, data.type, data.status || '');
+                sseEventCount++;
+                console.log(`📊 SSE event for job ${jobId}:`, data.type, data.status || '', `(#${sseEventCount})`);
                 
                 switch (data.type) {
                     case 'connected':

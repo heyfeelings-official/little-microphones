@@ -1471,10 +1471,13 @@
                 }
             }, 5 * 60 * 1000);
             
+            let sseEventCount = 0;
+            
             eventSource.onmessage = (event) => {
                 try {
                     const data = JSON.parse(event.data);
-                    console.log(`📊 SSE event for ${programType} job ${jobId}:`, data.type, data.status || '');
+                    sseEventCount++;
+                    console.log(`📊 SSE event for ${programType} job ${jobId}:`, data.type, data.status || '', `(#${sseEventCount})`);
                     
                     switch (data.type) {
                         case 'connected':
@@ -1572,7 +1575,6 @@
         
         // Throttle message updates to minimum 5 seconds
         if (now - lastMessageUpdate < MESSAGE_THROTTLE_MS) {
-            console.log(`⏰ Message throttled - last update ${Math.round((now - lastMessageUpdate) / 1000)}s ago`);
             return;
         }
         
