@@ -209,19 +209,23 @@ export default async function handler(req, res) {
                     const data = responseData;
                     
                     if (type === 'kids') {
-                        // Count kids recordings
+                        // Count kids recordings using EXACT SAME PATTERN as get-radio-data.js
                         const kidsPattern = new RegExp(`^kids-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.(webm|mp3)$`);
                         const kidsFiles = (data.recordings || []).filter(
                             file => kidsPattern.test(file.filename)
                         );
                         recordingCount = kidsFiles.length;
+                        console.log(`🔍 MANIFEST: Counting kids recordings for ${world}/${lmid}`);
+                        console.log(`📊 MANIFEST: Found ${recordingCount} kids files:`, kidsFiles.map(f => f.filename));
                     } else if (type === 'parent') {
-                        // Count parent recordings
+                        // Count parent recordings using EXACT SAME PATTERN as get-radio-data.js
                         const parentPattern = new RegExp(`^parent_[^-]+-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.(webm|mp3)$`);
                         const parentFiles = (data.recordings || []).filter(
                             file => parentPattern.test(file.filename)
                         );
                         recordingCount = parentFiles.length;
+                        console.log(`🔍 MANIFEST: Counting parent recordings for ${world}/${lmid}`);
+                        console.log(`📊 MANIFEST: Found ${recordingCount} parent files:`, parentFiles.map(f => f.filename));
                     }
                 } else {
                     console.warn(`Failed to fetch recording count for manifest: ${response.status}`);
@@ -1097,61 +1101,16 @@ async function cleanupTempDirectory(tempDir) {
  */
 async function uploadManifestToBunny(manifestData, world, lmid, programType = 'kids', lang = 'en') {
     try {
-        // Save type-specific manifest
+        // SIMPLIFIED: Only save type-specific manifest - no more combined manifest confusion
         const typeManifestPath = `/${lang}/${lmid}/${world}/last-program-manifest-${programType}.json`;
         await saveManifestFile(manifestData, typeManifestPath);
         
-        // Load existing combined manifest or create new one
-        const combinedManifestPath = `/${lang}/${lmid}/${world}/last-program-manifest.json`;
-        let combinedManifest = {};
-        
-        try {
-            // Try to load existing combined manifest with cache-busting
-            const manifestUrl = `${process.env.BUNNY_CDN_URL}${combinedManifestPath}?v=${Date.now()}`;
-            console.log(`📄 Loading existing manifest: ${manifestUrl}`);
-            const existingResponse = await fetch(manifestUrl);
-            if (existingResponse.ok) {
-                combinedManifest = await existingResponse.json();
-                console.log('📄 Existing manifest loaded:', {
-                    hasKidsProgram: !!combinedManifest.kidsProgram,
-                    hasParentProgram: !!combinedManifest.parentProgram,
-                    kidsCount: combinedManifest.kidsRecordingCount,
-                    parentCount: combinedManifest.parentRecordingCount
-                });
-            }
-        } catch (error) {
-            console.log('No existing combined manifest found, creating new one');
-        }
-        
-        // Update combined manifest with new program data
-        // IMPORTANT: Only update fields related to current program type, preserve others
-        combinedManifest.generatedAt = manifestData.generatedAt;
-        combinedManifest.world = manifestData.world;
-        combinedManifest.lmid = manifestData.lmid;
-        combinedManifest.version = manifestData.version;
-        
-        // Add program-specific data WITHOUT removing existing data
-        if (programType === 'kids') {
-            combinedManifest.kidsProgram = manifestData.programUrl; // Use programUrl from individual manifest
-            combinedManifest.kidsRecordingCount = manifestData.recordingCount;
-            combinedManifest.programUrl = manifestData.programUrl; // Legacy compatibility
-            combinedManifest.recordingCount = manifestData.recordingCount; // Legacy compatibility
-            // Preserve parent data if it exists
-            // combinedManifest.parentProgram remains unchanged
-            // combinedManifest.parentRecordingCount remains unchanged
-        } else if (programType === 'parent') {
-            combinedManifest.parentProgram = manifestData.programUrl; // Use programUrl from individual manifest
-            combinedManifest.parentRecordingCount = manifestData.recordingCount;
-            // Preserve kids data if it exists
-            // combinedManifest.kidsProgram remains unchanged
-            // combinedManifest.kidsRecordingCount remains unchanged
-            // combinedManifest.programUrl remains unchanged (legacy)
-        }
-        
-        // Save updated combined manifest
-        await saveManifestFile(combinedManifest, combinedManifestPath);
-        
-        console.log(`✅ Manifests saved successfully for ${programType} program`);
+        console.log(`✅ Manifest saved successfully for ${programType} program: ${typeManifestPath}`);
+        console.log(`📄 Manifest data:`, {
+            recordingCount: manifestData.recordingCount,
+            programType: manifestData.programType,
+            generatedAt: manifestData.generatedAt
+        });
     } catch (error) {
         console.warn(`⚠️ Manifest save error: ${error.message}`);
         // Don't throw - manifest save failure shouldn't fail the whole process

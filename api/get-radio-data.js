@@ -152,14 +152,28 @@ function needsNewProgram(currentRecordings, kidsManifest, parentManifest, world,
     const currentKidsCount = kidsRecordings.length;
     const previousKidsCount = kidsManifest?.recordingCount || 0;
     
+    console.log(`🔍 KIDS ANALYSIS: Current=${currentKidsCount}, Previous=${previousKidsCount}, HasManifest=${!!kidsManifest}`);
+    if (kidsManifest) {
+        console.log(`📄 Kids manifest data:`, {
+            programType: kidsManifest.programType,
+            recordingCount: kidsManifest.recordingCount,
+            generatedAt: kidsManifest.generatedAt,
+            version: kidsManifest.version
+        });
+    }
+    
     if (currentKidsCount > 0) {
         if (!kidsManifest) {
             console.log('📝 No kids manifest exists but recordings found - kids generation needed');
             needsKids = true;
         } else if (currentKidsCount !== previousKidsCount) {
-            console.log(`🔄 Kids recording count changed: was ${previousKidsCount}, now ${currentKidsCount}`);
+            console.log(`🔄 Kids recording count changed: was ${previousKidsCount}, now ${currentKidsCount} - kids generation needed`);
             needsKids = true;
+        } else {
+            console.log(`✅ Kids recordings unchanged: ${currentKidsCount} = ${previousKidsCount} - no generation needed`);
         }
+    } else {
+        console.log(`📭 No kids recordings found - no generation needed`);
     }
     
     // Check parent program generation needs
