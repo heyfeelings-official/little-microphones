@@ -180,7 +180,7 @@ export default async function handler(req, res) {
             let recordingCount = 0;
             const uniqueRecordings = new Set();
             
-            // Extract filenames from audioSegments to count unique files
+            // Extract filenames from audioSegments to count unique files (STRICT timestamp pattern)
             for (const segment of audioSegments) {
                 if (segment.type === 'combine_with_background' && segment.answerUrls) {
                     for (const url of segment.answerUrls) {
@@ -190,8 +190,8 @@ export default async function handler(req, res) {
                         
                         // Check if this matches the expected pattern for this type
                         const pattern = type === 'kids' 
-                            ? new RegExp(`^kids-world_${world}-lmid_${lmid}-question_\\d+-.*\\.(webm|mp3)$`)
-                            : new RegExp(`^parent_[^-]+-world_${world}-lmid_${lmid}-question_\\d+-.*\\.(webm|mp3)$`);
+                            ? new RegExp(`^kids-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.(webm|mp3)$`)
+                            : new RegExp(`^parent_[^-]+-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.(webm|mp3)$`);
                         
                         if (pattern.test(filename)) {
                             uniqueRecordings.add(filename);

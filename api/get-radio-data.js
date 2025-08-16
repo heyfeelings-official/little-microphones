@@ -144,9 +144,9 @@ async function fetchLastProgramManifest(world, lmid, type = '', lang) {
  * @returns {Object} Object with needsKids and needsParent flags
  */
 function needsNewProgram(currentRecordings, kidsManifest, parentManifest, world, lmid) {
-    // Filter recordings by type - match ANY format after question ID (consistent with list-recordings.js)
-    const kidsPattern = new RegExp(`^kids-world_${world}-lmid_${lmid}-question_\\d+-.*\\.(webm|mp3)$`);
-    const parentPattern = new RegExp(`^parent_[^-]+-world_${world}-lmid_${lmid}-question_\\d+-.*\\.(webm|mp3)$`);
+    // STRICT: Only count files that include timestamp marker -tm_{number}
+    const kidsPattern = new RegExp(`^kids-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.(webm|mp3)$`);
+    const parentPattern = new RegExp(`^parent_[^-]+-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.(webm|mp3)$`);
     
     // Apply patterns directly - list-recordings.js already filtered to audio files only
     const kidsRecordings = currentRecordings.filter(file => 
@@ -158,9 +158,9 @@ function needsNewProgram(currentRecordings, kidsManifest, parentManifest, world,
     
     console.log(`📊 Total files from list-recordings: ${currentRecordings.length}`);
     console.log(`📊 Found ${kidsRecordings.length} kids recordings, ${parentRecordings.length} parent recordings`);
-    console.log(`📊 Kids pattern: ^kids-world_${world}-lmid_${lmid}-question_\\d+-.*\\.(webm|mp3)$`);
+    console.log(`📊 Kids pattern: ^kids-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.(webm|mp3)$`);
     console.log(`📊 Kids recordings:`, kidsRecordings.map(r => r.filename).sort());
-    console.log(`📊 Parent pattern: ^parent_[^-]+-world_${world}-lmid_${lmid}-question_\\d+-.*\\.(webm|mp3)$`);
+    console.log(`📊 Parent pattern: ^parent_[^-]+-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.(webm|mp3)$`);
     console.log(`📊 Parent recordings:`, parentRecordings.map(r => r.filename).sort());
     
     // Check kids program generation needs
