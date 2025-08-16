@@ -1315,7 +1315,7 @@
             
             // Generate kids program if available
             if (audioSegmentsResult.kids) {
-                updateGeneratingMessage('Generating kids program...');
+                updateGeneratingMessage('Creating kids program job...');
                 
                 const kidsResponse = await fetch(`${API_BASE_URL}/api/combine-audio`, {
                     method: 'POST',
@@ -1330,25 +1330,39 @@
                 });
                 
                 if (kidsResponse.ok) {
-                    const kidsResult = await kidsResponse.json();
-                    generatedPrograms.kids = {
-                        url: kidsResult.url || kidsResult.programUrl,
-                        manifest: kidsResult.manifest
-                    };
-                    console.log('✅ Kids program generated successfully');
+                    const kidsJobResult = await kidsResponse.json();
                     
-                    // Stop messages immediately when first program is ready
-                    stopGeneratingMessages();
-                    updateGeneratingMessage('Kids program ready!');
-                } else if (kidsResponse.status === 409) {
-                    console.log('🔒 Kids generation already in progress, will wait for completion');
-                    // This is handled by the polling system
+                    if (kidsJobResult.success && kidsJobResult.jobId) {
+                        console.log(`✅ Kids job created: ${kidsJobResult.jobId}`);
+                        updateGeneratingMessage('Kids program job created, waiting for processing...');
+                        
+                        // Poll for completion
+                        const kidsResult = await pollForRadioJobCompletion(kidsJobResult.jobId, 'kids');
+                        
+                        if (kidsResult.success) {
+                            generatedPrograms.kids = {
+                                url: kidsResult.programUrl,
+                                manifest: kidsResult.manifest
+                            };
+                            console.log('✅ Kids program generated successfully');
+                            
+                            // Stop messages immediately when first program is ready
+                            stopGeneratingMessages();
+                            updateGeneratingMessage('Kids program ready!');
+                        } else {
+                            console.error('❌ Kids program generation failed:', kidsResult.error);
+                        }
+                    } else {
+                        console.error('❌ Failed to create kids job:', kidsJobResult.error);
+                    }
+                } else {
+                    console.error('❌ Kids job creation request failed:', kidsResponse.status);
                 }
             }
             
             // Generate parent program if available
             if (audioSegmentsResult.parent) {
-                updateGeneratingMessage('Generating parent program...');
+                updateGeneratingMessage('Creating parent program job...');
                 
                 const parentResponse = await fetch(`${API_BASE_URL}/api/combine-audio`, {
                     method: 'POST',
@@ -1363,19 +1377,34 @@
                 });
                 
                 if (parentResponse.ok) {
-                    const parentResult = await parentResponse.json();
-                    generatedPrograms.parent = {
-                        url: parentResult.url || parentResult.programUrl,
-                        manifest: parentResult.manifest
-                    };
-                    console.log('✅ Parent program generated successfully');
+                    const parentJobResult = await parentResponse.json();
                     
-                    // Stop messages immediately when parent program is ready (if still running)
-                    if (generatingInterval) {
-                        stopGeneratingMessages();
-                        updateGeneratingMessage('Parent program ready!');
+                    if (parentJobResult.success && parentJobResult.jobId) {
+                        console.log(`✅ Parent job created: ${parentJobResult.jobId}`);
+                        updateGeneratingMessage('Parent program job created, waiting for processing...');
+                        
+                        // Poll for completion
+                        const parentResult = await pollForRadioJobCompletion(parentJobResult.jobId, 'parent');
+                        
+                        if (parentResult.success) {
+                            generatedPrograms.parent = {
+                                url: parentResult.programUrl,
+                                manifest: parentResult.manifest
+                            };
+                            console.log('✅ Parent program generated successfully');
+                            
+                            // Stop messages immediately when parent program is ready (if still running)
+                            if (generatingInterval) {
+                                stopGeneratingMessages();
+                                updateGeneratingMessage('Parent program ready!');
+                            }
+                        } else {
+                            console.error('❌ Parent program generation failed:', parentResult.error);
+                        }
+                    } else {
+                        console.error('❌ Failed to create parent job:', parentJobResult.error);
                     }
-                } else if (parentResponse.status === 409) {
+                } else {
                     console.log('🔒 Parent generation already in progress, will wait for completion');
                     // This is handled by the polling system
                 }
@@ -1414,6 +1443,82 @@
             stopGeneratingMessages();
             showError(`Failed to generate program: ${error.message}`);
         }
+    }
+
+    /**
+     * Poll for job completion using the queue system (radio.js version)
+     * @param {string} jobId - Job ID to poll for
+     * @param {string} programType - Program type for logging ('kids' or 'parent')
+     * @returns {Promise<Object>} Final result when job is completed
+     */
+    async function pollForRadioJobCompletion(jobId, programType) {
+        console.log(`🔄 Starting to poll for ${programType} job completion: ${jobId}`);
+        
+        const maxAttempts = 60; // 5 minutes max (5s intervals)
+        let attempt = 0;
+        
+        while (attempt < maxAttempts) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/get-job-status?jobId=${jobId}`);
+                const status = await response.json();
+                
+                console.log(`📋 ${programType} job ${jobId} status: ${status.status} (attempt ${attempt + 1})`);
+                
+                switch (status.status) {
+                    case 'pending':
+                        updateGeneratingMessage(`${programType} program waiting in queue...`);
+                        break;
+                        
+                    case 'processing':
+                        updateGeneratingMessage(`Processing ${programType} program...`);
+                        break;
+                        
+                    case 'completed':
+                        console.log(`✅ ${programType} job completed successfully`);
+                        return {
+                            success: true,
+                            programUrl: status.programUrl,
+                            manifest: status.manifest
+                        };
+                        
+                    case 'failed':
+                        console.error(`❌ ${programType} job failed:`, status.error);
+                        return {
+                            success: false,
+                            error: status.error || 'Job processing failed'
+                        };
+                        
+                    default:
+                        console.warn(`Unknown ${programType} job status:`, status.status);
+                }
+                
+                // Wait 5 seconds before next poll
+                await new Promise(resolve => setTimeout(resolve, 5000));
+                attempt++;
+                
+            } catch (error) {
+                console.error(`Polling error for ${programType} job:`, error);
+                
+                // On network errors, wait and retry
+                if (attempt < maxAttempts - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 5000));
+                    attempt++;
+                    continue;
+                }
+                
+                return {
+                    success: false,
+                    error: `Polling failed: ${error.message}`
+                };
+            }
+        }
+        
+        // Timeout
+        console.error(`${programType} job polling timeout after 5 minutes`);
+        return {
+            success: false,
+            error: 'Job processing timeout - please try again later'
+        };
     }
 
     /**

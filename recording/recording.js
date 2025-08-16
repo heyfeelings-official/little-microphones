@@ -1888,40 +1888,52 @@ async function generateRadioProgram(world, lmid) {
         
         console.log(`🎼 Audio plan complete: ${audioSegments.length} segments`);
         
-        // Step 3: Start actual audio processing immediately
-        updateRadioProgramProgress('Starting audio processing...', 15, 'Initializing FFmpeg audio processor');
+        // Step 3: Create generation job (queue system)
+        updateRadioProgramProgress('Creating generation job...', 15, 'Submitting audio processing job to queue');
         
-        // Start fun status messages during actual processing
-        startFunStatusMessages();
-        
-        // Send to API for actual processing
+        // Create job via API
         const response = await fetch('https://little-microphones.vercel.app/api/combine-audio', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 world: world,
                 lmid: lmid,
-                audioSegments: audioSegments
+                audioSegments: audioSegments,
+                programType: 'kids',
+                lang: 'en'
             })
         });
         
+        const jobResult = await response.json();
+        
+        if (!jobResult.success) {
+            console.error('Failed to create generation job:', jobResult.error);
+            hideRadioProgramModal();
+            alert('Failed to create generation job: ' + (jobResult.error || 'Unknown error'));
+            return;
+        }
+        
+        console.log(`✅ Generation job created: ${jobResult.jobId}`);
+        updateRadioProgramProgress('Job created, waiting for processing...', 25, 'Job submitted to queue successfully');
+        
+        // Start fun status messages during processing
+        startFunStatusMessages();
+        
+        // Poll for job completion
+        const finalResult = await pollForJobCompletion(jobResult.jobId);
+        
         // Stop fun messages when processing is done
         stopFunStatusMessages();
-        updateRadioProgramProgress('Processing complete!', 95, 'Audio processing finished successfully');
         
-        const result = await response.json();
-        
-        updateRadioProgramProgress('Finalizing...', 98, 'Uploading final radio program to CDN');
-        
-        if (result.success) {
+        if (finalResult.success) {
             updateRadioProgramProgress('Complete!', 100);
             
             // Show success with player
             setTimeout(() => {
-                showRadioProgramSuccess(result.url, world, lmid, Object.keys(recordings).length, totalRecordings);
+                showRadioProgramSuccess(finalResult.programUrl, world, lmid, Object.keys(recordings).length, totalRecordings);
             }, 1000);
             
-            console.log(`Radio program generated successfully: ${result.url}`);
+            console.log(`Radio program generated successfully: ${finalResult.programUrl}`);
             
         } else {
             // Handle audio processing errors
@@ -1949,6 +1961,81 @@ async function generateRadioProgram(world, lmid) {
         hideRadioProgramModal();
         alert(`Failed to generate radio program: ${error.message}`);
     }
+}
+
+/**
+ * Poll for job completion using the queue system
+ * @param {string} jobId - Job ID to poll for
+ * @returns {Promise<Object>} Final result when job is completed
+ */
+async function pollForJobCompletion(jobId) {
+    console.log(`🔄 Starting to poll for job completion: ${jobId}`);
+    
+    const maxAttempts = 60; // 5 minutes max (5s intervals)
+    let attempt = 0;
+    
+    while (attempt < maxAttempts) {
+        try {
+            const response = await fetch(`https://little-microphones.vercel.app/api/get-job-status?jobId=${jobId}`);
+            const status = await response.json();
+            
+            console.log(`📋 Job ${jobId} status: ${status.status} (attempt ${attempt + 1})`);
+            
+            switch (status.status) {
+                case 'pending':
+                    updateRadioProgramProgress('Waiting in queue...', 30 + (attempt * 2), 'Job is waiting for processing');
+                    break;
+                    
+                case 'processing':
+                    updateRadioProgramProgress('Processing audio...', 40 + (attempt * 3), 'FFmpeg is combining your recordings');
+                    break;
+                    
+                case 'completed':
+                    updateRadioProgramProgress('Processing complete!', 95, 'Audio processing finished successfully');
+                    return {
+                        success: true,
+                        programUrl: status.programUrl,
+                        manifest: status.manifest
+                    };
+                    
+                case 'failed':
+                    console.error('Job failed:', status.error);
+                    return {
+                        success: false,
+                        error: status.error || 'Job processing failed'
+                    };
+                    
+                default:
+                    console.warn('Unknown job status:', status.status);
+            }
+            
+            // Wait 5 seconds before next poll
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            attempt++;
+            
+        } catch (error) {
+            console.error('Polling error:', error);
+            
+            // On network errors, wait and retry
+            if (attempt < maxAttempts - 1) {
+                await new Promise(resolve => setTimeout(resolve, 5000));
+                attempt++;
+                continue;
+            }
+            
+            return {
+                success: false,
+                error: `Polling failed: ${error.message}`
+            };
+        }
+    }
+    
+    // Timeout
+    console.error('Job polling timeout after 5 minutes');
+    return {
+        success: false,
+        error: 'Job processing timeout - please try again later'
+    };
 }
 
 /**
