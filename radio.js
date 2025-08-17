@@ -418,11 +418,45 @@
     }
 
     /**
+     * Add Intro Story player to loading state (independent of Kids/Parents loading)
+     */
+    async function addIntroStoryToLoadingState() {
+        const loadingContainer = document.getElementById('loading-state');
+        if (!loadingContainer) {
+            console.error('Loading state container not found');
+            return;
+        }
+
+        // Check if intro story player already exists
+        if (loadingContainer.querySelector('.intro-story')) {
+            return; // Already added
+        }
+
+        // Get world info from URL
+        const worldInfo = await getWorldInfo(currentShareId);
+        if (!worldInfo) {
+            console.error('Could not get world info for intro story');
+            return;
+        }
+
+        const radioData = {
+            world: worldInfo.world,
+            recordingCount: 0
+        };
+
+        // Create intro story player in loading state
+        createIntroStoryPlayer(loadingContainer, radioData);
+    }
+
+    /**
      * Show loading state
      */
     function showLoadingState() {
         hideAllStates();
         showState('loading-state');
+        
+        // Add Intro Story player to loading state
+        addIntroStoryToLoadingState();
         
         updateLoadingMessage('Loading your radio program...');
         currentState = 'loading';
@@ -442,11 +476,45 @@
     }
 
     /**
+     * Add Intro Story player to generating state (independent of Kids/Parents generation)
+     */
+    async function addIntroStoryToGeneratingState() {
+        const generatingContainer = document.getElementById('generating-state');
+        if (!generatingContainer) {
+            console.error('Generating state container not found');
+            return;
+        }
+
+        // Check if intro story player already exists
+        if (generatingContainer.querySelector('.intro-story')) {
+            return; // Already added
+        }
+
+        // Get world info from URL
+        const worldInfo = await getWorldInfo(currentShareId);
+        if (!worldInfo) {
+            console.error('Could not get world info for intro story');
+            return;
+        }
+
+        const radioData = {
+            world: worldInfo.world,
+            recordingCount: 0
+        };
+
+        // Create intro story player in generating state
+        createIntroStoryPlayer(generatingContainer, radioData);
+    }
+
+    /**
      * Show generating state
      */
     function showGeneratingState() {
         hideAllStates();
         showState('generating-state');
+        
+        // Add Intro Story player to generating state
+        addIntroStoryToGeneratingState();
         
         // Start looped generating messages
         startGeneratingMessages();
@@ -1038,6 +1106,9 @@
             recordingCount: data.currentRecordings?.length || 0
         };
         
+        // Always add Intro Story player first
+        createIntroStoryPlayer(playerContainer, radioData);
+        
         
         if (userRole === 'parent') {
             // Parents see only kids program
@@ -1093,9 +1164,6 @@
      * @param {string} title - Player title
      */
     function createSinglePlayer(container, audioUrl, radioData, title) {
-        // First, create the Intro Story player
-        createIntroStoryPlayer(container, radioData);
-        
         // Create title if provided
         if (title) {
             const titleDiv = document.createElement('div');
@@ -1232,9 +1300,6 @@
      * @param {Object} radioData - Radio data
      */
     function createDualPlayer(container, programs, radioData) {
-        
-        // First, create the Intro Story player
-        createIntroStoryPlayer(container, radioData);
         
         // Find kids and parent programs by type
         const kidsProgram = programs.find(p => p.type === 'kids');
