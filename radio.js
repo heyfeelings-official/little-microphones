@@ -1346,31 +1346,23 @@
                     });
                     
                     if (playButton) {
-                        // Ensure button is visible
-                        playButton.style.display = 'flex';
-                        playButton.style.visibility = 'visible';
-                        playButton.style.opacity = '1';
-                        
-                        // Set button background and colors
-                        playButton.style.backgroundColor = 'transparent';
-                        playButton.style.color = 'white !important';
-                        
-                        // Debug: log button state
                         console.log('🎵 Intro Story play button found:', playButton);
                         
-                        // Change all SVG elements to white - comprehensive approach
+                        // Don't override display/visibility - keep original functionality
+                        // Only change colors, not behavior
+                        
+                        // Change all SVG elements to white - but preserve functionality
                         const svgs = playButton.querySelectorAll('svg');
                         console.log('🎵 Found SVGs in play button:', svgs.length);
                         svgs.forEach(svg => {
                             svg.style.fill = 'white !important';
                             svg.style.color = 'white !important';
-                            svg.setAttribute('fill', 'white');
                             
                             // Also update all children of SVG
                             const svgChildren = svg.querySelectorAll('*');
                             svgChildren.forEach(child => {
                                 child.style.fill = 'white !important';
-                                child.setAttribute('fill', 'white');
+                                child.style.color = 'white !important';
                             });
                         });
                         
@@ -1380,38 +1372,39 @@
                         paths.forEach(path => {
                             path.setAttribute('fill', 'white');
                             path.style.fill = 'white !important';
-                            path.style.color = 'white !important';
                         });
                         
-                        // Try to find and style any div with play icon
-                        const playIconDivs = playButton.querySelectorAll('div');
-                        playIconDivs.forEach(div => {
-                            if (div.innerHTML.includes('svg') || div.innerHTML.includes('path')) {
-                                div.style.color = 'white !important';
-                            }
-                        });
-                        
-                        // Try finding the button container div
-                        const buttonContainer = playButton.parentElement;
-                        if (buttonContainer) {
-                            buttonContainer.style.display = 'flex';
-                            buttonContainer.style.visibility = 'visible';
-                        }
                     } else {
                         console.error('🚫 Play button not found in Intro Story player');
                     }
                     
-                    // Change time display to white - more comprehensive
-                    const timeDisplays = playerElement.querySelectorAll('div[style*="font-size: 12px"], div[style*="font-size:12px"]');
+                    // Change time display to white - more comprehensive approach
+                    const timeDisplays = playerElement.querySelectorAll('div[style*="font-size: 12px"], div[style*="font-size:12px"], div[style*="font-size: 11px"], div[style*="font-size:11px"]');
+                    console.log('🕐 Found time displays by font-size:', timeDisplays.length);
                     timeDisplays.forEach(timeDisplay => {
                         timeDisplay.style.color = 'white !important';
+                        timeDisplay.style.setProperty('color', 'white', 'important');
                     });
                     
-                    // Also try finding time displays by content pattern
+                    // Also try finding time displays by content pattern (more reliable)
                     const allDivs = playerElement.querySelectorAll('div');
+                    let timeElementsFound = 0;
                     allDivs.forEach(div => {
                         if (div.textContent && div.textContent.match(/\d+:\d+/)) {
                             div.style.color = 'white !important';
+                            div.style.setProperty('color', 'white', 'important');
+                            timeElementsFound++;
+                        }
+                    });
+                    console.log('🕐 Found time displays by content pattern:', timeElementsFound);
+                    
+                    // Try finding by opacity (time displays often have opacity: 0.4)
+                    const opacityElements = playerElement.querySelectorAll('div[style*="opacity: 0.4"], div[style*="opacity:0.4"]');
+                    console.log('🕐 Found opacity elements (likely time):', opacityElements.length);
+                    opacityElements.forEach(element => {
+                        if (element.textContent && element.textContent.match(/\d+:\d+/)) {
+                            element.style.color = 'white !important';
+                            element.style.setProperty('color', 'white', 'important');
                         }
                     });
                     
