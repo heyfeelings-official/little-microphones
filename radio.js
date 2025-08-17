@@ -1305,9 +1305,11 @@
             }
         ).then(playerElement => {
             if (playerElement) {
-                // Apply blue theme styling to the player
-                const mainPlayerDiv = playerElement.querySelector('div[style*="width: 100%"][style*="height: 48px"]');
-                if (mainPlayerDiv) {
+                // Wait a moment for DOM to fully construct
+                setTimeout(() => {
+                    // Apply blue theme styling to the player
+                    const mainPlayerDiv = playerElement.querySelector('div[style*="width: 100%"][style*="height: 48px"]');
+                    if (mainPlayerDiv) {
                     // Change background to blue and remove end padding
                     mainPlayerDiv.style.background = '#007AF7';
                     mainPlayerDiv.style.borderRadius = '24px';
@@ -1322,7 +1324,28 @@
                     mainPlayerDiv.insertBefore(textLabel, mainPlayerDiv.firstChild);
                     
                     // Change play button to white - more comprehensive approach
-                    const playButton = playerElement.querySelector('button');
+                    // Try multiple selectors to find the play button
+                    let playButton = playerElement.querySelector('button');
+                    
+                    // If button not found, try other selectors
+                    if (!playButton) {
+                        playButton = playerElement.querySelector('[role="button"]');
+                    }
+                    if (!playButton) {
+                        playButton = playerElement.querySelector('div[style*="cursor: pointer"]');
+                    }
+                    if (!playButton) {
+                        playButton = playerElement.querySelector('div[onclick]');
+                    }
+                    
+                    console.log('🔍 Play button search results:', {
+                        button: !!playerElement.querySelector('button'),
+                        roleButton: !!playerElement.querySelector('[role="button"]'),
+                        cursorPointer: !!playerElement.querySelector('div[style*="cursor: pointer"]'),
+                        onclick: !!playerElement.querySelector('div[onclick]'),
+                        found: !!playButton
+                    });
+                    
                     if (playButton) {
                         // Ensure button is visible
                         playButton.style.display = 'flex';
@@ -1408,6 +1431,7 @@
                 container.appendChild(playerElement);
                 
                 console.log('✅ Intro Story player created successfully');
+                }, 100); // Wait 100ms for DOM to fully construct
             }
         }).catch(error => {
             console.error('Error creating Intro Story player:', error);
