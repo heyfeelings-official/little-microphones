@@ -708,10 +708,10 @@
                 const mainPlayerDiv = playerElement.querySelector('div[style*="width: 100%"][style*="height: 48px"]');
                 if (mainPlayerDiv) {
                     const textLabel = document.createElement('div');
-                    textLabel.textContent = isParentProgram ? 'Parent' : 'Kids';
+                    textLabel.textContent = isParentProgram ? 'Parents Program' : 'Kids Program';
                     
-                    // Different margin-right for Parent vs Kids
-                    const marginRight = isParentProgram ? '7px' : '20px';
+                    // Different margin-right for Parents Program vs Kids Program
+                    const marginRight = isParentProgram ? '7px' : '7px';
                     textLabel.style.cssText = `font-size: 14px; font-weight: bold; color: #007AF7; margin-right: ${marginRight}; flex-shrink: 0;`;
                     
                     // Insert as first child
@@ -1093,6 +1093,9 @@
      * @param {string} title - Player title
      */
     function createSinglePlayer(container, audioUrl, radioData, title) {
+        // First, create the Intro Story player
+        createIntroStoryPlayer(container, radioData);
+        
         // Create title if provided
         if (title) {
             const titleDiv = document.createElement('div');
@@ -1105,12 +1108,124 @@
     }
     
     /**
+     * Create Intro Story player with blue background
+     * @param {HTMLElement} container - Container element
+     * @param {Object} radioData - Radio data
+     */
+    function createIntroStoryPlayer(container, radioData) {
+        // Create intro container
+        const introContainer = document.createElement('div');
+        introContainer.className = 'intro-story';
+        introContainer.style.cssText = 'margin-bottom: 1rem; display: block; min-height: 48px;';
+        
+        // Generate intro story URL from world name
+        const worldName = radioData.world?.toLowerCase() || 'spookyland';
+        const introAudioUrl = `https://little-microphones.b-cdn.net/en/audio/${worldName}/other/${worldName}-story.mp3`;
+        
+        console.log('🎵 Creating Intro Story player for world:', worldName, 'URL:', introAudioUrl);
+        
+        // Insert at the beginning of container
+        container.insertBefore(introContainer, container.firstChild);
+        
+        // Setup intro story audio player with blue theme
+        setupIntroStoryPlayer(introAudioUrl, radioData, introContainer);
+    }
+
+    /**
+     * Setup intro story audio player with custom blue styling
+     * @param {string} audioUrl - Audio URL
+     * @param {Object} radioData - Radio data  
+     * @param {HTMLElement} container - Container element
+     */
+    function setupIntroStoryPlayer(audioUrl, radioData, container) {
+        if (!window.RecordingUI || !window.RecordingUI.createRecordingElement) {
+            console.error('RecordingUI module not loaded for intro story player');
+            return;
+        }
+
+        // Create fake recording data for the intro story
+        const fakeRecording = {
+            id: 'intro-story',
+            filename: `intro-story.mp3`,
+            url: audioUrl,
+            duration: 120, // Default duration
+            created_at: new Date().toISOString(),
+            metadata: {
+                world: radioData.world,
+                type: 'intro-story'
+            }
+        };
+
+        // Create the intro story player with custom styling
+        window.RecordingUI.createRecordingElement(
+            fakeRecording,
+            {
+                showDeleteButton: false,
+                showUploadIcon: false
+            }
+        ).then(playerElement => {
+            if (playerElement) {
+                // Apply blue theme styling to the player
+                const mainPlayerDiv = playerElement.querySelector('div[style*="width: 100%"][style*="height: 48px"]');
+                if (mainPlayerDiv) {
+                    // Change background to blue
+                    mainPlayerDiv.style.background = '#007AF7';
+                    mainPlayerDiv.style.borderRadius = '24px';
+                    
+                    // Add "Intro Story" text label with white color
+                    const textLabel = document.createElement('div');
+                    textLabel.textContent = 'Intro Story';
+                    textLabel.style.cssText = 'font-size: 14px; font-weight: bold; color: white; margin-right: 7px; flex-shrink: 0;';
+                    mainPlayerDiv.insertBefore(textLabel, mainPlayerDiv.firstChild);
+                    
+                    // Change play button to white
+                    const playButton = playerElement.querySelector('button');
+                    if (playButton) {
+                        playButton.style.color = 'white';
+                        // Change SVG fill to white
+                        const svg = playButton.querySelector('svg');
+                        if (svg) {
+                            svg.style.fill = 'white';
+                        }
+                    }
+                    
+                    // Change time display to white
+                    const timeDisplays = playerElement.querySelectorAll('div[style*="font-size: 12px"]');
+                    timeDisplays.forEach(timeDisplay => {
+                        timeDisplay.style.color = 'white';
+                    });
+                    
+                    // Change progress bar scrubber to white
+                    const progressBarOuter = playerElement.querySelector('div[style*="flex: 1"][style*="cursor: pointer"]');
+                    if (progressBarOuter) {
+                        progressBarOuter.style.background = 'rgba(255, 255, 255, 0.3)';
+                        
+                        const progressBarInner = progressBarOuter.querySelector('div[style*="background: #007AF7"], div[style*="background:#007AF7"], div[style*="background-color: #007AF7"]');
+                        if (progressBarInner) {
+                            progressBarInner.style.background = 'white';
+                        }
+                    }
+                }
+                
+                container.appendChild(playerElement);
+                
+                console.log('✅ Intro Story player created successfully');
+            }
+        }).catch(error => {
+            console.error('Error creating Intro Story player:', error);
+        });
+    }
+
+    /**
      * Create dual audio players for teachers/therapists
      * @param {HTMLElement} container - Container element
      * @param {Array} programs - Array of program objects
      * @param {Object} radioData - Radio data
      */
     function createDualPlayer(container, programs, radioData) {
+        
+        // First, create the Intro Story player
+        createIntroStoryPlayer(container, radioData);
         
         // Find kids and parent programs by type
         const kidsProgram = programs.find(p => p.type === 'kids');

@@ -309,7 +309,22 @@
                             newRecContainer.style.display = 'flex';
                         }
                         
-
+                        // 3. Setup ShareID and radio links for badge-rec elements (URL generation only)
+                        if (hasRecordings) {
+                            const shareId = await getShareIdForWorldLmid(world, lmid);
+                            if (shareId) {
+                                const badgeRec = worldContainer.querySelector('.badge-rec');
+                                if (badgeRec) {
+                                    const radioUrl = `/little-microphones?ID=${shareId}`;
+                                    badgeRec.style.cursor = 'pointer';
+                                    badgeRec.onclick = (e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        window.location.href = radioUrl;
+                                    };
+                                }
+                            }
+                        }
                         
                         // 4. Setup recording links for specific elements within new-rec
                         const newRecElement = worldContainer.querySelector('.new-rec');
