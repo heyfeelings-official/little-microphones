@@ -827,7 +827,7 @@
                     textLabel.textContent = isParentProgram ? 'Parents Program' : 'Kids Program';
                     
                     // Unified styling for all text labels - 114px width, 24px padding-left, left aligned
-                    textLabel.style.cssText = `font-size: 14px; font-weight: bold; color: #007AF7; width: 114px; padding-left: 24px; text-align: left; flex-shrink: 0;`;
+                    textLabel.style.cssText = `font-size: 14px; font-weight: bold; color: #007AF7; width: 120px; padding-left: 24px; text-align: left; flex-shrink: 0;`;
                     
                     // Insert as first child
                     mainPlayerDiv.insertBefore(textLabel, mainPlayerDiv.firstChild);
