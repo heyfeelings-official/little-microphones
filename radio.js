@@ -777,8 +777,8 @@
                 // Add text label as first element inside the player
                 const mainPlayerDiv = playerElement.querySelector('div[style*="width: 100%"][style*="height: 48px"]');
                 if (mainPlayerDiv) {
-                    // Change padding from 16px to 8px for radio page players
-                    mainPlayerDiv.style.padding = '0 8px';
+                    // Change only padding-right to 8px for radio page players (keep padding-left 16px)
+                    mainPlayerDiv.style.paddingRight = '8px';
                     
                     const textLabel = document.createElement('div');
                     textLabel.textContent = isParentProgram ? 'Parents Program' : 'Kids Program';
@@ -1111,11 +1111,7 @@
             recordingCount: data.currentRecordings?.length || 0
         };
         
-        // Always add Intro Story player to dedicated container
-        const storyContainer = document.getElementById('intro-story-player');
-        if (storyContainer) {
-            createIntroStoryPlayer(storyContainer, radioData);
-        }
+        // Note: Intro Story player is already added in loading/generating states
         
         
         if (userRole === 'parent') {
