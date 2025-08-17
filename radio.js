@@ -421,15 +421,15 @@
      * Add Intro Story player to loading state (independent of Kids/Parents loading)
      */
     async function addIntroStoryToLoadingState() {
-        // Find the dedicated story container in Webflow
-        const storyContainer = document.querySelector('.loading-states .custom-player .story');
-        if (!storyContainer) {
-            console.error('Story container (.loading-states .custom-player .story) not found in Webflow');
+        // Add story player directly to loading-state container
+        const loadingContainer = document.getElementById('loading-state');
+        if (!loadingContainer) {
+            console.error('Loading state container not found');
             return;
         }
 
         // Check if intro story player already exists
-        if (storyContainer.querySelector('.intro-story')) {
+        if (loadingContainer.querySelector('.intro-story')) {
             return; // Already added
         }
 
@@ -445,8 +445,8 @@
             recordingCount: 0
         };
 
-        // Create intro story player in dedicated story container
-        createIntroStoryPlayer(storyContainer, radioData);
+        // Create intro story player in loading state container
+        createIntroStoryPlayer(loadingContainer, radioData);
     }
 
     /**
@@ -480,15 +480,15 @@
      * Add Intro Story player to generating state (independent of Kids/Parents generation)
      */
     async function addIntroStoryToGeneratingState() {
-        // Find the dedicated story container in Webflow
-        const storyContainer = document.querySelector('.loading-states .custom-player .story');
-        if (!storyContainer) {
-            console.error('Story container (.loading-states .custom-player .story) not found in Webflow');
+        // Add story player directly to generating-state container
+        const generatingContainer = document.getElementById('generating-state');
+        if (!generatingContainer) {
+            console.error('Generating state container not found');
             return;
         }
 
         // Check if intro story player already exists
-        if (storyContainer.querySelector('.intro-story')) {
+        if (generatingContainer.querySelector('.intro-story')) {
             return; // Already added
         }
 
@@ -504,8 +504,8 @@
             recordingCount: 0
         };
 
-        // Create intro story player in dedicated story container
-        createIntroStoryPlayer(storyContainer, radioData);
+        // Create intro story player in generating state container
+        createIntroStoryPlayer(generatingContainer, radioData);
     }
 
     /**
