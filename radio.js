@@ -827,7 +827,7 @@
                     textLabel.textContent = isParentProgram ? 'Parents Program' : 'Kids Program';
                     
                     // Unified styling for all text labels - 114px width, 24px padding-left, left aligned
-                    textLabel.style.cssText = `font-size: 14px; font-weight: bold; color: #007AF7; width: 120px; padding-left: 24px; text-align: left; flex-shrink: 0;`;
+                    textLabel.style.cssText = `font-size: 14px; font-weight: bold; color: #007AF7; width: 132px; padding-left: 24px; text-align: left; flex-shrink: 0;`;
                     
                     // Insert as first child
                     mainPlayerDiv.insertBefore(textLabel, mainPlayerDiv.firstChild);
@@ -1259,7 +1259,7 @@
                     if (textLabel && textLabel.textContent.includes('Program')) {
                         textLabel.textContent = 'Intro Story';
                         // Use the same unified styling as Kids/Parents but with white color
-                        textLabel.style.cssText = 'font-size: 14px; font-weight: bold; color: white; width: 114px; padding-left: 24px; text-align: left; flex-shrink: 0;';
+                        textLabel.style.cssText = 'font-size: 14px; font-weight: bold; color: white; width: 132px; padding-left: 24px; text-align: left; flex-shrink: 0;';
                     }
                     
                     // Change play/pause button to white
