@@ -234,26 +234,7 @@
         });
     }
 
-    /**
-     * Animate badge-rec elements into view with fade-in and slide-up
-     * @param {HTMLElement} container - Container to search for .badge-rec elements (optional)
-     */
-    function animateBadgeRecElements(container = document) {
-        const badgeRecElements = container.querySelectorAll('.badge-rec:not(.animate-in)');
-        
-        // Filter out hidden elements (visibility already pre-calculated)
-        const visibleBadgeElements = Array.from(badgeRecElements).filter(element => {
-            const computedStyle = getComputedStyle(element);
-            return computedStyle.display !== 'none' && computedStyle.visibility !== 'hidden';
-        });
-        
-        visibleBadgeElements.forEach((element, index) => {
-            // Stagger animations by 100ms for each element
-            setTimeout(() => {
-                element.classList.add('animate-in');
-            }, index * 100);
-        });
-    }
+
 
 
 
@@ -290,15 +271,7 @@
                         const recordings = data?.recordings || [];
                         const hasRecordings = recordings.length > 0;
                         
-                        // 1. Apply badge-rec visibility
-                        const badgeRec = worldContainer.querySelector('.badge-rec');
-                        if (badgeRec) {
-                                                    if (hasRecordings) {
-                            badgeRec.classList.add('show-badge');
-                        } else {
-                            badgeRec.classList.remove('show-badge');
-                        }
-                        }
+
                         
                         // 2. Apply new-rec and total counts - properly calculate NEW count
                         const newRecContainer = worldContainer.querySelector('.new-rec');
@@ -336,22 +309,7 @@
                             newRecContainer.style.display = 'flex';
                         }
                         
-                        // 3. Setup ShareID and radio links for badge-rec elements
-                        if (hasRecordings) {
-                            const shareId = await getShareIdForWorldLmid(world, lmid);
-                            if (shareId) {
-                                const badgeRec = worldContainer.querySelector('.badge-rec');
-                                if (badgeRec) {
-                                    const radioUrl = `/little-microphones?ID=${shareId}`;
-                                    badgeRec.style.cursor = 'pointer';
-                                    badgeRec.onclick = (e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        window.location.href = radioUrl;
-                                    };
-                                }
-                            }
-                        }
+
                         
                         // 4. Setup recording links for specific elements within new-rec
                         const newRecElement = worldContainer.querySelector('.new-rec');
@@ -447,12 +405,7 @@
      * This removes any position/z-index styles that were added by previous versions
      */
     function cleanupInlineStyles() {
-        // Remove inline styles from badge-rec elements
-        const badgeRecElements = document.querySelectorAll('.badge-rec');
-        badgeRecElements.forEach(element => {
-            element.style.removeProperty('position');
-            element.style.removeProperty('z-index');
-        });
+
         
         // Remove inline styles from new-rec elements  
         const newRecElements = document.querySelectorAll('.new-rec');
@@ -461,11 +414,11 @@
             element.style.removeProperty('z-index');
         });
         
-        // Cleaned up inline styles for badge-rec and new-rec elements
+        // Cleaned up inline styles for new-rec elements
     }
 
     /**
-     * Setup required CSS styles for badge-rec and new-rec elements
+     * Setup required CSS styles for new-rec elements
      * This ensures proper positioning and styling regardless of Webflow configuration
      */
     function setupRequiredStyles() {
@@ -484,9 +437,6 @@
             }
             
             /* Minimal essential styles - let Webflow handle most positioning */
-            .program-container .badge-rec.w-inline-block {
-                cursor: pointer;
-            }
             
             .program-container .new-rec.w-inline-block {
                 display: flex !important;
@@ -498,7 +448,7 @@
                 cursor: pointer;
             }
             
-            /* Ensure new-rec elements are always visible, badge-rec controlled by JS */
+            /* Ensure new-rec elements are always visible */
             .new-rec {
                 display: flex !important;
             }
@@ -515,22 +465,7 @@
                 transform: translateY(0px);
             }
             
-            /* Custom animation for badge-rec elements */
-            .badge-rec {
-                opacity: 0;
-                transform: translateY(24px);
-                transition: all 0.6s cubic-bezier(0.075, 0.82, 0.165, 1);
-                display: none !important;
-            }
-            
-            .badge-rec.animate-in {
-                opacity: 1;
-                transform: translateY(0px);
-            }
-            
-            .badge-rec.show-badge {
-                display: flex !important;
-            }
+
             
             /* Background image setup - no animation */
             [data-lmid] .program-container {
@@ -731,7 +666,7 @@
         // Start animations immediately for better UX
         setTimeout(() => {
             animateNewRecElements();
-            // Note: badge-rec animations will happen after data loads
+
         }, 100);
         
         // Now batch-load ALL recording data in one pass (eliminates duplicate API calls)
@@ -838,7 +773,7 @@
     async function setupWorldNewRecordingIndicator(worldContainer, lmid, world) {
         // Look for new elements in this world container
         const newRecContainer = worldContainer.querySelector(".new-rec");
-        const badgeRec = worldContainer.querySelector(".badge-rec");
+
         
         // Find specific number elements in the correct structure
         // First .rec-text contains total answers count
@@ -885,26 +820,7 @@
             // Now show the container with real values applied (even if 0 totals)
             newRecContainer.style.display = 'flex';
             
-            // Badge-rec visibility is managed by quickPreCalculateVisibility - don't override it here
-            // The detailed API data will be used for counts and click handlers only
-            
-            // Debug: Log what we found vs what badge-rec currently looks like
-            if (badgeRec) {
-                const currentDisplay = badgeRec.style.display;
-                const currentComputedDisplay = getComputedStyle(badgeRec).display;
 
-            }
-            
-            // Setup .badge-rec click to radio page with ShareID
-            if (badgeRec && shareId && totalRecordingCount > 0) {
-                // Add tracked event listener (automatically removes duplicates)
-                addTrackedEventListener(badgeRec, 'click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const radioUrl = `/little-microphones?ID=${shareId}`;
-                    window.location.href = radioUrl;
-                });
-            }
             
             // Setup click handlers for specific elements within .new-rec
             if (newRecContainer) {
