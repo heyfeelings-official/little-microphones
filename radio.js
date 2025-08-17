@@ -577,6 +577,7 @@
     function hideLoadingAndGeneratingStates() {
         const loadingState = document.getElementById('loading-state');
         const generatingState = document.getElementById('generating-state');
+        const introStoryPlayer = document.getElementById('intro-story-player');
         
         if (loadingState) {
             loadingState.style.display = 'none';
@@ -586,6 +587,40 @@
         if (generatingState) {
             generatingState.style.display = 'none';
             console.log('🚫 Hidden generating-state');
+        }
+        
+        // Also remove any spacing from intro-story-player container if it's empty or causing spacing
+        if (introStoryPlayer) {
+            // If intro story player is empty or only has spacing, hide it
+            if (!introStoryPlayer.querySelector('.intro-story') || introStoryPlayer.children.length === 0) {
+                introStoryPlayer.style.display = 'none';
+                console.log('🚫 Hidden empty intro-story-player container');
+            } else {
+                // Remove any margins/padding that could cause spacing
+                introStoryPlayer.style.margin = '0';
+                introStoryPlayer.style.padding = '0';
+                console.log('🔧 Removed spacing from intro-story-player container');
+            }
+        }
+        
+        // Also check for any other containers that might cause spacing
+        const allLoadingStates = document.querySelectorAll('.loading-states');
+        allLoadingStates.forEach(element => {
+            if (element.id !== 'player-state' && getComputedStyle(element).display !== 'none') {
+                element.style.display = 'none';
+                console.log('🚫 Hidden extra loading state:', element.id || element.className);
+            }
+        });
+        
+        // Remove any spacing from the main program container
+        const programContainer = document.querySelector('.program-container');
+        if (programContainer) {
+            // Ensure no extra bottom spacing
+            const playerState = document.getElementById('player-state');
+            if (playerState) {
+                playerState.style.marginBottom = '0';
+                playerState.style.paddingBottom = '0';
+            }
         }
     }
 
