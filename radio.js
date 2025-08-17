@@ -1250,7 +1250,7 @@
                     // Change background to blue and remove end padding
                     mainPlayerDiv.style.background = '#007AF7';
                     mainPlayerDiv.style.borderRadius = '24px';
-                    mainPlayerDiv.style.paddingRight = '16px'; // Remove extra 8px spacing
+                    mainPlayerDiv.style.paddingRight = '8px'; // Consistent with other players
                     
                     // Add "Intro Story" text label with white color
                     const textLabel = document.createElement('div');
