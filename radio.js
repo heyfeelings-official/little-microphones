@@ -1274,11 +1274,12 @@
             return;
         }
 
-        // Create fake recording data for the intro story
+        // Create fake recording data for the intro story (use same structure as regular radio programs)
         const fakeRecording = {
-            id: 'intro-story',
+            id: 'intro-story-radio',
             filename: `intro-story.mp3`,
             url: audioUrl,
+            uploadStatus: 'uploaded', // Same as regular radio programs
             duration: 120, // Default duration
             created_at: new Date().toISOString(),
             metadata: {
@@ -1292,10 +1293,10 @@
         const deleteRecording = () => {}; // No delete for intro story
         const dispatchUploadStatusEvent = () => {}; // No upload status for intro story
 
-        // Create the intro story player with custom styling
+        // Create the intro story player with custom styling (use same pattern as regular radio programs)
         window.RecordingUI.createRecordingElement(
             fakeRecording,
-            'intro-story',
+            'intro-story-radio',
             getAudioSource,
             deleteRecording,
             dispatchUploadStatusEvent,
@@ -1305,9 +1306,7 @@
             }
         ).then(playerElement => {
             if (playerElement) {
-                // Wait a moment for DOM to fully construct
-                setTimeout(() => {
-                    // Apply blue theme styling to the player
+                // Apply blue theme styling to the player
                     const mainPlayerDiv = playerElement.querySelector('div[style*="width: 100%"][style*="height: 48px"]');
                     if (mainPlayerDiv) {
                     // Change background to blue and remove end padding
@@ -1431,7 +1430,6 @@
                 container.appendChild(playerElement);
                 
                 console.log('✅ Intro Story player created successfully');
-                }, 100); // Wait 100ms for DOM to fully construct
             }
         }).catch(error => {
             console.error('Error creating Intro Story player:', error);
