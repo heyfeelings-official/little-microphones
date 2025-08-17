@@ -421,14 +421,15 @@
      * Add Intro Story player to loading state (independent of Kids/Parents loading)
      */
     async function addIntroStoryToLoadingState() {
-        const loadingContainer = document.getElementById('loading-state');
-        if (!loadingContainer) {
-            console.error('Loading state container not found');
+        // Find the dedicated story container in Webflow
+        const storyContainer = document.querySelector('.loading-states .custom-player .story');
+        if (!storyContainer) {
+            console.error('Story container (.loading-states .custom-player .story) not found in Webflow');
             return;
         }
 
         // Check if intro story player already exists
-        if (loadingContainer.querySelector('.intro-story')) {
+        if (storyContainer.querySelector('.intro-story')) {
             return; // Already added
         }
 
@@ -444,8 +445,8 @@
             recordingCount: 0
         };
 
-        // Create intro story player in loading state
-        createIntroStoryPlayer(loadingContainer, radioData);
+        // Create intro story player in dedicated story container
+        createIntroStoryPlayer(storyContainer, radioData);
     }
 
     /**
@@ -479,14 +480,15 @@
      * Add Intro Story player to generating state (independent of Kids/Parents generation)
      */
     async function addIntroStoryToGeneratingState() {
-        const generatingContainer = document.getElementById('generating-state');
-        if (!generatingContainer) {
-            console.error('Generating state container not found');
+        // Find the dedicated story container in Webflow
+        const storyContainer = document.querySelector('.loading-states .custom-player .story');
+        if (!storyContainer) {
+            console.error('Story container (.loading-states .custom-player .story) not found in Webflow');
             return;
         }
 
         // Check if intro story player already exists
-        if (generatingContainer.querySelector('.intro-story')) {
+        if (storyContainer.querySelector('.intro-story')) {
             return; // Already added
         }
 
@@ -502,8 +504,8 @@
             recordingCount: 0
         };
 
-        // Create intro story player in generating state
-        createIntroStoryPlayer(generatingContainer, radioData);
+        // Create intro story player in dedicated story container
+        createIntroStoryPlayer(storyContainer, radioData);
     }
 
     /**
@@ -1245,31 +1247,51 @@
                 // Apply blue theme styling to the player
                 const mainPlayerDiv = playerElement.querySelector('div[style*="width: 100%"][style*="height: 48px"]');
                 if (mainPlayerDiv) {
-                    // Change background to blue
+                    // Change background to blue and remove end padding
                     mainPlayerDiv.style.background = '#007AF7';
                     mainPlayerDiv.style.borderRadius = '24px';
+                    mainPlayerDiv.style.paddingRight = '16px'; // Remove extra 8px spacing
                     
                     // Add "Intro Story" text label with white color
                     const textLabel = document.createElement('div');
                     textLabel.textContent = 'Intro Story';
-                    textLabel.style.cssText = 'font-size: 14px; font-weight: bold; color: white; margin-right: 7px; flex-shrink: 0;';
+                    // Adjust margin to align play icons with other players
+                    // "Intro Story" (11 chars) vs "Kids Program" (12 chars) vs "Parents Program" (15 chars)
+                    textLabel.style.cssText = 'font-size: 14px; font-weight: bold; color: white; margin-right: 20px; flex-shrink: 0; width: 85px;';
                     mainPlayerDiv.insertBefore(textLabel, mainPlayerDiv.firstChild);
                     
-                    // Change play button to white
+                    // Change play button to white - more comprehensive approach
                     const playButton = playerElement.querySelector('button');
                     if (playButton) {
-                        playButton.style.color = 'white';
-                        // Change SVG fill to white
-                        const svg = playButton.querySelector('svg');
-                        if (svg) {
-                            svg.style.fill = 'white';
-                        }
+                        playButton.style.color = 'white !important';
+                        
+                        // Change all SVG elements to white
+                        const svgs = playButton.querySelectorAll('svg, svg *');
+                        svgs.forEach(svg => {
+                            svg.style.fill = 'white !important';
+                            svg.style.color = 'white !important';
+                        });
+                        
+                        // Also try changing paths directly
+                        const paths = playButton.querySelectorAll('path');
+                        paths.forEach(path => {
+                            path.setAttribute('fill', 'white');
+                            path.style.fill = 'white !important';
+                        });
                     }
                     
-                    // Change time display to white
-                    const timeDisplays = playerElement.querySelectorAll('div[style*="font-size: 12px"]');
+                    // Change time display to white - more comprehensive
+                    const timeDisplays = playerElement.querySelectorAll('div[style*="font-size: 12px"], div[style*="font-size:12px"]');
                     timeDisplays.forEach(timeDisplay => {
-                        timeDisplay.style.color = 'white';
+                        timeDisplay.style.color = 'white !important';
+                    });
+                    
+                    // Also try finding time displays by content pattern
+                    const allDivs = playerElement.querySelectorAll('div');
+                    allDivs.forEach(div => {
+                        if (div.textContent && div.textContent.match(/\d+:\d+/)) {
+                            div.style.color = 'white !important';
+                        }
                     });
                     
                     // Change progress bar scrubber to white
@@ -1279,7 +1301,7 @@
                         
                         const progressBarInner = progressBarOuter.querySelector('div[style*="background: #007AF7"], div[style*="background:#007AF7"], div[style*="background-color: #007AF7"]');
                         if (progressBarInner) {
-                            progressBarInner.style.background = 'white';
+                            progressBarInner.style.background = 'white !important';
                         }
                     }
                 }
