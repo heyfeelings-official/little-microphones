@@ -1247,7 +1247,7 @@
         // Create intro container
         const introContainer = document.createElement('div');
         introContainer.className = 'intro-story';
-        introContainer.style.cssText = 'margin-bottom: 1rem; display: block; min-height: 48px;';
+        introContainer.style.cssText = 'margin-bottom: 1rem; display: block; min-height: 48px; pointer-events: auto; user-select: auto;';
         
         // Generate intro story URL from world name
         const worldName = radioData.world?.toLowerCase() || 'spookyland';
@@ -1420,9 +1420,29 @@
                     }
                 }
                 
+                // Ensure the container and player are fully interactive
+                if (container) {
+                    container.style.pointerEvents = 'auto';
+                    container.style.userSelect = 'auto';
+                    container.style.cursor = 'default';
+                }
+                
+                // Ensure the player element itself is interactive
+                if (playerElement) {
+                    playerElement.style.pointerEvents = 'auto';
+                    playerElement.style.userSelect = 'auto';
+                    
+                    // Make sure all interactive elements inside are clickable
+                    const interactiveElements = playerElement.querySelectorAll('button, div[style*="cursor: pointer"], audio');
+                    interactiveElements.forEach(element => {
+                        element.style.pointerEvents = 'auto';
+                        element.style.userSelect = 'auto';
+                    });
+                }
+                
                 container.appendChild(playerElement);
                 
-                console.log('✅ Intro Story player created successfully');
+                console.log('✅ Intro Story player created successfully with full interactivity');
             }
         }).catch(error => {
             console.error('Error creating Intro Story player:', error);
