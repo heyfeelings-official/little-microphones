@@ -1264,189 +1264,75 @@
 
     /**
      * Setup intro story audio player with custom blue styling
+     * Uses the same setupAudioPlayer function as Kids/Parents but with custom styling
      * @param {string} audioUrl - Audio URL
      * @param {Object} radioData - Radio data  
      * @param {HTMLElement} container - Container element
      */
     function setupIntroStoryPlayer(audioUrl, radioData, container) {
-        if (!window.RecordingUI || !window.RecordingUI.createRecordingElement) {
-            console.error('RecordingUI module not loaded for intro story player');
-            return;
-        }
-
-        // Create fake recording data for the intro story (use same structure as regular radio programs)
-        const fakeRecording = {
-            id: 'intro-story-radio',
-            filename: `intro-story.mp3`,
-            url: audioUrl,
-            uploadStatus: 'uploaded', // Same as regular radio programs
-            duration: 120, // Default duration
-            created_at: new Date().toISOString(),
-            metadata: {
-                world: radioData.world,
-                type: 'intro-story'
-            }
-        };
-
-        // Functions required by createRecordingElement
-        const getAudioSource = async () => audioUrl;
-        const deleteRecording = () => {}; // No delete for intro story
-        const dispatchUploadStatusEvent = () => {}; // No upload status for intro story
-
-        // Create the intro story player with custom styling (use same pattern as regular radio programs)
-        window.RecordingUI.createRecordingElement(
-            fakeRecording,
-            'intro-story-radio',
-            getAudioSource,
-            deleteRecording,
-            dispatchUploadStatusEvent,
-            {
-                showDeleteButton: false,
-                showUploadIcon: false
-            }
-        ).then(playerElement => {
+        // Use the exact same setupAudioPlayer function as Kids/Parents players
+        // Pass container and isParentProgram=false (we'll override styles after)
+        setupAudioPlayer(audioUrl, radioData, container, false);
+        
+        // After player is created, apply blue theme styling
+        setTimeout(() => {
+            const playerElement = container.querySelector('li[data-recording-id]');
             if (playerElement) {
-                // Apply blue theme styling to the player
-                    const mainPlayerDiv = playerElement.querySelector('div[style*="width: 100%"][style*="height: 48px"]');
-                    if (mainPlayerDiv) {
-                    // Change background to blue and remove end padding
+                const mainPlayerDiv = playerElement.querySelector('div[style*="width: 100%"][style*="height: 48px"]');
+                if (mainPlayerDiv) {
+                    // Change background to blue
                     mainPlayerDiv.style.background = '#007AF7';
                     mainPlayerDiv.style.borderRadius = '24px';
-                    mainPlayerDiv.style.paddingRight = '8px'; // Consistent with other players
                     
-                    // Add "Intro Story" text label with white color
-                    const textLabel = document.createElement('div');
-                    textLabel.textContent = 'Intro Story';
-                    // Adjust margin to align play icons with other players
-                    // "Intro Story" (11 chars) vs "Kids Program" (12 chars) vs "Parents Program" (15 chars)
-                    textLabel.style.cssText = 'font-size: 14px; font-weight: bold; color: white; margin-right: 20px; flex-shrink: 0; width: 85px;';
-                    mainPlayerDiv.insertBefore(textLabel, mainPlayerDiv.firstChild);
-                    
-                    // Change play button to white - more comprehensive approach
-                    // Try multiple selectors to find the play button
-                    let playButton = playerElement.querySelector('button');
-                    
-                    // If button not found, try other selectors
-                    if (!playButton) {
-                        playButton = playerElement.querySelector('[role="button"]');
-                    }
-                    if (!playButton) {
-                        playButton = playerElement.querySelector('div[style*="cursor: pointer"]');
-                    }
-                    if (!playButton) {
-                        playButton = playerElement.querySelector('div[onclick]');
+                    // Change the text label to "Intro Story" and make it white
+                    const textLabel = mainPlayerDiv.querySelector('div');
+                    if (textLabel && textLabel.textContent.includes('Program')) {
+                        textLabel.textContent = 'Intro Story';
+                        textLabel.style.color = 'white';
+                        textLabel.style.width = '85px'; // Align with other players
                     }
                     
-                    console.log('🔍 Play button search results:', {
-                        button: !!playerElement.querySelector('button'),
-                        roleButton: !!playerElement.querySelector('[role="button"]'),
-                        cursorPointer: !!playerElement.querySelector('div[style*="cursor: pointer"]'),
-                        onclick: !!playerElement.querySelector('div[onclick]'),
-                        found: !!playButton
-                    });
-                    
+                    // Change play/pause button to white
+                    const playButton = mainPlayerDiv.querySelector('div[style*="cursor: pointer"]');
                     if (playButton) {
-                        console.log('🎵 Intro Story play button found:', playButton);
-                        
-                        // Don't override display/visibility - keep original functionality
-                        // Only change colors, not behavior
-                        
-                        // Change all SVG elements to white - but preserve functionality
                         const svgs = playButton.querySelectorAll('svg');
-                        console.log('🎵 Found SVGs in play button:', svgs.length);
                         svgs.forEach(svg => {
-                            svg.style.fill = 'white !important';
-                            svg.style.color = 'white !important';
-                            
-                            // Also update all children of SVG
-                            const svgChildren = svg.querySelectorAll('*');
-                            svgChildren.forEach(child => {
-                                child.style.fill = 'white !important';
-                                child.style.color = 'white !important';
+                            svg.style.fill = 'white';
+                            svg.style.color = 'white';
+                            const paths = svg.querySelectorAll('path');
+                            paths.forEach(path => {
+                                path.setAttribute('fill', 'white');
+                                path.style.fill = 'white';
                             });
                         });
-                        
-                        // Also try changing paths directly
-                        const paths = playButton.querySelectorAll('path');
-                        console.log('🎵 Found paths in play button:', paths.length);
-                        paths.forEach(path => {
-                            path.setAttribute('fill', 'white');
-                            path.style.fill = 'white !important';
-                        });
-                        
-                    } else {
-                        console.error('🚫 Play button not found in Intro Story player');
                     }
                     
-                    // Change time display to white - more comprehensive approach
-                    const timeDisplays = playerElement.querySelectorAll('div[style*="font-size: 12px"], div[style*="font-size:12px"], div[style*="font-size: 11px"], div[style*="font-size:11px"]');
-                    console.log('🕐 Found time displays by font-size:', timeDisplays.length);
-                    timeDisplays.forEach(timeDisplay => {
-                        timeDisplay.style.color = 'white !important';
-                        timeDisplay.style.setProperty('color', 'white', 'important');
-                    });
+                    // Change time display to white
+                    const timeDisplay = mainPlayerDiv.querySelector('div[style*="opacity"]');
+                    if (timeDisplay) {
+                        timeDisplay.style.color = 'white';
+                    }
                     
-                    // Also try finding time displays by content pattern (more reliable)
-                    const allDivs = playerElement.querySelectorAll('div');
-                    let timeElementsFound = 0;
-                    allDivs.forEach(div => {
-                        if (div.textContent && div.textContent.match(/\d+:\d+/)) {
-                            div.style.color = 'white !important';
-                            div.style.setProperty('color', 'white', 'important');
-                            timeElementsFound++;
-                        }
-                    });
-                    console.log('🕐 Found time displays by content pattern:', timeElementsFound);
-                    
-                    // Try finding by opacity (time displays often have opacity: 0.4)
-                    const opacityElements = playerElement.querySelectorAll('div[style*="opacity: 0.4"], div[style*="opacity:0.4"]');
-                    console.log('🕐 Found opacity elements (likely time):', opacityElements.length);
-                    opacityElements.forEach(element => {
-                        if (element.textContent && element.textContent.match(/\d+:\d+/)) {
-                            element.style.color = 'white !important';
-                            element.style.setProperty('color', 'white', 'important');
-                        }
-                    });
-                    
-                    // Change progress bar scrubber to white
-                    const progressBarOuter = playerElement.querySelector('div[style*="flex: 1"][style*="cursor: pointer"]');
+                    // Change progress bar to white theme
+                    const progressBarOuter = mainPlayerDiv.querySelector('div[style*="flex: 1"][style*="cursor: pointer"]');
                     if (progressBarOuter) {
                         progressBarOuter.style.background = 'rgba(255, 255, 255, 0.3)';
                         
-                        const progressBarInner = progressBarOuter.querySelector('div[style*="background: #007AF7"], div[style*="background:#007AF7"], div[style*="background-color: #007AF7"]');
+                        const progressBarInner = progressBarOuter.querySelector('div[style*="background"]');
                         if (progressBarInner) {
-                            progressBarInner.style.background = 'white !important';
+                            progressBarInner.style.background = 'white';
                         }
                     }
                 }
                 
-                // Ensure the container and player are fully interactive
-                if (container) {
-                    container.style.pointerEvents = 'auto';
-                    container.style.userSelect = 'auto';
-                    container.style.cursor = 'default';
-                }
+                // Ensure the container is interactive
+                container.style.pointerEvents = 'auto';
+                container.style.userSelect = 'auto';
+                container.style.cursor = 'default';
                 
-                // Ensure the player element itself is interactive
-                if (playerElement) {
-                    playerElement.style.pointerEvents = 'auto';
-                    playerElement.style.userSelect = 'auto';
-                    
-                    // Make sure all interactive elements inside are clickable
-                    const interactiveElements = playerElement.querySelectorAll('button, div[style*="cursor: pointer"], audio');
-                    interactiveElements.forEach(element => {
-                        element.style.pointerEvents = 'auto';
-                        element.style.userSelect = 'auto';
-                    });
-                }
-                
-                container.appendChild(playerElement);
-                
-                console.log('✅ Intro Story player created successfully with full interactivity');
+                console.log('✅ Intro Story player styled successfully');
             }
-        }).catch(error => {
-            console.error('Error creating Intro Story player:', error);
-        });
+        }, 100); // Small delay to ensure player is fully rendered
     }
 
     /**
