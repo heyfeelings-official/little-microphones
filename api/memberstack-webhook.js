@@ -65,7 +65,7 @@ export default async function handler(req, res) {
         hasMemberstackApiKey: !!process.env.MEMBERSTACK_SECRET_KEY,
         hasBrevoApiKey: !!process.env.BREVO_API_KEY,
         hasSupabaseUrl: !!process.env.SUPABASE_URL,
-        hasSupabaseKey: !!process.env.SUPABASE_ANON_KEY
+        hasSupabaseKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY
     });
     
     // Check if webhook is enabled
