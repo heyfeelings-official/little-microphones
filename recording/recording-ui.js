@@ -173,7 +173,7 @@
         
         // Main player container
         const playerContainer = document.createElement('div');
-        playerContainer.style.cssText = `width: 100%; height: 48px; position: relative; background: #ffffff; border-radius: 122px; display: flex; align-items: center; padding: 0 8px; box-sizing: border-box;`;
+        playerContainer.style.cssText = `width: 100%; height: 48px; position: relative; background: #ffffff; border-radius: 122px; display: flex; align-items: center; padding: 0 16px; box-sizing: border-box;`;
         
         // Hidden audio element with cache busting
         const audio = document.createElement('audio');
