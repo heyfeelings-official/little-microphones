@@ -175,13 +175,24 @@
         const playerContainer = document.createElement('div');
         playerContainer.style.cssText = `width: 100%; height: 48px; position: relative; background: #ffffff; border-radius: 122px; display: flex; align-items: center; padding: 0 16px; box-sizing: border-box;`;
         
-        // Hidden audio element with cache busting
+        // Hidden audio element with cache busting (skip for Bunny CDN URLs)
         const audio = document.createElement('audio');
-        const cacheBustedURL = audioURL.includes('?') ? 
-            `${audioURL}&_cb=${Date.now()}&_r=${Math.random()}` : 
-            `${audioURL}?_cb=${Date.now()}&_r=${Math.random()}`;
-        audio.src = cacheBustedURL;
+        let finalAudioURL = audioURL;
+        
+        // Skip cache busting for Bunny CDN URLs (like Intro Story)
+        if (!audioURL.includes('little-microphones.b-cdn.net')) {
+            finalAudioURL = audioURL.includes('?') ? 
+                `${audioURL}&_cb=${Date.now()}&_r=${Math.random()}` : 
+                `${audioURL}?_cb=${Date.now()}&_r=${Math.random()}`;
+        }
+        
+        audio.src = finalAudioURL;
         audio.preload = 'metadata';
+        
+        // Debug: log the final URL for Bunny CDN files
+        if (audioURL.includes('little-microphones.b-cdn.net')) {
+            console.log('🎵 Bunny CDN URL (no cache-busting):', finalAudioURL);
+        }
         audio.style.display = 'none';
         li.appendChild(audio);
 
