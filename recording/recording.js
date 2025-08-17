@@ -312,7 +312,7 @@ async function createRecordingElement(recordingData, questionId, allIds) {
     // Main player container with conditional background for parent recordings
     const backgroundColor = shouldShowParentLabel ? '#FFD700' : 'white';
     const playerContainer = document.createElement('div');
-    playerContainer.style.cssText = `width: 100%; height: 48px; position: relative; background: ${backgroundColor}; border-radius: 122px; display: flex; align-items: center; padding: 0 16px; box-sizing: border-box;`;
+    playerContainer.style.cssText = `width: 100%; height: 48px; position: relative; background: ${backgroundColor}; border-radius: 122px; display: flex; align-items: center; padding: 0 8px 0 0; box-sizing: border-box;`;
     
     // Hidden audio element
     const audio = document.createElement('audio');

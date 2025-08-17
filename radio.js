@@ -749,19 +749,9 @@
             return;
         }
 
-        // Check if RecordingUI is available
+        // RecordingUI is required - no fallbacks for consistent player experience
         if (!window.RecordingUI || !window.RecordingUI.createRecordingElement) {
-            console.error('RecordingUI module not loaded. Make sure recording-ui.js is included.');
-            // Fallback to simple audio element
-            const bgColor = playerContainer.style.background.includes('#FFD700') ? 'rgba(255,215,0,0.9)' : 'rgba(255,255,255,0.9)';
-            playerContainer.innerHTML = `
-                <div style="background: ${bgColor}; border-radius: 12px; padding: 16px; text-align: center;">
-                    <audio controls style="width: 100%;" preload="metadata">
-                        <source src="${audioUrl}" type="audio/webm">
-                        Your browser does not support the audio element.
-                    </audio>
-                </div>
-            `;
+            console.error('RecordingUI module not loaded. Cannot create audio player.');
             return;
         }
 
@@ -833,15 +823,11 @@
                 // Add text label as first element inside the player
                 const mainPlayerDiv = playerElement.querySelector('div[style*="width: 100%"][style*="height: 48px"]');
                 if (mainPlayerDiv) {
-                    // Change only padding-right to 8px for radio page players (keep padding-left 16px)
-                    mainPlayerDiv.style.paddingRight = '8px';
-                    
                     const textLabel = document.createElement('div');
                     textLabel.textContent = isParentProgram ? 'Parents Program' : 'Kids Program';
                     
-                    // Different margin-right for Parents Program vs Kids Program
-                    const marginRight = isParentProgram ? '7px' : '7px';
-                    textLabel.style.cssText = `font-size: 14px; font-weight: bold; color: #007AF7; margin-right: ${marginRight}; flex-shrink: 0;`;
+                    // Unified styling for all text labels - 114px width, 24px padding-left, left aligned
+                    textLabel.style.cssText = `font-size: 14px; font-weight: bold; color: #007AF7; width: 114px; padding-left: 24px; text-align: left; flex-shrink: 0;`;
                     
                     // Insert as first child
                     mainPlayerDiv.insertBefore(textLabel, mainPlayerDiv.firstChild);
@@ -865,22 +851,6 @@
             }
         }).catch(error => {
             console.error('Error creating RecordingUI player:', error);
-            // Fallback to simple audio element
-            const bgColor = isParentProgram ? 'rgba(255,215,0,0.9)' : 'rgba(255,255,255,0.9)';
-            playerContainer.innerHTML = `
-                <div style="background: ${bgColor}; border-radius: 12px; padding: 16px; text-align: center;">
-                    <audio controls style="width: 100%;" preload="metadata">
-                        <source src="${audioUrl}" type="audio/webm">
-                        Your browser does not support the audio element.
-                    </audio>
-                </div>
-            `;
-            
-            // Add play tracking to fallback player too
-            const fallbackAudio = playerContainer.querySelector('audio');
-            if (fallbackAudio) {
-                setupRadioPlayTracking(fallbackAudio);
-            }
         });
     }
 
@@ -1288,8 +1258,8 @@
                     const textLabel = mainPlayerDiv.querySelector('div');
                     if (textLabel && textLabel.textContent.includes('Program')) {
                         textLabel.textContent = 'Intro Story';
-                        textLabel.style.color = 'white';
-                        textLabel.style.width = '85px'; // Align with other players
+                        // Use the same unified styling as Kids/Parents but with white color
+                        textLabel.style.cssText = 'font-size: 14px; font-weight: bold; color: white; width: 114px; padding-left: 24px; text-align: left; flex-shrink: 0;';
                     }
                     
                     // Change play/pause button to white
@@ -1307,10 +1277,11 @@
                         });
                     }
                     
-                    // Change time display to white
+                    // Change time display to white with 80% opacity
                     const timeDisplay = mainPlayerDiv.querySelector('div[style*="opacity"]');
                     if (timeDisplay) {
                         timeDisplay.style.color = 'white';
+                        timeDisplay.style.opacity = '0.8';
                     }
                     
                     // Change progress bar to white theme
