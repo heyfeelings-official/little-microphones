@@ -470,6 +470,9 @@
         hideAllStates();
         showState('player-state');
         
+        // Explicitly hide loading and generating states once players are loaded
+        hideLoadingAndGeneratingStates();
+        
         // Setup audio player
         setupAudioPlayer(audioUrl, radioData, null, false);
         
@@ -567,6 +570,24 @@
             }
         });
 }
+
+    /**
+     * Explicitly hide loading and generating states when players are loaded
+     */
+    function hideLoadingAndGeneratingStates() {
+        const loadingState = document.getElementById('loading-state');
+        const generatingState = document.getElementById('generating-state');
+        
+        if (loadingState) {
+            loadingState.style.display = 'none';
+            console.log('🚫 Hidden loading-state');
+        }
+        
+        if (generatingState) {
+            generatingState.style.display = 'none';
+            console.log('🚫 Hidden generating-state');
+        }
+    }
 
 /**
      * Show specific state element
@@ -1095,6 +1116,9 @@
         
         hideAllStates();
         showState('player-state');
+        
+        // Explicitly hide loading and generating states once players are loaded
+        hideLoadingAndGeneratingStates();
         
         // Get the player container
         const playerContainer = document.getElementById('player-state');
