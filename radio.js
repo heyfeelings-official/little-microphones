@@ -1156,9 +1156,18 @@
             }
         };
 
+        // Functions required by createRecordingElement
+        const getAudioSource = async () => audioUrl;
+        const deleteRecording = () => {}; // No delete for intro story
+        const dispatchUploadStatusEvent = () => {}; // No upload status for intro story
+
         // Create the intro story player with custom styling
         window.RecordingUI.createRecordingElement(
             fakeRecording,
+            'intro-story',
+            getAudioSource,
+            deleteRecording,
+            dispatchUploadStatusEvent,
             {
                 showDeleteButton: false,
                 showUploadIcon: false
