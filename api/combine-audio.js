@@ -181,13 +181,17 @@ export default async function handler(req, res) {
             })
             .then(response => {
                 console.log(`📊 Webhook response status: ${response.status} ${response.statusText}`);
-                if (!response.ok) {
+                if (response.status === 429) {
+                    // Queue processor is busy - this is normal, job will be processed later
+                    console.log(`⏳ Queue processor busy - job ${job.id} will be processed when available`);
+                    return; // Don't treat as error - SSE will handle status updates
+                } else if (!response.ok) {
                     return response.text().then(text => {
                         console.error(`❌ Webhook failed: ${response.status} - ${text}`);
                         console.log(`🔄 Trying direct function call fallback...`);
                         return tryDirectProcessing(job.id);
                     });
-            } else {
+                } else {
                     console.log(`✅ Webhook sent successfully for job ${job.id}`);
                 }
             })
