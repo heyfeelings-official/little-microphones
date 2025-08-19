@@ -32,10 +32,6 @@ import http from 'http';
 import { createWriteStream } from 'fs';
 import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
 
-// Global processing lock to prevent concurrent processing
-let isProcessing = false;
-let processingJobId = null;
-
 export default async function handler(req, res) {
     // Secure CORS headers
     const { setCorsHeaders } = await import('../utils/api-utils.js');
@@ -50,17 +46,6 @@ export default async function handler(req, res) {
     // Allow GET and POST requests
     if (!['GET', 'POST'].includes(req.method)) {
         return res.status(405).json({ error: 'Method not allowed' });
-    }
-
-    // Check if already processing (prevent race conditions)
-    if (isProcessing) {
-        console.log(`⏳ Queue processor already busy with job: ${processingJobId}`);
-        return res.status(429).json({
-            success: false,
-            error: 'Queue processor is busy',
-            message: `Already processing job: ${processingJobId}. Please try again later.`,
-            retryAfter: 5
-        });
     }
 
     // Check if specific job ID provided (immediate trigger)
@@ -78,10 +63,6 @@ export default async function handler(req, res) {
 
     try {
         console.log('🎵 Audio queue processor started');
-        
-        // Set processing lock
-        isProcessing = true;
-        processingJobId = specificJobId || 'unknown';
 
         // Import Supabase client
         const { getSupabaseClient } = await import('../utils/database-utils.js');
@@ -232,19 +213,10 @@ export default async function handler(req, res) {
     } catch (error) {
         console.error('❌ Queue processor error:', error);
         
-        // Release processing lock on error
-        isProcessing = false;
-        processingJobId = null;
-        
         return res.status(500).json({ 
             error: 'Queue processor failed',
             details: error.message 
         });
-    } finally {
-        // Always release processing lock
-        isProcessing = false;
-        processingJobId = null;
-        console.log('🔓 Released processing lock');
     }
 }
 

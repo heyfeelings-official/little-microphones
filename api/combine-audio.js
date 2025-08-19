@@ -194,8 +194,8 @@ export default async function handler(req, res) {
             console.log(`🌐 Webhook URL: ${baseUrl}/api/process-queue`);
             console.log(`📤 Payload: ${JSON.stringify({ specificJobId: job.id, triggeredBy: 'immediate' })}`);
             
-            // Trigger processing immediately with detailed logging
-            await fetch(`${baseUrl}/api/process-queue`, {
+            // Trigger processing immediately (fire-and-forget, no await)
+            fetch(`${baseUrl}/api/process-queue`, {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
@@ -208,25 +208,14 @@ export default async function handler(req, res) {
             })
             .then(response => {
                 console.log(`📊 Webhook response status: ${response.status} ${response.statusText}`);
-                if (response.status === 429) {
-                    // Queue processor is busy - this is normal, job will be processed later
-                    console.log(`⏳ Queue processor busy - job ${job.id} will be processed when available`);
-                    return; // Don't treat as error - SSE will handle status updates
-                } else if (!response.ok) {
-                    return response.text().then(text => {
-                        console.error(`❌ Webhook failed: ${response.status} - ${text}`);
-                        console.log(`🔄 Trying direct function call fallback...`);
-                        return tryDirectProcessing(job.id);
-                    });
+                if (!response.ok) {
+                    console.warn(`⚠️ Webhook returned ${response.status} - job will be processed by queue worker`);
                 } else {
                     console.log(`✅ Webhook sent successfully for job ${job.id}`);
                 }
             })
             .catch(err => {
-                console.error(`❌ Immediate trigger failed for job ${job.id}:`, err.message);
-                console.error(`❌ Error details:`, err);
-                console.log(`🔄 Trying direct function call fallback...`);
-                return tryDirectProcessing(job.id);
+                console.warn(`⚠️ Webhook failed: ${err.message} - job will be processed by queue worker`);
             });
             
         } catch (triggerError) {

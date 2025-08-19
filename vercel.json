@@ -1,4 +1,10 @@
 {
+  "crons": [
+    {
+      "path": "/api/process-queue",
+      "schedule": "* * * * *"
+    }
+  ],
   "functions": {
     "api/combine-audio.js": {
       "maxDuration": 10
