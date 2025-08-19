@@ -1796,10 +1796,11 @@ async function generateRadioProgram(world, lmid) {
         
         // Build audio segments in correct order
         const audioSegments = [];
+        const lang = window.LM_CONFIG.getCurrentLanguage();
         
         // 1. Add intro jingle
         const introJingleTimestamp = Date.now();
-        const introJingleUrl = `https://little-microphones.b-cdn.net/audio/jingles/intro-jingle.mp3?t=${introJingleTimestamp}`;
+        const introJingleUrl = window.LM_CONFIG.getLocalizedAudioUrl(`audio/jingles/intro-jingle.mp3?t=${introJingleTimestamp}`, lang);
         audioSegments.push({
             type: 'single',
             url: introJingleUrl
@@ -1811,7 +1812,7 @@ async function generateRadioProgram(world, lmid) {
         const userRole = allRecordings.length > 0 && allRecordings[0].filename.startsWith('kids-') ? 'educators' : 'parents';
         
         const worldIntroTimestamp = Date.now() + 1;
-        const worldIntroUrl = `https://little-microphones.b-cdn.net/audio/${world}/other/${world}-intro-${userRole}.mp3?t=${worldIntroTimestamp}`;
+        const worldIntroUrl = window.LM_CONFIG.getLocalizedAudioUrl(`audio/${world}/other/${world}-intro-${userRole}.mp3?t=${worldIntroTimestamp}`, lang);
         audioSegments.push({
             type: 'single',
             url: worldIntroUrl
@@ -1830,7 +1831,7 @@ async function generateRadioProgram(world, lmid) {
             
             // Add middle jingle before each question
             const middleJingleTimestamp = Date.now() + Math.random();
-            const middleJingleUrl = `https://little-microphones.b-cdn.net/audio/jingles/middle-jingle.mp3?t=${middleJingleTimestamp}`;
+            const middleJingleUrl = window.LM_CONFIG.getLocalizedAudioUrl(`audio/jingles/middle-jingle.mp3?t=${middleJingleTimestamp}`, lang);
             audioSegments.push({
                 type: 'single',
                 url: middleJingleUrl
@@ -1838,7 +1839,7 @@ async function generateRadioProgram(world, lmid) {
             
             // Add question prompt from world-specific questions folder
             const cacheBustTimestamp = Date.now() + Math.random();
-            const questionUrl = `https://little-microphones.b-cdn.net/audio/${world}/questions/${world}-QID${questionId}.mp3?t=${cacheBustTimestamp}`;
+            const questionUrl = window.LM_CONFIG.getLocalizedAudioUrl(`audio/${world}/questions/${world}-QID${questionId}.mp3?t=${cacheBustTimestamp}`, lang);
             audioSegments.push({
                 type: 'single',
                 url: questionUrl
@@ -1853,7 +1854,7 @@ async function generateRadioProgram(world, lmid) {
             
             // Combine answers with world-specific background music
             const backgroundTimestamp = Date.now() + Math.random(); // Unique timestamp per question
-            const backgroundUrl = `https://little-microphones.b-cdn.net/audio/${world}/other/${world}-background.mp3?t=${backgroundTimestamp}`;
+            const backgroundUrl = window.LM_CONFIG.getLocalizedAudioUrl(`audio/${world}/other/${world}-background.mp3?t=${backgroundTimestamp}`, lang);
             audioSegments.push({
                 type: 'combine_with_background',
                 answerUrls: answerUrls,
@@ -1864,7 +1865,7 @@ async function generateRadioProgram(world, lmid) {
         
         // 5. Add middle-jingle before outro
         const finalMiddleJingleTimestamp = Date.now() + 3;
-        const finalMiddleJingleUrl = `https://little-microphones.b-cdn.net/audio/jingles/middle-jingle.mp3?t=${finalMiddleJingleTimestamp}`;
+        const finalMiddleJingleUrl = window.LM_CONFIG.getLocalizedAudioUrl(`audio/jingles/middle-jingle.mp3?t=${finalMiddleJingleTimestamp}`, lang);
         audioSegments.push({
             type: 'single',
             url: finalMiddleJingleUrl
@@ -1872,7 +1873,7 @@ async function generateRadioProgram(world, lmid) {
         
         // 6. Add outro jingle
         const outroJingleTimestamp = Date.now() + 4;
-        const outroJingleUrl = `https://little-microphones.b-cdn.net/audio/jingles/outro-jingle.mp3?t=${outroJingleTimestamp}`;
+        const outroJingleUrl = window.LM_CONFIG.getLocalizedAudioUrl(`audio/jingles/outro-jingle.mp3?t=${outroJingleTimestamp}`, lang);
         audioSegments.push({
             type: 'single',
             url: outroJingleUrl
@@ -1880,7 +1881,7 @@ async function generateRadioProgram(world, lmid) {
         
         // 7. Add world-specific outro (role-based) - LAST
         const worldOutroTimestamp = Date.now() + 5;
-        const worldOutroUrl = `https://little-microphones.b-cdn.net/audio/${world}/other/${world}-outro-${userRole}.mp3?t=${worldOutroTimestamp}`;
+        const worldOutroUrl = window.LM_CONFIG.getLocalizedAudioUrl(`audio/${world}/other/${world}-outro-${userRole}.mp3?t=${worldOutroTimestamp}`, lang);
         audioSegments.push({
             type: 'single',
             url: worldOutroUrl
@@ -1900,7 +1901,7 @@ async function generateRadioProgram(world, lmid) {
                 lmid: lmid,
                 audioSegments: audioSegments,
                 programType: 'kids',
-                lang: 'en'
+                lang: window.LM_CONFIG.getCurrentLanguage()
             })
         });
         

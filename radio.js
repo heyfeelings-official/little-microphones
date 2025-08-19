@@ -1219,9 +1219,10 @@
         introContainer.className = 'intro-story';
         introContainer.style.cssText = 'margin-bottom: 1rem; display: block; min-height: 48px; pointer-events: auto; user-select: auto;';
         
-        // Generate intro story URL from world name
+        // Generate intro story URL from world name with proper language
         const worldName = radioData.world?.toLowerCase() || 'spookyland';
-        const introAudioUrl = `https://little-microphones.b-cdn.net/en/audio/${worldName}/other/${worldName}-story.mp3`;
+        const lang = window.LM_CONFIG.getCurrentLanguage();
+        const introAudioUrl = window.LM_CONFIG.getLocalizedAudioUrl(`audio/${worldName}/other/${worldName}-story.mp3`);
         
         console.log('🎵 Creating Intro Story player for world:', worldName, 'URL:', introAudioUrl);
         
