@@ -56,19 +56,34 @@ document.addEventListener('DOMContentLoaded', function() {
           if (monthlyTab) monthlyTab.classList.remove('w--current');
           if (yearlyTab) yearlyTab.classList.remove('w--current');
 
-          // --- Simple scrollIntoView ---
+          // --- Native anchor-based scroll ---
           setTimeout(function() {
-            const pricingSection = document.getElementById(pricingSectionId);
-            if (pricingSection && typeof pricingSection.scrollIntoView === 'function') {
-              try {
-                pricingSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              } catch (e) {
-                // Fallback
-                pricingSection.scrollIntoView(true);
+            try {
+              // Preserve existing query params and set hash to #pricing
+              const url = new URL(window.location.href);
+              url.hash = pricingSectionId; // #pricing
+              // Use replaceState to avoid adding history entries
+              window.history.replaceState({}, '', url.toString());
+              // Let browser perform native jump to anchor
+              // If browser doesn't auto-jump, force as a fallback
+              const target = document.getElementById(pricingSectionId);
+              if (target) {
+                const anchor = document.createElement('a');
+                anchor.href = `#${pricingSectionId}`;
+                document.body.appendChild(anchor);
+                anchor.click();
+                document.body.removeChild(anchor);
+              }
+            } catch (e) {
+              // Last-resort fallback
+              const el = document.getElementById(pricingSectionId);
+              if (el) {
+                const y = window.pageYOffset + el.getBoundingClientRect().top;
+                window.scrollTo(0, y);
               }
             }
           }, scrollDelayAfterClick);
-          // --- End Simple Scrolling ---
+          // --- End Native anchor-based scroll ---
         }
       }, clickDelay);
     }
