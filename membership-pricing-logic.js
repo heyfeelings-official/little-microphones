@@ -94,6 +94,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // PRICING BUTTONS LOGIC
 // ========================================
 document.addEventListener("DOMContentLoaded", function () {
+    console.log('🚀 MEMBERSHIP DEBUG: Script loaded!');
 
     // --- Configuration ---
 
@@ -126,12 +127,31 @@ document.addEventListener("DOMContentLoaded", function () {
     const monthlyTabId = "monthly-tab-link"; // Make sure this ID exists on your Monthly tab link
     const yearlyTabId = "yearly-tab-link";   // Make sure this ID exists on your Yearly tab link
 
+    // 🔍 DEBUG: Check if elements exist on page
+    console.log('🔍 CHECKING ELEMENTS ON PAGE:');
+    console.log('Monthly tab:', document.getElementById(monthlyTabId) ? 'FOUND' : 'NOT FOUND');
+    console.log('Yearly tab:', document.getElementById(yearlyTabId) ? 'FOUND' : 'NOT FOUND');
+    
+    // Check all buttons
+    paidTiers.forEach((tier, index) => {
+        console.log(`📋 TIER ${index + 1} (${tier.id}):`);
+        console.log('  Upgrade button:', document.getElementById(tier.buttons.upgrade) ? 'FOUND' : 'NOT FOUND');
+        console.log('  Manage button:', document.getElementById(tier.buttons.manage) ? 'FOUND' : 'NOT FOUND');
+        console.log('  Downgrade button:', document.getElementById(tier.buttons.downgrade) ? 'FOUND' : 'NOT FOUND');
+        console.log('  Highlight div:', document.getElementById(tier.highlightDivId) ? 'FOUND' : 'NOT FOUND');
+    });
+
     // --- Helper Functions ---
 
     function setButtonVisibility(buttonId, displayValue) {
         const button = document.getElementById(buttonId);
+        console.log(`    🎯 setButtonVisibility(${buttonId}, ${displayValue}): ${button ? 'FOUND & SET' : 'NOT FOUND!'}`);
         if (button) {
             button.style.display = displayValue;
+        } else {
+            // Check if there are multiple elements with same ID (duplikaty!)
+            const duplicates = document.querySelectorAll(`#${buttonId}`);
+            console.log(`    ⚠️  Found ${duplicates.length} elements with ID "${buttonId}"`);
         }
     }
 
@@ -183,28 +203,43 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     window.$memberstackDom.getCurrentMember().then(({ data: member }) => {
+        console.log('👤 MEMBERSTACK DEBUG: Full member object:', member);
+        
         let currentUserTierOrder = null;
         let currentTierData = null;
         let activateMonthly = false; // Flag for tab switching
 
         // Determine currentUserTierOrder and currentTierData
         if (member && member.planConnections && member.planConnections.length > 0) {
+            console.log('📊 PLAN CONNECTIONS:', member.planConnections);
             const activeConnections = member.planConnections.filter(conn => conn.active && conn.status === "ACTIVE");
             
             if (activeConnections.length > 0) {
                 for (const conn of activeConnections) {
                     const priceIdToCheck = conn.priceId || (conn.payment ? conn.payment.priceId : null);
+                    console.log('🔍 CHECKING CONNECTION:', {
+                        planId: conn.planId,
+                        priceId: conn.priceId,
+                        paymentPriceId: conn.payment ? conn.payment.priceId : null,
+                        priceIdToCheck: priceIdToCheck,
+                        active: conn.active,
+                        status: conn.status
+                    });
+                    
                     if (priceIdToCheck) {
                          const matchedTier = paidTiers.find(tier => tier.id === priceIdToCheck);
                          if (matchedTier) {
                             currentUserTierOrder = matchedTier.order;
                             currentTierData = matchedTier;
-                            console.log(`User is on paid tier: ${priceIdToCheck} (Order: ${currentUserTierOrder})`);
+                            console.log(`✅ MATCHED TIER: ${priceIdToCheck} (Order: ${currentUserTierOrder})`);
                             // *** Check if the plan is monthly for tab switching ***
                             if (currentUserTierOrder === 1 || currentUserTierOrder === 2) {
                                 activateMonthly = true;
                             }
                             break;
+                         } else {
+                            console.log(`❌ NO TIER MATCH for priceId: ${priceIdToCheck}`);
+                            console.log('Available tier IDs:', paidTiers.map(t => t.id));
                          }
                     }
                 }
@@ -215,16 +250,22 @@ document.addEventListener("DOMContentLoaded", function () {
         } else { console.log("No member logged in or no plan connections found."); }
 
         // Apply Button Visibility Rules
+        console.log('🎛️ APPLYING BUTTON RULES, currentUserTierOrder:', currentUserTierOrder);
         paidTiers.forEach(tier => {
+            console.log(`🔧 TIER ${tier.order}: Checking buttons...`);
             if (currentUserTierOrder !== null) { // User on Paid Plan
                 if (tier.order === currentUserTierOrder) {
+                    console.log(`  → Current plan tier ${tier.order}: showing MANAGE button`);
                     setButtonVisibility(tier.buttons.manage, 'block'); setButtonVisibility(tier.buttons.upgrade, 'none'); setButtonVisibility(tier.buttons.downgrade, 'none');
                 } else if (tier.order > currentUserTierOrder) {
+                    console.log(`  → Higher tier ${tier.order}: showing UPGRADE button`);
                     setButtonVisibility(tier.buttons.upgrade, 'block'); setButtonVisibility(tier.buttons.manage, 'none'); setButtonVisibility(tier.buttons.downgrade, 'none');
                 } else { // tier.order < currentUserTierOrder
+                    console.log(`  → Lower tier ${tier.order}: showing DOWNGRADE button`);
                     setButtonVisibility(tier.buttons.downgrade, 'block'); setButtonVisibility(tier.buttons.upgrade, 'none'); setButtonVisibility(tier.buttons.manage, 'none');
                 }
             } else { // User on Free Plan or Logged Out
+                console.log(`  → Free user tier ${tier.order}: showing UPGRADE button`);
                 setButtonVisibility(tier.buttons.upgrade, 'block'); setButtonVisibility(tier.buttons.manage, 'none'); setButtonVisibility(tier.buttons.downgrade, 'none');
             }
         });
