@@ -1,7 +1,7 @@
 /**
  * Hey Feelings - Membership Pricing Logic
  * Handles promotional URL parameters and dynamic pricing buttons based on Memberstack plans
- * Version: 1.1 - Fixed timing issues by restoring original structure
+ * Version: 1.2 - Production ready (removed debug logging)
  */
 
 // ========================================
@@ -94,7 +94,6 @@ document.addEventListener('DOMContentLoaded', function() {
 // PRICING BUTTONS LOGIC
 // ========================================
 document.addEventListener("DOMContentLoaded", function () {
-    console.log('🚀 MEMBERSHIP DEBUG: Script loaded!');
 
     // --- Configuration ---
 
@@ -128,52 +127,10 @@ document.addEventListener("DOMContentLoaded", function () {
     const monthlyTabId = "monthly-tab-link"; // Make sure this ID exists on your Monthly tab link
     const yearlyTabId = "yearly-tab-link";   // Make sure this ID exists on your Yearly tab link
 
-    // 🔍 DEBUG: Check if elements exist on page
-    console.log('🔍 CHECKING ELEMENTS ON PAGE:');
-    console.log('Monthly tab:', document.getElementById(monthlyTabId) ? 'FOUND' : 'NOT FOUND');
-    console.log('Yearly tab:', document.getElementById(yearlyTabId) ? 'FOUND' : 'NOT FOUND');
-    
-    // Check for featured free account element
-    const featuredFreeAccount = document.querySelector('.pricing20_plan.featured-free-account');
-    console.log('Featured Free Account:', featuredFreeAccount ? 'FOUND' : 'NOT FOUND');
-    if (featuredFreeAccount) {
-        const rect = featuredFreeAccount.getBoundingClientRect();
-        console.log(`  📐 Position: ${rect.width}x${rect.height} at (${rect.x}, ${rect.y})`);
-        console.log(`  🎨 Classes: ${featuredFreeAccount.className}`);
-    }
-    
-    // Check all buttons with detailed style analysis
-    paidTiers.forEach((tier, index) => {
-        console.log(`📋 TIER ${index + 1} (${tier.id}):`);
-        
-        // Check each button type
-        ['upgrade', 'manage', 'downgrade'].forEach(buttonType => {
-            const buttonId = tier.buttons[buttonType];
-            const button = document.getElementById(buttonId);
-            if (button) {
-                const computedStyle = getComputedStyle(button);
-                const rect = button.getBoundingClientRect();
-                console.log(`  ${buttonType} button (${buttonId}): FOUND`);
-                console.log(`    📐 Position: ${rect.width}x${rect.height} at (${rect.x}, ${rect.y})`);
-                console.log(`    👁️ Display: ${computedStyle.display}, Visibility: ${computedStyle.visibility}, Opacity: ${computedStyle.opacity}`);
-                console.log(`    🎨 Classes: ${button.className}`);
-                if (rect.width === 0 && rect.height === 0) {
-                    console.log(`    ⚠️  BUTTON HAS ZERO DIMENSIONS!`);
-                }
-            } else {
-                console.log(`  ${buttonType} button (${buttonId}): NOT FOUND`);
-            }
-        });
-        
-        const highlightDiv = document.getElementById(tier.highlightDivId);
-        console.log('  Highlight div:', highlightDiv ? 'FOUND' : 'NOT FOUND');
-    });
-
     // --- Helper Functions ---
 
     function setButtonVisibility(buttonId, displayValue) {
         const button = document.getElementById(buttonId);
-        console.log(`    🎯 setButtonVisibility(${buttonId}, ${displayValue}): ${button ? 'FOUND & SET' : 'NOT FOUND!'}`);
         if (button) {
             // Clear any existing inline styles first
             button.style.display = '';
@@ -182,20 +139,13 @@ document.addEventListener("DOMContentLoaded", function () {
             // Force important if still hidden
             if (displayValue === 'block' && getComputedStyle(button).display === 'none') {
                 button.style.setProperty('display', displayValue, 'important');
-                console.log(`    💪 FORCED !important for ${buttonId}`);
             }
-            // Final check
-            const finalDisplay = getComputedStyle(button).display;
-            console.log(`    ✅ Final computed display for ${buttonId}: ${finalDisplay}`);
         } else {
             // Check if there are multiple elements with same ID (duplikaty!)
             const duplicates = document.querySelectorAll(`#${buttonId}`);
-            console.log(`    ⚠️  Found ${duplicates.length} elements with ID "${buttonId}"`);
             if (duplicates.length > 1) {
-                console.log(`    🔧 Attempting to set display on all duplicates...`);
                 duplicates.forEach((el, idx) => {
                     el.style.display = displayValue;
-                    console.log(`    📍 Duplicate ${idx + 1} display set to: ${displayValue}`);
                 });
             }
         }
@@ -227,11 +177,8 @@ document.addEventListener("DOMContentLoaded", function () {
         const tabLink = document.getElementById(tabIdToActivate);
         if (tabLink) {
             if (!tabLink.classList.contains('w--current')) {
-                 console.log(`Activating tab: #${tabIdToActivate}`);
                  tabLink.click(); // Simulate click
-            } // else { console.log(`Tab #${tabIdToActivate} is already active.`); }
-        } else {
-            console.warn(`Tab link element with ID #${tabIdToActivate} not found.`);
+            }
         }
     }
 
@@ -242,101 +189,72 @@ document.addEventListener("DOMContentLoaded", function () {
     // Default tab will be activated after member check
 
     if (!window.$memberstackDom) {
-        console.error("Memberstack ($memberstackDom) is not available.");
         paidTiers.forEach(tier => setButtonVisibility(tier.buttons.upgrade, 'block'));
         activateTab(yearlyTabId); // Activate default tab on MS error
         return;
     }
 
     window.$memberstackDom.getCurrentMember().then(({ data: member }) => {
-        console.log('👤 MEMBERSTACK DEBUG: Full member object:', member);
-        
         let currentUserTierOrder = null;
         let currentTierData = null;
         let activateMonthly = false; // Flag for tab switching
 
         // Determine currentUserTierOrder and currentTierData
         if (member && member.planConnections && member.planConnections.length > 0) {
-            console.log('📊 PLAN CONNECTIONS:', member.planConnections);
             const activeConnections = member.planConnections.filter(conn => conn.active && conn.status === "ACTIVE");
             
             if (activeConnections.length > 0) {
                 for (const conn of activeConnections) {
                     const priceIdToCheck = conn.priceId || (conn.payment ? conn.payment.priceId : null);
-                    console.log('🔍 CHECKING CONNECTION:', {
-                        planId: conn.planId,
-                        priceId: conn.priceId,
-                        paymentPriceId: conn.payment ? conn.payment.priceId : null,
-                        priceIdToCheck: priceIdToCheck,
-                        active: conn.active,
-                        status: conn.status
-                    });
                     
                     if (priceIdToCheck) {
                          const matchedTier = paidTiers.find(tier => tier.id === priceIdToCheck);
                          if (matchedTier) {
                             currentUserTierOrder = matchedTier.order;
                             currentTierData = matchedTier;
-                            console.log(`✅ MATCHED TIER: ${priceIdToCheck} (Order: ${currentUserTierOrder})`);
                             // *** Check if the plan is monthly for tab switching ***
                             if (currentUserTierOrder === 1 || currentUserTierOrder === 2) {
                                 activateMonthly = true;
                             }
                             break;
-                         } else {
-                            console.log(`❌ NO TIER MATCH for priceId: ${priceIdToCheck}`);
-                            console.log('Available tier IDs:', paidTiers.map(t => t.id));
                          }
                     }
                 }
                  if (currentUserTierOrder === null) { // Check free only if no paid plan found
                      for (const conn of activeConnections) { 
                          if (freePlanIds.includes(conn.planId)) { 
-                             console.log(`🆓 User is on free plan: ${conn.planId}`);
-                             
                              // Check if it's a FREE PROMO plan (educators or therapists)
                              if (conn.planId === 'pln_educators-free-promo-ebfw0xzj' || conn.planId === 'pln_therapists-free-promo-i2kz0huu') {
-                                 console.log(`🎉 FREE PROMO plan detected! Should highlight featured-free-account`);
                                  // Find and highlight the featured free account plan
                                  const featuredFreePlan = document.querySelector('.pricing20_plan.featured-free-account');
                                  if (featuredFreePlan) {
                                      featuredFreePlan.classList.add('featured');
-                                     console.log(`✨ Added 'featured' class to featured-free-account plan`);
                                      
                                      // Also try to show any badges
                                      const badges = featuredFreePlan.querySelectorAll('.badge-numbers.featured');
                                      badges.forEach(badge => {
                                          badge.style.display = 'flex';
-                                         console.log(`🏆 Showed badge in featured-free-account`);
                                      });
-                                 } else {
-                                     console.log(`❌ Could not find .pricing20_plan.featured-free-account element`);
                                  }
                              }
                              break; 
                          } 
                      }
                  }
-            } else { console.log("Member has plan connections, but none are active."); }
-        } else { console.log("No member logged in or no plan connections found."); }
+            }
+        }
 
         // Apply Button Visibility Rules
-        console.log('🎛️ APPLYING BUTTON RULES, currentUserTierOrder:', currentUserTierOrder);
         paidTiers.forEach(tier => {
-            console.log(`🔧 TIER ${tier.order}: Checking buttons...`);
             if (currentUserTierOrder !== null) { // User on Paid Plan
                 if (tier.order === currentUserTierOrder) {
-                    console.log(`  → Current plan tier ${tier.order}: showing MANAGE button`);
                     setButtonVisibility(tier.buttons.manage, 'block'); setButtonVisibility(tier.buttons.upgrade, 'none'); setButtonVisibility(tier.buttons.downgrade, 'none');
                 } else if (tier.order > currentUserTierOrder) {
-                    console.log(`  → Higher tier ${tier.order}: showing UPGRADE button`);
                     setButtonVisibility(tier.buttons.upgrade, 'block'); setButtonVisibility(tier.buttons.manage, 'none'); setButtonVisibility(tier.buttons.downgrade, 'none');
                 } else { // tier.order < currentUserTierOrder
-                    console.log(`  → Lower tier ${tier.order}: showing DOWNGRADE button`);
                     setButtonVisibility(tier.buttons.downgrade, 'block'); setButtonVisibility(tier.buttons.upgrade, 'none'); setButtonVisibility(tier.buttons.manage, 'none');
                 }
             } else { // User on Free Plan or Logged Out
-                console.log(`  → Free user tier ${tier.order}: showing UPGRADE button`);
                 setButtonVisibility(tier.buttons.upgrade, 'block'); setButtonVisibility(tier.buttons.manage, 'none'); setButtonVisibility(tier.buttons.downgrade, 'none');
             }
         });
@@ -365,11 +283,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
     }).catch((error) => {
-        console.error("Error fetching Memberstack member:", error);
         resetHighlighting();
         hideAllPricingButtons();
         paidTiers.forEach(tier => setButtonVisibility(tier.buttons.upgrade, 'block'));
         activateTab(yearlyTabId); // Activate default tab on fetch error
-        console.log("Error fetching member, showing default settings.");
     });
 });
