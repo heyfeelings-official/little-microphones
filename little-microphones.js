@@ -322,7 +322,12 @@
                                         e.stopPropagation();
                                         window.location.href = radioUrl;
                                     };
+                                    console.log(`🎵 ShareID link setup for ${world} LMID ${lmid}: ${radioUrl}`);
+                                } else {
+                                    console.warn(`⚠️ Badge-rec element not found in world container for ${world}`);
                                 }
+                            } else {
+                                console.warn(`⚠️ No ShareID available for ${world} LMID ${lmid} (probably no recordings)`);
                             }
                         }
                         
@@ -379,7 +384,7 @@
         
         // Animate elements that are now visible
         setTimeout(() => {
-            animateBadgeRecElements();
+            animateNewRecElements();
         }, 100);
     }
 
@@ -1352,12 +1357,10 @@
         // Remove old world navigation - now handled by individual elements
         // document.body.addEventListener("click", handleWorldNavigation);
         
-        // Add new LMID
+        // Add new LMID (optional - button may not exist if only delete workflow is used)
         const addButton = document.getElementById("add-lmid");
         if (addButton) {
             addButton.addEventListener("click", handleAddLMID);
-        } else {
-            console.error("❌ 'Add LMID' button not found - ensure button has ID 'add-lmid'");
         }
     }
 
