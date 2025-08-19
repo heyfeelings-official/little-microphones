@@ -1,7 +1,7 @@
 /**
  * Hey Feelings - Membership Pricing Logic
  * Handles promotional URL parameters and dynamic pricing buttons based on Memberstack plans
- * Version: 1.4 - DEBUG: Tab priority + scrolling issues (temporary logging)
+ * Version: 1.5 - Fixed promo priority with global flag + simplified scrolling
  */
 
 // ========================================
@@ -28,77 +28,45 @@ document.addEventListener('DOMContentLoaded', function() {
   const thanksToElement = document.getElementById(thanksToElementId);
 
   // --- Main Logic Branch: Check if Promo Activation is Needed ---
-  console.log('🎬 PROMO SCRIPT 1: Starting promotional logic check');
-  console.log('🔍 URL params:', { promo: promoValue, thanksTo: thanksToValue });
-  console.log('🎯 Elements found:', { 
-    promoTab: !!promoTabLink, 
-    thanksToEl: !!thanksToElement 
-  });
-  
   if (promoValue === promoParamValue) {
-    console.log('✅ PROMO ACTIVATED: promo=yes detected!');
     // --- Activation Logic ---
     if (promoTabLink) {
-      console.log('📱 Making promo tab visible and preparing to click');
       // 1. Make the tab link visible
       promoTabLink.style.display = 'flex'; // Use 'flex' as determined previously
 
       // 2. Click after delay
       setTimeout(function() {
-        console.log('🔄 Attempting to click promo tab...');
         // Re-check element exists in case of dynamic changes
         const currentPromoTabLink = document.getElementById(promoTabLinkId);
         if (currentPromoTabLink) {
-          console.log('🎯 Clicking promo tab NOW');
           currentPromoTabLink.click(); // Activate the tab
 
-          // --- Simplified Robust Scrolling Logic ---
+          // --- Fixed Scrolling Logic ---
           setTimeout(function() {
             // Try to find the pricing section using multiple methods
             const pricingSection = document.getElementById(pricingSectionId) || 
                                   document.querySelector(`#${pricingSectionId}`) || 
                                   document.querySelector(`[data-section-id="${pricingSectionId}"]`);
                                   
-            console.log('🎯 SCROLLING DEBUG: Found pricing section:', !!pricingSection);
-                                  
             if (pricingSection) {
-              // Multiple scroll attempts with increasing delays to handle animations
-              const scrollAttempts = [
-                { delay: 100, method: 'smooth' },
-                { delay: 800, method: 'smooth' },
-                { delay: 1500, method: 'immediate' },
-                { delay: 2200, method: 'force' }
-              ];
-              
-              scrollAttempts.forEach((attempt, index) => {
-                setTimeout(() => {
-                  console.log(`📍 Scroll attempt ${index + 1}/${scrollAttempts.length} (${attempt.method})`);
-                  
-                  try {
-                    const rect = pricingSection.getBoundingClientRect();
-                    const targetY = window.pageYOffset + rect.top - 100;
-                    
-                    if (attempt.method === 'smooth') {
-                      window.scrollTo({ top: targetY, behavior: 'smooth' });
-                    } else if (attempt.method === 'immediate') {
-                      window.scrollTo(0, targetY);
-                    } else if (attempt.method === 'force') {
-                      // Force scrollIntoView as last resort
-                      pricingSection.scrollIntoView({ 
-                        behavior: 'smooth', 
-                        block: 'start',
-                        inline: 'nearest'
-                      });
-                    }
-                    
-                    console.log(`✅ Executed scroll to position ${targetY}`);
-                  } catch (e) {
-                    console.log(`❌ Scroll attempt ${index + 1} failed:`, e);
-                  }
-                }, attempt.delay);
-              });
+              // Wait for Webflow animations then force scroll
+              setTimeout(function() {
+                // Calculate position and force scroll immediately
+                const rect = pricingSection.getBoundingClientRect();
+                const targetY = window.pageYOffset + rect.top - 100;
+                
+                // Immediate scroll - no smooth animation to avoid conflicts
+                window.scrollTo(0, targetY);
+                
+                // Backup scroll after brief delay in case first attempt interrupted
+                setTimeout(function() {
+                  const newRect = pricingSection.getBoundingClientRect();
+                  const newTargetY = window.pageYOffset + newRect.top - 100;
+                  window.scrollTo(0, newTargetY);
+                }, 500);
+              }, 1000); // Wait 1 second for animations to settle
             }
-          }, 200); // Shorter initial delay
+          }, 200);
           // --- End Scrolling Logic ---
         }
       }, clickDelay);
@@ -107,18 +75,16 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // --- Handle "Thanks To" Text (Runs regardless of promo activation) ---
-  console.log('📝 THANKS TO HANDLER: Processing thanks-to parameter');
   if (thanksToElement) {
-    console.log('✅ Thanks-to element found');
     // Only change text if thanksToValue is present and not empty/whitespace
     if (thanksToValue && thanksToValue.trim() !== '') {
-      console.log('🔄 Changing thanks-to text to:', thanksToValue.trim());
       thanksToElement.textContent = thanksToValue.trim();
-    } else {
-      console.log('⚠️ Thanks-to value is empty or missing');
     }
-  } else {
-    console.log('❌ Thanks-to element not found (id: thanks-to)');
+  }
+  
+  // --- Set global flag to prevent tab override ---
+  if (promoValue === promoParamValue) {
+    window.promoTabActivated = true;
   }
 });
 
@@ -126,7 +92,6 @@ document.addEventListener('DOMContentLoaded', function() {
 // PRICING BUTTONS LOGIC
 // ========================================
 document.addEventListener("DOMContentLoaded", function () {
-    console.log('🎬 PRICING SCRIPT 2: Starting pricing buttons logic');
 
     // --- Configuration ---
 
@@ -224,11 +189,8 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!window.$memberstackDom) {
         paidTiers.forEach(tier => setButtonVisibility(tier.buttons.upgrade, 'block'));
         
-        // Respect promo tab priority even when Memberstack unavailable
-        const urlParams = new URLSearchParams(window.location.search);
-        const promoValue = urlParams.get('promo');
-        
-        if (promoValue !== 'yes') {
+        // Respect promo tab priority even when Memberstack unavailable  
+        if (!window.promoTabActivated) {
             activateTab(yearlyTabId); // Activate default tab on MS error only if no promo
         }
         return;
@@ -315,33 +277,16 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         // --- Activate Correct Tab (but respect promo tab priority) ---
-        // Check if promo tab is already active instead of URL params
-        const promoTabLink = document.getElementById('promo-tab');
-        const isPromoTabActive = promoTabLink && 
-                                 (promoTabLink.classList.contains('w--current') || 
-                                  promoTabLink.style.display !== 'none');
-        
-        console.log('🔍 PROMO DEBUG:', {
-            promoTabExists: !!promoTabLink,
-            promoTabDisplay: promoTabLink ? promoTabLink.style.display : 'not found',
-            promoTabClasses: promoTabLink ? promoTabLink.className : 'not found',
-            isActive: isPromoTabActive,
-            urlHasPromo: window.location.search.includes('promo=yes')
-        });
-        
-        if (!isPromoTabActive) {
-            // Only activate monthly/yearly if promo tab is NOT active
+        // Check if promo was activated by Script 1 - simple and reliable check
+        if (!window.promoTabActivated) {
+            // Only activate monthly/yearly if promo is NOT active
             if (activateMonthly) {
-                console.log('🔄 Activating Monthly tab (no promo conflict)');
-                activateTab(monthlyTabId);
+                activateTab(monthlyTabId); // Activate Monthly tab
             } else {
-                console.log('🔄 Activating Yearly tab (no promo conflict)');
-                activateTab(yearlyTabId);
+                activateTab(yearlyTabId); // Activate Yearly tab (default case)  
             }
-        } else {
-            console.log('🚫 Skipping tab activation - promo tab is active');
         }
-        // If promo tab active, let the promotional logic handle tab activation
+        // If promoTabActivated flag is set, skip tab activation entirely
 
 
     }).catch((error) => {
@@ -350,10 +295,7 @@ document.addEventListener("DOMContentLoaded", function () {
         paidTiers.forEach(tier => setButtonVisibility(tier.buttons.upgrade, 'block'));
         
         // Respect promo tab priority even on error
-        const urlParams = new URLSearchParams(window.location.search);
-        const promoValue = urlParams.get('promo');
-        
-        if (promoValue !== 'yes') {
+        if (!window.promoTabActivated) {
             activateTab(yearlyTabId); // Activate default tab on fetch error only if no promo
         }
     });
