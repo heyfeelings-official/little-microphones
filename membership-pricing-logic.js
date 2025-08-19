@@ -15,8 +15,8 @@ document.addEventListener('DOMContentLoaded', function() {
   const promoParamName = 'promo';
   const promoParamValue = 'yes'; // Expected value to trigger activation
   const thanksToParamName = 'thanks-to';
-  const clickDelay = 500;        // Increased delay for Webflow to initialize
-  const scrollDelayAfterClick = 1500; // Much longer delay for tab animation
+  const clickDelay = 200;        // Short delay for Webflow to initialize
+  const scrollDelayAfterClick = 300; // Short delay before scroll
 
   // --- Get URL Parameters ---
   const urlParams = new URLSearchParams(window.location.search);
@@ -56,44 +56,19 @@ document.addEventListener('DOMContentLoaded', function() {
           if (monthlyTab) monthlyTab.classList.remove('w--current');
           if (yearlyTab) yearlyTab.classList.remove('w--current');
 
-          // --- Robust Scrolling with Retry Logic ---
-          function attemptScroll(retryCount = 0) {
-            const maxRetries = 5;
-            
-            setTimeout(function() {
-              const pricingSection = document.getElementById(pricingSectionId) || 
-                                    document.querySelector(`#${pricingSectionId}`);
-                                    
-              if (pricingSection) {
-                // Check if element is visible
-                const rect = pricingSection.getBoundingClientRect();
-                
-                if (rect.height > 0) {
-                  // Element is visible, scroll to it
-                  const targetY = window.pageYOffset + rect.top - 100;
-                  
-                  // Force immediate jump (no animation)
-                  window.scrollTo(0, targetY);
-                  
-                  // Verify scroll happened
-                  setTimeout(function() {
-                    const currentY = window.pageYOffset;
-                    // If we're not near target, try again
-                    if (Math.abs(currentY - targetY) > 200 && retryCount < maxRetries) {
-                      attemptScroll(retryCount + 1);
-                    }
-                  }, 100);
-                } else if (retryCount < maxRetries) {
-                  // Element not visible yet, retry
-                  attemptScroll(retryCount + 1);
-                }
+          // --- Simple scrollIntoView ---
+          setTimeout(function() {
+            const pricingSection = document.getElementById(pricingSectionId);
+            if (pricingSection && typeof pricingSection.scrollIntoView === 'function') {
+              try {
+                pricingSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              } catch (e) {
+                // Fallback
+                pricingSection.scrollIntoView(true);
               }
-            }, retryCount === 0 ? scrollDelayAfterClick : 500);
-          }
-          
-          // Start scrolling attempts
-          attemptScroll();
-          // --- End Scrolling Logic ---
+            }
+          }, scrollDelayAfterClick);
+          // --- End Simple Scrolling ---
         }
       }, clickDelay);
     }
