@@ -1325,10 +1325,15 @@
                 const data = await response.json();
                 if (data.success) {
                     return data.shareId;
+                } else {
+                    console.warn(`[ShareID] Failed to get ShareID for LMID ${lmid}, world ${world}:`, data.error || 'Unknown error');
                 }
+            } else {
+                console.warn(`[ShareID] HTTP error ${response.status} for LMID ${lmid}, world ${world}`);
             }
             return null;
         } catch (error) {
+            console.error(`[ShareID] Request error for LMID ${lmid}, world ${world}:`, error);
             return null;
         }
     }
