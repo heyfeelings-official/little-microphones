@@ -56,34 +56,15 @@ document.addEventListener('DOMContentLoaded', function() {
           if (monthlyTab) monthlyTab.classList.remove('w--current');
           if (yearlyTab) yearlyTab.classList.remove('w--current');
 
-          // --- Native anchor-based scroll ---
+          // --- Minimal, robust scroll to #pricing ---
           setTimeout(function() {
-            try {
-              // Preserve existing query params and set hash to #pricing
-              const url = new URL(window.location.href);
-              url.hash = pricingSectionId; // #pricing
-              // Use replaceState to avoid adding history entries
-              window.history.replaceState({}, '', url.toString());
-              // Let browser perform native jump to anchor
-              // If browser doesn't auto-jump, force as a fallback
-              const target = document.getElementById(pricingSectionId);
-              if (target) {
-                const anchor = document.createElement('a');
-                anchor.href = `#${pricingSectionId}`;
-                document.body.appendChild(anchor);
-                anchor.click();
-                document.body.removeChild(anchor);
-              }
-            } catch (e) {
-              // Last-resort fallback
-              const el = document.getElementById(pricingSectionId);
-              if (el) {
-                const y = window.pageYOffset + el.getBoundingClientRect().top;
-                window.scrollTo(0, y);
-              }
+            const el = document.getElementById(pricingSectionId);
+            if (el) {
+              const y = window.pageYOffset + el.getBoundingClientRect().top; // no offset, bez smooth
+              window.scrollTo(0, y);
             }
           }, scrollDelayAfterClick);
-          // --- End Native anchor-based scroll ---
+          // --- End minimal scroll ---
         }
       }, clickDelay);
     }
