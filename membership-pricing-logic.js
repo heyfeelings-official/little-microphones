@@ -56,15 +56,11 @@ document.addEventListener('DOMContentLoaded', function() {
           if (monthlyTab) monthlyTab.classList.remove('w--current');
           if (yearlyTab) yearlyTab.classList.remove('w--current');
 
-          // --- Minimal, robust scroll to #pricing ---
+          // --- Native browser scroll (like clicking header link) ---
           setTimeout(function() {
-            const el = document.getElementById(pricingSectionId);
-            if (el) {
-              const y = window.pageYOffset + el.getBoundingClientRect().top; // no offset, bez smooth
-              window.scrollTo(0, y);
-            }
+            window.location.hash = pricingSectionId; // -> #pricing
           }, scrollDelayAfterClick);
-          // --- End minimal scroll ---
+          // --- End native scroll ---
         }
       }, clickDelay);
     }
