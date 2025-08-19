@@ -1,7 +1,7 @@
 /**
  * Hey Feelings - Membership Pricing Logic
  * Handles promotional URL parameters and dynamic pricing buttons based on Memberstack plans
- * Version: 1.2 - Production ready (removed debug logging)
+ * Version: 1.3 - Fixed promo tab priority + enhanced scrolling
  */
 
 // ========================================
@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (currentPromoTabLink) {
           currentPromoTabLink.click(); // Activate the tab
 
-          // --- Scrolling Logic (ONLY if activation happens) ---
+          // --- Enhanced Scrolling Logic (ONLY if activation happens) ---
           setTimeout(function() {
             // Try to find the pricing section using multiple methods
             const pricingSection = document.getElementById(pricingSectionId) || 
@@ -49,29 +49,48 @@ document.addEventListener('DOMContentLoaded', function() {
                                   document.querySelector(`[data-section-id="${pricingSectionId}"]`);
                                   
             if (pricingSection) {
-              // Method 1: Use scrollIntoView with options
-              try {
-                pricingSection.scrollIntoView({ 
-                  behavior: 'smooth', 
-                  block: 'start'
-                });
-              } catch (e) {
-                // Method 2: Fallback to manual scrolling
+              // Enhanced scrolling with multiple attempts and animation consideration
+              function scrollToPricing(attempt = 1) {
+                const maxAttempts = 3;
+                
                 try {
-                  const yOffset = pricingSection.getBoundingClientRect().top + window.pageYOffset;
+                  // Calculate target position with some offset for better visibility
+                  const rect = pricingSection.getBoundingClientRect();
+                  const targetY = window.pageYOffset + rect.top - 100; // 100px offset from top
+                  
+                  // Force scroll to exact position
                   window.scrollTo({
-                    top: yOffset,
+                    top: targetY,
                     behavior: 'smooth'
                   });
-                } catch (e2) {
-                  // Method 3: Ultimate fallback
+                  
+                  // Verify scroll position after a delay and retry if needed
+                  setTimeout(function() {
+                    const currentScrollY = window.pageYOffset;
+                    const tolerance = 150; // Allow some tolerance
+                    
+                    if (Math.abs(currentScrollY - targetY) > tolerance && attempt < maxAttempts) {
+                      // If we're not close enough to target, try again
+                      scrollToPricing(attempt + 1);
+                    } else if (attempt === maxAttempts) {
+                      // Last attempt - force immediate scroll
+                      window.scrollTo(0, targetY);
+                    }
+                  }, 800); // Wait for smooth scroll to potentially complete
+                  
+                } catch (e) {
+                  // Fallback: immediate scroll to element
                   try {
-                    window.scrollTo(0, pricingSection.offsetTop);
-                  } catch (e3) {
-                    // Silent fail if all methods fail
+                    window.scrollTo(0, pricingSection.offsetTop - 100);
+                  } catch (e2) {
+                    // Ultimate fallback: use scrollIntoView
+                    pricingSection.scrollIntoView({ block: 'start' });
                   }
                 }
               }
+              
+              // Start scrolling process
+              scrollToPricing();
             }
           }, scrollDelayAfterClick);
           // --- End Scrolling Logic ---
@@ -190,7 +209,14 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (!window.$memberstackDom) {
         paidTiers.forEach(tier => setButtonVisibility(tier.buttons.upgrade, 'block'));
-        activateTab(yearlyTabId); // Activate default tab on MS error
+        
+        // Respect promo tab priority even when Memberstack unavailable
+        const urlParams = new URLSearchParams(window.location.search);
+        const promoValue = urlParams.get('promo');
+        
+        if (promoValue !== 'yes') {
+            activateTab(yearlyTabId); // Activate default tab on MS error only if no promo
+        }
         return;
     }
 
@@ -274,18 +300,33 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         }
 
-        // --- Activate Correct Tab ---
-        if (activateMonthly) {
-            activateTab(monthlyTabId); // Activate Monthly tab
-        } else {
-            activateTab(yearlyTabId); // Activate Yearly tab (default case)
+        // --- Activate Correct Tab (but respect promo tab priority) ---
+        // Check if promo is active - if so, DON'T override the promo tab
+        const urlParams = new URLSearchParams(window.location.search);
+        const promoValue = urlParams.get('promo');
+        
+        if (promoValue !== 'yes') {
+            // Only activate monthly/yearly if promo is NOT active
+            if (activateMonthly) {
+                activateTab(monthlyTabId); // Activate Monthly tab
+            } else {
+                activateTab(yearlyTabId); // Activate Yearly tab (default case)
+            }
         }
+        // If promo=yes, let the promotional logic handle tab activation
 
 
     }).catch((error) => {
         resetHighlighting();
         hideAllPricingButtons();
         paidTiers.forEach(tier => setButtonVisibility(tier.buttons.upgrade, 'block'));
-        activateTab(yearlyTabId); // Activate default tab on fetch error
+        
+        // Respect promo tab priority even on error
+        const urlParams = new URLSearchParams(window.location.search);
+        const promoValue = urlParams.get('promo');
+        
+        if (promoValue !== 'yes') {
+            activateTab(yearlyTabId); // Activate default tab on fetch error only if no promo
+        }
     });
 });
