@@ -140,9 +140,10 @@ async function fetchLastProgramManifest(world, lmid, type = '', lang) {
  * @param {Object} supabase - Supabase client for job queries
  * @param {string} world - World identifier  
  * @param {string} lmid - LMID number
+ * @param {string} lang - Language code (en/pl)
  * @returns {Promise<Object>} Object with needsKids and needsParent flags
  */
-async function needsNewProgram(currentRecordings, supabase, world, lmid) {
+async function needsNewProgram(currentRecordings, supabase, world, lmid, lang) {
     // STRICT: Only count files that include timestamp marker -tm_{number}
     const kidsPattern = new RegExp(`^kids-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.(webm|mp3)$`);
     const parentPattern = new RegExp(`^parent_[^-]+-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.(webm|mp3)$`);
@@ -161,12 +162,13 @@ async function needsNewProgram(currentRecordings, supabase, world, lmid) {
     console.log(`📊 Total files from list-recordings: ${currentRecordings.length}`);
     console.log(`📊 Found ${currentKidsCount} kids recordings, ${currentParentCount} parent recordings`);
     
-    // Get last completed job file_count for each type
+    // Get last completed job file_count for each type FOR THIS LANGUAGE
     const { data: lastKidsJob } = await supabase
         .from('audio_generation_jobs')
         .select('file_count')
         .eq('lmid', lmid.toString())
         .eq('type', 'kids')
+        .eq('lang', lang)  // CRITICAL: Filter by language!
         .eq('status', 'completed')
         .order('completed_at', { ascending: false })
         .limit(1);
@@ -176,6 +178,7 @@ async function needsNewProgram(currentRecordings, supabase, world, lmid) {
         .select('file_count')
         .eq('lmid', lmid.toString())
         .eq('type', 'parent')
+        .eq('lang', lang)  // CRITICAL: Filter by language!
         .eq('status', 'completed')
         .order('completed_at', { ascending: false })
         .limit(1);
@@ -349,7 +352,7 @@ export default async function handler(req, res) {
         const currentRecordings = await fetchAllRecordingsFromCloud(world, lmid, lang);
 
         // Determine if new program generation is needed using lmid counts
-        const generationNeeds = await needsNewProgram(currentRecordings, supabase, world, lmid);
+        const generationNeeds = await needsNewProgram(currentRecordings, supabase, world, lmid, lang);
 
         // Check generation status for both types
         const kidsGenerationStatus = await getGenerationStatus(world, lmid, 'kids', lang);
@@ -358,23 +361,25 @@ export default async function handler(req, res) {
         // Fetch latest completed programs from jobs table - get latest of each type separately
         const supabaseClient = getSupabaseClient();
         
-        // Get latest Kids program
+        // Get latest Kids program FOR THIS LANGUAGE
         const { data: kidsPrograms } = await supabaseClient
             .from('audio_generation_jobs')
             .select('program_url, completed_at, type')
             .eq('lmid', lmid)
             .eq('status', 'completed')
             .eq('type', 'kids')
+            .eq('lang', lang)  // CRITICAL: Filter by language!
             .order('completed_at', { ascending: false })
             .limit(1);
 
-        // Get latest Parent program  
+        // Get latest Parent program FOR THIS LANGUAGE
         const { data: parentPrograms } = await supabaseClient
             .from('audio_generation_jobs')
             .select('program_url, completed_at, type')
             .eq('lmid', lmid)
             .eq('status', 'completed')
             .eq('type', 'parent')
+            .eq('lang', lang)  // CRITICAL: Filter by language!
             .order('completed_at', { ascending: false })
             .limit(1);
 
