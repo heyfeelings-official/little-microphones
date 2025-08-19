@@ -130,6 +130,33 @@ export default async function handler(req, res) {
             }
         });
 
+        // ANTI-DUPLICATE: Check if identical job already exists or is processing
+        const { data: existingJobs } = await supabase
+            .from('audio_generation_jobs')
+            .select('id, status, file_count, created_at')
+            .eq('lmid', lmid.toString())
+            .eq('world', world)
+            .eq('lang', lang)
+            .eq('type', type)
+            .eq('file_count', fileCount)
+            .in('status', ['pending', 'processing'])
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+        if (existingJobs && existingJobs.length > 0) {
+            const existingJob = existingJobs[0];
+            console.log(`🔄 Found identical job already ${existingJob.status}: ${existingJob.id} (same file_count: ${fileCount})`);
+            console.log(`⏳ Returning existing job ID instead of creating duplicate`);
+            
+            return res.status(200).json({
+                success: true,
+                jobId: existingJob.id,
+                status: existingJob.status,
+                message: `Identical job already ${existingJob.status}. Use SSE job-stream API for real-time updates.`,
+                isDuplicate: true
+            });
+        }
+
         // Create job in Supabase with audio_segments for reliable processing
         const { data: job, error } = await supabase
             .from('audio_generation_jobs')

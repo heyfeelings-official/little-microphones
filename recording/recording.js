@@ -1913,6 +1913,14 @@ async function generateRadioProgram(world, lmid) {
             return;
         }
         
+        // Handle duplicate job detection
+        if (jobResult.isDuplicate) {
+            console.log(`🔄 Job already exists: ${jobResult.jobId} (duplicate detected)`);
+            updateRadioProgramProgress('Program already being generated...', 20, 'Another user is generating the same program');
+        } else {
+            console.log(`✅ New job created: ${jobResult.jobId}`);
+        }
+        
         console.log(`✅ Generation job created: ${jobResult.jobId}`);
         updateRadioProgramProgress('Job created, waiting for processing...', 25, 'Job submitted to queue successfully');
         
