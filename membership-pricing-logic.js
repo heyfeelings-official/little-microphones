@@ -100,7 +100,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const freePlanIds = [
         "pln_free-plan-dhnb0ejd",
-        "pln_educators-free-promo-ebfw0xzj"
+        "pln_educators-free-promo-ebfw0xzj",  // Educators Free Promo
+        "pln_therapists-free-promo-i2kz0huu"  // Therapists Free Promo
     ];
 
     // Define paid tiers with UPDATED Price IDs, order, button IDs, and highlight DIV ID
@@ -132,13 +133,40 @@ document.addEventListener("DOMContentLoaded", function () {
     console.log('Monthly tab:', document.getElementById(monthlyTabId) ? 'FOUND' : 'NOT FOUND');
     console.log('Yearly tab:', document.getElementById(yearlyTabId) ? 'FOUND' : 'NOT FOUND');
     
-    // Check all buttons
+    // Check for featured free account element
+    const featuredFreeAccount = document.querySelector('.pricing20_plan.featured-free-account');
+    console.log('Featured Free Account:', featuredFreeAccount ? 'FOUND' : 'NOT FOUND');
+    if (featuredFreeAccount) {
+        const rect = featuredFreeAccount.getBoundingClientRect();
+        console.log(`  📐 Position: ${rect.width}x${rect.height} at (${rect.x}, ${rect.y})`);
+        console.log(`  🎨 Classes: ${featuredFreeAccount.className}`);
+    }
+    
+    // Check all buttons with detailed style analysis
     paidTiers.forEach((tier, index) => {
         console.log(`📋 TIER ${index + 1} (${tier.id}):`);
-        console.log('  Upgrade button:', document.getElementById(tier.buttons.upgrade) ? 'FOUND' : 'NOT FOUND');
-        console.log('  Manage button:', document.getElementById(tier.buttons.manage) ? 'FOUND' : 'NOT FOUND');
-        console.log('  Downgrade button:', document.getElementById(tier.buttons.downgrade) ? 'FOUND' : 'NOT FOUND');
-        console.log('  Highlight div:', document.getElementById(tier.highlightDivId) ? 'FOUND' : 'NOT FOUND');
+        
+        // Check each button type
+        ['upgrade', 'manage', 'downgrade'].forEach(buttonType => {
+            const buttonId = tier.buttons[buttonType];
+            const button = document.getElementById(buttonId);
+            if (button) {
+                const computedStyle = getComputedStyle(button);
+                const rect = button.getBoundingClientRect();
+                console.log(`  ${buttonType} button (${buttonId}): FOUND`);
+                console.log(`    📐 Position: ${rect.width}x${rect.height} at (${rect.x}, ${rect.y})`);
+                console.log(`    👁️ Display: ${computedStyle.display}, Visibility: ${computedStyle.visibility}, Opacity: ${computedStyle.opacity}`);
+                console.log(`    🎨 Classes: ${button.className}`);
+                if (rect.width === 0 && rect.height === 0) {
+                    console.log(`    ⚠️  BUTTON HAS ZERO DIMENSIONS!`);
+                }
+            } else {
+                console.log(`  ${buttonType} button (${buttonId}): NOT FOUND`);
+            }
+        });
+        
+        const highlightDiv = document.getElementById(tier.highlightDivId);
+        console.log('  Highlight div:', highlightDiv ? 'FOUND' : 'NOT FOUND');
     });
 
     // --- Helper Functions ---
@@ -147,11 +175,29 @@ document.addEventListener("DOMContentLoaded", function () {
         const button = document.getElementById(buttonId);
         console.log(`    🎯 setButtonVisibility(${buttonId}, ${displayValue}): ${button ? 'FOUND & SET' : 'NOT FOUND!'}`);
         if (button) {
+            // Clear any existing inline styles first
+            button.style.display = '';
+            // Set new display value
             button.style.display = displayValue;
+            // Force important if still hidden
+            if (displayValue === 'block' && getComputedStyle(button).display === 'none') {
+                button.style.setProperty('display', displayValue, 'important');
+                console.log(`    💪 FORCED !important for ${buttonId}`);
+            }
+            // Final check
+            const finalDisplay = getComputedStyle(button).display;
+            console.log(`    ✅ Final computed display for ${buttonId}: ${finalDisplay}`);
         } else {
             // Check if there are multiple elements with same ID (duplikaty!)
             const duplicates = document.querySelectorAll(`#${buttonId}`);
             console.log(`    ⚠️  Found ${duplicates.length} elements with ID "${buttonId}"`);
+            if (duplicates.length > 1) {
+                console.log(`    🔧 Attempting to set display on all duplicates...`);
+                duplicates.forEach((el, idx) => {
+                    el.style.display = displayValue;
+                    console.log(`    📍 Duplicate ${idx + 1} display set to: ${displayValue}`);
+                });
+            }
         }
     }
 
@@ -244,7 +290,32 @@ document.addEventListener("DOMContentLoaded", function () {
                     }
                 }
                  if (currentUserTierOrder === null) { // Check free only if no paid plan found
-                     for (const conn of activeConnections) { if (freePlanIds.includes(conn.planId)) { console.log(`User is on free plan: ${conn.planId}`); break; } }
+                     for (const conn of activeConnections) { 
+                         if (freePlanIds.includes(conn.planId)) { 
+                             console.log(`🆓 User is on free plan: ${conn.planId}`);
+                             
+                             // Check if it's a FREE PROMO plan (educators or therapists)
+                             if (conn.planId === 'pln_educators-free-promo-ebfw0xzj' || conn.planId === 'pln_therapists-free-promo-i2kz0huu') {
+                                 console.log(`🎉 FREE PROMO plan detected! Should highlight featured-free-account`);
+                                 // Find and highlight the featured free account plan
+                                 const featuredFreePlan = document.querySelector('.pricing20_plan.featured-free-account');
+                                 if (featuredFreePlan) {
+                                     featuredFreePlan.classList.add('featured');
+                                     console.log(`✨ Added 'featured' class to featured-free-account plan`);
+                                     
+                                     // Also try to show any badges
+                                     const badges = featuredFreePlan.querySelectorAll('.badge-numbers.featured');
+                                     badges.forEach(badge => {
+                                         badge.style.display = 'flex';
+                                         console.log(`🏆 Showed badge in featured-free-account`);
+                                     });
+                                 } else {
+                                     console.log(`❌ Could not find .pricing20_plan.featured-free-account element`);
+                                 }
+                             }
+                             break; 
+                         } 
+                     }
                  }
             } else { console.log("Member has plan connections, but none are active."); }
         } else { console.log("No member logged in or no plan connections found."); }
