@@ -122,13 +122,27 @@ export default async function handler(req, res) {
         const { getSupabaseClient } = await import('../utils/database-utils.js');
         const supabase = getSupabaseClient();
 
-        // Count files for job metadata
+        // Count ONLY files matching the strict -tm_ pattern (same as process-queue.js)
         let fileCount = 0;
+        const uniqueRecordings = new Set();
+        
         audioSegments.forEach(segment => {
             if (segment.answerUrls && Array.isArray(segment.answerUrls)) {
-                fileCount += segment.answerUrls.length;
+                segment.answerUrls.forEach(url => {
+                    const filename = url.split('/').pop().split('?')[0]; // Extract filename without query params
+                    const pattern = type === 'kids'
+                        ? new RegExp(`^kids-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.(webm|mp3)$`)
+                        : new RegExp(`^parent_[^-]+-world_${world}-lmid_${lmid}-question_\\d+-tm_\\d+\\.(webm|mp3)$`);
+                    
+                    if (pattern.test(filename)) {
+                        uniqueRecordings.add(filename);
+                    }
+                });
             }
         });
+        
+        fileCount = uniqueRecordings.size;
+        console.log(`📊 Counted ${fileCount} unique recordings matching -tm_ pattern for ${type} program`);
 
         // ANTI-DUPLICATE: Check if identical job already exists or is processing
         const { data: existingJobs } = await supabase
