@@ -194,8 +194,11 @@ export default async function handler(req, res) {
             console.log(`🌐 Webhook URL: ${baseUrl}/api/process-queue`);
             console.log(`📤 Payload: ${JSON.stringify({ specificJobId: job.id, triggeredBy: 'immediate' })}`);
             
-            // Trigger processing immediately (fire-and-forget, no await)
-            fetch(`${baseUrl}/api/process-queue`, {
+            // Trigger processing with timeout protection (max 5 seconds wait)
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+            
+            await fetch(`${baseUrl}/api/process-queue`, {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
@@ -204,18 +207,27 @@ export default async function handler(req, res) {
                 body: JSON.stringify({ 
                     specificJobId: job.id,
                     triggeredBy: 'immediate'
-                })
+                }),
+                signal: controller.signal
             })
             .then(response => {
+                clearTimeout(timeoutId);
                 console.log(`📊 Webhook response status: ${response.status} ${response.statusText}`);
-                if (!response.ok) {
-                    console.warn(`⚠️ Webhook returned ${response.status} - job will be processed by queue worker`);
+                if (response.status === 409) {
+                    console.log(`⏳ Another job is processing - job ${job.id} queued`);
+                } else if (!response.ok) {
+                    console.warn(`⚠️ Webhook returned ${response.status}`);
                 } else {
-                    console.log(`✅ Webhook sent successfully for job ${job.id}`);
+                    console.log(`✅ Processing started for job ${job.id}`);
                 }
             })
             .catch(err => {
-                console.warn(`⚠️ Webhook failed: ${err.message} - job will be processed by queue worker`);
+                clearTimeout(timeoutId);
+                if (err.name === 'AbortError') {
+                    console.warn(`⏱️ Webhook timeout after 5s - job ${job.id} remains in queue`);
+                } else {
+                    console.warn(`⚠️ Webhook error: ${err.message}`);
+                }
             });
             
         } catch (triggerError) {

@@ -71,37 +71,34 @@ export default async function handler(req, res) {
         let job = null;
         
         if (specificJobId) {
-            // Process specific job (immediate trigger)
-            const { data: specificJob, error: specificError } = await supabase
+            // Try to atomically claim the specific job
+            const { data: claimedJob, error: claimError } = await supabase
                 .from('audio_generation_jobs')
-                .select('*')
+                .update({ 
+                    status: 'processing',
+                    started_at: new Date().toISOString()
+                })
                 .eq('id', specificJobId)
-                .eq('status', 'pending')
+                .eq('status', 'pending') // Only if still pending
+                .select()
                 .single();
                 
-            if (specificError) {
-                console.error(`❌ Failed to fetch specific job ${specificJobId}:`, specificError);
-                return res.status(500).json({ 
-                    error: 'Failed to fetch specific job',
-                    details: specificError.message
-                });
-            }
-            
-            if (!specificJob) {
-                console.log(`📭 Specific job ${specificJobId} not found or not pending`);
-                return res.status(404).json({
+            if (claimError || !claimedJob) {
+                console.log(`⏳ Job ${specificJobId} already being processed or not found`);
+                return res.status(409).json({
                     success: false,
-                    message: `Job ${specificJobId} not found or already processed`
+                    message: `Job ${specificJobId} already being processed or completed`
                 });
             }
             
-            job = specificJob;
+            job = claimedJob;
+            console.log(`🔒 Successfully claimed job ${specificJobId} for processing`);
             
         } else {
-            // Find oldest pending job (original cron behavior)
-            const { data: jobs, error: fetchError } = await supabase
+            // Find and atomically claim oldest pending job
+            const { data: pendingJobs, error: fetchError } = await supabase
                 .from('audio_generation_jobs')
-                .select('*')
+                .select('id')
                 .eq('status', 'pending')
                 .order('created_at', { ascending: true })
                 .limit(1);
@@ -114,7 +111,7 @@ export default async function handler(req, res) {
                 });
             }
 
-            if (!jobs || jobs.length === 0) {
+            if (!pendingJobs || pendingJobs.length === 0) {
                 console.log('📭 No pending jobs found');
                 return res.status(200).json({
                     success: true,
@@ -123,27 +120,33 @@ export default async function handler(req, res) {
                 });
             }
 
-            job = jobs[0];
+            // Try to atomically claim the job
+            const jobId = pendingJobs[0].id;
+            const { data: claimedJob, error: claimError } = await supabase
+                .from('audio_generation_jobs')
+                .update({ 
+                    status: 'processing',
+                    started_at: new Date().toISOString()
+                })
+                .eq('id', jobId)
+                .eq('status', 'pending') // Only if still pending
+                .select()
+                .single();
+                
+            if (claimError || !claimedJob) {
+                console.log(`⏳ Job ${jobId} was claimed by another process`);
+                return res.status(409).json({
+                    success: false,
+                    message: 'Job was claimed by another process'
+                });
+            }
+            
+            job = claimedJob;
+            console.log(`🔒 Successfully claimed job ${jobId} for processing`);
         }
         console.log(`🎯 Processing job: ${job.id} | LMID: ${job.lmid} | World: ${job.world} | Type: ${job.type}`);
-
-        // Atomically update job status to 'processing'
-        const { error: updateError } = await supabase
-            .from('audio_generation_jobs')
-            .update({ 
-                status: 'processing', 
-                started_at: new Date().toISOString() 
-            })
-            .eq('id', job.id)
-            .eq('status', 'pending'); // Only update if still pending (race condition protection)
-
-        if (updateError) {
-            console.error('❌ Failed to update job status:', updateError);
-            return res.status(500).json({ 
-                error: 'Failed to update job status',
-                details: updateError.message
-            });
-        }
+        
+        // Job already marked as 'processing' atomically above - no need to update again
 
         const startTime = Date.now();
 
