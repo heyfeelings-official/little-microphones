@@ -16,7 +16,6 @@ document.addEventListener('DOMContentLoaded', function() {
   const promoParamValue = 'yes'; // Expected value to trigger activation
   const thanksToParamName = 'thanks-to';
   const clickDelay = 200;        // Short delay for Webflow to initialize
-  const scrollDelayAfterClick = 300; // Short delay before scroll
 
   // --- Get URL Parameters ---
   const urlParams = new URLSearchParams(window.location.search);
@@ -56,11 +55,7 @@ document.addEventListener('DOMContentLoaded', function() {
           if (monthlyTab) monthlyTab.classList.remove('w--current');
           if (yearlyTab) yearlyTab.classList.remove('w--current');
 
-          // --- Native browser scroll (like clicking header link) ---
-          setTimeout(function() {
-            window.location.hash = pricingSectionId; // -> #pricing
-          }, scrollDelayAfterClick);
-          // --- End native scroll ---
+          // No scrolling – only promo tab activation (per request)
         }
       }, clickDelay);
     }
