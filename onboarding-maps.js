@@ -47,10 +47,10 @@ function initMap() {
     visible: false
   });
   
-  // Get input element
-  const input = document.getElementById("search-input");
+  // Get input element (updated ID after form rename)
+  const input = document.getElementById("Contact-location");
   if (!input) {
-    console.error("Search input not found");
+    console.error("Contact location input not found");
     return;
   }
   
@@ -129,8 +129,8 @@ function initMap() {
               // Check if this is a child education establishment
               const isChildEducation = isChildEducationPlace(place);
               
-              // Update input field with place name
-              const input = document.getElementById("search-input");
+              // Update input field with place name (updated ID)
+              const input = document.getElementById("Contact-location");
               if (input) {
                 input.value = place.name || place.formatted_address || results[0].formatted_address;
               }
@@ -138,21 +138,21 @@ function initMap() {
               // Use the shared function to populate fields
               populateFields(place, isChildEducation);
             } else {
-              // Fallback if place details not available
-              const input = document.getElementById("search-input");
+              // Fallback if place details not available (updated ID)
+              const input = document.getElementById("Contact-location");
               if (input) {
                 input.value = results[0].formatted_address;
               }
               
-              // Populate with basic information
-              updateFieldIfExists("address-result", results[0].formatted_address || "");
+              // Populate with basic information (updated ID)
+              updateFieldIfExists("Full-Address-Results", results[0].formatted_address || "");
               
               // Extract and populate address components
               populateAddressComponents(results[0].address_components || []);
               
-              // Set coordinates
-              updateFieldIfExists("latitude", event.latLng.lat());
-              updateFieldIfExists("longitude", event.latLng.lng());
+              // Set coordinates (updated IDs)
+              updateFieldIfExists("Place-Latitude", event.latLng.lat());
+              updateFieldIfExists("Place-Longitude", event.latLng.lng());
             }
           }
         );
@@ -226,27 +226,27 @@ function populateAddressComponents(components) {
     }
   }
   
-  updateFieldIfExists("street-address", street);
-  updateFieldIfExists("city", city);
-  updateFieldIfExists("state", state);
-  updateFieldIfExists("zip", zip);
-  updateFieldIfExists("country", country);
+  updateFieldIfExists("Place-Street", street);
+  updateFieldIfExists("Place-City", city);
+  updateFieldIfExists("Place-State", state);
+  updateFieldIfExists("Place-Zip", zip);
+  updateFieldIfExists("Place-Country", country);
 }
 
 // Shared function to populate all form fields from place data
 function populateFields(place, isChildEducation) {
-  // Basic location fields
-  updateFieldIfExists("address-result", place.formatted_address || "");
+  // Basic location fields (updated ID)
+  updateFieldIfExists("Full-Address-Results", place.formatted_address || "");
   
   // Extract and populate address components
   populateAddressComponents(place.address_components || []);
   
-  // Contact information
-  updateFieldIfExists("phone", place.formatted_phone_number || "");
-  updateFieldIfExists("website", place.website || "");
+  // Contact information (updated IDs)
+  updateFieldIfExists("Place-Phone", place.formatted_phone_number || "");
+  updateFieldIfExists("Place-Website", place.website || "");
   
-  // Business details
-  updateFieldIfExists("place-name", place.name || "");
+  // Business details (updated ID)
+  updateFieldIfExists("Place-Name", place.name || "");
   
   // Determine facility type based on place name and types
   let facilityType = "Educational Institution";
@@ -272,17 +272,17 @@ function populateFields(place, isChildEducation) {
       facilityType = "School";
   }
   
-  updateFieldIfExists("facility-type", facilityType);
+  updateFieldIfExists("Place-Type", facilityType);
   
-  // Geographic coordinates
+  // Geographic coordinates (updated IDs)
   if (place.geometry && place.geometry.location) {
-    updateFieldIfExists("latitude", place.geometry.location.lat());
-    updateFieldIfExists("longitude", place.geometry.location.lng());
+    updateFieldIfExists("Place-Latitude", place.geometry.location.lat());
+    updateFieldIfExists("Place-Longitude", place.geometry.location.lng());
   }
   
-  // Additional data
-  updateFieldIfExists("place-id", place.place_id || "");
-  updateFieldIfExists("rating", place.rating || "");
+  // Additional data (updated IDs)
+  updateFieldIfExists("Place-Id", place.place_id || "");
+  updateFieldIfExists("Place-Rating", place.rating || "");
   updateFieldIfExists("business-status", place.business_status || "");
   updateFieldIfExists("is-child-education", isChildEducation ? "Yes" : "No");
 }
