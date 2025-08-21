@@ -139,7 +139,7 @@
             }
         }
         
-        // Function to detect user role from Memberstack
+        // Function to detect user role from Memberstack (using same logic as other files)
         async function getUserRole() {
             try {
                 console.log('🔍 Detecting user role...');
@@ -164,85 +164,79 @@
                     return 'EDUCATOR'; // Default fallback
                 }
                 
-                const member = await window.$memberstackDom.getCurrentMember();
-                if (!member?.data) {
+                const { data: memberData } = await window.$memberstackDom.getCurrentMember();
+                if (!memberData) {
                     console.log('❌ No member data available, defaulting to EDUCATOR');
                     return 'EDUCATOR';
                 }
                 
-                // Log all available member data for debugging
-                console.log('🔍 Full member data:', JSON.stringify(member.data, null, 2));
-                
-                // Check for role in multiple possible locations
-                const possibleRoleFields = [
-                    member.data.customFields?.role,
-                    member.data.customFields?.USER_CATEGORY,
-                    member.data.customFields?.userCategory,
-                    member.data.customFields?.user_category,
-                    member.data.customFields?.ROLE,
-                    member.data.metaData?.role,
-                    member.data.metaData?.USER_CATEGORY,
-                    member.data.metaData?.userCategory,
-                    member.data.metaData?.user_category,
-                    member.data.metaData?.ROLE,
-                    member.data.planConnections?.[0]?.planName, // Check if role is in plan name
-                    member.data.email?.includes('therapist') ? 'THERAPIST' : null // Email-based detection
-                ];
-                
-                // Also check existing plans to detect role
-                if (member.data.planConnections && member.data.planConnections.length > 0) {
-                    for (const plan of member.data.planConnections) {
-                        console.log('🔍 Checking existing plan:', plan);
-                        if (plan.planId && (plan.planId.includes('therapist') || plan.planId.includes('therapy'))) {
-                            possibleRoleFields.push('THERAPIST');
-                            console.log('🔍 Found therapist plan, assuming THERAPIST role');
-                            break;
-                        }
-                        if (plan.planId && (plan.planId.includes('educator') || plan.planId.includes('teacher'))) {
-                            possibleRoleFields.push('EDUCATOR');
-                            console.log('🔍 Found educator plan, assuming EDUCATOR role');
-                            break;
-                        }
-                    }
-                }
-                
-                console.log('🔍 Checking all possible role fields:', possibleRoleFields);
-                
-                // Find first non-empty role value
-                const role = possibleRoleFields.find(field => field && field.toString().trim() !== '');
-                
-                console.log('📋 User role data:', { 
-                    customFields: member.data.customFields, 
-                    metaData: member.data.metaData,
-                    planConnections: member.data.planConnections,
-                    email: member.data.email,
-                    detectedRole: role 
+                // Log member data for debugging
+                console.log('🔍 Member data:', {
+                    planConnections: memberData.planConnections,
+                    customFields: memberData.customFields,
+                    metaData: memberData.metaData,
+                    email: memberData.email
                 });
                 
-                // Normalize role to uppercase and check for therapist indicators
-                if (role) {
-                    const normalizedRole = role.toString().toUpperCase();
-                    console.log('🔍 Normalized role:', normalizedRole);
+                // Use the same logic as other files - detect role based on active Memberstack plans
+                const planConnections = memberData.planConnections || [];
+                const activePlans = planConnections.filter(conn => conn.active && conn.status === 'ACTIVE');
+                const activePlanIds = activePlans.map(plan => plan.planId);
+                
+                console.log('🔍 Active plans:', activePlans);
+                console.log('🔍 Active plan IDs:', activePlanIds);
+                
+                // Check if LM_CONFIG is available
+                if (!window.LM_CONFIG?.PLAN_HELPERS) {
+                    console.warn('⚠️ LM_CONFIG.PLAN_HELPERS not available, using fallback logic');
                     
-                    if (normalizedRole.includes('THERAPIST') || 
-                        normalizedRole.includes('THERAPY') ||
-                        normalizedRole === 'THERAPIST' ||
-                        normalizedRole === 'THERAPY') {
-                        console.log('✅ Detected role: THERAPIST');
+                    // Fallback logic without config.js
+                    const hasTherapistPlan = activePlanIds.some(planId => 
+                        planId && (planId.includes('therapist') || planId.includes('therapy'))
+                    );
+                    
+                    if (hasTherapistPlan) {
+                        console.log('✅ Detected role: THERAPIST (fallback logic)');
                         return 'THERAPIST';
                     }
                     
-                    if (normalizedRole.includes('EDUCATOR') || 
-                        normalizedRole.includes('TEACHER') ||
-                        normalizedRole === 'EDUCATOR' ||
-                        normalizedRole === 'TEACHER') {
-                        console.log('✅ Detected role: EDUCATOR');
-                        return 'EDUCATOR';
-                    }
+                    console.log('✅ Detected role: EDUCATOR (fallback default)');
+                    return 'EDUCATOR';
                 }
                 
-                console.log('✅ No specific role detected, defaulting to EDUCATOR');
-                return 'EDUCATOR';
+                // Use config.js helper functions (same as other files)
+                const hasParentPlan = activePlanIds.some(planId => 
+                    window.LM_CONFIG.PLAN_HELPERS.isParentPlan(planId)
+                );
+                
+                const hasTherapistPlan = activePlanIds.some(planId => 
+                    window.LM_CONFIG.PLAN_HELPERS.isTherapistPlan(planId)
+                );
+                
+                const hasEducatorPlan = activePlanIds.some(planId => 
+                    window.LM_CONFIG.PLAN_HELPERS.isEducatorPlan(planId)
+                );
+                
+                console.log('🔍 Plan detection results:', {
+                    hasParentPlan,
+                    hasTherapistPlan,
+                    hasEducatorPlan
+                });
+                
+                // Priority order: Parent > Therapist > Educator (same as other files)
+                if (hasParentPlan) {
+                    console.log('✅ Detected role: PARENT (but treating as EDUCATOR for survey)');
+                    return 'EDUCATOR'; // Parents get educator survey
+                } else if (hasTherapistPlan) {
+                    console.log('✅ Detected role: THERAPIST');
+                    return 'THERAPIST';
+                } else if (hasEducatorPlan) {
+                    console.log('✅ Detected role: EDUCATOR');
+                    return 'EDUCATOR';
+                } else {
+                    console.log('✅ No active plans detected, defaulting to EDUCATOR');
+                    return 'EDUCATOR';
+                }
                 
             } catch (error) {
                 console.error('❌ Error detecting user role:', error);
