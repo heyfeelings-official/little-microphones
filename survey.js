@@ -1,5 +1,5 @@
-// Little Microphones - Educators Survey Validation & Plan Assignment
-// Character validation, plan assignment, and success redirect
+// Little Microphones - Survey Validation & Plan Assignment
+// Character validation, plan assignment, and success redirect for Educators and Therapists
 
 (function() {
     'use strict';
@@ -8,7 +8,12 @@
     const MIN_CHARACTERS = 500;
     const SUCCESS_REDIRECT_URL = '/members/emotion-worlds?survey=filled';
     const REDIRECT_DELAY = 1500;
-    const PLAN_ID = 'pln_educators-free-promo-ebfw0xzj';
+    
+    // Plan IDs based on user role
+    const PLAN_IDS = {
+        EDUCATOR: 'pln_educators-free-promo-ebfw0xzj',
+        THERAPIST: 'pln_therapists-free-promo-i2kz0huu'
+    };
     
     const textareas = [
         {
@@ -37,7 +42,7 @@
     function initSurveyValidation() {
         if (isInitialized) return;
         
-        console.log('🔍 Initializing educators survey validation...');
+        console.log('🔍 Initializing survey validation for Educators and Therapists...');
         
         const submitButton = document.getElementById('survey-button');
         if (!submitButton) {
@@ -134,6 +139,52 @@
             }
         }
         
+        // Function to detect user role from Memberstack
+        async function getUserRole() {
+            try {
+                console.log('🔍 Detecting user role...');
+                
+                if (!window.$memberstackDom) {
+                    console.log('❌ Memberstack DOM not available');
+                    return 'EDUCATOR'; // Default fallback
+                }
+                
+                const member = await window.$memberstackDom.getCurrentMember();
+                if (!member?.data) {
+                    console.log('❌ No member data available, defaulting to EDUCATOR');
+                    return 'EDUCATOR';
+                }
+                
+                // Check for role in customFields or metaData
+                const role = member.data.customFields?.role || 
+                            member.data.customFields?.USER_CATEGORY || 
+                            member.data.metaData?.role ||
+                            member.data.metaData?.USER_CATEGORY;
+                
+                console.log('📋 User role data:', { 
+                    customFields: member.data.customFields, 
+                    metaData: member.data.metaData,
+                    detectedRole: role 
+                });
+                
+                // Normalize role to uppercase and check for therapist indicators
+                if (role) {
+                    const normalizedRole = role.toString().toUpperCase();
+                    if (normalizedRole.includes('THERAPIST') || normalizedRole === 'THERAPIST') {
+                        console.log('✅ Detected role: THERAPIST');
+                        return 'THERAPIST';
+                    }
+                }
+                
+                console.log('✅ Detected role: EDUCATOR (default)');
+                return 'EDUCATOR';
+                
+            } catch (error) {
+                console.error('❌ Error detecting user role:', error);
+                return 'EDUCATOR'; // Default fallback
+            }
+        }
+        
         // Function to assign plan to member
         async function assignPlan() {
             try {
@@ -151,16 +202,21 @@
                     return false;
                 }
                 
-                console.log(`✅ Attempting to add free plan: ${PLAN_ID}`);
+                // Detect user role and get appropriate plan ID
+                const userRole = await getUserRole();
+                const planId = PLAN_IDS[userRole];
+                
+                console.log(`✅ User role: ${userRole}, Plan ID: ${planId}`);
+                console.log(`🎯 Attempting to add plan: ${planId}`);
                 
                 // Fire and forget - trust the API call if it doesn't throw an error.
                 // The returned data might not be immediately consistent.
                 await memberstack.addPlan({ 
-                    planId: PLAN_ID 
+                    planId: planId 
                 });
                 
                 console.log('✅ Plan assignment call succeeded. Verification will happen on the next page load.');
-                return true;
+                return { success: true, planId: planId, userRole: userRole };
                 
             } catch (error) {
                 console.error('❌ Critical error calling addPlan:', error);
@@ -192,7 +248,7 @@
                 
                 // Then assign plan
                 const planResult = await assignPlan();
-                if (!planResult) {
+                if (!planResult || !planResult.success) {
                      console.error('❌ Plan assignment failed. Check previous logs for details.');
                 } else {
                     console.log('✅ Plan assigned successfully.');
@@ -201,8 +257,9 @@
                     try {
                         localStorage.setItem('educators_survey_completed', JSON.stringify({
                             timestamp: Date.now(),
-                            planId: PLAN_ID,
-                            redirectFrom: 'educators-survey'
+                            planId: planResult.planId,
+                            userRole: planResult.userRole,
+                            redirectFrom: 'survey'
                         }));
                         console.log('📝 Set survey completion flag in localStorage');
                     } catch (storageError) {
@@ -278,7 +335,7 @@
         checkAllFieldsValid();
         
         isInitialized = true;
-        console.log('✅ Educators survey validation initialized successfully');
+        console.log('✅ Survey validation initialized successfully for Educators and Therapists');
     }
     
     // Initialize when DOM is ready
