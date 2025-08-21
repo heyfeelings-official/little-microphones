@@ -377,13 +377,7 @@ export async function syncMemberToBrevo(memberData) {
         // Place linking (KEY for Company relationship)
         PLACE_ID: memberData.customFields?.['place-id'] || memberData.metaData?.placeId || '',
         
-        // Contact-specific fields
-        CONTACT_RESOURCES: memberData.customFields?.['contact-resources'] || memberData.metaData?.contactResources || '',
-        CONTACT_PAYMENTS: memberData.customFields?.['contact-payments'] || memberData.metaData?.contactPayments || '',
-        CONTACT_DISCOVER: memberData.customFields?.['contact-discover'] || memberData.metaData?.contactDiscover || '',
-        
-        // Place linking
-        PLACE_ID: memberData.customFields?.['place-id'] || memberData.metaData?.placeId || '',
+        // REMOVED DUPLICATES - already mapped above in preserve plan scenario
         
         // System fields
         LMIDS: memberData.metaData?.lmids || existingContactData.attributes?.LMIDS || '',
