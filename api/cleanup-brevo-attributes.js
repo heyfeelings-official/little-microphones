@@ -1,16 +1,15 @@
 /**
  * api/cleanup-brevo-attributes.js - Clean up and recreate Brevo attributes
  * 
- * PURPOSE: Remove old SCHOOL_*/EDUCATOR_* attributes and create new PLACE_*/CONTACT_* ones
+ * PURPOSE: Remove old SCHOOL/EDUCATOR attributes and create new PLACE/CONTACT ones
  * DEPENDENCIES: brevo-contact-manager.js
  * 
- * ⚠️ DANGEROUS OPERATION - USE WITH CAUTION ⚠️
+ * DANGEROUS OPERATION - USE WITH CAUTION
  * 
  * REQUEST FORMAT:
  * GET /api/cleanup-brevo-attributes?action=plan - See what will be deleted/created
  * GET /api/cleanup-brevo-attributes?action=delete_old - Delete old attributes
  * GET /api/cleanup-brevo-attributes?action=create_new - Create new attributes
- * GET /api/cleanup-brevo-attributes?action=full_cleanup - Do everything (DANGEROUS!)
  * 
  * SAFETY: Each action requires confirmation and logs everything
  */
@@ -20,20 +19,14 @@ import { setCorsHeaders, handleOptionsRequest, validateMethod } from '../utils/a
 
 // Attributes to DELETE
 const CONTACT_ATTRIBUTES_TO_DELETE = [
-    // Old names - being replaced with CONTACT_*
     'PAYMENTS', 'RESOURCES', 'DISCOVER'
-    // NOTE: Keeping e-commerce fields as requested by user
 ];
 
 const COMPANY_ATTRIBUTES_TO_DELETE = [
-    // All school_* attributes 
     'school_address', 'school_city', 'school_country', 'school_id',
     'school_latitude', 'school_longitude', 'school_name', 'school_phone',
     'school_state_province', 'school_street_address__memberdata_customfiel', 'school_website',
-    // Test attribute
-    'test_att',
-    // Rename place_facility_type → place_type
-    'place_facility_type'
+    'test_att', 'place_facility_type'
 ];
 
 // Attributes to CREATE
@@ -44,7 +37,7 @@ const NEW_CONTACT_ATTRIBUTES = [
 ];
 
 const NEW_COMPANY_ATTRIBUTES = [
-    { label: 'Place ID', internalName: 'place_id', type: 'text' },              // KEY!
+    { label: 'Place ID', internalName: 'place_id', type: 'text' },
     { label: 'Place Name', internalName: 'place_name', type: 'text' },
     { label: 'Place City', internalName: 'place_city', type: 'text' },
     { label: 'Place Country', internalName: 'place_country', type: 'text' },
@@ -73,7 +66,7 @@ export default async function handler(req, res) {
         const { action } = req.query;
         const results = {};
 
-        console.log(`🧹 Brevo attributes cleanup: ${action || 'plan'}`);
+        console.log('Brevo attributes cleanup:', action || 'plan');
 
         if (!action || action === 'plan') {
             return res.status(200).json({
@@ -87,30 +80,28 @@ export default async function handler(req, res) {
                 },
                 steps: {
                     step1: 'call ?action=delete_old to remove old attributes',
-                    step2: 'call ?action=create_new to create new attributes',
-                    step3: 'or call ?action=full_cleanup to do both (DANGEROUS!)'
+                    step2: 'call ?action=create_new to create new attributes'
                 },
-                warning: '⚠️ This will permanently delete attributes and their data!'
+                warning: 'This will permanently delete attributes and their data!'
             });
         }
 
         if (action === 'delete_old') {
-            console.log('🗑️ Deleting old attributes...');
+            console.log('Deleting old attributes...');
             
             // Delete Contact attributes
             for (const attrName of CONTACT_ATTRIBUTES_TO_DELETE) {
                 try {
-                    // Contact attributes need category - try "normal" category
                     await makeBrevoRequest(`/contacts/attributes/normal/${attrName}`, 'DELETE');
-                    console.log(`✅ Deleted Contact attribute: ${attrName}`);
+                    console.log(`Deleted Contact attribute: ${attrName}`);
                     results[`deleted_contact_${attrName}`] = { success: true };
                 } catch (error) {
-                    console.warn(`⚠️ Could not delete Contact attribute ${attrName}:`, error.message);
+                    console.warn(`Could not delete Contact attribute ${attrName}:`, error.message);
                     results[`deleted_contact_${attrName}`] = { success: false, error: error.message };
                 }
             }
 
-            // Delete Company attributes (need to get their IDs first)
+            // Delete Company attributes
             try {
                 const companyAttrs = await makeBrevoRequest('/crm/attributes/companies');
                 
@@ -119,10 +110,10 @@ export default async function handler(req, res) {
                     if (attr) {
                         try {
                             await makeBrevoRequest(`/crm/attributes/${attr.id}`, 'DELETE');
-                            console.log(`✅ Deleted Company attribute: ${attrName} (ID: ${attr.id})`);
+                            console.log(`Deleted Company attribute: ${attrName}`);
                             results[`deleted_company_${attrName}`] = { success: true, id: attr.id };
                         } catch (error) {
-                            console.warn(`⚠️ Could not delete Company attribute ${attrName}:`, error.message);
+                            console.warn(`Could not delete Company attribute ${attrName}:`, error.message);
                             results[`deleted_company_${attrName}`] = { success: false, error: error.message };
                         }
                     } else {
@@ -135,7 +126,7 @@ export default async function handler(req, res) {
         }
 
         if (action === 'create_new') {
-            console.log('➕ Creating new attributes...');
+            console.log('Creating new attributes...');
             
             // Create Contact attributes
             for (const attr of NEW_CONTACT_ATTRIBUTES) {
@@ -145,10 +136,10 @@ export default async function handler(req, res) {
                     };
                     
                     await makeBrevoRequest(`/contacts/attributes/normal/${attr.name}`, 'POST', contactAttrData);
-                    console.log(`✅ Created Contact attribute: ${attr.name}`);
+                    console.log(`Created Contact attribute: ${attr.name}`);
                     results[`created_contact_${attr.name}`] = { success: true };
                 } catch (error) {
-                    console.warn(`⚠️ Could not create Contact attribute ${attr.name}:`, error.message);
+                    console.warn(`Could not create Contact attribute ${attr.name}:`, error.message);
                     results[`created_contact_${attr.name}`] = { success: false, error: error.message };
                 }
             }
@@ -163,22 +154,13 @@ export default async function handler(req, res) {
                     };
                     
                     const result = await makeBrevoRequest('/crm/attributes', 'POST', companyAttrData);
-                    console.log(`✅ Created Company attribute: ${attr.internalName} (ID: ${result.id})`);
+                    console.log(`Created Company attribute: ${attr.internalName}`);
                     results[`created_company_${attr.internalName}`] = { success: true, id: result.id };
                 } catch (error) {
-                    console.warn(`⚠️ Could not create Company attribute ${attr.internalName}:`, error.message);
+                    console.warn(`Could not create Company attribute ${attr.internalName}:`, error.message);
                     results[`created_company_${attr.internalName}`] = { success: false, error: error.message };
                 }
             }
-        }
-
-        if (action === 'full_cleanup') {
-            // DO BOTH - VERY DANGEROUS!
-            console.log('💥 FULL CLEANUP - DELETING AND RECREATING ALL ATTRIBUTES!');
-            
-            // This would call both delete and create operations
-            // Implement only if absolutely needed
-            results.warning = 'Full cleanup not implemented - too dangerous. Use delete_old then create_new separately.';
         }
 
         return res.status(200).json({
@@ -192,7 +174,7 @@ export default async function handler(req, res) {
         });
 
     } catch (error) {
-        console.error('❌ Error in attribute cleanup:', error.message);
+        console.error('Error in attribute cleanup:', error.message);
         
         return res.status(500).json({
             success: false,
