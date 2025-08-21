@@ -58,23 +58,16 @@ export function extractSchoolDataFromMember(memberData) {
     // Extract school data from various possible field locations
     // Check BOTH new onboarding field names AND legacy field names
     // Note: Webhook sends fields WITHOUT 'school-' prefix, but Memberstack UI shows WITH prefix
-    const schoolName = memberData.customFields?.['place-name'] ||        // Webhook: without prefix
-                       memberData.customFields?.['school-place-name'] || // Memberstack UI: with prefix
-                       memberData.customFields?.['school-name'] || 
-                       memberData.customFields?.schoolName ||
-                       memberData.customFields?.['school'] || 
-                       memberData.customFields?.school ||
-                       memberData.metaData?.schoolName;
+    const schoolName = memberData.customFields?.['place-name'] ||        // NEW: Webflow field
+                       memberData.metaData?.placeName || '';
                        
-    const schoolCity = memberData.customFields?.['city'] ||              // Webhook: without prefix
-                       memberData.customFields?.['school-city'] ||      // Memberstack UI: with prefix
-                       memberData.customFields?.schoolCity ||
-                       memberData.metaData?.schoolCity;
+    const schoolCity = memberData.customFields?.['city'] ||              // Webhook: still sends 'city'  
+                       memberData.customFields?.['place-city'] ||        // Webflow: new field name
+                       memberData.metaData?.placeCity || '';
                        
-    const schoolCountry = memberData.customFields?.['country'] ||        // Webhook: without prefix
-                          memberData.customFields?.['school-country'] || // Memberstack UI: with prefix
-                          memberData.customFields?.schoolCountry ||
-                          memberData.metaData?.schoolCountry;
+    const schoolCountry = memberData.customFields?.['country'] ||        // Webhook: still sends 'country'
+                          memberData.customFields?.['place-country'] ||  // Webflow: new field name
+                          memberData.metaData?.placeCountry || '';
     
     // Must have at minimum: name and city to be a valid school
     if (!schoolName || !schoolCity) {
@@ -126,60 +119,46 @@ export function extractSchoolDataFromMember(memberData) {
         city: schoolCity.trim(),
         country: schoolCountry?.trim() || '',
         
-        // Address fields mapped to Brevo Company attributes
-        addressResult: memberData.customFields?.['address-result'] ||      // SCHOOL_ADDRESS: school-address-result
-                      memberData.customFields?.['school-address-result'] ||
-                      memberData.metaData?.addressResult || '',
-        address: memberData.customFields?.['street-address'] ||           // SCHOOL_STREET_ADDRESS: street-address
-                 memberData.customFields?.['school-street-address'] ||
-                 memberData.customFields?.schoolAddress ||
-                 memberData.metaData?.schoolAddress || '',
-        state: memberData.customFields?.['state'] ||                      // SCHOOL_STATE_PROVINCE: school-state
-               memberData.customFields?.['school-state'] ||
-               memberData.customFields?.schoolState ||
-               memberData.metaData?.schoolState || '',
-        zip: memberData.customFields?.['zip'] ||                          // SCHOOL_POSTAL_CODE: school-zip
-             memberData.customFields?.['school-zip'] ||
-             memberData.customFields?.schoolZip ||
-             memberData.customFields?.['postal-code'] ||
-             memberData.metaData?.schoolZip || '',
+        // Address fields (NEW Webflow field names)
+        addressResult: memberData.customFields?.['place-address-result'] ||   // NEW: Webflow field
+                      memberData.metaData?.placeAddressResult || '',
+        address: memberData.customFields?.['place-address'] ||               // NEW: Webflow field
+                 memberData.customFields?.['street-address'] ||              // Fallback
+                 memberData.metaData?.placeAddress || '',
+        state: memberData.customFields?.['place-state'] ||                   // NEW: Webflow field
+               memberData.customFields?.['state'] ||                         // Fallback
+               memberData.metaData?.placeState || '',
+        zip: memberData.customFields?.['place-zip'] ||                       // NEW: Webflow field
+             memberData.customFields?.['zip'] ||                             // Fallback
+             memberData.metaData?.placeZip || '',
         
-        // Contact and web presence
-        phone: memberData.customFields?.['phone'] ||                      // SCHOOL_PHONE: school-phone
-               memberData.customFields?.['school-phone'] ||
-               memberData.customFields?.schoolPhone ||
-               memberData.metaData?.schoolPhone || '',
-        website: memberData.customFields?.['website'] ||                  // SCHOOL_WEBSITE: school-website
-                 memberData.customFields?.['school-website'] ||
-                 memberData.customFields?.schoolWebsite ||
-                 memberData.metaData?.schoolWebsite || '',
+        // Contact and web presence (NEW Webflow field names)
+        phone: memberData.customFields?.['place-phone'] ||                   // NEW: Webflow field
+               memberData.customFields?.['phone'] ||                         // Fallback
+               memberData.metaData?.placePhone || '',
+        website: memberData.customFields?.['place-website'] ||               // NEW: Webflow field
+                 memberData.customFields?.['website'] ||                     // Fallback
+                 memberData.metaData?.placeWebsite || '',
         
-        // Geographic coordinates
-        latitude: memberData.customFields?.['latitude'] ||                // SCHOOL_LATITUDE: school-latitude
-                  memberData.customFields?.['school-latitude'] ||
-                  memberData.customFields?.schoolLatitude ||
-                  memberData.metaData?.schoolLatitude || '',
-        longitude: memberData.customFields?.['longitude'] ||              // SCHOOL_LONGITUDE: school-longitude
-                   memberData.customFields?.['school-longitude'] ||
-                   memberData.customFields?.schoolLongitude ||
-                   memberData.metaData?.schoolLongitude || '',
+        // Geographic coordinates (NEW Webflow field names)
+        latitude: memberData.customFields?.['place-latitude'] ||             // NEW: Webflow field
+                  memberData.customFields?.['latitude'] ||                   // Fallback
+                  memberData.metaData?.placeLatitude || '',
+        longitude: memberData.customFields?.['place-longitude'] ||           // NEW: Webflow field
+                   memberData.customFields?.['longitude'] ||                 // Fallback
+                   memberData.metaData?.placeLongitude || '',
         
         // KEY FIELD for syncing between Companies and Contacts
-        placeId: memberData.customFields?.['place-id'] ||                 // SCHOOL_PLACE_ID: school-place-id (KEY)
-                 memberData.customFields?.['school-place-id'] ||
-                 memberData.customFields?.schoolPlaceId ||
-                 memberData.metaData?.schoolPlaceId || '',
+        placeId: memberData.customFields?.['place-id'] ||                    // KEY: Webflow field
+                 memberData.metaData?.placeId || '',
         
-        // Additional fields (not mapped to Company attributes but kept for compatibility)
-        facilityType: memberData.customFields?.['facility-type'] ||
-                      memberData.customFields?.['school-facility-type'] ||
-                      memberData.customFields?.['school-type'] || 
-                      memberData.customFields?.schoolType ||
-                      memberData.metaData?.schoolFacilityType || '',
-        rating: memberData.customFields?.['rating'] ||
-                memberData.customFields?.['school-rating'] ||
-                memberData.customFields?.schoolRating ||
-                memberData.metaData?.schoolRating || ''
+        // Additional fields
+        facilityType: memberData.customFields?.['place-type'] ||             // NEW: Webflow field
+                      memberData.customFields?.['facility-type'] ||          // Fallback
+                      memberData.metaData?.placeType || '',
+        rating: memberData.customFields?.['place-rating'] ||                 // NEW: Webflow field
+                memberData.customFields?.['rating'] ||                       // Fallback
+                memberData.metaData?.placeRating || ''
     };
 }
 
