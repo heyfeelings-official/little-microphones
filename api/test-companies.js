@@ -200,14 +200,13 @@ export default async function handler(req, res) {
                 customFields: {
                     'first-name': 'Test',
                     'last-name': 'Educator',
-                    'school-name': 'Integration Test School',
-                    'school-city': 'Integration City',
-                    'school-country': 'Test Country',
-                    'school-address': '456 Integration Avenue',
-                    'school-phone': '+1-555-987-6543',
-                    'role': 'Principal',
-                    'no-kids': '300',
-                    'no-classes': '12'
+                    'place-name': 'Integration Test School',
+                    'place-city': 'Integration City',
+                    'place-country': 'Test Country',
+                    'place-address': '456 Integration Avenue',
+                    'place-phone': '+1-555-987-6543',
+                    'contact-role': 'Principal',
+                    'contact-no-kids': '300'
                 }
             };
             
