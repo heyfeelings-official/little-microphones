@@ -187,9 +187,7 @@ export async function createOrUpdateBrevoContact(memberData, planConfig) {
       CONTACT_ROLE: memberData.customFields?.['contact-role'] ||          // NEW: Webflow field
                     memberData.customFields?.['role'] ||                   // Fallback
                     memberData.metaData?.contactRole || '',
-      CONTACT_NO_CLASSES: memberData.customFields?.['contact-no-classes'] ||  // NEW: Webflow field
-                          memberData.customFields?.['no-classes'] ||         // Fallback
-                          memberData.metaData?.contactNoClasses || '',
+      // CONTACT_NO_CLASSES removed - not used by user
       CONTACT_NO_KIDS: memberData.customFields?.['contact-no-kids'] ||        // NEW: Webflow field
                        memberData.customFields?.['no-kids'] ||               // Fallback
                        memberData.metaData?.contactNoKids || '',
@@ -360,9 +358,7 @@ export async function syncMemberToBrevo(memberData) {
         CONTACT_ROLE: memberData.customFields?.['contact-role'] ||          // NEW: Webflow field
                       memberData.customFields?.['role'] ||                   // Fallback
                       memberData.metaData?.contactRole || '',
-        CONTACT_NO_CLASSES: memberData.customFields?.['contact-no-classes'] ||  // NEW: Webflow field
-                            memberData.customFields?.['no-classes'] ||         // Fallback
-                            memberData.metaData?.contactNoClasses || '',
+        // CONTACT_NO_CLASSES removed - not used by user
         CONTACT_NO_KIDS: memberData.customFields?.['contact-no-kids'] ||        // NEW: Webflow field
                          memberData.customFields?.['no-kids'] ||               // Fallback
                          memberData.metaData?.contactNoKids || '',
