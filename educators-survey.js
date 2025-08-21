@@ -12,19 +12,19 @@
     
     const textareas = [
         {
-            id: 'textarea-payments',
+            id: 'Contact-Payments',
             counterId: 'char-payments',
             fieldName: 'payments',
             memberstackField: 'PAYMENTS'
         },
         {
-            id: 'textarea-resources', 
+            id: 'Contact-Resources', 
             counterId: 'char-resources',
             fieldName: 'resources',
             memberstackField: 'RESOURCES'
         },
         {
-            id: 'textarea-discover',
+            id: 'Contact-Discover',
             counterId: 'char-discover', 
             fieldName: 'discover',
             memberstackField: 'DISCOVER'
