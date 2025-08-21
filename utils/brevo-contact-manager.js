@@ -184,28 +184,19 @@ export async function createOrUpdateBrevoContact(memberData, planConfig) {
       // Place data goes to Company, Contact only keeps linking field
       
       // Professional information (unified for Educators/Therapists)
-      CONTACT_ROLE: memberData.customFields?.['contact-role'] ||          // NEW: Webflow field
-                    memberData.customFields?.['role'] ||                   // Fallback
-                    memberData.metaData?.contactRole || '',
-      // CONTACT_NO_CLASSES removed - not used by user
-      CONTACT_NO_KIDS: memberData.customFields?.['contact-no-kids'] ||        // NEW: Webflow field
-                       memberData.customFields?.['no-kids'] ||               // Fallback
-                       memberData.metaData?.contactNoKids || '',
+      CONTACT_ROLE: memberData.customFields?.['contact-role'] || memberData.metaData?.contactRole || '',
+      CONTACT_NO_KIDS: memberData.customFields?.['contact-no-kids'] || memberData.metaData?.contactNoKids || '',
       
-      // Contact-specific fields (NEW)
-      CONTACT_RESOURCES: memberData.customFields?.['contact-resources'] ||    // NEW: renamed field
-                        memberData.customFields?.['resources'] || '',       // Fallback
-      CONTACT_PAYMENTS: memberData.customFields?.['contact-payments'] ||      // NEW: renamed field
-                       memberData.customFields?.['payments'] || '',         // Fallback
-      CONTACT_DISCOVER: memberData.customFields?.['contact-discover'] ||      // NEW: renamed field
-                       memberData.customFields?.['discover'] || '',         // Fallback
+      // Contact-specific fields
+      CONTACT_RESOURCES: memberData.customFields?.['contact-resources'] || memberData.metaData?.contactResources || '',
+      CONTACT_PAYMENTS: memberData.customFields?.['contact-payments'] || memberData.metaData?.contactPayments || '',
+      CONTACT_DISCOVER: memberData.customFields?.['contact-discover'] || memberData.metaData?.contactDiscover || '',
       
       // System fields
-      LMIDS: memberData.metaData?.lmids || memberData.metaData?.lmid || memberData.metaData?.LMIDS || memberData.metaData?.LMID || '',
+      LMIDS: memberData.metaData?.lmids || '',
       
       // Place linking (KEY for Company relationship)
-      PLACE_ID: memberData.customFields?.['place-id'] ||                     // KEY: for linking to Company
-               memberData.metaData?.placeId || '',
+      PLACE_ID: memberData.customFields?.['place-id'] || memberData.metaData?.placeId || '',
       
       // IMPORTANT: Plan attributes must be last to avoid being overridden
       // This includes USER_CATEGORY, PLAN_TYPE, PLAN_NAME, PLAN_ID
@@ -355,25 +346,24 @@ export async function syncMemberToBrevo(memberData) {
                      memberData.metaData?.teacherName ||
                      `${memberData.customFields?.['first-name'] || ''} ${memberData.customFields?.['last-name'] || ''}`.trim(),
         // Professional information (unified for Educators/Therapists)
-        CONTACT_ROLE: memberData.customFields?.['contact-role'] ||          // NEW: Webflow field
-                      memberData.customFields?.['role'] ||                   // Fallback
-                      memberData.metaData?.contactRole || '',
-        // CONTACT_NO_CLASSES removed - not used by user
-        CONTACT_NO_KIDS: memberData.customFields?.['contact-no-kids'] ||        // NEW: Webflow field
-                         memberData.customFields?.['no-kids'] ||               // Fallback
-                         memberData.metaData?.contactNoKids || '',
+        CONTACT_ROLE: memberData.customFields?.['contact-role'] || memberData.metaData?.contactRole || '',
+        CONTACT_NO_KIDS: memberData.customFields?.['contact-no-kids'] || memberData.metaData?.contactNoKids || '',
         
-        // Contact-specific fields (NEW)
-        CONTACT_RESOURCES: memberData.customFields?.['contact-resources'] ||    // NEW: renamed field
-                          memberData.customFields?.['resources'] || '',       // Fallback
-        CONTACT_PAYMENTS: memberData.customFields?.['contact-payments'] ||      // NEW: renamed field
-                         memberData.customFields?.['payments'] || '',         // Fallback
-        CONTACT_DISCOVER: memberData.customFields?.['contact-discover'] ||      // NEW: renamed field
-                         memberData.customFields?.['discover'] || '',         // Fallback
+        // Contact-specific fields
+        CONTACT_RESOURCES: memberData.customFields?.['contact-resources'] || memberData.metaData?.contactResources || '',
+        CONTACT_PAYMENTS: memberData.customFields?.['contact-payments'] || memberData.metaData?.contactPayments || '',
+        CONTACT_DISCOVER: memberData.customFields?.['contact-discover'] || memberData.metaData?.contactDiscover || '',
         
         // Place linking (KEY for Company relationship)
-        PLACE_ID: memberData.customFields?.['place-id'] ||                     // KEY: for linking to Company
-                 memberData.metaData?.placeId || '',
+        PLACE_ID: memberData.customFields?.['place-id'] || memberData.metaData?.placeId || '',
+        
+        // Contact-specific fields
+        CONTACT_RESOURCES: memberData.customFields?.['contact-resources'] || memberData.metaData?.contactResources || '',
+        CONTACT_PAYMENTS: memberData.customFields?.['contact-payments'] || memberData.metaData?.contactPayments || '',
+        CONTACT_DISCOVER: memberData.customFields?.['contact-discover'] || memberData.metaData?.contactDiscover || '',
+        
+        // Place linking
+        PLACE_ID: memberData.customFields?.['place-id'] || memberData.metaData?.placeId || '',
         
         // System fields
         LMIDS: memberData.metaData?.lmids || existingContactData.attributes?.LMIDS || '',

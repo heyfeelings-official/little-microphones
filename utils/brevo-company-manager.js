@@ -61,13 +61,8 @@ export function extractSchoolDataFromMember(memberData) {
     const schoolName = memberData.customFields?.['place-name'] ||        // NEW: Webflow field
                        memberData.metaData?.placeName || '';
                        
-    const schoolCity = memberData.customFields?.['city'] ||              // Webhook: still sends 'city'  
-                       memberData.customFields?.['place-city'] ||        // Webflow: new field name
-                       memberData.metaData?.placeCity || '';
-                       
-    const schoolCountry = memberData.customFields?.['country'] ||        // Webhook: still sends 'country'
-                          memberData.customFields?.['place-country'] ||  // Webflow: new field name
-                          memberData.metaData?.placeCountry || '';
+    const schoolCity = memberData.customFields?.['place-city'] || memberData.metaData?.placeCity || '';
+    const schoolCountry = memberData.customFields?.['place-country'] || memberData.metaData?.placeCountry || '';
     
     // Must have at minimum: name and city to be a valid school
     if (!schoolName || !schoolCity) {
@@ -119,46 +114,26 @@ export function extractSchoolDataFromMember(memberData) {
         city: schoolCity.trim(),
         country: schoolCountry?.trim() || '',
         
-        // Address fields (NEW Webflow field names)
-        addressResult: memberData.customFields?.['place-address-result'] ||   // NEW: Webflow field
-                      memberData.metaData?.placeAddressResult || '',
-        address: memberData.customFields?.['place-address'] ||               // NEW: Webflow field
-                 memberData.customFields?.['street-address'] ||              // Fallback
-                 memberData.metaData?.placeAddress || '',
-        state: memberData.customFields?.['place-state'] ||                   // NEW: Webflow field
-               memberData.customFields?.['state'] ||                         // Fallback
-               memberData.metaData?.placeState || '',
-        zip: memberData.customFields?.['place-zip'] ||                       // NEW: Webflow field
-             memberData.customFields?.['zip'] ||                             // Fallback
-             memberData.metaData?.placeZip || '',
+        // Address fields
+        addressResult: memberData.customFields?.['place-address-result'] || memberData.metaData?.placeAddressResult || '',
+        address: memberData.customFields?.['place-address'] || memberData.metaData?.placeAddress || '',
+        state: memberData.customFields?.['place-state'] || memberData.metaData?.placeState || '',
+        zip: memberData.customFields?.['place-zip'] || memberData.metaData?.placeZip || '',
         
-        // Contact and web presence (NEW Webflow field names)
-        phone: memberData.customFields?.['place-phone'] ||                   // NEW: Webflow field
-               memberData.customFields?.['phone'] ||                         // Fallback
-               memberData.metaData?.placePhone || '',
-        website: memberData.customFields?.['place-website'] ||               // NEW: Webflow field
-                 memberData.customFields?.['website'] ||                     // Fallback
-                 memberData.metaData?.placeWebsite || '',
+        // Contact and web presence
+        phone: memberData.customFields?.['place-phone'] || memberData.metaData?.placePhone || '',
+        website: memberData.customFields?.['place-website'] || memberData.metaData?.placeWebsite || '',
         
-        // Geographic coordinates (NEW Webflow field names)
-        latitude: memberData.customFields?.['place-latitude'] ||             // NEW: Webflow field
-                  memberData.customFields?.['latitude'] ||                   // Fallback
-                  memberData.metaData?.placeLatitude || '',
-        longitude: memberData.customFields?.['place-longitude'] ||           // NEW: Webflow field
-                   memberData.customFields?.['longitude'] ||                 // Fallback
-                   memberData.metaData?.placeLongitude || '',
+        // Geographic coordinates
+        latitude: memberData.customFields?.['place-latitude'] || memberData.metaData?.placeLatitude || '',
+        longitude: memberData.customFields?.['place-longitude'] || memberData.metaData?.placeLongitude || '',
         
         // KEY FIELD for syncing between Companies and Contacts
-        placeId: memberData.customFields?.['place-id'] ||                    // KEY: Webflow field
-                 memberData.metaData?.placeId || '',
+        placeId: memberData.customFields?.['place-id'] || memberData.metaData?.placeId || '',
         
         // Additional fields
-        facilityType: memberData.customFields?.['place-type'] ||             // NEW: Webflow field
-                      memberData.customFields?.['facility-type'] ||          // Fallback
-                      memberData.metaData?.placeType || '',
-        rating: memberData.customFields?.['place-rating'] ||                 // NEW: Webflow field
-                memberData.customFields?.['rating'] ||                       // Fallback
-                memberData.metaData?.placeRating || ''
+        facilityType: memberData.customFields?.['place-type'] || memberData.metaData?.placeType || '',
+        rating: memberData.customFields?.['place-rating'] || memberData.metaData?.placeRating || ''
     };
 }
 
