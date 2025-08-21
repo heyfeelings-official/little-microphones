@@ -180,103 +180,34 @@ export async function createOrUpdateBrevoContact(memberData, planConfig) {
                    memberData.customFields?.teacherName ||
                    memberData.metaData?.teacherName ||
                    `${memberData.customFields?.['first-name'] || ''} ${memberData.customFields?.['last-name'] || ''}`.trim(),
-      SCHOOL_NAME: memberData.customFields?.['school-name'] || 
-                   memberData.customFields?.schoolName ||
-                   memberData.customFields?.['school'] || 
-                   memberData.customFields?.school ||
-                   memberData.customFields?.['school-place-name'] || 
-                   memberData.metaData?.schoolName || '',
+      // REMOVED: All SCHOOL_* attributes now handled by Company entity
+      // Place data goes to Company, Contact only keeps linking field
       
-      // School details (for Educators) - check all field variations
-      SCHOOL_SEARCH_INPUT: memberData.customFields?.['school-search-input'] || 
-                          memberData.customFields?.schoolSearchInput ||
-                          memberData.customFields?.['search-input'] || 
-                          memberData.metaData?.schoolSearchInput || '',
-      SCHOOL_ADDRESS: memberData.customFields?.['school-address'] || 
-                     memberData.customFields?.schoolAddress ||
-                     memberData.customFields?.['school_address'] || 
-                     memberData.customFields?.['school-address-result'] || 
-                     memberData.metaData?.schoolAddress || '',
-      SCHOOL_CITY: memberData.customFields?.['city'] ||           // Webhook: without prefix
-                   memberData.customFields?.['school-city'] ||        // Memberstack UI: with prefix
-                   memberData.customFields?.schoolCity ||
-                   memberData.metaData?.schoolCity || '',
-      SCHOOL_COUNTRY: memberData.customFields?.['country'] ||         // Webhook: without prefix
-                      memberData.customFields?.['school-country'] ||  // Memberstack UI: with prefix
-                      memberData.customFields?.schoolCountry ||
-                      memberData.metaData?.schoolCountry || '',
-      SCHOOL_FACILITY_TYPE: memberData.customFields?.['school-type'] || 
-                           memberData.customFields?.schoolType ||
-                           memberData.customFields?.['school_type'] || 
-                           memberData.customFields?.['school-facility-type'] || 
-                           memberData.metaData?.schoolFacilityType || '',
-      SCHOOL_LATITUDE: String(memberData.customFields?.['latitude'] ||       // Webhook: without prefix
-                              memberData.customFields?.['school-latitude'] ||  // Memberstack UI: with prefix
-                              memberData.customFields?.schoolLatitude ||
-                              memberData.metaData?.schoolLatitude || ''),
-      SCHOOL_LONGITUDE: String(memberData.customFields?.['longitude'] ||      // Webhook: without prefix
-                               memberData.customFields?.['school-longitude'] || // Memberstack UI: with prefix
-                               memberData.customFields?.schoolLongitude ||
-                               memberData.metaData?.schoolLongitude || ''),
-      SCHOOL_PHONE: memberData.customFields?.['phone'] ||          // Webhook: without prefix
-                    memberData.customFields?.['school-phone'] ||       // Memberstack UI: with prefix
-                    memberData.customFields?.schoolPhone ||
-                    memberData.metaData?.schoolPhone || '',
-      SCHOOL_PLACE_ID: memberData.customFields?.['place-id'] ||      // Webhook: without prefix
-                       memberData.customFields?.['school-place-id'] || // Memberstack UI: with prefix
-                       memberData.customFields?.schoolPlaceId ||
-                       memberData.metaData?.schoolPlaceId || '',
-      SCHOOL_PLACE_NAME: memberData.customFields?.['school-place-name'] || 
-                         memberData.customFields?.schoolPlaceName ||
-                         memberData.customFields?.['school_place_name'] || 
-                         memberData.customFields?.['school-place-name-short'] || 
-                         memberData.metaData?.schoolPlaceName || '',
-      SCHOOL_RATING: memberData.customFields?.['school-rating'] || 
-                     memberData.customFields?.schoolRating ||
-                     memberData.customFields?.['school_rating'] || 
-                     memberData.metaData?.schoolRating || '',
-      SCHOOL_STATE: memberData.customFields?.['school-state'] || 
-                    memberData.customFields?.schoolState ||
-                    memberData.customFields?.['school_state'] || 
-                    memberData.metaData?.schoolState || '',
-      SCHOOL_STREET_ADDRESS: memberData.customFields?.['school-street-address'] || 
-                             memberData.customFields?.schoolStreetAddress ||
-                             memberData.customFields?.['school_street_address'] || 
-                             memberData.metaData?.schoolStreetAddress || '',
-      SCHOOL_WEBSITE: memberData.customFields?.['school-website'] || 
-                      memberData.customFields?.schoolWebsite ||
-                      memberData.customFields?.['school_website'] || 
-                      memberData.metaData?.schoolWebsite || '',
-      SCHOOL_ZIP: memberData.customFields?.['school-zip'] || 
-                  memberData.customFields?.schoolZip ||
-                  memberData.customFields?.['school_zip'] || 
-                  memberData.metaData?.schoolZip || '',
+      // Professional information (unified for Educators/Therapists)
+      CONTACT_ROLE: memberData.customFields?.['contact-role'] ||          // NEW: Webflow field
+                    memberData.customFields?.['role'] ||                   // Fallback
+                    memberData.metaData?.contactRole || '',
+      CONTACT_NO_CLASSES: memberData.customFields?.['contact-no-classes'] ||  // NEW: Webflow field
+                          memberData.customFields?.['no-classes'] ||         // Fallback
+                          memberData.metaData?.contactNoClasses || '',
+      CONTACT_NO_KIDS: memberData.customFields?.['contact-no-kids'] ||        // NEW: Webflow field
+                       memberData.customFields?.['no-kids'] ||               // Fallback
+                       memberData.metaData?.contactNoKids || '',
       
-      // Professional information (for Educators) - check all variations
-      EDUCATOR_ROLE: memberData.customFields?.['role'] || 
-                     memberData.customFields?.role ||
-                     memberData.customFields?.['educator-role'] || 
-                     memberData.customFields?.educatorRole ||
-                     memberData.metaData?.educatorRole || '',
-      EDUCATOR_NO_CLASSES: memberData.customFields?.['no-classes'] || 
-                           memberData.customFields?.noClasses ||
-                           memberData.customFields?.['no_classes'] || 
-                           memberData.customFields?.['educator-no-classes'] || 
-                           memberData.metaData?.educatorNoClasses || '',
-      EDUCATOR_NO_KIDS: memberData.customFields?.['no-kids'] || 
-                        memberData.customFields?.noKids ||
-                        memberData.customFields?.['no_kids'] || 
-                        memberData.customFields?.['educator-no-kids'] || 
-                        memberData.metaData?.educatorNoKids || '',
+      // Contact-specific fields (NEW)
+      CONTACT_RESOURCES: memberData.customFields?.['contact-resources'] ||    // NEW: renamed field
+                        memberData.customFields?.['resources'] || '',       // Fallback
+      CONTACT_PAYMENTS: memberData.customFields?.['contact-payments'] ||      // NEW: renamed field
+                       memberData.customFields?.['payments'] || '',         // Fallback
+      CONTACT_DISCOVER: memberData.customFields?.['contact-discover'] ||      // NEW: renamed field
+                       memberData.customFields?.['discover'] || '',         // Fallback
       
-      // Application-specific
+      // System fields
       LMIDS: memberData.metaData?.lmids || memberData.metaData?.lmid || memberData.metaData?.LMIDS || memberData.metaData?.LMID || '',
-      RESOURCES: memberData.customFields?.['resources'] ||
-                   memberData.customFields?.['school-resources'] || '',
-      PAYMENTS: memberData.customFields?.['payments'] ||
-                  memberData.customFields?.['school-payments'] || '',
-      DISCOVER: memberData.customFields?.['discover'] ||
-                   memberData.customFields?.['school-discover'] || '',
+      
+      // Place linking (KEY for Company relationship)
+      PLACE_ID: memberData.customFields?.['place-id'] ||                     // KEY: for linking to Company
+               memberData.metaData?.placeId || '',
       
       // IMPORTANT: Plan attributes must be last to avoid being overridden
       // This includes USER_CATEGORY, PLAN_TYPE, PLAN_NAME, PLAN_ID
@@ -304,13 +235,13 @@ export async function createOrUpdateBrevoContact(memberData, planConfig) {
     console.log(`📋 [${syncId}] Final cleaned attributes being sent to Brevo:`, {
       ...cleanedAttributes,
       fieldsCount: Object.keys(cleanedAttributes).length,
-      hasAllImportantFields: {
+              hasAllImportantFields: {
         FIRSTNAME: !!cleanedAttributes.FIRSTNAME,
         LASTNAME: !!cleanedAttributes.LASTNAME,
         PLAN_NAME: !!cleanedAttributes.PLAN_NAME,
-        SCHOOL_CITY: !!cleanedAttributes.SCHOOL_CITY,
-        EDUCATOR_ROLE: !!cleanedAttributes.EDUCATOR_ROLE,
-        EDUCATOR_NO_KIDS: !!cleanedAttributes.EDUCATOR_NO_KIDS
+        CONTACT_ROLE: !!cleanedAttributes.CONTACT_ROLE,
+        CONTACT_NO_KIDS: !!cleanedAttributes.CONTACT_NO_KIDS,
+        PLACE_ID: !!cleanedAttributes.PLACE_ID
       }
     });
     
@@ -425,88 +356,30 @@ export async function syncMemberToBrevo(memberData) {
                      memberData.customFields?.teacherName ||
                      memberData.metaData?.teacherName ||
                      `${memberData.customFields?.['first-name'] || ''} ${memberData.customFields?.['last-name'] || ''}`.trim(),
-        SCHOOL_NAME: memberData.customFields?.['school-name'] || 
-                     memberData.customFields?.schoolName ||
-                     memberData.customFields?.['school'] || 
-                     memberData.customFields?.school ||
-                     memberData.customFields?.['place-name'] || 
-                     memberData.metaData?.schoolName || '',
+        // Professional information (unified for Educators/Therapists)
+        CONTACT_ROLE: memberData.customFields?.['contact-role'] ||          // NEW: Webflow field
+                      memberData.customFields?.['role'] ||                   // Fallback
+                      memberData.metaData?.contactRole || '',
+        CONTACT_NO_CLASSES: memberData.customFields?.['contact-no-classes'] ||  // NEW: Webflow field
+                            memberData.customFields?.['no-classes'] ||         // Fallback
+                            memberData.metaData?.contactNoClasses || '',
+        CONTACT_NO_KIDS: memberData.customFields?.['contact-no-kids'] ||        // NEW: Webflow field
+                         memberData.customFields?.['no-kids'] ||               // Fallback
+                         memberData.metaData?.contactNoKids || '',
         
-        // School details (map from generic field names)
-        SCHOOL_SEARCH_INPUT: memberData.customFields?.['search-input'] || 
-                            memberData.customFields?.searchInput ||
-                            memberData.customFields?.['school-search-input'] || 
-                            memberData.metaData?.schoolSearchInput || '',
-        SCHOOL_ADDRESS: memberData.customFields?.['address-result'] || 
-                       memberData.customFields?.addressResult ||
-                       memberData.customFields?.['school-address'] || 
-                       memberData.customFields?.['school-address-result'] || 
-                       memberData.metaData?.schoolAddress || '',
-        SCHOOL_CITY: memberData.customFields?.['city'] ||           // Webhook: without prefix
-                     memberData.customFields?.['school-city'] ||        // Memberstack UI: with prefix
-                     memberData.customFields?.schoolCity ||
-                     memberData.metaData?.schoolCity || '',
-        SCHOOL_COUNTRY: memberData.customFields?.['country'] ||         // Webhook: without prefix
-                        memberData.customFields?.['school-country'] ||  // Memberstack UI: with prefix
-                        memberData.customFields?.schoolCountry ||
-                        memberData.metaData?.schoolCountry || '',
-        SCHOOL_FACILITY_TYPE: memberData.customFields?.['facility-type'] || 
-                             memberData.customFields?.facilityType ||
-                             memberData.customFields?.['school-type'] || 
-                             memberData.customFields?.['school-facility-type'] || 
-                             memberData.metaData?.schoolFacilityType || '',
-        SCHOOL_LATITUDE: String(memberData.customFields?.['latitude'] ||      // Webhook: without prefix
-                                memberData.customFields?.['school-latitude'] || // Memberstack UI: with prefix
-                                memberData.customFields?.schoolLatitude ||
-                                memberData.metaData?.schoolLatitude || ''),
-        SCHOOL_LONGITUDE: String(memberData.customFields?.['longitude'] ||     // Webhook: without prefix
-                                 memberData.customFields?.['school-longitude'] || // Memberstack UI: with prefix
-                                 memberData.customFields?.schoolLongitude ||
-                                 memberData.metaData?.schoolLongitude || ''),
-        SCHOOL_PHONE: memberData.customFields?.['phone'] ||          // Webhook: without prefix
-                      memberData.customFields?.['school-phone'] ||       // Memberstack UI: with prefix
-                      memberData.customFields?.schoolPhone ||
-                      memberData.metaData?.schoolPhone || '',
-        SCHOOL_PLACE_ID: memberData.customFields?.['place-id'] ||      // Webhook: without prefix  
-                         memberData.customFields?.['school-place-id'] || // Memberstack UI: with prefix
-                         memberData.customFields?.placeId ||
-                         memberData.metaData?.schoolPlaceId || '',
-        SCHOOL_PLACE_NAME: memberData.customFields?.['place-name'] || 
-                           memberData.customFields?.placeName ||
-                           memberData.customFields?.['school-place-name'] || 
-                           memberData.metaData?.schoolPlaceName || '',
-        SCHOOL_RATING: memberData.customFields?.['rating'] ||        // Webhook: without prefix
-                       memberData.customFields?.['school-rating'] ||     // Memberstack UI: with prefix
-                       memberData.metaData?.schoolRating || '',
-        SCHOOL_STATE: memberData.customFields?.['state'] ||          // Webhook: without prefix
-                      memberData.customFields?.['school-state'] ||      // Memberstack UI: with prefix
-                      memberData.metaData?.schoolState || '',
-        SCHOOL_STREET_ADDRESS: memberData.customFields?.['street-address'] ||    // Webhook: without prefix
-                               memberData.customFields?.['school-street-address'] || // Memberstack UI: with prefix
-                               memberData.customFields?.streetAddress ||
-                               memberData.metaData?.schoolStreetAddress || '',
-        SCHOOL_WEBSITE: memberData.customFields?.['website'] ||           // Webhook: without prefix
-                        memberData.customFields?.['school-website'] ||       // Memberstack UI: with prefix
-                        memberData.metaData?.schoolWebsite || '',
-        SCHOOL_ZIP: memberData.customFields?.['zip'] ||               // Webhook: without prefix
-                    memberData.customFields?.['school-zip'] ||           // Memberstack UI: with prefix
-                    memberData.metaData?.schoolZip || '',
+        // Contact-specific fields (NEW)
+        CONTACT_RESOURCES: memberData.customFields?.['contact-resources'] ||    // NEW: renamed field
+                          memberData.customFields?.['resources'] || '',       // Fallback
+        CONTACT_PAYMENTS: memberData.customFields?.['contact-payments'] ||      // NEW: renamed field
+                         memberData.customFields?.['payments'] || '',         // Fallback
+        CONTACT_DISCOVER: memberData.customFields?.['contact-discover'] ||      // NEW: renamed field
+                         memberData.customFields?.['discover'] || '',         // Fallback
         
-        // Professional information (map from generic field names)
-        EDUCATOR_ROLE: memberData.customFields?.['role'] || 
-                       memberData.customFields?.role ||
-                       memberData.customFields?.['educator-role'] || 
-                       memberData.metaData?.educatorRole || '',
-        EDUCATOR_NO_CLASSES: memberData.customFields?.['no-classes'] || 
-                             memberData.customFields?.noClasses ||
-                             memberData.customFields?.['educator-no-classes'] || 
-                             memberData.metaData?.educatorNoClasses || '',
-        EDUCATOR_NO_KIDS: memberData.customFields?.['no-kids'] || 
-                          memberData.customFields?.noKids ||
-                          memberData.customFields?.['educator-no-kids'] || 
-                          memberData.metaData?.educatorNoKids || '',
+        // Place linking (KEY for Company relationship)
+        PLACE_ID: memberData.customFields?.['place-id'] ||                     // KEY: for linking to Company
+                 memberData.metaData?.placeId || '',
         
-        // Application-specific
+        // System fields
         LMIDS: memberData.metaData?.lmids || existingContactData.attributes?.LMIDS || '',
         
         // Preserve existing plan data

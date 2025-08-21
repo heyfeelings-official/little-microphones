@@ -96,22 +96,26 @@ export function extractSchoolDataFromMember(memberData) {
         userCategory.includes('classroom')
     );
     
-    const hasEducatorRole = memberData.customFields?.['role'] && (
-        memberData.customFields['role'].toLowerCase().includes('teacher') ||
-        memberData.customFields['role'].toLowerCase().includes('educator') ||
-        memberData.customFields['role'].toLowerCase().includes('therapist') ||
-        memberData.customFields['role'].toLowerCase().includes('counselor')
+    const hasEducatorRole = memberData.customFields?.['contact-role'] || memberData.customFields?.['role'];
+    const isValidRole = hasEducatorRole && (
+        hasEducatorRole.toLowerCase().includes('principal') ||
+        hasEducatorRole.toLowerCase().includes('teacher') ||
+        hasEducatorRole.toLowerCase().includes('psychologist') ||
+        hasEducatorRole.toLowerCase().includes('therapist') ||
+        hasEducatorRole.toLowerCase().includes('counselor') ||
+        hasEducatorRole.toLowerCase().includes('social worker') ||
+        hasEducatorRole.toLowerCase().includes('other')
     );
     
-    // Process if: has educator plan OR has educator role OR has valid school data
-    const shouldProcessCompany = hasEducatorPlan || hasEducatorRole || (schoolName && schoolCity);
+    // Process if: has educator plan OR has valid professional role OR has valid place data
+    const shouldProcessCompany = hasEducatorPlan || isValidRole || (schoolName && schoolCity);
     
     if (!shouldProcessCompany) {
-        console.log(`⚠️ Skipping Company creation - not an educator/therapist:`, {
+        console.log(`⚠️ Skipping Company creation - not a professional contact:`, {
             hasEducatorPlan,
-            hasEducatorRole,
-            hasSchoolData: !!(schoolName && schoolCity),
-            role: memberData.customFields?.['role']
+            hasValidRole: isValidRole,
+            hasPlaceData: !!(schoolName && schoolCity),
+            role: hasEducatorRole
         });
         return null;
     }
@@ -199,11 +203,11 @@ export async function findSchoolCompanyByData(schoolData) {
             return null;
         }
 
-        // Priority 1: Find by school_id (the most reliable key)
+        // Priority 1: Find by place_id (the most reliable key)
         if (schoolData.placeId) {
-            const companyById = response.items.find(c => c.attributes.school_id === schoolData.placeId);
+            const companyById = response.items.find(c => c.attributes.place_id === schoolData.placeId);
             if (companyById) {
-                console.log(`✅ [${syncId}] Found existing Company by school_id: ${companyById.id}`);
+                console.log(`✅ [${syncId}] Found existing Company by place_id: ${companyById.id}`);
                 return companyById;
             }
         }
@@ -213,7 +217,7 @@ export async function findSchoolCompanyByData(schoolData) {
         const companyByKey = response.items.find(c => {
             const companyKey = generateSchoolCompanyKey({
                 name: c.name,
-                city: c.attributes.school_city || '',
+                city: c.attributes.place_city || '',  // NEW: use place_city
             });
             return companyKey === schoolKey;
         });
@@ -255,20 +259,20 @@ export async function createOrUpdateSchoolCompany(schoolData) {
         // Company attributes MUST be lowercase with underscore!
         // Brevo API accepts: school_city ✅
         // Brevo API rejects: SCHOOL_CITY ❌, school-city ❌, SchoolCity ❌
-        // Map Memberstack data to Brevo's internal attribute names
+        // Map Memberstack data to NEW Brevo place_* attributes
         const fieldMappings = {
-            school_address: schoolData.addressResult,
-            school_city: schoolData.city,
-            school_country: schoolData.country,
-            school_id: schoolData.placeId, // Correct internal name for SCHOOL_PLACE_ID
-            school_latitude: schoolData.latitude,
-            school_longitude: schoolData.longitude,
-            school_name: schoolData.name,
-            school_phone: schoolData.phone,
-            school_postal_code: schoolData.zip,
-            school_state_province: schoolData.state,
-            school_street_address__memberdata_customfiel: schoolData.address, // Correct (truncated) internal name
-            school_website: schoolData.website,
+            place_id: schoolData.placeId,           // KEY: Google Place ID for deduplication
+            place_name: schoolData.name,            // Place name
+            place_city: schoolData.city,            // City
+            place_country: schoolData.country,      // Country
+            place_address: schoolData.addressResult, // Full address result
+            place_street_address: schoolData.address, // Street address
+            place_phone: schoolData.phone,          // Phone number
+            place_website: schoolData.website,      // Website URL
+            place_latitude: schoolData.latitude,    // GPS latitude
+            place_longitude: schoolData.longitude,  // GPS longitude
+            place_state: schoolData.state,          // State/Province
+            place_type: schoolData.facilityType     // Facility type
         };
 
         // Only add fields that have non-empty values to the request
@@ -279,7 +283,7 @@ export async function createOrUpdateSchoolCompany(schoolData) {
         }
         
         console.log(`📝 [${syncId}] Creating Company with ${Object.keys(companyData.attributes).length} attributes`);
-        console.log(`📝 [${syncId}] Key field SCHOOL_PLACE_ID: ${schoolData.placeId || 'MISSING'}`);
+        console.log(`📝 [${syncId}] Key field place_id: ${schoolData.placeId || 'MISSING'}`);
         console.log(`📝 [${syncId}] School data: ${schoolData.name}`);
         
         let result;
