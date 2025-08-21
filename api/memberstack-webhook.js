@@ -175,15 +175,20 @@ export default async function handler(req, res) {
                 console.log('Processing member event:', member.id || member.auth?.email);
                 console.log('Full member data:', JSON.stringify(member, null, 2));
 
-                // For member.updated, ALWAYS fetch fresh data to ensure planConnections is up-to-date
+                // For member.updated, use webhook payload which has latest changes
+                // Fresh API data might not have immediate Webflow form updates
                 if (eventType === 'member.updated' && member.id) {
-                    console.log('🔄 member.updated event: Fetching fresh full member data to ensure plan sync...');
-                    const freshData = await getMemberById(member.id);
-                    if (freshData) {
-                        console.log('✅ Successfully fetched fresh member data.');
-                        fullMemberData = freshData;
-                    } else {
-                        console.warn('⚠️ Could not fetch fresh member data, proceeding with webhook payload.');
+                    console.log('🔄 member.updated: Using webhook payload (has latest Webflow changes)');
+                    console.log('📋 Webhook custom fields:', Object.keys(member.customFields || {}));
+                    
+                    // Only fetch fresh data if webhook payload is missing plan connections
+                    if (!member.planConnections) {
+                        console.log('📥 Fetching plan connections from Memberstack API...');
+                        const freshData = await getMemberById(member.id);
+                        if (freshData?.planConnections) {
+                            console.log('✅ Merged plan connections from API');
+                            fullMemberData = { ...member, planConnections: freshData.planConnections };
+                        }
                     }
                 } else if (!member.customFields || Object.keys(member.customFields || {}).length === 0) {
                     // Fallback for other events or if ID is missing
