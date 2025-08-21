@@ -183,14 +183,24 @@ export async function createOrUpdateBrevoContact(memberData, planConfig) {
       // REMOVED: All SCHOOL_* attributes now handled by Company entity
       // Place data goes to Company, Contact only keeps linking field
       
-      // Professional information (unified for Educators/Therapists)
-      CONTACT_ROLE: memberData.customFields?.['contact-role'] || memberData.metaData?.contactRole || '',
-      CONTACT_NO_KIDS: memberData.customFields?.['contact-no-kids'] || memberData.metaData?.contactNoKids || '',
+      // Professional information (webhook compatibility)
+      CONTACT_ROLE: memberData.customFields?.['contact-role'] ||      // Webflow: new name
+                    memberData.customFields?.['role'] ||             // Webhook: old name
+                    memberData.metaData?.contactRole || '',
+      CONTACT_NO_KIDS: memberData.customFields?.['contact-no-kids'] || // Webflow: new name
+                       memberData.customFields?.['no-kids'] ||        // Webhook: old name
+                       memberData.metaData?.contactNoKids || '',
       
-      // Contact-specific fields
-      CONTACT_RESOURCES: memberData.customFields?.['contact-resources'] || memberData.metaData?.contactResources || '',
-      CONTACT_PAYMENTS: memberData.customFields?.['contact-payments'] || memberData.metaData?.contactPayments || '',
-      CONTACT_DISCOVER: memberData.customFields?.['contact-discover'] || memberData.metaData?.contactDiscover || '',
+      // Contact-specific fields (webhook compatibility)
+      CONTACT_RESOURCES: memberData.customFields?.['contact-resources'] || // Webflow: new name
+                        memberData.customFields?.['resources'] ||         // Webhook: old name
+                        memberData.metaData?.contactResources || '',
+      CONTACT_PAYMENTS: memberData.customFields?.['contact-payments'] ||   // Webflow: new name
+                       memberData.customFields?.['payments'] ||           // Webhook: old name
+                       memberData.metaData?.contactPayments || '',
+      CONTACT_DISCOVER: memberData.customFields?.['contact-discover'] ||   // Webflow: new name
+                       memberData.customFields?.['discover'] ||           // Webhook: old name
+                       memberData.metaData?.contactDiscover || '',
       
       // System fields
       LMIDS: memberData.metaData?.lmids || '',
@@ -345,14 +355,24 @@ export async function syncMemberToBrevo(memberData) {
                      memberData.customFields?.teacherName ||
                      memberData.metaData?.teacherName ||
                      `${memberData.customFields?.['first-name'] || ''} ${memberData.customFields?.['last-name'] || ''}`.trim(),
-        // Professional information (unified for Educators/Therapists)
-        CONTACT_ROLE: memberData.customFields?.['contact-role'] || memberData.metaData?.contactRole || '',
-        CONTACT_NO_KIDS: memberData.customFields?.['contact-no-kids'] || memberData.metaData?.contactNoKids || '',
+        // Professional information (webhook compatibility)
+        CONTACT_ROLE: memberData.customFields?.['contact-role'] ||      // Webflow: new name
+                      memberData.customFields?.['role'] ||             // Webhook: old name
+                      memberData.metaData?.contactRole || '',
+        CONTACT_NO_KIDS: memberData.customFields?.['contact-no-kids'] || // Webflow: new name
+                         memberData.customFields?.['no-kids'] ||        // Webhook: old name
+                         memberData.metaData?.contactNoKids || '',
         
-        // Contact-specific fields
-        CONTACT_RESOURCES: memberData.customFields?.['contact-resources'] || memberData.metaData?.contactResources || '',
-        CONTACT_PAYMENTS: memberData.customFields?.['contact-payments'] || memberData.metaData?.contactPayments || '',
-        CONTACT_DISCOVER: memberData.customFields?.['contact-discover'] || memberData.metaData?.contactDiscover || '',
+        // Contact-specific fields (webhook compatibility)
+        CONTACT_RESOURCES: memberData.customFields?.['contact-resources'] || // Webflow: new name
+                          memberData.customFields?.['resources'] ||         // Webhook: old name
+                          memberData.metaData?.contactResources || '',
+        CONTACT_PAYMENTS: memberData.customFields?.['contact-payments'] ||   // Webflow: new name
+                         memberData.customFields?.['payments'] ||           // Webhook: old name
+                         memberData.metaData?.contactPayments || '',
+        CONTACT_DISCOVER: memberData.customFields?.['contact-discover'] ||   // Webflow: new name
+                         memberData.customFields?.['discover'] ||           // Webhook: old name
+                         memberData.metaData?.contactDiscover || '',
         
         // Place linking (KEY for Company relationship)
         PLACE_ID: memberData.customFields?.['place-id'] || memberData.metaData?.placeId || '',

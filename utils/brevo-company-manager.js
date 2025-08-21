@@ -61,8 +61,12 @@ export function extractSchoolDataFromMember(memberData) {
     const schoolName = memberData.customFields?.['place-name'] ||        // NEW: Webflow field
                        memberData.metaData?.placeName || '';
                        
-    const schoolCity = memberData.customFields?.['place-city'] || memberData.metaData?.placeCity || '';
-    const schoolCountry = memberData.customFields?.['place-country'] || memberData.metaData?.placeCountry || '';
+    const schoolCity = memberData.customFields?.['place-city'] ||   // Webflow: new name
+                       memberData.customFields?.['city'] ||        // Webhook: still old name!
+                       memberData.metaData?.placeCity || '';
+    const schoolCountry = memberData.customFields?.['place-country'] || // Webflow: new name  
+                          memberData.customFields?.['country'] ||       // Webhook: still old name!
+                          memberData.metaData?.placeCountry || '';
     
     // Must have at minimum: name and city to be a valid school
     if (!schoolName || !schoolCity) {
@@ -84,7 +88,9 @@ export function extractSchoolDataFromMember(memberData) {
         userCategory.includes('classroom')
     );
     
-    const hasEducatorRole = memberData.customFields?.['contact-role'] || memberData.customFields?.['role'];
+    const hasEducatorRole = memberData.customFields?.['contact-role'] ||      // Webflow: new name
+                            memberData.customFields?.['role'] ||             // Webhook: old name  
+                            memberData.metaData?.contactRole;
     const isValidRole = hasEducatorRole && (
         hasEducatorRole.toLowerCase().includes('principal') ||
         hasEducatorRole.toLowerCase().includes('teacher') ||
@@ -114,26 +120,46 @@ export function extractSchoolDataFromMember(memberData) {
         city: schoolCity.trim(),
         country: schoolCountry?.trim() || '',
         
-        // Address fields
-        addressResult: memberData.customFields?.['place-address-result'] || memberData.metaData?.placeAddressResult || '',
-        address: memberData.customFields?.['place-address'] || memberData.metaData?.placeAddress || '',
-        state: memberData.customFields?.['place-state'] || memberData.metaData?.placeState || '',
-        zip: memberData.customFields?.['place-zip'] || memberData.metaData?.placeZip || '',
+        // Address fields (webhook compatibility)
+        addressResult: memberData.customFields?.['place-address-result'] || 
+                      memberData.customFields?.['address-result'] || // Webhook: old name
+                      memberData.metaData?.placeAddressResult || '',
+        address: memberData.customFields?.['place-address'] || 
+                 memberData.customFields?.['street-address'] || // Webhook: old name
+                 memberData.metaData?.placeAddress || '',
+        state: memberData.customFields?.['place-state'] || 
+               memberData.customFields?.['state'] || // Webhook: old name
+               memberData.metaData?.placeState || '',
+        zip: memberData.customFields?.['place-zip'] || 
+             memberData.customFields?.['zip'] || // Webhook: old name
+             memberData.metaData?.placeZip || '',
         
-        // Contact and web presence
-        phone: memberData.customFields?.['place-phone'] || memberData.metaData?.placePhone || '',
-        website: memberData.customFields?.['place-website'] || memberData.metaData?.placeWebsite || '',
+        // Contact and web presence (webhook compatibility)
+        phone: memberData.customFields?.['place-phone'] || 
+               memberData.customFields?.['phone'] || // Webhook: old name
+               memberData.metaData?.placePhone || '',
+        website: memberData.customFields?.['place-website'] || 
+                 memberData.customFields?.['website'] || // Webhook: old name
+                 memberData.metaData?.placeWebsite || '',
         
-        // Geographic coordinates
-        latitude: memberData.customFields?.['place-latitude'] || memberData.metaData?.placeLatitude || '',
-        longitude: memberData.customFields?.['place-longitude'] || memberData.metaData?.placeLongitude || '',
+        // Geographic coordinates (webhook compatibility)
+        latitude: memberData.customFields?.['place-latitude'] || 
+                  memberData.customFields?.['latitude'] || // Webhook: old name
+                  memberData.metaData?.placeLatitude || '',
+        longitude: memberData.customFields?.['place-longitude'] || 
+                   memberData.customFields?.['longitude'] || // Webhook: old name
+                   memberData.metaData?.placeLongitude || '',
         
         // KEY FIELD for syncing between Companies and Contacts
         placeId: memberData.customFields?.['place-id'] || memberData.metaData?.placeId || '',
         
-        // Additional fields
-        facilityType: memberData.customFields?.['place-type'] || memberData.metaData?.placeType || '',
-        rating: memberData.customFields?.['place-rating'] || memberData.metaData?.placeRating || ''
+        // Additional fields (webhook compatibility)
+        facilityType: memberData.customFields?.['place-type'] || 
+                      memberData.customFields?.['facility-type'] || // Webhook: old name
+                      memberData.metaData?.placeType || '',
+        rating: memberData.customFields?.['place-rating'] || 
+                memberData.customFields?.['rating'] || // Webhook: old name
+                memberData.metaData?.placeRating || ''
     };
 }
 
