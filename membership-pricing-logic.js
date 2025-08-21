@@ -136,8 +136,8 @@ document.addEventListener("DOMContentLoaded", function () {
         "pln_therapists-free-promo-i2kz0huu"  // Therapists Free Promo
     ];
 
-    // Define paid tiers with UPDATED Price IDs, order, button IDs, and highlight DIV ID
-    const paidTiers = [
+    // Define paid tiers for EDUCATORS with UPDATED Price IDs, order, button IDs, and highlight DIV ID
+    const educatorPaidTiers = [
         { // Order 1: Single Classroom Monthly ($19)
             id: "prc_educators-single-classroom-monthly-uum40cpj", order: 1, highlightDivId: "cp-sc-m",
             buttons: { upgrade: "single-classroom-monthly-upgrade", manage: "single-classroom-monthly-manage", downgrade: "single-classroom-monthly-downgrade" }
@@ -156,9 +156,124 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     ];
 
+    // Define paid tiers for THERAPISTS with Price IDs, order, button IDs, and highlight DIV ID
+    const therapistPaidTiers = [
+        { // Order 1: Single Practice Monthly
+            id: "prc_single-practice-monthly-03vr095y", order: 1, highlightDivId: "cp-sp-m",
+            buttons: { upgrade: "single-practice-monthly-upgrade", manage: "single-practice-monthly-manage", downgrade: "single-practice-monthly-downgrade" }
+        },
+        { // Order 2: Single Practice Yearly
+            id: "prc_single-practice-yearly-d5ys0cfl", order: 2, highlightDivId: "cp-sp-y",
+            buttons: { upgrade: "single-practice-yearly-upgrade", manage: "single-practice-yearly-manage", downgrade: "single-practice-yearly-downgrade" }
+        }
+    ];
+
+    // --- Container IDs ---
+    const educatorsPricingId = "educators-pricing";
+    const therapistPricingId = "therapist-pricing";
+    
     // --- Tab Link IDs ---
-    const monthlyTabId = "monthly-tab-link"; // Make sure this ID exists on your Monthly tab link
-    const yearlyTabId = "yearly-tab-link";   // Make sure this ID exists on your Yearly tab link
+    const educatorTabIds = {
+        monthly: "educators-monthly-tab-link",
+        yearly: "educators-yearly-tab-link"
+    };
+    
+    const therapistTabIds = {
+        monthly: "therapists-monthly-tab-link", 
+        yearly: "therapists-yearly-tab-link"
+    };
+
+    // --- User Role Detection Function ---
+    async function detectUserRole() {
+        try {
+            console.log('🔍 Detecting user role for pricing logic...');
+            
+            if (!window.$memberstackDom) {
+                console.log('❌ Memberstack DOM not available, defaulting to EDUCATOR');
+                return 'EDUCATOR';
+            }
+            
+            const { data: memberData } = await window.$memberstackDom.getCurrentMember();
+            if (!memberData) {
+                console.log('❌ No member data available, defaulting to EDUCATOR');
+                return 'EDUCATOR';
+            }
+            
+            // Use the same logic as other files - detect role based on active Memberstack plans
+            const planConnections = memberData.planConnections || [];
+            const activePlans = planConnections.filter(conn => conn.active && conn.status === 'ACTIVE');
+            const activePlanIds = activePlans.map(plan => plan.planId);
+            
+            console.log('🔍 Active plan IDs for role detection:', activePlanIds);
+            
+            // Check if LM_CONFIG is available
+            if (window.LM_CONFIG?.PLAN_HELPERS) {
+                const hasTherapistPlan = activePlanIds.some(planId => 
+                    window.LM_CONFIG.PLAN_HELPERS.isTherapistPlan(planId)
+                );
+                
+                const hasEducatorPlan = activePlanIds.some(planId => 
+                    window.LM_CONFIG.PLAN_HELPERS.isEducatorPlan(planId)
+                );
+                
+                console.log('🔍 Plan detection results:', { hasTherapistPlan, hasEducatorPlan });
+                
+                if (hasTherapistPlan) {
+                    console.log('✅ Detected role: THERAPIST');
+                    return 'THERAPIST';
+                } else if (hasEducatorPlan) {
+                    console.log('✅ Detected role: EDUCATOR');
+                    return 'EDUCATOR';
+                }
+            } else {
+                // Fallback logic without config.js
+                const hasTherapistPlan = activePlanIds.some(planId => 
+                    planId && (planId.includes('therapist') || planId.includes('therapy'))
+                );
+                
+                if (hasTherapistPlan) {
+                    console.log('✅ Detected role: THERAPIST (fallback logic)');
+                    return 'THERAPIST';
+                }
+            }
+            
+            console.log('✅ Detected role: EDUCATOR (default)');
+            return 'EDUCATOR';
+            
+        } catch (error) {
+            console.error('❌ Error detecting user role:', error);
+            return 'EDUCATOR'; // Default fallback
+        }
+    }
+
+    // --- Container Management Functions ---
+    function showPricingContainer(containerIdToShow) {
+        const educatorsContainer = document.getElementById(educatorsPricingId);
+        const therapistContainer = document.getElementById(therapistPricingId);
+        
+        console.log('🎯 Container elements found:', {
+            educators: !!educatorsContainer,
+            therapist: !!therapistContainer,
+            showingContainer: containerIdToShow
+        });
+        
+        // Hide both containers first
+        if (educatorsContainer) {
+            educatorsContainer.style.display = 'none';
+        }
+        if (therapistContainer) {
+            therapistContainer.style.display = 'none';
+        }
+        
+        // Show the appropriate container
+        const containerToShow = document.getElementById(containerIdToShow);
+        if (containerToShow) {
+            containerToShow.style.display = 'block';
+            console.log(`✅ Showing ${containerIdToShow} container`);
+        } else {
+            console.error(`❌ Container ${containerIdToShow} not found`);
+        }
+    }
 
     // --- Helper Functions ---
 
@@ -184,15 +299,18 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
 
-    function hideAllPricingButtons() {
+    function hideAllPricingButtons(paidTiers) {
         paidTiers.forEach(tier => {
             setButtonVisibility(tier.buttons.upgrade, 'none');
             setButtonVisibility(tier.buttons.manage, 'none');
             setButtonVisibility(tier.buttons.downgrade, 'none');
         });
+        
+        // Also hide the special therapist demo button
+        setButtonVisibility('open-free-therapist-demo-account', 'none');
     }
 
-    function resetHighlighting() {
+    function resetHighlighting(paidTiers) {
         const allPricingPlans = document.querySelectorAll('.pricing20_plan');
         allPricingPlans.forEach(plan => {
             plan.classList.remove('featured');
@@ -216,25 +334,49 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // --- Main Logic ---
-
-    resetHighlighting();
-    hideAllPricingButtons();
-    // Default tab will be activated after member check
-
-    if (!window.$memberstackDom) {
-        paidTiers.forEach(tier => setButtonVisibility(tier.buttons.upgrade, 'block'));
+    
+    // First detect user role and show appropriate container
+    detectUserRole().then(userRole => {
+        console.log('🎯 User role detected:', userRole);
         
-        // Respect promo tab priority even when Memberstack unavailable
-        const urlParams = new URLSearchParams(window.location.search);
-        const promoValue = urlParams.get('promo');
-        
-        if (promoValue !== 'yes') {
-            activateTab(yearlyTabId); // Activate default tab on MS error only if no promo
+        // Determine which tiers, container, and tabs to use
+        let paidTiers, containerToShow, tabIds;
+        if (userRole === 'THERAPIST') {
+            paidTiers = therapistPaidTiers;
+            containerToShow = therapistPricingId;
+            tabIds = therapistTabIds;
+        } else {
+            paidTiers = educatorPaidTiers;
+            containerToShow = educatorsPricingId;
+            tabIds = educatorTabIds;
         }
-        return;
-    }
+        
+        // Show the appropriate pricing container
+        showPricingContainer(containerToShow);
+        
+        // Reset highlighting and hide buttons for the selected tiers
+        resetHighlighting(paidTiers);
+        hideAllPricingButtons(paidTiers);
+        
+        // Default tab will be activated after member check
+        if (!window.$memberstackDom) {
+            paidTiers.forEach(tier => setButtonVisibility(tier.buttons.upgrade, 'block'));
+            
+            // Respect promo tab priority even when Memberstack unavailable
+            const urlParams = new URLSearchParams(window.location.search);
+            const promoValue = urlParams.get('promo');
+            
+            if (promoValue !== 'yes') {
+                activateTab(tabIds.yearly); // Activate default yearly tab on MS error only if no promo
+            }
+            return;
+        }
 
-    window.$memberstackDom.getCurrentMember().then(({ data: member }) => {
+        // Continue with member data processing
+        return window.$memberstackDom.getCurrentMember().then(({ data: member }) => {
+            console.log('🔍 Processing member data for role:', userRole);
+            
+            // Continue with existing logic using the appropriate paidTiers and tabIds
         let currentUserTierOrder = null;
         let currentTierData = null;
         let activateMonthly = false; // Flag for tab switching
@@ -275,6 +417,12 @@ document.addEventListener("DOMContentLoaded", function () {
                                      badges.forEach(badge => {
                                          badge.style.display = 'flex';
                                      });
+                                 }
+                                 
+                                 // Show special demo button for therapists on free plan
+                                 if (conn.planId === 'pln_therapists-free-promo-i2kz0huu' && userRole === 'THERAPIST') {
+                                     setButtonVisibility('open-free-therapist-demo-account', 'block');
+                                     console.log('✅ Showing therapist demo button for free plan user');
                                  }
                              }
                              break; 
@@ -333,28 +481,33 @@ document.addEventListener("DOMContentLoaded", function () {
             // Only activate monthly/yearly if promo tab is NOT active
             if (activateMonthly) {
                 console.log('🔄 Activating Monthly tab (no promo conflict)');
-                activateTab(monthlyTabId);
+                activateTab(tabIds.monthly);
             } else {
                 console.log('🔄 Activating Yearly tab (no promo conflict)');
-                activateTab(yearlyTabId);
+                activateTab(tabIds.yearly);
             }
         } else {
             console.log('🚫 Skipping tab activation - promo tab is active');
         }
         // If promo tab active, let the promotional logic handle tab activation
-
-
+        
+        }); // Close member data processing promise
+        
     }).catch((error) => {
-        resetHighlighting();
-        hideAllPricingButtons();
-        paidTiers.forEach(tier => setButtonVisibility(tier.buttons.upgrade, 'block'));
+        console.error('❌ Error in pricing logic:', error);
+        
+        // Fallback: show educators container and reset
+        showPricingContainer(educatorsPricingId);
+        resetHighlighting(educatorPaidTiers);
+        hideAllPricingButtons(educatorPaidTiers);
+        educatorPaidTiers.forEach(tier => setButtonVisibility(tier.buttons.upgrade, 'block'));
         
         // Respect promo tab priority even on error
         const urlParams = new URLSearchParams(window.location.search);
         const promoValue = urlParams.get('promo');
         
         if (promoValue !== 'yes') {
-            activateTab(yearlyTabId); // Activate default tab on fetch error only if no promo
+            activateTab(educatorTabIds.yearly); // Activate default tab on fetch error only if no promo
         }
     });
 });
