@@ -50,17 +50,16 @@ function testEducatorDataExtraction() {
         customFields: {
             'first-name': 'John',
             'last-name': 'Teacher',
-            'school-name': 'Test Primary School',
-            'school-city': 'Test City',
-            'school-country': 'Test Country',
-            'school-address': '123 Education Street',
-            'school-phone': '+1-555-123-4567',
-            'school-website': 'www.testschool.edu',
-            'school-type': 'Primary School',
-            'school-rating': '4.5',
-            'role': 'Teacher',
-            'no-kids': '150',
-            'no-classes': '6'
+            'place-name': 'Test Primary School',
+            'place-city': 'Test City',
+            'place-country': 'Test Country',
+            'place-address': '123 Education Street',
+            'place-phone': '+1-555-123-4567',
+            'place-website': 'www.testschool.edu',
+            'place-type': 'Primary School',
+            'place-rating': '4.5',
+            'contact-role': 'Teacher',
+            'contact-no-kids': '150'
         }
     };
 

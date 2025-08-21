@@ -11,8 +11,9 @@
  * AVAILABLE CONTACT ATTRIBUTES (automatic in templates):
  * - Personal: {{contact.FIRSTNAME}}, {{contact.LASTNAME}}, {{contact.PHONE}}
  * - Plan: {{contact.USER_CATEGORY}}, {{contact.PLAN_TYPE}}, {{contact.PLAN_NAME}}  
- * - School: {{contact.SCHOOL_NAME}}, {{contact.SCHOOL_CITY}}, {{contact.SCHOOL_ADDRESS}}
- * - Professional: {{contact.EDUCATOR_ROLE}}, {{contact.EDUCATOR_NO_CLASSES}}, {{contact.EDUCATOR_NO_KIDS}}
+ * - Professional: {{contact.CONTACT_ROLE}}, {{contact.CONTACT_NO_KIDS}}
+ * - Contact Fields: {{contact.CONTACT_RESOURCES}}, {{contact.CONTACT_PAYMENTS}}, {{contact.CONTACT_DISCOVER}}
+ * - Company Linking: {{contact.PLACE_ID}}, {{contact.COMPANY}}, {{contact.COMPANY_ID}}
  * - System: {{contact.MEMBERSTACK_ID}}, {{contact.LMIDS}}, {{contact.LANGUAGE_PREF}}
  * - Full list: See utils/brevo-contact-config.js (32 total attributes)
  * 

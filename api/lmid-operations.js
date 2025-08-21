@@ -688,15 +688,8 @@ async function getSchoolNameByMemberId(memberId) {
         
         console.log(`🔍 [getSchoolNameByMemberId] Raw member data:`, JSON.stringify(memberData, null, 2));
         
-        // Extract school name from various possible fields (based on screenshots)
-        const schoolName = 
-            memberData.customFields?.['school-place-name'] || // Primary field from screenshot
-            memberData.customFields?.['place-name'] ||        // Alternative field
-            memberData.customFields?.['school-name'] ||       // Another alternative
-            memberData.customFields?.school ||                // Simple field
-            memberData.metaData?.school ||
-            memberData.metaData?.schoolName ||
-            '';
+        // Extract school name from NEW field name only
+        const schoolName = memberData.customFields?.['place-name'] || memberData.metaData?.placeName || '';
         
         console.log(`✅ [getSchoolNameByMemberId] Found school name: "${schoolName}"`);
         

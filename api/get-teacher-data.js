@@ -201,8 +201,8 @@ async function getSchoolNameByMemberId(memberId) {
             // Extract school name from various possible fields (based on your grep results)
             const schoolName = 
                 memberData.customFields?.['place-name'] ||        // Primary field you mentioned
-                memberData.customFields?.['school-place-name'] || // Alternative field
-                memberData.customFields?.['school-name'] ||       // Another alternative
+                memberData.customFields?.['place-name'] ||        // NEW: unified field name
+                memberData.metaData?.placeName ||
                 memberData.customFields?.school ||                // Simple field
                 memberData.metaData?.school ||
                 memberData.metaData?.schoolName ||
