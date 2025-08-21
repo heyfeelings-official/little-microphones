@@ -144,6 +144,21 @@
             try {
                 console.log('🔍 Detecting user role...');
                 
+                // Check URL parameter for testing (e.g., ?role=therapist)
+                const urlParams = new URLSearchParams(window.location.search);
+                const urlRole = urlParams.get('role');
+                if (urlRole) {
+                    const normalizedUrlRole = urlRole.toUpperCase();
+                    if (normalizedUrlRole === 'THERAPIST' || normalizedUrlRole === 'THERAPY') {
+                        console.log('🔍 URL parameter override: THERAPIST');
+                        return 'THERAPIST';
+                    }
+                    if (normalizedUrlRole === 'EDUCATOR' || normalizedUrlRole === 'TEACHER') {
+                        console.log('🔍 URL parameter override: EDUCATOR');
+                        return 'EDUCATOR';
+                    }
+                }
+                
                 if (!window.$memberstackDom) {
                     console.log('❌ Memberstack DOM not available');
                     return 'EDUCATOR'; // Default fallback
@@ -155,28 +170,78 @@
                     return 'EDUCATOR';
                 }
                 
-                // Check for role in customFields or metaData
-                const role = member.data.customFields?.role || 
-                            member.data.customFields?.USER_CATEGORY || 
-                            member.data.metaData?.role ||
-                            member.data.metaData?.USER_CATEGORY;
+                // Log all available member data for debugging
+                console.log('🔍 Full member data:', JSON.stringify(member.data, null, 2));
+                
+                // Check for role in multiple possible locations
+                const possibleRoleFields = [
+                    member.data.customFields?.role,
+                    member.data.customFields?.USER_CATEGORY,
+                    member.data.customFields?.userCategory,
+                    member.data.customFields?.user_category,
+                    member.data.customFields?.ROLE,
+                    member.data.metaData?.role,
+                    member.data.metaData?.USER_CATEGORY,
+                    member.data.metaData?.userCategory,
+                    member.data.metaData?.user_category,
+                    member.data.metaData?.ROLE,
+                    member.data.planConnections?.[0]?.planName, // Check if role is in plan name
+                    member.data.email?.includes('therapist') ? 'THERAPIST' : null // Email-based detection
+                ];
+                
+                // Also check existing plans to detect role
+                if (member.data.planConnections && member.data.planConnections.length > 0) {
+                    for (const plan of member.data.planConnections) {
+                        console.log('🔍 Checking existing plan:', plan);
+                        if (plan.planId && (plan.planId.includes('therapist') || plan.planId.includes('therapy'))) {
+                            possibleRoleFields.push('THERAPIST');
+                            console.log('🔍 Found therapist plan, assuming THERAPIST role');
+                            break;
+                        }
+                        if (plan.planId && (plan.planId.includes('educator') || plan.planId.includes('teacher'))) {
+                            possibleRoleFields.push('EDUCATOR');
+                            console.log('🔍 Found educator plan, assuming EDUCATOR role');
+                            break;
+                        }
+                    }
+                }
+                
+                console.log('🔍 Checking all possible role fields:', possibleRoleFields);
+                
+                // Find first non-empty role value
+                const role = possibleRoleFields.find(field => field && field.toString().trim() !== '');
                 
                 console.log('📋 User role data:', { 
                     customFields: member.data.customFields, 
                     metaData: member.data.metaData,
+                    planConnections: member.data.planConnections,
+                    email: member.data.email,
                     detectedRole: role 
                 });
                 
                 // Normalize role to uppercase and check for therapist indicators
                 if (role) {
                     const normalizedRole = role.toString().toUpperCase();
-                    if (normalizedRole.includes('THERAPIST') || normalizedRole === 'THERAPIST') {
+                    console.log('🔍 Normalized role:', normalizedRole);
+                    
+                    if (normalizedRole.includes('THERAPIST') || 
+                        normalizedRole.includes('THERAPY') ||
+                        normalizedRole === 'THERAPIST' ||
+                        normalizedRole === 'THERAPY') {
                         console.log('✅ Detected role: THERAPIST');
                         return 'THERAPIST';
                     }
+                    
+                    if (normalizedRole.includes('EDUCATOR') || 
+                        normalizedRole.includes('TEACHER') ||
+                        normalizedRole === 'EDUCATOR' ||
+                        normalizedRole === 'TEACHER') {
+                        console.log('✅ Detected role: EDUCATOR');
+                        return 'EDUCATOR';
+                    }
                 }
                 
-                console.log('✅ Detected role: EDUCATOR (default)');
+                console.log('✅ No specific role detected, defaulting to EDUCATOR');
                 return 'EDUCATOR';
                 
             } catch (error) {
