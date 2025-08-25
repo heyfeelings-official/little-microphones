@@ -41,10 +41,11 @@ function initMap() {
     ]
   });
   
-  // Create marker
-  marker = new google.maps.Marker({
+  // Create marker using modern AdvancedMarkerElement (replaces deprecated Marker)
+  marker = new google.maps.marker.AdvancedMarkerElement({
     map: map,
-    visible: false
+    position: null, // Will be set when location is selected
+    title: 'Selected School Location'
   });
   
   // Get input element (updated ID after form rename)
@@ -55,6 +56,7 @@ function initMap() {
   }
   
   // Create autocomplete - focus on child education establishments
+  // Using traditional Autocomplete for now as PlaceAutocompleteElement requires more complex setup
   autocomplete = new google.maps.places.Autocomplete(input, {
     types: ['establishment'],
     fields: [
@@ -89,8 +91,7 @@ function initMap() {
     map.setZoom(15);
     
     // Show marker
-    marker.setPosition(place.geometry.location);
-    marker.setVisible(true);
+    marker.position = place.geometry.location;
     
     // Use the shared function to populate fields
     populateFields(place, isChildEducation);
@@ -99,8 +100,7 @@ function initMap() {
   // Add click listener to map
   map.addListener("click", function(event) {
     // Set marker to clicked position
-    marker.setPosition(event.latLng);
-    marker.setVisible(true);
+    marker.position = event.latLng;
     
     // Use Geocoder to get address from coordinates
     const geocoder = new google.maps.Geocoder();
@@ -311,7 +311,7 @@ async function loadGoogleMapsAPI() {
     
     // Create and load Google Maps script with secure API key
     const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${data.config.apiKey}&libraries=places&callback=initMap`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${data.config.apiKey}&libraries=places,marker&loading=async&callback=initMap`;
     script.async = true;
     script.defer = true;
     document.head.appendChild(script);
