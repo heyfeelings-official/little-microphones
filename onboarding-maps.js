@@ -15,9 +15,11 @@ function initMap() {
   }
   
   // Create map with all controls disabled
+  // Include mapId when available to enable Advanced Markers
   map = new google.maps.Map(mapContainer, {
     center: { lat: 40.7128, lng: -74.0060 },
     zoom: 12,
+    mapId: (window.LM_CONFIG && window.LM_CONFIG.GOOGLE_MAPS && window.LM_CONFIG.GOOGLE_MAPS.mapId) ? window.LM_CONFIG.GOOGLE_MAPS.mapId : undefined,
     // Disable all controls
     mapTypeControl: false,
     fullscreenControl: false,
@@ -41,12 +43,18 @@ function initMap() {
     ]
   });
   
-  // Create marker using modern AdvancedMarkerElement (replaces deprecated Marker)
-  marker = new google.maps.marker.AdvancedMarkerElement({
+  // Create marker using classic Marker for maximum compatibility
+  marker = new google.maps.Marker({
     map: map,
-    position: null, // Will be set when location is selected
-    title: 'Selected School Location'
+    visible: false
   });
+
+  // Helper to update marker position
+  function updateMarkerPosition(latLng) {
+    if (!marker) return;
+    marker.setPosition(latLng);
+    marker.setVisible(true);
+  }
   
   // Get input element (updated ID after form rename)
   const input = document.getElementById("Contact-location");
@@ -91,7 +99,7 @@ function initMap() {
     map.setZoom(15);
     
     // Show marker
-    marker.position = place.geometry.location;
+    updateMarkerPosition(place.geometry.location);
     
     // Use the shared function to populate fields
     populateFields(place, isChildEducation);
@@ -100,7 +108,7 @@ function initMap() {
   // Add click listener to map
   map.addListener("click", function(event) {
     // Set marker to clicked position
-    marker.position = event.latLng;
+    updateMarkerPosition(event.latLng);
     
     // Use Geocoder to get address from coordinates
     const geocoder = new google.maps.Geocoder();
@@ -308,10 +316,13 @@ async function loadGoogleMapsAPI() {
     if (!data.success || !data.config.apiKey) {
       throw new Error('Google Maps API key not available');
     }
+    // Persist config globally for use in initMap
+    window.LM_CONFIG = window.LM_CONFIG || {};
+    window.LM_CONFIG.GOOGLE_MAPS = data.config;
     
     // Create and load Google Maps script with secure API key
     const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${data.config.apiKey}&libraries=places,marker&loading=async&callback=initMap`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${data.config.apiKey}&libraries=places,marker&loading=async&v=weekly&callback=initMap`;
     script.async = true;
     script.defer = true;
     document.head.appendChild(script);
