@@ -294,8 +294,33 @@ function updateFieldIfExists(id, value) {
 }
 
 // Load Google Maps API after our initialization function is defined
-const script = document.createElement('script');
-script.src = 'https://maps.googleapis.com/maps/api/js?key=AIzaSyCS2HPSaZanTmfQ79u84wuOHCpuakJNxYs&libraries=places&callback=initMap';
-script.async = true;
-script.defer = true;
-document.head.appendChild(script); 
+async function loadGoogleMapsAPI() {
+  try {
+    // Get Google Maps configuration from secure API endpoint
+    const API_BASE_URL = window.LM_CONFIG?.API_BASE_URL || 'https://little-microphones.vercel.app';
+    const response = await fetch(`${API_BASE_URL}/api/get-google-maps-config`);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to get Google Maps config: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    if (!data.success || !data.config.apiKey) {
+      throw new Error('Google Maps API key not available');
+    }
+    
+    // Create and load Google Maps script with secure API key
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${data.config.apiKey}&libraries=places&callback=initMap`;
+    script.async = true;
+    script.defer = true;
+    document.head.appendChild(script);
+    
+  } catch (error) {
+    console.error('❌ Failed to load Google Maps API:', error);
+    console.error('Please ensure GOOGLE_MAPS_API_KEY is set in environment variables');
+  }
+}
+
+// Load the API
+loadGoogleMapsAPI(); 
