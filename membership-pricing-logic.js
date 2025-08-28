@@ -389,11 +389,30 @@ document.addEventListener("DOMContentLoaded", function () {
                 for (const conn of activeConnections) {
                     const priceIdToCheck = conn.priceId || (conn.payment ? conn.payment.priceId : null);
                     
+                    console.log('🔍 Checking connection:', {
+                        planId: conn.planId,
+                        priceId: priceIdToCheck,
+                        active: conn.active,
+                        status: conn.status,
+                        userRole: userRole
+                    });
+                    
                     if (priceIdToCheck) {
                          const matchedTier = paidTiers.find(tier => tier.id === priceIdToCheck);
+                         console.log('🔍 Looking for tier match:', {
+                             priceIdToCheck: priceIdToCheck,
+                             foundTier: matchedTier,
+                             availableTiers: paidTiers.map(t => ({ id: t.id, order: t.order, buttons: Object.keys(t.buttons) }))
+                         });
+                         
                          if (matchedTier) {
                             currentUserTierOrder = matchedTier.order;
                             currentTierData = matchedTier;
+                            console.log('✅ Matched tier found:', {
+                                tierOrder: currentUserTierOrder,
+                                tierData: currentTierData,
+                                buttons: currentTierData.buttons
+                            });
                             // *** Check if the plan is monthly for tab switching ***
                             if (currentUserTierOrder === 1 || currentUserTierOrder === 2) {
                                 activateMonthly = true;
