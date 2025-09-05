@@ -315,7 +315,11 @@
                             if (shareId) {
                                 const badgeRec = worldContainer.querySelector('.badge-rec');
                                 if (badgeRec) {
-                                    const radioUrl = `/little-microphones?ID=${shareId}`;
+                                    // Generate locale-aware radio URL (same logic as generate-program button)
+                                    const currentLang = window.LM_CONFIG?.getCurrentLanguage() || 'en';
+                                    const radioUrl = currentLang === 'en' 
+                                        ? `/little-microphones?ID=${shareId}`
+                                        : `/${currentLang}/little-microphones?ID=${shareId}`;
                                     badgeRec.style.cursor = 'pointer';
                                     badgeRec.onclick = (e) => {
                                         e.preventDefault();

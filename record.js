@@ -316,10 +316,12 @@ async function generateShareIdAndSetupButton(button, world, lmid) {
       throw new Error(result.error || 'Failed to generate share link');
     }
     
-    // Use the locale-aware URL returned by the API, but extract just the path
-    // The API already detects language from referer and includes proper locale prefix
-    const fullUrl = result.url;
-    const radioUrl = new URL(fullUrl).pathname + new URL(fullUrl).search;
+    // Generate the radio URL with ShareID (new public URL structure)
+    // Detect current language and build localized radio URL
+    const currentLang = window.LM_CONFIG?.getCurrentLanguage() || 'en';
+    const radioUrl = currentLang === 'en' 
+        ? `/little-microphones?ID=${result.shareId}`
+        : `/${currentLang}/little-microphones?ID=${result.shareId}`;
     
 
     
