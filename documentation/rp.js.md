@@ -42,9 +42,9 @@ newButton.addEventListener('click', async (event) => {
 
 // AFTER (Simple, Mobile-Friendly):
 async function generateShareIdAndSetupButton(button, world, lmid) {
-  // Pre-generate ShareID during page load
+  // Pre-generate ShareID during page load (API detects locale from referer)
   const response = await fetch('/api/get-share-link');
-  const radioUrl = `/little-microphones?ID=${result.shareId}`;
+  const radioUrl = result.url; // Already includes locale prefix if needed
   
   // Set as direct link (works on mobile)
   button.setAttribute('href', radioUrl);
@@ -98,7 +98,7 @@ memberstack.getCurrentMember()
 ### ShareID System
 - **Unique Identifiers**: Each world/lmid combination gets a unique ShareID
 - **Database Storage**: ShareIDs stored in Supabase for persistence
-- **URL Format**: `/little-microphones?ID=shareId` (no exposed world/lmid)
+- **URL Format**: `/little-microphones?ID=shareId` or `/pl/little-microphones?ID=shareId` (locale-aware, no exposed world/lmid)
 
 ### Mobile Compatibility Improvements
 **Problem Solved**: Mobile browsers often block `window.open()` calls that aren't directly triggered by user interaction.

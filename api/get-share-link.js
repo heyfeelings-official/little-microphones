@@ -9,6 +9,7 @@
  * 
  * RESPONSE FORMAT:
  * { success: true, shareId: "kz7xp4v9", url: "https://domain.com/little-microphones?ID=kz7xp4v9", world: "spookyland" }
+ * { success: true, shareId: "abc123", url: "https://domain.com/pl/little-microphones?ID=abc123", world: "spookyland" } (Polish)
  * 
  * LOGIC:
  * 1. Validate LMID and world parameters
@@ -166,11 +167,20 @@ export default async function handler(req, res) {
             }
         }
 
-        // Construct the complete shareable URL
+        // Language detection: check referer header for locale
+        let detectedLang = 'en'; // Default to English
+        const referer = req.headers.referer || req.headers.referrer || '';
+        if (referer.includes('/pl/')) {
+            detectedLang = 'pl';
+        }
+
+        // Construct the complete shareable URL with locale
         const baseUrl = req.headers.host?.includes('localhost') 
             ? `http://${req.headers.host}` 
             : `https://${req.headers.host}`;
-        const shareableUrl = `${baseUrl}/little-microphones?ID=${shareId}`;
+        const shareableUrl = detectedLang === 'en' 
+            ? `${baseUrl}/little-microphones?ID=${shareId}`
+            : `${baseUrl}/${detectedLang}/little-microphones?ID=${shareId}`;
 
         return res.status(200).json({
             success: true,
