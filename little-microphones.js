@@ -239,6 +239,76 @@
 
 
     /**
+     * PRIORITY: Pre-generate ShareID links for all .badge-rec elements (fast, critical for UX)
+     * @param {Array<string>} lmids - Array of LMID strings
+     */
+    async function preGenerateAllShareIDLinks(lmids) {
+        console.log('🚀 PRIORITY: Pre-generating ShareID links...');
+        
+        // Collect all LMID/world combinations that might need ShareID links
+        const worldCombinations = [];
+        for (const lmid of lmids) {
+            const lmidElement = document.querySelector(`[data-lmid="${lmid}"]`);
+            if (!lmidElement) continue;
+            
+            const worldContainers = lmidElement.querySelectorAll('.program-container[data-world]');
+            for (const worldContainer of worldContainers) {
+                const world = worldContainer.getAttribute('data-world');
+                const badgeRec = worldContainer.querySelector('.badge-rec');
+                if (world && badgeRec) {
+                    worldCombinations.push({ lmid, world, badgeRec });
+                }
+            }
+        }
+        
+        console.log(`🎯 Found ${worldCombinations.length} .badge-rec elements to process`);
+        
+        // Process ALL ShareID generations in PARALLEL (fastest approach)
+        const promises = worldCombinations.map(({ lmid, world, badgeRec }) => {
+            return (async () => {
+                try {
+                    // Call the get-share-link API directly (same as record.js approach)
+                    const response = await fetch(`${window.LM_CONFIG.API_BASE_URL}/api/get-share-link?lmid=${lmid}&world=${world}`);
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        if (result.success && result.shareId) {
+                            // Generate locale-aware radio URL (same logic as generate-program button)
+                            const currentLang = window.LM_CONFIG?.getCurrentLanguage() || 'en';
+                            const radioUrl = currentLang === 'en' 
+                                ? `/little-microphones?ID=${result.shareId}`
+                                : `/${currentLang}/little-microphones?ID=${result.shareId}`;
+                            
+                            // Pre-set as href attribute for better mobile support
+                            badgeRec.setAttribute('href', radioUrl);
+                            badgeRec.setAttribute('target', '_blank');
+                            badgeRec.setAttribute('rel', 'noopener noreferrer');
+                            badgeRec.style.cursor = 'pointer';
+                            
+                            // Backup click handler
+                            badgeRec.onclick = (e) => {
+                                // Let the browser handle the link naturally
+                            };
+                            
+                            console.log(`🎵 ShareID link ready: ${world} LMID ${lmid} → ${radioUrl}`);
+                        } else {
+                            console.warn(`⚠️ No ShareID for ${world} LMID ${lmid}:`, result.error || 'No recordings yet');
+                        }
+                    } else {
+                        console.warn(`⚠️ ShareID API error ${response.status} for ${world} LMID ${lmid}`);
+                    }
+                } catch (error) {
+                    console.error(`⚠️ ShareID generation failed for ${world} LMID ${lmid}:`, error);
+                }
+            })();
+        });
+        
+        // Wait for ALL ShareID links to be ready
+        await Promise.all(promises);
+        console.log('✅ All ShareID links pre-generated!');
+    }
+
+    /**
      * Consolidated batch loading of ALL recording data (eliminates duplicate API calls)
      * @param {Array<string>} lmids - Array of LMID strings
      */
@@ -309,48 +379,8 @@
                             newRecContainer.style.display = 'flex';
                         }
                         
-                        // 3. Setup ShareID and radio links for badge-rec elements (pre-generated like record.js)
-                        if (hasRecordings) {
-                            const badgeRec = worldContainer.querySelector('.badge-rec');
-                            if (badgeRec) {
-                                try {
-                                    // Call the get-share-link API directly (same as record.js approach)
-                                    const response = await fetch(`${window.LM_CONFIG.API_BASE_URL}/api/get-share-link?lmid=${lmid}&world=${world}`);
-                                    
-                                    if (response.ok) {
-                                        const result = await response.json();
-                                        if (result.success && result.shareId) {
-                                            // Generate locale-aware radio URL (same logic as generate-program button)
-                                            const currentLang = window.LM_CONFIG?.getCurrentLanguage() || 'en';
-                                            const radioUrl = currentLang === 'en' 
-                                                ? `/little-microphones?ID=${result.shareId}`
-                                                : `/${currentLang}/little-microphones?ID=${result.shareId}`;
-                                            
-                                            // Pre-set as href attribute for better mobile support
-                                            badgeRec.setAttribute('href', radioUrl);
-                                            badgeRec.setAttribute('target', '_blank');
-                                            badgeRec.setAttribute('rel', 'noopener noreferrer');
-                                            badgeRec.style.cursor = 'pointer';
-                                            
-                                            // Backup click handler
-                                            badgeRec.onclick = (e) => {
-                                                // Let the browser handle the link naturally
-                                            };
-                                            
-                                            console.log(`🎵 ShareID link pre-generated for ${world} LMID ${lmid}: ${radioUrl}`);
-                                        } else {
-                                            console.warn(`⚠️ Failed to get ShareID for ${world} LMID ${lmid}:`, result.error || 'Unknown error');
-                                        }
-                                    } else {
-                                        console.warn(`⚠️ HTTP error ${response.status} getting ShareID for ${world} LMID ${lmid}`);
-                                    }
-                                } catch (error) {
-                                    console.error(`⚠️ Error setting up ShareID for ${world} LMID ${lmid}:`, error);
-                                }
-                            } else {
-                                console.warn(`⚠️ Badge-rec element not found in world container for ${world}`);
-                            }
-                        }
+                        // 3. ShareID links are now pre-generated separately by preGenerateAllShareIDLinks()
+                        // This eliminates the duplicate API calls and speeds up the page load
                         
                         // 4. Setup recording links for specific elements within new-rec
                         const newRecElement = worldContainer.querySelector('.new-rec');
@@ -710,7 +740,12 @@
 
         }, 100);
         
-        // Now batch-load ALL recording data in one pass (eliminates duplicate API calls)
+        // PRIORITY: Pre-generate ShareID links immediately (critical for user experience)
+        setTimeout(() => {
+            preGenerateAllShareIDLinks(lmids);
+        }, 50);
+        
+        // SECONDARY: Load recording counts and other data (non-critical, can be slower)
         setTimeout(() => {
             batchLoadAllRecordingData(lmids);
         }, 200);
@@ -1871,8 +1906,9 @@
             // Setup backgrounds and data for new LMID
             setupWorldBackgroundsForContainer(itemElement);
             
-            // Load recording data for new LMID
+            // Load data for new LMID (ShareID links first, then recording counts)
             setTimeout(() => {
+                preGenerateAllShareIDLinks([newLmid]);
                 batchLoadAllRecordingData([newLmid]);
             }, 500);
             
@@ -1956,7 +1992,8 @@
             // Start animations and data loading immediately (parallel for speed)
             setTimeout(() => {
                 animateNewRecElements(clone);
-                // Load recording data in parallel with animations for faster UX
+                // Load data for new LMID (ShareID links first, then recording counts)
+                preGenerateAllShareIDLinks([newLmid]);
                 batchLoadAllRecordingData([newLmid]);
             }, 50); // Reduced delay for faster response
         }
@@ -2535,6 +2572,9 @@
         const lmids = Array.from(lmidElements).map(el => el.getAttribute('data-lmid')).filter(Boolean);
         
         if (lmids.length > 0) {
+            // Pre-generate ShareID links first (priority)
+            await preGenerateAllShareIDLinks(lmids);
+            // Then load recording counts (secondary)
             await batchLoadAllRecordingData(lmids);
         }
     }
