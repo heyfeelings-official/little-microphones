@@ -28,7 +28,7 @@
     // Fun generating messages
     const GENERATING_MESSAGES = [
         "Mixing magical audio potions...",
-        "Teaching robots to speak kid language...",
+        "Boosting kids voice...",
         "Sprinkling digital fairy dust...",
         "Warming up the radio transmitters...",
         "Collecting voice sparkles...",
