@@ -309,29 +309,46 @@
                             newRecContainer.style.display = 'flex';
                         }
                         
-                        // 3. Setup ShareID and radio links for badge-rec elements (URL generation only)
+                        // 3. Setup ShareID and radio links for badge-rec elements (pre-generated like record.js)
                         if (hasRecordings) {
-                            const shareId = await getShareIdForWorldLmid(world, lmid);
-                            if (shareId) {
-                                const badgeRec = worldContainer.querySelector('.badge-rec');
-                                if (badgeRec) {
-                                    // Generate locale-aware radio URL (same logic as generate-program button)
-                                    const currentLang = window.LM_CONFIG?.getCurrentLanguage() || 'en';
-                                    const radioUrl = currentLang === 'en' 
-                                        ? `/little-microphones?ID=${shareId}`
-                                        : `/${currentLang}/little-microphones?ID=${shareId}`;
-                                    badgeRec.style.cursor = 'pointer';
-                                    badgeRec.onclick = (e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        window.location.href = radioUrl;
-                                    };
-                                    console.log(`🎵 ShareID link setup for ${world} LMID ${lmid}: ${radioUrl}`);
-                                } else {
-                                    console.warn(`⚠️ Badge-rec element not found in world container for ${world}`);
+                            const badgeRec = worldContainer.querySelector('.badge-rec');
+                            if (badgeRec) {
+                                try {
+                                    // Call the get-share-link API directly (same as record.js approach)
+                                    const response = await fetch(`${window.LM_CONFIG.API_BASE_URL}/api/get-share-link?lmid=${lmid}&world=${world}`);
+                                    
+                                    if (response.ok) {
+                                        const result = await response.json();
+                                        if (result.success && result.shareId) {
+                                            // Generate locale-aware radio URL (same logic as generate-program button)
+                                            const currentLang = window.LM_CONFIG?.getCurrentLanguage() || 'en';
+                                            const radioUrl = currentLang === 'en' 
+                                                ? `/little-microphones?ID=${result.shareId}`
+                                                : `/${currentLang}/little-microphones?ID=${result.shareId}`;
+                                            
+                                            // Pre-set as href attribute for better mobile support
+                                            badgeRec.setAttribute('href', radioUrl);
+                                            badgeRec.setAttribute('target', '_blank');
+                                            badgeRec.setAttribute('rel', 'noopener noreferrer');
+                                            badgeRec.style.cursor = 'pointer';
+                                            
+                                            // Backup click handler
+                                            badgeRec.onclick = (e) => {
+                                                // Let the browser handle the link naturally
+                                            };
+                                            
+                                            console.log(`🎵 ShareID link pre-generated for ${world} LMID ${lmid}: ${radioUrl}`);
+                                        } else {
+                                            console.warn(`⚠️ Failed to get ShareID for ${world} LMID ${lmid}:`, result.error || 'Unknown error');
+                                        }
+                                    } else {
+                                        console.warn(`⚠️ HTTP error ${response.status} getting ShareID for ${world} LMID ${lmid}`);
+                                    }
+                                } catch (error) {
+                                    console.error(`⚠️ Error setting up ShareID for ${world} LMID ${lmid}:`, error);
                                 }
                             } else {
-                                console.warn(`⚠️ No ShareID available for ${world} LMID ${lmid} (probably no recordings)`);
+                                console.warn(`⚠️ Badge-rec element not found in world container for ${world}`);
                             }
                         }
                         
