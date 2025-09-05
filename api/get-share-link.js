@@ -8,7 +8,7 @@
  * GET /api/get-share-link?lmid=38&world=spookyland
  * 
  * RESPONSE FORMAT:
- * { success: true, shareId: "kz7xp4v9", url: "https://domain.com/members/radio?ID=kz7xp4v9", world: "spookyland" }
+ * { success: true, shareId: "kz7xp4v9", url: "https://domain.com/little-microphones?ID=kz7xp4v9", world: "spookyland" }
  * 
  * LOGIC:
  * 1. Validate LMID and world parameters
@@ -170,7 +170,7 @@ export default async function handler(req, res) {
         const baseUrl = req.headers.host?.includes('localhost') 
             ? `http://${req.headers.host}` 
             : `https://${req.headers.host}`;
-        const shareableUrl = `${baseUrl}/members/radio?ID=${shareId}`;
+        const shareableUrl = `${baseUrl}/little-microphones?ID=${shareId}`;
 
         return res.status(200).json({
             success: true,
