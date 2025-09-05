@@ -5,7 +5,7 @@
     'use strict';
     
     // Configuration
-    const MIN_CHARACTERS = 500;
+    const MIN_CHARACTERS = 100;
     const SUCCESS_REDIRECT_URL = '/members/emotion-worlds?survey=filled';
     const REDIRECT_DELAY = 1500;
     
